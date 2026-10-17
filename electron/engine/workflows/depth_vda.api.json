@@ -1,0 +1,59 @@
+{
+ "1": {
+  "class_type": "LoadVideo",
+  "inputs": {
+   "file": "mia/placeholder_video.mp4"
+  }
+ },
+ "2": {
+  "class_type": "GetVideoComponents",
+  "inputs": {
+   "video": [
+    "1",
+    0
+   ]
+  }
+ },
+ "3": {
+  "class_type": "LoadVideoDepthAnythingModel",
+  "inputs": {
+   "model": "video_depth_anything_vits.pth"
+  }
+ },
+ "4": {
+  "class_type": "VideoDepthAnythingProcess",
+  "inputs": {
+   "vda_model": [
+    "3",
+    0
+   ],
+   "images": [
+    "2",
+    0
+   ],
+   "input_size": 518,
+   "max_res": 1280,
+   "precision": "fp16"
+  }
+ },
+ "5": {
+  "class_type": "VideoDepthAnythingOutput",
+  "inputs": {
+   "depths": [
+    "4",
+    0
+   ],
+   "colormap": "gray"
+  }
+ },
+ "9990": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "mia/depth/depth",
+   "images": [
+    "5",
+    0
+   ]
+  }
+ }
+}

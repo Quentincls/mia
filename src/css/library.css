@@ -1,0 +1,425 @@
+/* ── Bibliothèque des modèles (library.js) ─────────────────────────────
+   Un panneau latéral à droite, sous la barre de titre (qui reste utilisable),
+   dans la coque des modales de Slate : --surface, filet --line-2, r 18, ombre longue.
+   Une seule couleur d'accent : la barre de 2 px pendant un scan et le focus clavier.
+   Tout le reste est noir, gris, blanc (da.md §1.1, §4.1) — aucun halo, aucun dégradé. */
+
+.theme-dark { --lib-scrim: rgba(5, 5, 7, 0.42); }
+.theme-light { --lib-scrim: rgba(236, 236, 240, 0.5); }
+
+#library {
+  position: fixed; inset: var(--tb-h) 0 0 0; z-index: 300;
+  display: flex; justify-content: flex-end;
+}
+.lib-scrim { position: absolute; inset: 0; background: var(--lib-scrim); animation: lib-fade var(--dur-scrim) var(--ease); }
+.lib-sheet {
+  position: relative; display: flex; flex-direction: column; min-height: 0;
+  width: min(600px, calc(100vw - 24px)); margin: 4px 12px 12px 0;
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: lib-in var(--dur-enter) var(--ease-out);
+}
+#library.out .lib-sheet { animation: lib-out var(--dur-exit) var(--ease-in) forwards; }
+#library.out .lib-scrim { animation: lib-fade-out var(--dur-exit) var(--ease) forwards; }
+@keyframes lib-in { from { opacity: 0; transform: translateX(16px); } }
+@keyframes lib-out { to { opacity: 0; transform: translateX(10px); } }
+@keyframes lib-fade { from { opacity: 0; } }
+@keyframes lib-fade-out { to { opacity: 0; } }
+
+/* ── progression : 2 px en haut de la feuille, rognés par le rayon ─────── */
+.lib-progress { position: absolute; top: 0; left: 0; right: 0; height: 2px; overflow: hidden; pointer-events: none; z-index: 2; }
+.lib-progress i {
+  position: absolute; inset: 0; background: var(--accent);
+  transform-origin: 0 50%; transform: scaleX(0); transition: transform var(--dur-rise) linear;
+}
+.lib-sheet:not(.is-scanning) .lib-progress { opacity: 0; transition: opacity var(--dur-cam) var(--ease); }
+.lib-progress.indet i { width: 30%; transition: none; animation: lib-indet var(--dur-loop) linear infinite; }
+@keyframes lib-indet { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+
+/* ── en-tête ───────────────────────────────────────────────────────── */
+.lib-head { padding: 14px 16px 10px 20px; }
+.lib-head-top { display: flex; align-items: center; justify-content: space-between; min-height: 26px; }
+.lib-close { margin-right: -4px; }
+.lib-head-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.lib-title { font-family: var(--font-display); font-size: 20px; font-weight: 620; letter-spacing: -.015em; color: var(--txt); }
+.lib-sum { font-size: 12.5px; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.lib-status {
+  display: flex; align-items: center; gap: 7px; min-height: 18px; margin-top: 8px;
+  font-size: 11.5px; color: var(--txt-3); font-variant-numeric: tabular-nums;
+}
+.lib-status-sep { opacity: .6; }
+.lib-status-phase { color: var(--txt-2); }
+/* ComfyUI en marche = point plein ; éteint = simple anneau. Pas de vert : la neutralité suffit. */
+.lib-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--txt-3); }
+.lib-dot.on { background: var(--txt-2); box-shadow: none; }
+.lib-dot.err { background: var(--danger); box-shadow: none; }
+
+/* ── outils : recherche, rescanner, recherche approfondie ──────────── */
+.lib-tools { display: flex; align-items: center; gap: 6px; padding: 2px 16px 12px 20px; }
+.lib-search { flex: 1 1 auto; min-width: 0; height: 30px; padding: 0 10px; }
+.lib-search > span { display: grid; place-items: center; }
+.lib-search input { width: 100%; min-width: 0; font-size: 12.5px; }
+.lib-tools .btn.sm { height: 30px; }
+
+.lib-filter { padding: 0 20px 10px; }
+.lib-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 3px 0 10px;
+  border-radius: var(--r-full); background: var(--wash-2); color: var(--txt); font-size: 12px; font-weight: 520;
+}
+.lib-chip-x {
+  width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: var(--txt-2);
+  transition: background var(--dur), color var(--dur);
+}
+.lib-chip-x:hover { background: var(--wash-3); color: var(--txt); }
+
+/* ── ce qui manque : informatif, jamais alarmant ───────────────────── */
+.lib-missing {
+  margin: 0 16px 12px 20px; padding: 9px 12px 10px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--line-2);
+}
+.lib-missing .kicker { margin-bottom: 2px; }
+/* une ligne résumé par usage : chevron + nom (le bouton qui déplie), à droite le geste ou l'état */
+.lib-missing-item + .lib-missing-item { border-top: 1px solid var(--line); }
+.lib-missing-row { display: flex; align-items: center; gap: 8px; min-height: 34px; }
+.lib-missing-toggle {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 7px; align-self: stretch;
+  margin-left: -4px; padding: 0 4px; border-radius: var(--r-sm); text-align: left;
+  font-size: 12.5px; color: var(--txt); transition: color var(--dur);
+}
+.lib-missing-toggle:focus-visible { outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
+.lib-missing-chev { display: grid; place-items: center; flex: 0 0 auto; color: var(--txt-3); transform: rotate(-90deg); transition: transform var(--dur) var(--ease), color var(--dur); }
+.lib-missing-toggle:hover .lib-missing-chev { color: var(--txt-2); }
+.lib-missing-item.open .lib-missing-chev { transform: none; }
+.lib-missing-cap { min-width: 0; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-missing-side { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-right: -6px; }
+.lib-missing-side .lib-missing-size { color: var(--txt-3); margin-right: 6px; }
+.lib-missing-sub { padding: 0 0 10px; }
+.lib-missing-sub.enter { animation: lib-fade var(--dur-enter) var(--ease-out); }
+.lib-missing-what { margin: 0 0 2px 21px; font-size: 12px; line-height: 1.45; color: var(--txt-2); overflow-wrap: anywhere; }
+.lib-missing-detail { margin: 1px 0 0 21px; font-size: 11.5px; line-height: 1.45; color: var(--txt-3); overflow-wrap: anywhere; }
+/* un fichier attendu : son nom exact (mono), le dossier où le ranger, sa taille */
+.lib-missing-file {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 3px 0 0 21px;
+  font-size: 11.5px; line-height: 1.4; color: var(--txt-3);
+}
+.lib-missing-name { font-family: var(--font-mono); font-size: 11px; color: var(--txt); overflow-wrap: anywhere; min-width: 0; }
+.lib-missing-dir { font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; min-width: 0; user-select: text; }
+.lib-missing-size { font-family: var(--font-mono); font-size: 11px; white-space: nowrap; }
+.lib-missing-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+}
+.lib-missing-how { font-size: 11.5px; line-height: 1.4; color: var(--txt-2); min-width: 0; }
+.lib-missing-foot .btn { flex: 0 0 auto; margin-right: -6px; }
+
+/* ── un seul défilement : téléchargements, ce qui manque, puis les sections ── */
+.lib-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.lib-body { padding: 4px 10px 18px; border-top: 1px solid var(--line); }
+.lib-sec { padding-top: 6px; }
+.lib-sec + .lib-sec { margin-top: 6px; border-top: 1px solid var(--line); }
+.lib-sec-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: var(--r-sm); text-align: left;
+}
+.lib-sec-head .kicker { transition: color var(--dur); }
+.lib-sec-head:hover .kicker { color: var(--txt-2); }
+.lib-sec-count { font-family: var(--font-mono); font-size: 11px; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.lib-sec-chev { margin-left: auto; display: grid; place-items: center; color: var(--txt-3); transition: transform var(--dur) var(--ease); }
+.lib-sec-head.folded .lib-sec-chev { transform: rotate(-90deg); }
+.lib-sec-hint { font-size: 11.5px; line-height: 1.4; color: var(--txt-3); padding: 0 10px 6px; margin-top: -3px; }
+
+/* une ligne = un modèle : nom, famille en mono gris, phrase simple ; à droite pastilles et taille */
+.lib-row {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 7px 8px 7px 10px;
+  border-radius: var(--r-md); cursor: default; transition: background var(--dur);
+}
+.lib-row:hover { background: var(--wash); }
+.lib-row.open { background: var(--wash); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.lib-row:focus-visible { outline: 1.5px solid var(--accent); outline-offset: -1.5px; border-radius: var(--r-md); }
+.lib-row-main { flex: 1 1 auto; min-width: 0; }
+.lib-row-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lib-name {
+  font-size: 13px; font-weight: 550; color: var(--txt);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.lib-row.dim .lib-name { color: var(--txt-2); }
+.lib-auto {
+  flex: 0 0 auto; font-family: var(--font-kicker); font-size: 9.5px; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: var(--r-chip); color: var(--txt); background: var(--wash-3);
+}
+.lib-row-sub { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 2px; }
+.lib-fam {
+  flex: 0 0 auto; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-kicker); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+.lib-desc { min-width: 0; font-size: 11.5px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-row.open .lib-desc { visibility: hidden; }   /* la phrase entière est juste en dessous */
+.lib-row-side { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.lib-badge {
+  font-family: var(--font-kicker); font-size: 9.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: var(--r-chip); border: 1px solid var(--line-2); color: var(--txt-3); white-space: nowrap;
+}
+.lib-badge.fit-tight, .lib-badge.st-incomplete, .lib-badge.lic-rd { color: var(--txt-2); }
+.lib-badge.fit-over { color: var(--txt); border-color: var(--line-strong); }
+.lib-badge.lic-forbidden { color: var(--danger); border-color: var(--line-strong); }
+.lib-size {
+  min-width: 58px; text-align: right; font-family: var(--font-mono); font-size: var(--fs-num);
+  color: var(--txt-2); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.lib-chev { display: grid; place-items: center; color: var(--txt-3); opacity: 0; transition: opacity var(--dur), transform var(--dur) var(--ease); }
+.lib-row:hover .lib-chev, .lib-row.open .lib-chev, .lib-row:focus-visible .lib-chev { opacity: 1; }
+.lib-row.open .lib-chev { transform: rotate(180deg); }
+
+/* détail déplié : la phrase entière, l'état, les pastilles en clair, le chemin */
+.lib-detail {
+  margin-bottom: 6px; padding: 2px 12px 12px; background: var(--wash);
+  border-radius: 0 0 var(--r-md) var(--r-md); animation: lib-fade var(--dur-enter) var(--ease-out);
+}
+.lib-detail-desc { font-size: 12.5px; line-height: 1.45; color: var(--txt-2); padding: 2px 0 9px; }
+.lib-note {
+  display: flex; align-items: flex-start; gap: 7px; margin-bottom: 9px; padding: 7px 10px;
+  border-radius: var(--r-sm); background: var(--surface-3); font-size: 12px; line-height: 1.4; color: var(--txt);
+}
+.lib-note-ico { display: grid; place-items: center; color: var(--txt-2); margin-top: 1px; flex: 0 0 auto; }
+.lib-note-txt { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.lib-note .btn { flex: 0 0 auto; margin: -3px -6px -3px 0; }
+.lib-kvs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 14px; font-size: 12px; line-height: 1.4; }
+.lib-kv { display: contents; }
+.lib-k { color: var(--txt-3); white-space: nowrap; }
+.lib-v { min-width: 0; color: var(--txt-2); overflow-wrap: anywhere; }
+.lib-v.mono { font-family: var(--font-mono); font-size: 11.5px; }
+.lib-v.pre { white-space: pre-line; }
+.lib-v.select { user-select: text; cursor: text; }
+.lib-meter-wrap { display: inline-flex; align-items: center; gap: 9px; }
+.lib-meter { display: inline-flex; gap: 3px; }
+.lib-meter i { display: block; width: 14px; height: 3px; border-radius: 2px; background: var(--line-2); }
+.lib-meter i.on { background: var(--txt-2); }
+.lib-actions { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 0 -9px; }
+
+/* autres applications : une ligne par logiciel, ses fichiers seulement sur demande */
+.lib-count { font-family: var(--font-mono); font-size: 11px; color: var(--txt-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lib-app-files { margin: 0 0 6px 14px; padding-left: 6px; border-left: 1px solid var(--line); }
+.lib-app-row.open { border-radius: var(--r-md); }
+.lib-app-row.open .lib-desc { visibility: visible; }
+/* espace de la flèche sur les lignes qui ne se déplient pas : les tailles restent alignées */
+.lib-chev-spacer { visibility: hidden; }
+
+/* « Ajouter un LoRA… » sous la liste de « Mes LoRA » */
+.lib-sec-actions { display: flex; gap: 4px; padding: 4px 0 4px 1px; }
+
+/* étapes d'entraînement des LoRA : repliées sous les personnages */
+.lib-sub-toggle {
+  display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; margin: 2px 0;
+  border-radius: var(--r-sm); font-size: 12px; color: var(--txt-3); transition: background var(--dur), color var(--dur);
+}
+.lib-sub-toggle:hover { background: var(--wash); color: var(--txt-2); }
+.lib-sub-toggle > span { display: grid; place-items: center; transition: transform var(--dur) var(--ease); }
+.lib-sub-toggle.open > span { transform: rotate(90deg); }
+
+.lib-empty { padding: 40px 16px; text-align: center; font-size: 13px; color: var(--txt-3); }
+
+@media (max-width: 560px) {
+  .lib-desc { display: none; }
+  .lib-tools { flex-wrap: wrap; }
+  .lib-search { flex-basis: 100%; }
+}
+
+/* ── bouton « Modèles » de la barre de titre ───────────────────────── */
+.lib-tb { gap: 6px; padding: 0 10px 0 8px; }
+.lib-tb-ico { display: grid; place-items: center; }
+.lib-tb-count { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.lib-tb-count:empty { display: none; }
+.lib-tb.on { background: var(--wash-2); color: var(--txt); }
+.lib-tb.on .lib-tb-count, .lib-tb:hover .lib-tb-count { color: var(--txt-2); }
+
+/* ── accueil : « MODÈLES SUR CE PC », une ligne par usage ──────────── */
+.hm .home-sec-head { align-items: center; }
+.hm-head-side { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hm-sum { font-size: 12px; color: var(--txt-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hm-all {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px 0 10px;
+  border-radius: 7px; font-size: 12px; font-weight: 520; color: var(--txt-2);
+  transition: background var(--dur), color var(--dur);
+}
+.hm-all:hover { background: var(--surface-3); color: var(--txt); }
+.hm-all > span { display: grid; place-items: center; }
+/* les filets entre lignes : la dernière rangée est rognée par le cadre (marge de -1 px) */
+.hm-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr)); column-gap: 32px;
+  padding: 2px 16px 0; overflow: hidden;
+  border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line);
+}
+.hm-row {
+  /* pistes fixes sauf le nom : les colonnes s'alignent d'une ligne à l'autre */
+  display: grid; grid-template-columns: 186px minmax(0, 1fr) 56px 84px;
+  align-items: center; gap: 12px; width: calc(100% + 16px); height: 40px; margin: 0 -8px -1px; padding: 0 8px;
+  border-bottom: 1px solid var(--line); border-radius: 0; text-align: left;
+  transition: background var(--dur);
+}
+.hm-row:hover { background: var(--wash); }
+.hm-row:focus-visible { outline-offset: -1.5px; border-radius: var(--r-sm); }
+.hm-cap { font-size: 13px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-model { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+.hm-name { flex: 0 1 auto; font-size: 12.5px; color: var(--txt-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hm-fam {
+  flex: 0 100 auto; font-family: var(--font-kicker); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.hm-size { font-family: var(--font-mono); font-size: 11.5px; color: var(--txt-3); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hm-state {
+  justify-self: end; font-family: var(--font-kicker); font-size: 9.5px; font-weight: 500; letter-spacing: .08em;
+  text-transform: uppercase; white-space: nowrap; color: var(--txt-2);
+}
+.hm-missing .hm-name, .hm-missing .hm-state { color: var(--txt-3); }
+.hm-missing .hm-cap { color: var(--txt-2); }
+.hm-incomplete .hm-state { color: var(--txt); }
+.hm-wait { grid-template-columns: 1fr; }
+.hm-wait .hm-cap { font-weight: 400; color: var(--txt-3); font-size: 12.5px; }
+/* arrivée des lignes : fondu + 8 px, 30 ms d'écart (da.md §4.10) */
+.hm-anim .hm-row { animation: lib-rise var(--dur-card) var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+@keyframes lib-rise { from { opacity: 0; transform: translateY(8px); } }
+
+@media (max-width: 640px) {
+  .hm-row { grid-template-columns: 150px minmax(0, 1fr) 84px; }
+  .hm-fam, .hm-size { display: none; }
+}
+
+/* mouvement réduit : les durées de tokens.css passent à 1 ms ; restent les boucles, coupées ici */
+@media (prefers-reduced-motion: reduce) {
+  .lib-progress.indet i { animation: none; transform: none; width: 100%; opacity: .5; }
+}
+
+/* ── « Ajouter un LoRA » / « Modifier le LoRA » (modale, SPEC §12.1) ─── */
+.lora-dialog { padding: 22px 22px 20px; }
+.lora-modal h2 { margin-bottom: 10px; }
+.lora-file { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.lora-file-name {
+  flex: 1 1 auto; min-width: 0; font-family: var(--font-mono); font-size: 11.5px; color: var(--txt-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lora-file-size { flex: 0 0 auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.lora-for { margin-top: 4px; font-size: 13px; color: var(--txt); font-weight: 520; }
+.lora-already {
+  display: flex; align-items: flex-start; gap: 7px; margin-top: 10px; padding: 7px 10px;
+  border-radius: var(--r-sm); background: var(--surface-3); font-size: 12px; line-height: 1.4; color: var(--txt-2);
+}
+.lora-already > span { display: grid; place-items: center; margin-top: 1px; flex: 0 0 auto; color: var(--txt-3); }
+.lora-fields { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 14px; }
+.lora-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.lora-label { font-size: 12px; color: var(--txt-2); }
+.lora-field .tf { width: 100%; }
+.lora-keep { font-size: 11.5px; line-height: 1.45; color: var(--txt-3); margin: 0 0 16px; }
+.modal .lora-keep { font-size: 11.5px; color: var(--txt-3); margin-bottom: 16px; }
+
+/* ── installer ce qui manque (SPEC §21.4) ─────────────────────────────
+   Même coque que « Il manque ». Le bleu ne sert qu'à la progression en cours (2 px) ; en pause la barre
+   devient grise, terminée elle s'efface (400 ms). Rien ne clignote, rien ne brille. */
+.lib-top:empty, .lib-top:has(> [hidden]:first-child + [hidden]:last-child), .lib-top.searching { display: none; }
+
+.lib-engine {
+  display: flex; align-items: center; gap: 7px; margin-top: 6px; min-height: 26px;
+  font-size: 11.5px; line-height: 1.4; color: var(--txt-2);
+}
+.lib-engine-ico { display: grid; place-items: center; color: var(--txt-3); flex: 0 0 auto; }
+.lib-engine-txt { min-width: 0; }
+.lib-engine .btn { margin-left: auto; flex: 0 0 auto; }
+
+.lib-dl {
+  margin: 0 16px 12px 20px; padding: 9px 12px 4px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--line-2);
+  animation: lib-fade var(--dur-enter) var(--ease-out);
+}
+.lib-dl-head { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.lib-dl-when { min-width: 0; font-size: 11.5px; color: var(--txt-3); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-dl-actions { display: flex; gap: 2px; margin-left: auto; margin-right: -6px; flex: 0 0 auto; }
+.lib-dl-row { display: flex; align-items: center; gap: 10px; padding: 8px 0 9px; }
+.lib-dl-row + .lib-dl-row { border-top: 1px solid var(--line); }
+.lib-dl-main { flex: 1 1 auto; min-width: 0; }
+.lib-dl-top { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.lib-dl-name { min-width: 0; font-size: 12.5px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-dl-pct { margin-left: auto; flex: 0 0 auto; font-family: var(--font-mono); font-size: 11px; color: var(--txt-2); font-variant-numeric: tabular-nums; }
+.lib-dl-meta { margin-top: 2px; font-size: 11.5px; line-height: 1.4; color: var(--txt-3); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lib-dl-row.st-error .lib-dl-meta { color: var(--txt-2); }
+.lib-dl-row.st-error .lib-dl-name { color: var(--txt-2); }
+.lib-dl-bar { position: relative; height: 2px; margin-top: 7px; border-radius: 1px; background: var(--line-2); overflow: hidden; transition: opacity var(--dur-cam) var(--ease); }
+.lib-dl-bar i {
+  position: absolute; inset: 0; border-radius: inherit; background: var(--accent);
+  transform-origin: 0 50%; transform: scaleX(0); transition: transform var(--dur-rise) linear, background-color var(--dur);
+}
+.lib-dl-row.st-paused .lib-dl-bar i, .lib-dl-row.st-queued .lib-dl-bar i, .lib-dl-row.st-error .lib-dl-bar i { background: var(--txt-3); }
+.lib-dl-row.st-done .lib-dl-bar { opacity: 0; }
+/* place de deux boutons, alignés à droite : barres et pourcentages finissent sur la même verticale, quel que
+   soit le nombre de boutons de la ligne (en cours, en pause, en attente) */
+.lib-dl-side { display: flex; align-items: center; justify-content: flex-end; gap: 2px; flex: 0 0 auto; min-width: 54px; margin-right: -4px; }
+.lib-dl-btn {
+  width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--txt-2);
+  transition: background var(--dur), color var(--dur);
+}
+.lib-dl-btn:hover { background: var(--wash-2); color: var(--txt); }
+.lib-dl-btn:active { transform: scale(.96); }
+.lib-dl-ok { width: 26px; height: 26px; display: grid; place-items: center; color: var(--txt-2); }
+
+/* sous « Il manque » : une ligne par modèle à télécharger, le bouton ou son état à droite */
+.lib-inst-row { display: flex; align-items: center; gap: 10px; min-height: 30px; margin: 2px 0 0 21px; }
+.lib-inst-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.lib-inst-name { flex: 0 0 auto; max-width: 62%; min-width: 0; font-size: 12px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-inst-file { flex: 1 1 auto; min-width: 0; font-family: var(--font-mono); font-size: 11px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-inst-opt .lib-inst-name { color: var(--txt-2); font-weight: 500; }
+.lib-inst-opt .lib-inst-file { font-family: var(--font-ui); font-size: 11.5px; }
+.lib-inst-side { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; margin-right: -6px; }
+.lib-inst-chip {
+  font-family: var(--font-kicker); font-size: 9.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: var(--r-chip); border: 1px solid var(--line-2); color: var(--txt-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.lib-inst-chip.st-downloading, .lib-inst-chip.st-verifying { color: var(--txt); border-color: var(--line-strong); }
+.lib-inst-chip.st-done { color: var(--txt-2); }
+.lib-inst-size { margin-right: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--txt-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* « Licence à accepter » : un état, pas une alerte — gris, sans couleur */
+.lib-inst-chip.st-gated { color: var(--txt-2); border-style: dashed; }
+
+/* ── la note d'un modèle à licence (tokenNote, partagée avec l'accueil) : quoi faire, les pages, le jeton ── */
+.lib-tok {
+  display: flex; align-items: flex-start; gap: 8px; margin: 8px 0 2px 21px; padding: 9px 10px 10px 10px;
+  border-radius: var(--r-sm); background: var(--surface-3); border: 1px solid var(--line);
+  font-size: 11.5px; line-height: 1.5; color: var(--txt-2);
+}
+.lib-tok-ico { display: grid; place-items: center; margin-top: 2px; color: var(--txt-3); flex: 0 0 auto; }
+.lib-tok-body { flex: 1 1 auto; min-width: 0; }
+.lib-tok-lead { margin: 0; color: var(--txt); }
+.lib-tok-links { display: flex; flex-wrap: wrap; gap: 2px; margin: 6px 0 0 -8px; }
+.lib-tok-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.lib-tok-row .tf { flex: 1 1 auto; min-width: 0; height: 28px; }
+.lib-tok-row .btn { flex: 0 0 auto; height: 28px; }
+.lib-tok-msg { margin: 6px 0 0; color: var(--txt); }
+.lib-tok-msg.err { color: var(--danger); }
+.lib-tok-keep { margin: 8px 0 0; color: var(--txt-3); }
+.lib-tok-cli { margin: 2px 0 0; color: var(--txt-3); }
+.lib-tok-cmdrow { display: flex; align-items: flex-start; gap: 4px; margin-top: 2px; }
+.lib-tok-cmd { flex: 1 1 auto; min-width: 0; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.6; color: var(--txt-2); overflow-wrap: anywhere; user-select: text; }
+.lib-tok-copy {
+  flex: 0 0 auto; width: 22px; height: 22px; margin-top: -2px; border-radius: 6px; display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--dur), color var(--dur);
+}
+.lib-tok-copy:hover { background: var(--wash-2); color: var(--txt); }
+.lib-tok.is-denied { padding-bottom: 9px; }
+
+/* le bouton « Modèles » pendant un téléchargement : le pourcentage, et 2 px d'accent qui avancent dessous */
+.lib-tb { position: relative; }
+.lib-tb-bar {
+  position: absolute; left: 9px; right: 9px; bottom: 4px; height: 2px; border-radius: 1px; background: var(--accent);
+  transform-origin: 0 50%; transform: scaleX(0); opacity: 0; pointer-events: none;
+  transition: transform var(--dur-rise) linear, opacity var(--dur-cam) var(--ease);
+}
+.lib-tb.dl .lib-tb-bar { opacity: 1; }
+.lib-tb.dl .lib-tb-count { color: var(--txt-2); }
+
+/* l'explication d'un dépôt à licence, une seule fois au-dessus des lignes (la note elle-même : .lib-tok) */
+.lib-dl-note .lib-tok { margin: 6px 0 4px; }
+/* une ligne arrêtée n'a pas de barre ; ouverte depuis un bloc, la bibliothèque montre d'abord ce qui manque */
+.lib-dl-row.st-error .lib-dl-bar { display: none; }
+.lib-top { display: flex; flex-direction: column; }
+.lib-top.filtered .lib-missing { order: -1; }
+/* un usage qui reprend les fichiers d'un autre (LTX) : une ligne, pas la liste répétée */
+.lib-inst-same { margin: 3px 0 0 21px; font-size: 11.5px; line-height: 1.45; color: var(--txt-3); }

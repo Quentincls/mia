@@ -1,0 +1,104 @@
+{
+  "id": "cutout-character",
+  "icon": "cutout",
+  "label": {
+    "fr": "Détourer un personnage",
+    "en": "Cut out a character"
+  },
+  "desc": {
+    "fr": "Sépare le personnage du fond et le pose sur un autre décor.",
+    "en": "Separates the character from the background and places it on another set."
+  },
+  "nodes": [
+    {
+      "key": "src",
+      "type": "import",
+      "x": 0,
+      "y": 0,
+      "placeholder": {
+        "kind": "media",
+        "fr": "Personnage",
+        "en": "Character"
+      }
+    },
+    {
+      "key": "bg",
+      "type": "import",
+      "x": 0,
+      "y": 456,
+      "placeholder": {
+        "kind": "media",
+        "fr": "Nouveau fond",
+        "en": "New background"
+      }
+    },
+    {
+      "key": "cut",
+      "type": "cutout",
+      "x": 432,
+      "y": 0
+    },
+    {
+      "key": "comp",
+      "type": "composite",
+      "x": 864,
+      "y": 120
+    },
+    {
+      "key": "cmp",
+      "type": "compare",
+      "x": 1296,
+      "y": 0
+    },
+    {
+      "key": "exp",
+      "type": "export",
+      "x": 1848,
+      "y": 120
+    }
+  ],
+  "edges": [
+    [
+      "src",
+      "out",
+      "cut",
+      "media"
+    ],
+    [
+      "bg",
+      "out",
+      "comp",
+      "bg"
+    ],
+    [
+      "src",
+      "out",
+      "comp",
+      "fg"
+    ],
+    [
+      "cut",
+      "mask",
+      "comp",
+      "mask"
+    ],
+    [
+      "src",
+      "out",
+      "cmp",
+      "a"
+    ],
+    [
+      "comp",
+      "out",
+      "cmp",
+      "b"
+    ],
+    [
+      "comp",
+      "out",
+      "exp",
+      "media"
+    ]
+  ]
+}

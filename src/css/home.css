@@ -1,0 +1,322 @@
+/* ── home / projects ────────────────────────────────────────────────── */
+/* the gutter is kept even when nothing scrolls, so a search that empties the
+   page does not shift it 5 px; the bar starts under the floating title bar */
+#view-home { overflow: auto; background: var(--bg); scrollbar-gutter: stable; }
+#view-home::-webkit-scrollbar-track { margin-top: calc(var(--tb-h) + 4px); margin-bottom: 4px; }
+.home-wrap { max-width: 1240px; margin: 0 auto; padding: calc(var(--tb-h) + 36px) 40px 72px; }
+
+.home-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+  margin-bottom: 28px; flex-wrap: wrap;
+}
+.home-title { font-family: var(--font-display); font-size: var(--fs-display); font-weight: 620; letter-spacing: -.02em; }
+.home-sub { font-size: 12.5px; color: var(--txt-3); margin-top: 3px; }
+.home-sub:empty { display: none; }
+/* no subtitle (no projects yet): title and buttons on one centre line, as in Slate */
+.home-head.no-sub { align-items: center; }
+.home-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* une seule grille pour toutes les sections empilées de l'accueil (projets, planches, recettes) :
+   mêmes colonnes et même gouttière à toutes les largeurs de fenêtre */
+#view-home { --home-col: 240px; --home-gap: 16px; }
+.home-grid { display: grid; gap: var(--home-gap); grid-template-columns: repeat(auto-fill, minmax(var(--home-col), 1fr)); }
+
+.card {
+  position: relative; border-radius: var(--r-lg); overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line);
+  transition: border-color var(--dur), background var(--dur), transform var(--dur-enter) var(--ease-out);
+  cursor: default;
+}
+/* survol : la carte monte de 2 px et sa vignette s'éclaire à peine (SPEC §20.1) */
+.card:hover { border-color: var(--line-2); background: var(--surface-2); transform: translateY(-2px); }
+.card:active { transform: translateY(-1px) scale(0.995); transition-duration: var(--dur-pop); }
+.card.dragging:hover, .card.leaving { transform: none; }
+.card-thumb::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: #fff; opacity: 0; transition: opacity var(--dur-enter) var(--ease-out);
+}
+.card:hover .card-thumb::after { opacity: .035; }
+.theme-light .card:hover .card-thumb::after { opacity: .06; }
+.card.is-open .card-name::after {
+  /* the project already has a tab: a small dot, the same as the tab's own */
+  content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--txt-3); margin-left: 7px; vertical-align: middle; transform: translateY(-1px);
+}
+.card-thumb {
+  aspect-ratio: 16 / 10; position: relative; overflow: hidden;
+  display: grid; place-items: center;
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.2px);
+  background-size: 17px 17px;
+  border-bottom: 1px solid var(--line);
+}
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-empty-glyph { color: var(--txt-3); opacity: .4; display: grid; place-items: center; }
+
+.card-body { padding: 11px 13px 12px; display: flex; align-items: center; gap: 10px; }
+.card-meta { min-width: 0; flex: 1; }
+.card-name {
+  font-size: 13px; font-weight: 550; color: var(--txt);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-date { font-size: 11px; color: var(--txt-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* recherche à la racine : « ● Projet · Modifiée il y a… » sur une rangée ; le nom du projet cède (« … »),
+   la date reste entière (elle ne prend jamais plus que la place moins 40 px) */
+.card-date:has(.card-folder) { display: flex; align-items: center; min-width: 0; }
+.card-when { flex: 0 0 auto; max-width: calc(100% - 40px); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.card-folder + .card-when::before { content: '·'; color: var(--txt-3); margin: 0 6px 0 4px; }
+.card-more {
+  width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto;
+  color: var(--txt-3); opacity: 0; transition: opacity var(--dur), background var(--dur), color var(--dur);
+}
+.card:hover .card-more, .card-more:focus-visible, .card-more.on { opacity: 1; }
+.card-more:hover, .card-more.on { background: var(--surface-3); color: var(--txt); }
+
+.card-new {
+  display: grid; place-items: center; align-content: center; min-height: 192px; gap: 10px;
+  border-radius: var(--r-lg); color: var(--txt-3);
+  border: 1px dashed var(--line-2); background: transparent;
+  transition: color var(--dur), border-color var(--dur), background var(--dur), transform var(--dur-enter) var(--ease-out);
+}
+.card-new:active { transform: scale(0.99); transition-duration: var(--dur-pop); }
+.card-new:hover { color: var(--txt-2); border-color: var(--line-strong); background: var(--surface); }
+.card-new span { font-size: 12.5px; font-weight: 520; }
+.card-new svg { display: block; }
+
+/* cards arrive once: a fade and 8 px of rise, 30 ms apart (da.md §4.10) */
+.home-anim .card, .home-anim .card-new, .home-anim .recipe {
+  animation: card-in var(--dur-card) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+@keyframes card-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) {
+  .home-anim .card, .home-anim .card-new, .home-anim .recipe { animation: none; }
+  .card:hover, .recipe:hover { transform: none; }
+}
+
+/* ── empty state: the mark, its name, one sentence, one action ───────── */
+.home-empty { text-align: center; padding: 64px 20px 56px; color: var(--txt-2); }
+.home-empty-art { color: var(--txt-3); display: grid; justify-items: center; gap: 12px; margin-bottom: 22px; }
+.home-empty-art svg { display: block; }
+.home-empty-art .kicker { letter-spacing: .3em; margin-right: -.3em; }
+.home-empty h2 { font-size: 18px; font-weight: 600; color: var(--txt); margin-bottom: 6px; font-family: var(--font-display); }
+.home-empty p { font-size: 13px; margin: 0 auto 20px; max-width: 460px; }
+
+/* nothing matched the search */
+.home-none { grid-column: 1 / -1; padding: 40px 0; text-align: center; font-size: 13px; color: var(--txt-3); }
+
+/* ── sections below the projects ────────────────────────────────────── */
+.home-sec { margin-top: 44px; }
+.home-sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+
+.recipes { display: grid; gap: var(--home-gap); grid-template-columns: repeat(auto-fill, minmax(var(--home-col), 1fr)); }
+.recipe {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 13px 14px 14px;
+  text-align: left; border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--line);
+  transition: border-color var(--dur), background var(--dur), transform var(--dur-enter) var(--ease-out);
+}
+.recipe:hover { border-color: var(--line-2); background: var(--surface-2); transform: translateY(-1px); }
+.recipe:active { transform: scale(0.99); transition-duration: var(--dur-pop); }
+.recipe:hover .recipe-ico { color: var(--txt); }
+.recipe-ico {
+  width: 34px; height: 34px; flex: 0 0 auto; border-radius: 9px;
+  display: grid; place-items: center; color: var(--txt-2);
+  background: var(--surface-3); border: 1px solid var(--line);
+  transition: color var(--dur);
+}
+.recipe-ico svg { display: block; }
+.recipe-text { min-width: 0; flex: 1; padding-top: 1px; }
+.recipe-name { display: block; font-size: 13px; font-weight: 550; color: var(--txt); }
+/* trois lignes : sur la grille commune de l'accueil (colonnes de 240 px), la phrase d'une recette tient en entier */
+.recipe-desc {
+  font-size: 11.5px; line-height: 1.4; color: var(--txt-3); margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* the models section is drawn by the library module (C) */
+#home-models:empty { display: none; }
+#home-models { margin-top: 44px; }
+
+/* ── order of the projects ──────────────────────────────────────────── */
+.home-sort {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 11px 0 13px; border-radius: 9px;
+  font-size: 12.5px; font-weight: 500; white-space: nowrap;
+  color: var(--txt-2); background: var(--surface-3); border: 1px solid var(--line);
+  transition: background var(--dur), border-color var(--dur), color var(--dur);
+}
+.home-sort:hover, .home-sort.on { background: var(--surface-hi); border-color: var(--line-2); color: var(--txt); }
+.home-sort svg { opacity: .6; display: block; }
+
+/* files dragged over the home page: a real layer over the cards (their
+   thumbnails never show through the words), the words in a pill */
+.home-drop {
+  position: fixed; inset: calc(var(--tb-h) + 6px) 14px 14px; z-index: 30;
+  display: none; place-items: center;
+  border: 1.5px dashed var(--accent-line); border-radius: 18px;
+  background: color-mix(in srgb, color-mix(in srgb, var(--bg) 90%, var(--accent) 10%) 92%, transparent);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+#view-home.drop-here .home-drop { display: grid; animation: fade var(--dur-pop) var(--ease); }
+.home-drop-pill {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 12px 20px; border-radius: 16px;
+  background: var(--surface-2); border: 1px solid var(--line-2); box-shadow: var(--shadow-md);
+}
+.home-drop-title { font-size: 14px; font-weight: 600; color: var(--txt); }
+.home-drop-sub { font-size: 12px; color: var(--txt-2); }
+
+/* the projects folder cannot be reached: one calm line, two ways out */
+.home-banner {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 18px; padding: 10px 10px 10px 14px;
+  border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-2);
+  font-size: 12.5px; color: var(--txt);
+}
+.home-banner-ico { color: var(--danger); display: grid; place-items: center; flex: 0 0 auto; }
+.home-banner-ico svg { display: block; }
+.home-banner-msg { flex: 1 1 auto; min-width: 0; }
+.home-banner .btn { flex: 0 0 auto; }
+
+@media (max-width: 720px) {
+  .home-wrap { padding-left: 22px; padding-right: 22px; }
+  .search input { width: 130px; }
+}
+
+/* ── projects → boards (SPEC §18.3) ─────────────────────────────────── */
+/* PROJETS, then PLANCHES: a mono kicker over each grid, its count beside it */
+.home-part { margin-bottom: 34px; }
+.home-part-head {
+  display: flex; align-items: baseline; gap: 9px; margin-bottom: 12px;
+  border-radius: var(--r-sm); transition: background var(--dur), box-shadow var(--dur);
+}
+.home-part-head .kicker { margin: 0; }
+.home-part-count {
+  font-family: var(--font-kicker); font-size: var(--fs-kicker); letter-spacing: .08em;
+  font-variant-numeric: tabular-nums; color: var(--txt-3); opacity: .7;
+}
+.home-part-count:empty { display: none; }
+
+/* the secondary « Nouveau projet » beside Slate's shiny « Nouvelle planche » */
+#home-new-folder .btn-ico { display: grid; place-items: center; color: var(--txt-2); }
+#home-new-folder .btn-ico svg { display: block; }
+
+/* a project's colour: a dot before its name, a line under its pictures */
+.fdot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--fc, var(--txt-3));
+}
+.folder-card .card-name { display: flex; align-items: center; gap: 8px; }
+.folder-card .card-name-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.folder-card .card-thumb { border-bottom: 2px solid color-mix(in srgb, var(--fc) 70%, transparent); }
+
+/* its latest boards, up to four: one picture, two side by side, one tall + two, or 2×2 */
+.fthumb.n1, .fthumb.n2, .fthumb.n3, .fthumb.n4 {
+  display: grid; gap: 2px; place-items: stretch;
+  background: var(--surface); background-image: none;
+}
+.fthumb.n1 { grid-template: 1fr / 1fr; }
+.fthumb.n2 { grid-template: 1fr / 1fr 1fr; }
+.fthumb.n3 { grid-template: 1fr 1fr / 1.35fr 1fr; }
+.fthumb.n3 > :first-child { grid-row: 1 / 3; }
+.fthumb.n4 { grid-template: 1fr 1fr / 1fr 1fr; }
+.fthumb > img, .fthumb > .fthumb-blank {
+  width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: cover; display: block;
+  background: var(--bg-canvas);
+}
+
+/* a search at the root: the project a board belongs to, before its date */
+.card-folder { display: inline-flex; align-items: center; gap: 5px; flex: 0 1 auto; min-width: 0; color: var(--txt-2); }
+.card-folder .fdot { width: 6px; height: 6px; flex: none; }
+.card-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* an empty project: one quiet sentence beside « + Nouvelle planche » */
+.home-hint { align-self: center; padding: 0 8px; font-size: 12.5px; line-height: 1.5; color: var(--txt-3); max-width: 340px; }
+
+/* ── breadcrumb « Projets › Court métrage » ── */
+.home-title.crumbs { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.crumb-root {
+  font: inherit; letter-spacing: inherit; color: var(--txt-3);
+  padding: 0 7px; margin-left: -7px; border-radius: 9px;
+  transition: color var(--dur), background var(--dur), box-shadow var(--dur);
+}
+.crumb-root:hover { color: var(--txt-2); background: var(--wash); }
+.crumb-sep { display: grid; place-items: center; color: var(--txt-3); opacity: .6; flex: 0 0 auto; }
+.crumb-sep svg { display: block; }
+.crumb-cur { display: inline-flex; align-items: center; gap: 11px; min-width: 0; padding-left: 4px; }
+.crumb-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--fc); flex: 0 0 auto; transform: translateY(1px); }
+.crumb-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; cursor: text; }
+.crumb-input {
+  font: inherit; letter-spacing: inherit; color: var(--txt); background: transparent;
+  border: 0; border-bottom: 1.5px solid var(--accent-line); border-radius: 0; padding: 0;
+  /* la largeur du nom (home.js), bornée par la place du fil d'Ariane ; la hauteur d'une ligne du titre :
+     renommer ne déplace rien */
+  flex: 0 1 auto; min-width: 140px; max-width: 100%; height: 1lh; line-height: inherit;
+  user-select: text;
+}
+.crumb-input:focus-visible { outline: none; }
+.crumb-measure { position: absolute; visibility: hidden; white-space: pre; pointer-events: none; }
+.crumb-more {
+  width: 30px; height: 30px; margin-left: 6px; border-radius: 8px; flex: 0 0 auto;
+  display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--dur), color var(--dur);
+}
+.crumb-more:hover, .crumb-more.on { background: var(--surface-3); color: var(--txt); }
+.crumb-more svg { display: block; }
+
+/* ── a board card dragged onto a project ── */
+body.card-dragging, body.card-dragging * { cursor: grabbing !important; }
+.card.dragging { opacity: .35; }
+/* dropped on a project, it leaves from there: home.js finishDrag (.35 → 0, scale .94, --dur-exit) */
+/* the target: a discreet veil of the accent, as for a selection */
+.folder-card.drop-on { border-color: var(--accent-line); }
+.folder-card.drop-on::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.crumb-root.drop-on, .home-part-head.drop-on {
+  color: var(--txt); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.home-part-head.drop-on { margin-left: -8px; padding-left: 8px; }
+
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: var(--z-menu); pointer-events: none;
+  display: flex; align-items: center; gap: 10px; max-width: 320px;
+  padding: 6px 13px 6px 6px; border-radius: 11px;
+  background: var(--menu-bg); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow-lg);
+}
+.drag-ghost-thumb {
+  width: 48px; height: 30px; border-radius: 6px; overflow: hidden; flex: 0 0 auto;
+  display: grid; place-items: center; color: var(--txt-3); background: var(--bg-canvas);
+}
+.drag-ghost-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.drag-ghost-thumb svg { display: block; }
+.drag-ghost-text { display: flex; flex-direction: column; min-width: 0; }
+.drag-ghost-name { font-size: 12.5px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drag-ghost-hint { font-size: 11px; color: var(--txt-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drag-ghost-hint:empty { display: none; }
+
+/* ── entrer dans un projet / en sortir (View Transitions, home.js openFolder) ──
+   Le nom et la pastille de couleur de la carte voyagent jusqu'au fil d'Ariane
+   (et retour) ; la page d'accueil nouvelle monte de 8 px en se fondant PAR-DESSUS
+   l'ancienne, qui reste opaque dessous : jamais de passage par le noir. Seule la
+   vue d'accueil est capturée (pas la racine) : la barre de titre ne bouge pas. */
+:root.vt-home { view-transition-name: none; }
+:root.vt-home #view-home { view-transition-name: mia-home; }
+:root.vt-home #titlebar { view-transition-name: mia-titlebar; }
+:root.vt-home #toasts { view-transition-name: mia-toasts; }
+:root.vt-home::view-transition-group(*) { animation-duration: var(--dur-card); animation-timing-function: var(--ease-out); }
+/* the old page stays put and opaque underneath; the new one rises over it */
+:root.vt-home::view-transition-old(mia-home) { animation: none; opacity: 1; mix-blend-mode: normal; }
+:root.vt-home::view-transition-new(mia-home) { animation: vt-in var(--dur-card) var(--ease-out) both; mix-blend-mode: normal; }
+/* the title bar and the toasts float above, live, untouched (their own snapshot stays on top of the page) */
+:root.vt-home::view-transition-group(mia-titlebar), :root.vt-home::view-transition-group(mia-toasts) { animation: none; }
+:root.vt-home::view-transition-old(mia-titlebar), :root.vt-home::view-transition-old(mia-toasts) { animation: none; opacity: 0; }
+:root.vt-home::view-transition-new(mia-titlebar), :root.vt-home::view-transition-new(mia-toasts) { animation: none; opacity: 1; mix-blend-mode: normal; }
+:root.vt-home::view-transition-old(mia-fname), :root.vt-home::view-transition-new(mia-fname) {
+  animation-duration: var(--dur-card); animation-timing-function: var(--ease-out);
+  height: 100%; object-fit: contain; object-position: left center;
+}
+@keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }

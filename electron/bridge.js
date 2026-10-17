@@ -1,0 +1,838 @@
+'use strict';
+/**
+ * Mia — the assistant bridge (SPEC §13).
+ *
+ * A tiny JSON server on 127.0.0.1 (first free port from 8777) that lets an assistant (Claude, Codex…)
+ * drive Mia through mcp/mia-mcp.js. Every request carries the random token written, with the port, in
+ * <data>\bridge.json; the file is removed when Mia quits.
+ *
+ *   POST /call  { method, params, client }   Authorization: Bearer <token>
+ *     → { ok:true, result } | { ok:false, error:"phrase française lisible" }
+ *
+ * Vocabulary (SPEC §18): a « planche » (board) is what the code calls a project (id p_…, mia.projects.*,
+ * mia://p/…); a « projet » is a folder of boards (id f_…, mia.folders.*). The tools keep their old names
+ * (mia_create_project makes a board) but speak of boards and folders in what they return.
+ *
+ * Two kinds of methods:
+ *  - main side (here): ping, status, list_projects, catalog, jobs, wait, cancel, snapshot;
+ *  - window side: everything that touches the board (create_project, create_folder, add_block…) is relayed to
+ *    the interface (`bridge:call` → src/js/ui/presence.js → `bridge:reply`), which goes through the normal
+ *    editor API: what the assistant does is visible, paced, and undoable with Ctrl+Z.
+ *
+ * Security (SPEC §13.3): loopback only, token required, Host checked (no DNS rebinding), requests from a
+ * web page refused (Origin), imports limited to existing files, nothing ever deleted from the disk.
+ */
+const http = require('node:http');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const places = require('./places');
+
+const PORT_FIRST = 8777;
+const PORT_LAST = 8799;
+const RELAY_TIMEOUT_MS = 60000;      // a window-side call that takes longer is reported, not awaited forever
+const READY_TIMEOUT_MS = 25000;      // the interface may still be starting (Mia launched by the MCP server)
+const WAIT_DEFAULT_S = 120;
+const WAIT_MAX_S = 600;
+const BODY_MAX = 1 << 20;
+const CLIENT_RECENT_MS = 10 * 60 * 1000;
+const SNAPSHOT_MAX_W = 1600;
+const IMPORT_MAX = 64;
+
+const RELAYED = new Set([
+  'ui_state', 'create_project', 'open_project', 'get_board', 'add_block', 'connect', 'set_params', 'rename_block',
+  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'get_output', 'focus', 'say', 'add_section',
+  'create_folder'
+]);
+
+const STR = {
+  badToken: { fr: 'Jeton du pont refusé : relance le serveur MCP de Mia.', en: 'Bridge token refused: restart Mia’s MCP server.' },
+  badRequest: { fr: 'Requête mal formée.', en: 'Malformed request.' },
+  unknownMethod: { fr: 'Méthode inconnue du pont : « {m} ».', en: 'Unknown bridge method: “{m}”.' },
+  noWindow: { fr: 'La fenêtre de Mia est fermée.', en: 'Mia’s window is closed.' },
+  notReady: {
+    fr: 'L’interface de Mia ne répond pas encore au pont. Réessaie dans quelques secondes.',
+    en: 'Mia’s interface does not answer the bridge yet. Try again in a few seconds.'
+  },
+  timeout: { fr: 'Mia n’a pas répondu à temps ({s} s).', en: 'Mia did not answer in time ({s} s).' },
+  reloaded: { fr: 'L’interface de Mia s’est rechargée pendant l’action.', en: 'Mia’s interface reloaded during the action.' },
+  internal: { fr: 'Erreur interne du pont : {msg}', en: 'Internal bridge error: {msg}' },
+  noEngine: { fr: 'Le moteur de Mia n’est pas disponible.', en: 'Mia’s engine is not available.' },
+  noJob: {
+    fr: 'Aucun calcul trouvé pour « {id} ». Les calculs terminés depuis plus de 30 min ne sont plus suivis : regarde le résultat avec mia_get_output.',
+    en: 'No job found for “{id}”. Jobs finished more than 30 min ago are no longer tracked: look at the result with mia_get_output.'
+  },
+  needJob: { fr: 'Indique jobId ou nodeId.', en: 'Give jobId or nodeId.' },
+  stillRunning: {
+    fr: 'Toujours en cours après {s} s : rappelle mia_wait pour continuer d’attendre.',
+    en: 'Still running after {s} s: call mia_wait again to keep waiting.'
+  },
+  noPaths: { fr: 'Donne au moins un chemin de fichier (paths).', en: 'Give at least one file path (paths).' },
+  tooMany: { fr: '{n} fichiers au plus par appel.', en: '{n} files at most per call.' },
+  notAbs: { fr: 'Chemin non absolu : « {p} ». Donne le chemin complet (ex. D:\\dossier\\image.png).', en: 'Not an absolute path: “{p}”. Give the full path (e.g. D:\\folder\\image.png).' },
+  notFound: { fr: 'Fichier introuvable : « {p} ».', en: 'File not found: “{p}”.' },
+  notFile: { fr: 'Ce n’est pas un fichier : « {p} ».', en: 'Not a file: “{p}”.' },
+  snapFailed: { fr: 'La capture de la planche a échoué : {msg}', en: 'Capturing the board failed: {msg}' },
+  catalogFailed: { fr: 'Catalogue illisible : {msg}', en: 'Unreadable catalog: {msg}' }
+};
+
+class BridgeError extends Error {}
+
+function fill(s, vars) {
+  return String(s).replace(/\{(\w+)\}/g, (_m, k) => (vars && vars[k] != null ? String(vars[k]) : ''));
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const FINAL = new Set(['done', 'error', 'cancelled']);
+
+/** A client name fit for a label: « Claude », « Codex »… never a long or odd string. */
+/** A board's folder id, whatever the store calls it (folderId, or a folder object). */
+function folderIdOf(b) {
+  const v = b ? (b.folderId ?? b.folder ?? null) : null;
+  return v && typeof v === 'object' ? v.id ?? null : v || null;
+}
+
+function cleanClient(name) {
+  const s = String(name || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24);
+  return s || 'Assistant';
+}
+
+class Bridge {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.port = null;
+    this.token = null;
+    this.server = null;
+    this.pending = new Map();          // relay id → { resolve, timer }
+    this.seq = 0;
+    this.clients = new Map();          // display name → last call (ms)
+    this.lastCall = 0;
+    this.rendererReady = false;
+    this.readyWaiters = [];
+    this.watched = null;               // the webContents whose reloads we follow
+    this.file = process.env.MIA_BRIDGE_FILE
+      || path.join((ctx.paths && ctx.paths.data) || path.join(ctx.app.getPath('userData'), 'data'), 'bridge.json');
+    this.version = (() => { try { return ctx.app.getVersion(); } catch { return '0'; } })();
+    this.log = typeof ctx.logger === 'function' ? ctx.logger('bridge') : (...a) => { if (typeof ctx.log === 'function') ctx.log('[bridge]', ...a); };
+  }
+
+  tr(key, vars) {
+    const o = STR[key] || { fr: key, en: key };
+    let lang = 'fr';
+    try { lang = typeof this.ctx.lang === 'function' ? this.ctx.lang() : 'fr'; } catch { /* fr */ }
+    return fill(o[lang] || o.fr, vars);
+  }
+
+  fail(key, vars) { throw new BridgeError(this.tr(key, vars)); }
+
+  // ------------------------------------------------------------------ lifecycle
+  async start() {
+    this.token = crypto.randomBytes(24).toString('hex');
+    this.installIpc();
+    const { app } = this.ctx;
+    if (app && typeof app.on === 'function') {
+      app.on('will-quit', () => this.stop());
+      app.on('browser-window-created', () => setImmediate(() => this.watchWindow()));
+    }
+    process.once('exit', () => this.removeFile());
+    try {
+      await this.listen();
+      this.writeFile();
+      this.log(`listening on 127.0.0.1:${this.port}`);
+    } catch (e) {
+      this.log('could not start:', e && e.message ? e.message : e);
+    }
+    return this;
+  }
+
+  listen() {
+    return new Promise((resolve, reject) => {
+      const tryPort = (port) => {
+        if (port > PORT_LAST) { reject(new Error(`no free port in ${PORT_FIRST}-${PORT_LAST}`)); return; }
+        const server = http.createServer((req, res) => { this.onRequest(req, res); });
+        server.requestTimeout = 0;           // mia_wait may legitimately last 10 minutes
+        server.headersTimeout = 20000;
+        server.timeout = 0;
+        server.keepAliveTimeout = 5000;
+        server.once('error', (e) => {
+          if (e && (e.code === 'EADDRINUSE' || e.code === 'EACCES')) tryPort(port + 1);
+          else reject(e);
+        });
+        server.listen(port, '127.0.0.1', () => {
+          server.removeAllListeners('error');
+          server.on('error', (e) => this.log('server error:', e && e.message));
+          this.server = server;
+          this.port = port;
+          resolve(port);
+        });
+      };
+      tryPort(PORT_FIRST);
+    });
+  }
+
+  writeFile() {
+    const info = { port: this.port, token: this.token, pid: process.pid, version: this.version, started: Date.now() };
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    const tmp = `${this.file}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(info, null, 2));
+    fs.renameSync(tmp, this.file);
+  }
+
+  /** Only our own file: another Mia (tests, another profile) may have written its own since. */
+  removeFile() {
+    try {
+      const cur = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+      if (cur && cur.pid === process.pid) fs.unlinkSync(this.file);
+    } catch { /* already gone */ }
+  }
+
+  stop() {
+    if (this._stopped) return;
+    this._stopped = true;
+    this.removeFile();
+    for (const [, p] of this.pending) { clearTimeout(p.timer); p.resolve({ ok: false, error: this.tr('noWindow') }); }
+    this.pending.clear();
+    try { if (this.server) this.server.close(); } catch { /* closing */ }
+  }
+
+  // ------------------------------------------------------------------ window side
+  installIpc() {
+    const ipc = this.ctx.ipcMain;
+    if (!ipc) return;
+    if (typeof ipc.handle === 'function') {
+      ipc.handle('bridge:status', () => this.statusForUi());
+    }
+    if (typeof ipc.on === 'function') {
+      // reply(id, payload) — or a single object {id, …payload}
+      ipc.on('bridge:reply', (e, a, b) => {
+        const win = this.win();
+        if (!win || !e || e.sender !== win.webContents) return;      // only our own page answers
+        let id = a;
+        let payload = b;
+        if (a && typeof a === 'object' && b === undefined) { id = a.id; payload = a.payload !== undefined ? a.payload : a; }
+        this.onReply(id, payload);
+      });
+    }
+  }
+
+  win() {
+    try { return typeof this.ctx.getWin === 'function' ? this.ctx.getWin() : null; } catch { return null; }
+  }
+
+  /** Follow reloads (language change): the interface must say it is ready again. */
+  watchWindow() {
+    const win = this.win();
+    if (!win || win.isDestroyed()) return;
+    const wc = win.webContents;
+    if (this.watched === wc) return;
+    this.watched = wc;
+    const lost = () => {
+      this.rendererReady = false;
+      for (const [id, p] of this.pending) {
+        clearTimeout(p.timer);
+        p.resolve({ ok: false, error: this.tr('reloaded') });
+        this.pending.delete(id);
+      }
+    };
+    wc.on('did-start-loading', lost);
+    wc.on('render-process-gone', lost);
+    wc.once('destroyed', () => { lost(); if (this.watched === wc) this.watched = null; });
+  }
+
+  onReply(id, payload) {
+    if (id === '__ready__') {
+      this.rendererReady = true;
+      const w = this.readyWaiters.splice(0);
+      for (const fn of w) fn(true);
+      return;
+    }
+    if (!this.rendererReady) {
+      this.rendererReady = true;
+      for (const fn of this.readyWaiters.splice(0)) fn(true);
+    }
+    const p = this.pending.get(id);
+    if (!p) return;
+    this.pending.delete(id);
+    clearTimeout(p.timer);
+    p.resolve(payload && typeof payload === 'object' ? payload : { ok: true, result: payload ?? null });
+  }
+
+  waitReady(ms = READY_TIMEOUT_MS) {
+    this.watchWindow();
+    if (this.rendererReady) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const fn = (v) => { clearTimeout(timer); resolve(v); };
+      const timer = setTimeout(() => {
+        const i = this.readyWaiters.indexOf(fn);
+        if (i >= 0) this.readyWaiters.splice(i, 1);
+        resolve(false);
+      }, ms);
+      this.readyWaiters.push(fn);
+    });
+  }
+
+  /** Send a call to the interface and wait for its answer ({ok, result|error}). */
+  async relay(method, params, client, timeoutMs = RELAY_TIMEOUT_MS) {
+    let win = this.win();
+    // Mia launched by the MCP server: the bridge is up a moment before the window exists
+    for (let i = 0; (!win || win.isDestroyed()) && i < 40 && process.uptime() < 60; i++) {
+      await sleep(200);
+      win = this.win();
+    }
+    if (!win || win.isDestroyed()) this.fail('noWindow');
+    if (!(await this.waitReady())) this.fail('notReady');
+    const id = `b${++this.seq}_${Date.now().toString(36)}`;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        resolve({ ok: false, error: this.tr('timeout', { s: Math.round(timeoutMs / 1000) }) });
+      }, timeoutMs);
+      this.pending.set(id, { resolve, timer });
+      try {
+        win.webContents.send('bridge:call', { id, method, params: params || {}, client });
+      } catch (e) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        resolve({ ok: false, error: this.tr('internal', { msg: e.message }) });
+      }
+    });
+  }
+
+  /** Main-side calls still show the assistant at work (title bar pill), without waiting for an answer. */
+  notifyActivity(method, client) {
+    const win = this.win();
+    if (!win || win.isDestroyed() || !this.rendererReady) return;
+    try { win.webContents.send('bridge:call', { id: null, method: 'activity', params: { method }, client }); } catch { /* closing */ }
+  }
+
+  /**
+   * Quentin should see the assistant work: a new or opened project brings Mia to the front, and a
+   * minimised window comes back for any visible action (main.js never shows a test window).
+   */
+  wake(method) {
+    if (typeof this.ctx.focusWindow !== 'function') return;
+    const win = this.win();
+    if (!win || win.isDestroyed()) return;
+    const quiet = method === 'ui_state' || method === 'get_board' || method === 'get_output';
+    if (method === 'create_project' || method === 'open_project' || (!quiet && win.isMinimized())) {
+      try { this.ctx.focusWindow(); } catch { /* best effort */ }
+    }
+  }
+
+  statusForUi() {
+    const now = Date.now();
+    const clients = [...this.clients.entries()]
+      .filter(([, at]) => now - at < CLIENT_RECENT_MS)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name);
+    const active = !!this.server && !!this.port;
+    // which assistants already declare Mia (Réglages → Assistants) ; null if the module is missing or fails
+    let registered = null;
+    try {
+      const a = require('./assistants');
+      if (a && typeof a.registration === 'function') registered = a.registration();
+    } catch { registered = null; }
+    return { active, running: active, port: this.port, clients, lastClient: clients[0] || null, lastCall: this.lastCall || null, file: this.file, registered };
+  }
+
+  // ------------------------------------------------------------------ HTTP
+  onRequest(req, res) {
+    const send = (code, obj) => {
+      if (res.headersSent) return;
+      const body = JSON.stringify(obj);
+      res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Length': Buffer.byteLength(body) });
+      res.end(body);
+    };
+    const host = String(req.headers.host || '').toLowerCase();
+    if (host !== `127.0.0.1:${this.port}` && host !== `localhost:${this.port}`) { send(403, { ok: false, error: 'host' }); return; }
+    if (req.headers.origin) { send(403, { ok: false, error: 'origin' }); return; }   // never a web page
+    if (!this.authorized(req.headers.authorization)) { send(401, { ok: false, error: this.tr('badToken') }); return; }
+    if (req.method !== 'POST' || (req.url || '').split('?')[0] !== '/call') { send(404, { ok: false, error: this.tr('badRequest') }); return; }
+
+    const chunks = [];
+    let size = 0;
+    let tooBig = false;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > BODY_MAX) { tooBig = true; req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', async () => {
+      if (tooBig) return;
+      let msg;
+      try { msg = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'); } catch { send(400, { ok: false, error: this.tr('badRequest') }); return; }
+      if (!msg || typeof msg.method !== 'string') { send(400, { ok: false, error: this.tr('badRequest') }); return; }
+      let out;
+      try {
+        out = await this.dispatch(msg.method, msg.params && typeof msg.params === 'object' ? msg.params : {}, cleanClient(msg.client));
+      } catch (e) {
+        out = e instanceof BridgeError ? { ok: false, error: e.message } : { ok: false, error: this.tr('internal', { msg: e && e.message ? e.message : String(e) }) };
+        if (!(e instanceof BridgeError)) this.log(`${msg.method} failed:`, e && e.stack ? e.stack : e);
+      }
+      send(200, out);
+    });
+    req.on('error', () => { /* client went away */ });
+  }
+
+  authorized(header) {
+    const m = /^Bearer\s+(\S+)$/i.exec(String(header || ''));
+    if (!m) return false;
+    const a = Buffer.from(m[1]);
+    const b = Buffer.from(this.token);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+
+  async dispatch(method, params, client) {
+    if (method !== 'ping') {
+      this.clients.set(client, Date.now());
+      this.lastCall = Date.now();
+    }
+    switch (method) {
+      case 'ping': return { ok: true, result: { app: 'mia', version: this.version, pid: process.pid, ui: this.rendererReady } };
+      case 'status': this.notifyActivity(method, client); return { ok: true, result: await this.status(client) };
+      case 'list_projects': this.notifyActivity(method, client); return { ok: true, result: await this.listProjects() };
+      case 'catalog': this.notifyActivity(method, client); return { ok: true, result: await this.catalog(params) };
+      case 'jobs': return { ok: true, result: await this.jobs() };
+      case 'wait': this.notifyActivity(method, client); return { ok: true, result: await this.wait(params) };
+      case 'cancel': this.notifyActivity(method, client); return this.cancel(params);
+      case 'snapshot': this.wake(method); return this.snapshot(params, client);
+      case 'import_media': this.checkPaths(params); this.wake(method); return this.relay(method, params, client, RELAY_TIMEOUT_MS * 2);
+      default:
+        if (RELAYED.has(method)) { this.wake(method); return this.relay(method, params, client); }
+        return { ok: false, error: this.tr('unknownMethod', { m: method }) };
+    }
+  }
+
+  // ------------------------------------------------------------------ main-side methods
+  /** The engine instance (B1 puts it on ctx.engine); otherwise the IPC handlers it registered. */
+  engine() { return this.ctx.engine && typeof this.ctx.engine === 'object' ? this.ctx.engine : null; }
+
+  /** Call an ipcMain.handle handler from here, as the window would (fallback when an object is missing). */
+  async invokeLocal(channel, ...args) {
+    const { ipcMain } = require('electron');
+    const h = ipcMain && ipcMain._invokeHandlers && ipcMain._invokeHandlers.get(channel);
+    if (typeof h !== 'function') return undefined;
+    const win = this.win();
+    return h({ sender: win ? win.webContents : null, senderFrame: null, frameId: 0, processId: 0 }, ...args);
+  }
+
+  async engineCall(name, channel, ...args) {
+    const eng = this.engine();
+    if (eng && typeof eng[name] === 'function') return eng[name](...args);
+    return this.invokeLocal(channel, ...args);
+  }
+
+  async status(client) {
+    const win = this.win();
+    let ui = null;
+    if (win && !win.isDestroyed() && !this.rendererReady) await this.waitReady(10000);   // Mia just started
+    if (win && !win.isDestroyed() && this.rendererReady) {
+      const r = await this.relay('ui_state', {}, client, 5000).catch(() => null);
+      if (r && r.ok) ui = r.result;
+    }
+    let eng = null;
+    try { eng = await this.engineCall('status', 'engine:status'); } catch { eng = null; }
+    const inv = this.inventory();
+    const caps = {};
+    if (inv && inv.capabilities) {
+      for (const [k, v] of Object.entries(inv.capabilities)) caps[k] = !!(v && v.available);
+    }
+    return {
+      mia: {
+        version: this.version,
+        lang: (() => { try { return this.ctx.lang() === 'en' ? 'en' : 'fr'; } catch { return 'fr'; } })(),   // write to the user in this language
+        window: win && !win.isDestroyed() ? (win.isMinimized() ? 'minimized' : win.isVisible() ? 'visible' : 'hidden') : 'closed',
+        interfaceReady: this.rendererReady,
+        view: ui ? ui.view : null,
+        board: ui ? ui.board || ui.project || null : null,
+        folder: ui ? ui.folder || null : null,
+        readOnly: ui ? !!ui.readOnly : false,
+        blocks: ui ? ui.blocks : null,
+        selection: ui ? ui.selection : []
+      },
+      engine: eng ? {
+        comfy: eng.comfy ? { state: eng.comfy.state, version: eng.comfy.version || null, error: eng.comfy.error || null } : null,
+        gpu: eng.gpu ? {
+          name: eng.gpu.name || null, vramUsedGB: eng.gpu.vramUsedGB ?? null, vramTotalGB: eng.gpu.vramTotalGB ?? null,
+          busyWith: eng.gpu.lock ? { who: eng.gpu.lock.who, sinceMs: eng.gpu.lock.since, mine: !!eng.gpu.lock.mine } : null,
+          busyOther: !!eng.gpu.busyOther
+        } : null,
+        queue: eng.queue || null
+      } : null,
+      capabilities: caps,
+      bridge: { port: this.port }
+    };
+  }
+
+  inventory() {
+    const m = this.ctx.models;
+    try {
+      if (m && typeof m.inventory === 'function') return m.inventory();
+      if (m && typeof m.list === 'function') { const arr = m.list(); return (arr && arr.inventory) || null; }
+    } catch { /* scanner down */ }
+    return null;
+  }
+
+  /** The store module (main.js puts it on ctx; else the one in require's cache). */
+  store() {
+    const s = this.ctx.store;
+    if (s && typeof s.list === 'function') return s;
+    try { return require('./store'); } catch { return null; }
+  }
+
+  /** Every project (folder) from the store (SPEC §18.2), or [] on a Mia without folders. */
+  async listFolders() {
+    let mod = null;
+    try { mod = require('./store'); } catch { mod = null; }
+    let arr;
+    try {
+      // ctx.store is a hand-picked subset: the store module itself may have more
+      const store = [this.ctx.store, mod].find((s) => s && ((s.folders && typeof s.folders.list === 'function') || typeof s.listFolders === 'function'));
+      if (store && store.folders && typeof store.folders.list === 'function') arr = await store.folders.list();
+      else if (store) arr = await store.listFolders();
+      else arr = await this.invokeLocal('folders:list');
+    } catch { arr = null; }
+    if (arr && !Array.isArray(arr) && Array.isArray(arr.folders)) arr = arr.folders;
+    return (Array.isArray(arr) ? arr : []).filter((f) => f && f.id);
+  }
+
+  /**
+   * SPEC §18.5: { folders:[{id, name, color, boards}], boards:[{id, name, folderId, folder, blocks, …}] }
+   * — projects are folders of boards; a board outside any project has folderId null.
+   */
+  async listProjects() {
+    let list;
+    const store = this.store();
+    try { list = await store.list(); } catch { list = await this.invokeLocal('projects:list'); }
+    const raw = Array.isArray(list) ? list : [];
+    const folders = await this.listFolders();
+    const names = new Map(folders.map((f) => [f.id, f.name]));
+    const count = new Map();
+    const boards = raw.map((p) => {
+      const fid = folderIdOf(p);
+      if (fid) count.set(fid, (count.get(fid) || 0) + 1);
+      return {
+        id: p.id, name: p.name, folderId: fid, folder: fid ? names.get(fid) || null : null,
+        blocks: p.nodes ?? null, dir: p.dir || null, updated: p.updated || null, opened: p.opened || null
+      };
+    });
+    return {
+      folders: folders.map((f) => ({
+        id: f.id, name: f.name, color: f.color || null,
+        boards: count.has(f.id) ? count.get(f.id) : (Number.isFinite(+f.boards) ? +f.boards : Array.isArray(f.boards) ? f.boards.length : 0),
+        updated: f.updated || null
+      })),
+      boards
+    };
+  }
+
+  /** Block types, their ports and settings with allowed values, recipes, models per capability, LoRAs. */
+  async catalog(params) {
+    const root = (this.ctx.paths && this.ctx.paths.root) || path.join(__dirname, '..');
+    let cat;
+    try { cat = JSON.parse(fs.readFileSync(path.join(root, 'src', 'catalog', 'nodes.json'), 'utf8')); } catch (e) { this.fail('catalogFailed', { msg: e.message }); }
+    const inv = this.inventory();
+    const lang = (() => { try { return this.ctx.lang(); } catch { return 'fr'; } })();
+    const L = (o) => (o && typeof o === 'object' ? (o[lang] || o.fr || o.en || '') : o == null ? '' : String(o));
+    const only = params && params.type ? String(params.type) : null;
+
+    const usable = (m) => m && m.status === 'ready' && m.license !== 'forbidden';
+    const modelChoices = (caps, allowNone) => {
+      const isLora = caps.includes('lora');
+      const out = isLora ? [] : [{ value: 'auto', label: lang === 'en' ? 'Auto (recommended default)' : 'Auto (choix conseillé)' }];
+      if (allowNone) out.unshift({ value: 'none', label: lang === 'en' ? 'None' : 'Aucun' });
+      if (!inv || !Array.isArray(inv.models)) return out;
+      for (const m of inv.models) {
+        if (!usable(m)) continue;
+        if (isLora) {
+          if (!(m.role === 'lora' || (m.caps || []).includes('lora')) || m.hidden) continue;
+          out.push({ value: m.id, label: L(m.label) || m.file, loraFor: m.loraFor || null, trigger: m.trigger || null, kind: m.loraKind || null });
+        } else {
+          if (m.hidden || !(m.caps || []).some((c) => caps.includes(c))) continue;
+          out.push({ value: m.id, label: L(m.label) || m.file, family: m.family || null, speed: m.speed ?? null, quality: m.quality ?? null, license: m.license });
+        }
+      }
+      return out;
+    };
+
+    // looks of the Finish block whose .cube is not on this PC (« Etalo » lives in the engine folder): not offered
+    let missingLooks = new Set();
+    try {
+      const prefs = this.ctx.prefs && typeof this.ctx.prefs.get === 'function' ? await this.ctx.prefs.get() : {};
+      const { looks } = require('./engine/executors/looks.js');
+      missingLooks = new Set(looks({ engineRoot: places.engineRoot(prefs || {}) }).filter((l) => !l.exists).map((l) => l.id));
+    } catch { /* every look listed */ }
+
+    const types = [];
+    for (const t of cat.types || []) {
+      if (only && t.id !== only) continue;
+      const params = (t.params || []).map((p) => {
+        const o = { id: p.id, kind: p.kind, label: L(p.label) };
+        if (p.default !== undefined) o.default = p.default;
+        if (p.required) o.required = true;
+        if (p.advanced) o.advanced = true;
+        if (p.port) o.overriddenByInput = p.port;
+        if (p.showIf) o.showIf = p.showIf;
+        if (p.hint) o.hint = L(p.hint);
+        if (Array.isArray(p.options)) {
+          o.options = p.options
+            .filter((x) => !(t.id === 'finish' && p.id === 'look' && missingLooks.has(x.value)))
+            .map((x) => ({ value: x.value, label: L(x.label), ...(x.hint ? { hint: L(x.hint) } : {}) }));
+        }
+        if (p.kind === 'slider') Object.assign(o, { min: p.min, max: p.max, step: p.step, unit: p.unit || '' });
+        if (p.kind === 'model') o.choices = modelChoices(p.caps || [], !!p.allowNone);
+        if (p.kind === 'frame') o.of = p.of || null;
+        return o;
+      });
+      types.push({
+        type: t.id,
+        name: L(t.label),
+        description: L(t.desc),
+        category: t.category || null,
+        computes: !!t.engine,
+        gpu: t.engine ? t.engine.gpu || null : null,
+        modes: t.modes || null,
+        estimate: t.estimate ? (typeof t.estimate === 'object' && !t.estimate.fr ? Object.fromEntries(Object.entries(t.estimate).map(([k, v]) => [k, L(v)])) : L(t.estimate)) : null,
+        inputs: (t.inputs || []).map((i) => {
+          const o = { port: i.id, type: i.type, label: L(i.label) };
+          if (i.required) o.required = true;
+          if (i.multi) o.multi = true;
+          if (i.max) o.max = i.max;
+          if (i.hint) o.hint = L(i.hint);
+          return o;
+        }),
+        outputs: (t.outputs || []).map((o) => ({ port: o.id, type: o.type, label: L(o.label) })),
+        params
+      });
+    }
+
+    let recipes = [];
+    if (!only) {
+      const dir = path.join(root, 'src', 'catalog', 'recipes');
+      let ids = [];
+      try { ids = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')); } catch { ids = []; }
+      for (const id of Array.isArray(ids) ? ids : []) {
+        try {
+          const r = JSON.parse(fs.readFileSync(path.join(dir, `${String(id).replace(/[^\w-]/g, '')}.json`), 'utf8'));
+          recipes.push({
+            id: r.id, name: L(r.label), description: L(r.desc),
+            blocks: (r.nodes || []).map((n) => ({ key: n.key, type: n.type, waitsFor: n.placeholder ? `${n.placeholder.kind}: ${L(n.placeholder)}` : undefined })),
+            wires: (r.edges || []).map(([a, ap, b, bp]) => `${a}.${ap} → ${b}.${bp}`)
+          });
+        } catch { /* a broken recipe is skipped */ }
+      }
+    }
+
+    const capabilities = {};
+    if (inv && inv.capabilities) {
+      for (const [k, v] of Object.entries(inv.capabilities)) {
+        const def = v && v.default && Array.isArray(inv.models) ? inv.models.find((m) => m.id === v.default) : null;
+        capabilities[k] = { available: !!(v && v.available), default: def ? L(def.label) || def.file : null };
+      }
+    }
+    const missing = inv && Array.isArray(inv.missing) ? inv.missing.map((m) => ({ caps: m.caps, what: L(m.what) })) : [];
+
+    return {
+      portRules: lang === 'en'
+        ? 'Wires go from an output to an input. image→image|media, video→video|media, text→text, audio→audio (a sound file imported into a Média block; it goes only into the Son block). An output "follow:<input>" has the concrete type of what is wired into that input; the Média block (import) outputs the type of its file. An input with multi accepts several wires (max = limit), ordered top to bottom.'
+        : 'Un fil va d’une sortie vers une entrée. image→image|media, video→video|media, text→text, audio→audio (un fichier son importé dans un bloc Média ; il ne va que dans le bloc Son). Une sortie « follow:<entrée> » a le type concret de ce qui est branché sur cette entrée ; le bloc Média (import) sort le type de son fichier. Une entrée multi accepte plusieurs fils (max = limite), ordonnés de haut en bas.',
+      types,
+      recipes,
+      capabilities,
+      missing
+    };
+  }
+
+  async jobs() {
+    const list = await this.engineCall('jobList', 'engine:jobs');
+    return (Array.isArray(list) ? list : []).map((j) => ({
+      jobId: j.jobId, boardId: j.projectId, projectId: j.projectId /* deprecated alias of boardId, kept one version */, board: j.projectName || null, nodeId: j.nodeId, block: j.label, type: j.type,
+      mode: j.mode, state: j.state, progress: j.progress, etaS: j.eta ?? null, message: j.message || null,
+      waitingFor: j.who || null
+    }));
+  }
+
+  cancel(params) {
+    const jobId = params && params.jobId;
+    if (!jobId) this.fail('needJob');
+    return Promise.resolve(this.engineCall('cancel', 'engine:cancel', jobId)).then((r) => (r && r.ok === false ? { ok: false, error: r.error } : { ok: true, result: { cancelled: jobId } }));
+  }
+
+  /** Absolute paths of a run's outputs. */
+  describeRun(projectId, run) {
+    if (!run) return null;
+    const dir = this.ctx.store && typeof this.ctx.store.projectDir === 'function' ? this.ctx.store.projectDir(projectId) : null;
+    const abs = (rel) => (rel && dir ? path.join(dir, String(rel).replace(/\//g, path.sep)) : rel || null);
+    const outputs = [];
+    for (const [port, o] of Object.entries(run.outputs || {})) {
+      outputs.push({ port, path: abs(o.path), kind: o.kind || null, meta: o.meta || null, poster: abs(o.poster) });
+    }
+    return { runId: run.runId, status: run.status, mode: run.mode || null, model: run.model || null, error: run.error || null, finished: run.finished || null, outputs };
+  }
+
+  async wait(params) {
+    const timeoutS = Math.max(1, Math.min(WAIT_MAX_S, Number(params.timeoutS) || WAIT_DEFAULT_S));
+    if (!params.jobId && !params.nodeId) this.fail('needJob');
+    const find = async () => {
+      const list = await this.engineCall('jobList', 'engine:jobs');
+      const jobs = Array.isArray(list) ? list : [];
+      if (params.jobId) return jobs.find((j) => j.jobId === params.jobId) || null;
+      const board = params.boardId || params.projectId;
+      const mine = jobs.filter((j) => j.nodeId === params.nodeId && (!board || j.projectId === board));
+      return mine.filter((j) => !FINAL.has(j.state)).pop() || mine.pop() || null;
+    };
+    let job = await find();
+    if (!job) this.fail('noJob', { id: params.jobId || params.nodeId });
+
+    const eng = this.engine();
+    const deadline = Date.now() + timeoutS * 1000;
+    let finalEvt = null;
+    if (!FINAL.has(job.state)) {
+      await new Promise((resolve) => {
+        let poll = null;
+        const done = () => { clearTimeout(timer); clearInterval(poll); if (eng && typeof eng.off === 'function') eng.off('event', onEvt); resolve(); };
+        const onEvt = (evt) => {
+          if (evt && evt.jobId === job.jobId && FINAL.has(evt.kind)) { finalEvt = evt; done(); }
+        };
+        const timer = setTimeout(done, Math.max(0, deadline - Date.now()));
+        if (eng && typeof eng.on === 'function') eng.on('event', onEvt);
+        // polling too: an event emitted between find() and on() must not be missed
+        poll = setInterval(async () => {
+          try {
+            const j = await find();
+            if (j && j.jobId === job.jobId && FINAL.has(j.state)) { job = j; done(); }
+          } catch { /* next tick */ }
+        }, eng ? 2500 : 1000);
+      });
+      if (!finalEvt) job = (await find()) || job;
+    }
+    const state = finalEvt ? finalEvt.kind : job.state;
+    const out = {
+      jobId: job.jobId, nodeId: job.nodeId, boardId: job.projectId, projectId: job.projectId /* deprecated alias of boardId */, block: job.label, mode: job.mode, state,
+      progress: state === 'done' ? 1 : (finalEvt && finalEvt.progress != null ? finalEvt.progress : job.progress ?? null), message: (finalEvt && (finalEvt.message || finalEvt.error)) || job.message || null
+    };
+    if (!FINAL.has(state)) {
+      out.timedOut = true;
+      out.etaS = job.eta ?? null;
+      out.hint = this.tr('stillRunning', { s: timeoutS });
+      return out;
+    }
+    let run = finalEvt && finalEvt.run ? finalEvt.run : null;
+    if (!run) {
+      try {
+        const runs = await this.engineCall('runs', 'engine:runs', job.projectId, job.nodeId);
+        const list = (Array.isArray(runs) ? runs : []).slice().sort((a, b) => (b.finished || b.started || 0) - (a.finished || a.started || 0));
+        run = list[0] || null;
+      } catch { run = null; }
+    }
+    out.run = this.describeRun(job.projectId, run);
+    if (state === 'error' && run && run.error && !out.message) out.message = run.error;
+    return out;
+  }
+
+  checkPaths(params) {
+    const list = Array.isArray(params.paths) ? params.paths : typeof params.paths === 'string' ? [params.paths] : [];
+    if (!list.length) this.fail('noPaths');
+    if (list.length > IMPORT_MAX) this.fail('tooMany', { n: IMPORT_MAX });
+    const clean = [];
+    for (const raw of list) {
+      const p = String(raw || '').trim().replace(/^"(.*)"$/, '$1');
+      if (!path.isAbsolute(p)) this.fail('notAbs', { p });
+      let st;
+      try { st = fs.statSync(p); } catch { this.fail('notFound', { p }); }
+      if (!st.isFile()) this.fail('notFile', { p });
+      clean.push(path.normalize(p));
+    }
+    params.paths = clean;
+  }
+
+  async snapshot(params, client) {
+    try {
+      return await this.takeSnapshot(params, client);
+    } finally {
+      this.notifyActivity('snapshot_done', client);       // the cursor may fade again
+    }
+  }
+
+  async takeSnapshot(params, client) {
+    const win = this.win();
+    if (!win || win.isDestroyed()) this.fail('noWindow');
+    const prep = await this.relay('snapshot_prepare', { nodeId: params.nodeId || null }, client, 15000);
+    if (!prep || !prep.ok) return prep || { ok: false, error: this.tr('notReady') };
+    const r = prep.result && prep.result.rect;
+    const rect = r ? { x: Math.max(0, Math.round(r.x)), y: Math.max(0, Math.round(r.y)), width: Math.max(1, Math.round(r.width)), height: Math.max(1, Math.round(r.height)) } : undefined;
+    let img = null;
+    // A visible window draws all the time: copy its last frame. A hidden one (tests) draws only now and
+    // then: ask Chromium for a new frame, which also runs the board's pending drawing.
+    if (!win.isVisible() || win.isMinimized()) {
+      try { img = await this.captureViaDebugger(win.webContents, rect, 15000); } catch { img = null; }
+    }
+    if (!img || img.isEmpty()) try {
+      if (typeof this.ctx.captureRect === 'function') {
+        const got = await this.ctx.captureRect(rect);
+        img = this.toImage(got);
+      }
+      if (!img || img.isEmpty()) img = await win.webContents.capturePage(rect);
+      if (!img || img.isEmpty()) img = await this.captureViaDebugger(win.webContents, rect);
+    } catch (e) {
+      try { img = await this.captureViaDebugger(win.webContents, rect); } catch (e2) { return { ok: false, error: this.tr('snapFailed', { msg: e2.message || e.message }) }; }
+    }
+    if (!img || img.isEmpty()) return { ok: false, error: this.tr('snapFailed', { msg: 'image vide' }) };
+    let size = img.getSize();
+    if (size.width > SNAPSHOT_MAX_W) {
+      img = img.resize({ width: SNAPSHOT_MAX_W, quality: 'good' });
+      size = img.getSize();
+    }
+    return {
+      ok: true,
+      result: {
+        image: { data: img.toPNG().toString('base64'), mimeType: 'image/png' },
+        width: size.width, height: size.height,
+        nodeId: params.nodeId || null,
+        view: prep.result.view || null,
+        board: prep.result.board || prep.result.project || null
+      }
+    };
+  }
+
+  toImage(got) {
+    const { nativeImage } = require('electron');
+    if (!got) return null;
+    if (Buffer.isBuffer(got)) return nativeImage.createFromBuffer(got);
+    if (typeof got.isEmpty === 'function') return got;
+    if (got.image) return this.toImage(got.image);
+    if (typeof got === 'string') return nativeImage.createFromBuffer(Buffer.from(got.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
+    return null;
+  }
+
+  /** A hidden or minimised window can capture empty: ask Chromium itself. */
+  async captureViaDebugger(wc, rect, timeoutMs = 6000) {
+    const { nativeImage } = require('electron');
+    const dbg = wc.debugger;
+    let mine = false;
+    if (!dbg.isAttached()) { dbg.attach('1.3'); mine = true; }
+    try {
+      const opts = { format: 'png', captureBeyondViewport: false };
+      if (rect) opts.clip = { x: rect.x, y: rect.y, width: rect.width, height: rect.height, scale: 1 };
+      // never hang the assistant on a page that draws nothing: a few seconds, then the other ways
+      let timer = null;
+      const r = await Promise.race([
+        dbg.sendCommand('Page.captureScreenshot', opts),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('capture timeout')), timeoutMs); })
+      ]).finally(() => clearTimeout(timer));
+      return nativeImage.createFromBuffer(Buffer.from(r.data, 'base64'));
+    } finally {
+      if (mine) { try { dbg.detach(); } catch { /* already */ } }
+    }
+  }
+}
+
+/** main.js: require('./bridge').register(ctx) — after the scanner and the engine. */
+function register(ctx) {
+  const bridge = new Bridge(ctx);
+  ctx.bridge = bridge;
+  bridge.start().catch(() => {});
+  return bridge;
+}
+
+module.exports = { register, Bridge, _internals: { cleanClient, fill, folderIdOf } };

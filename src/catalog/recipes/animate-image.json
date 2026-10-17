@@ -1,0 +1,83 @@
+{
+  "id": "animate-image",
+  "icon": "animate",
+  "label": {
+    "fr": "Animer une image",
+    "en": "Animate an image"
+  },
+  "desc": {
+    "fr": "Une image de début, une image de fin conseillée, une consigne : Mia crée la vidéo entre les deux.",
+    "en": "A start image, an optional end image, a prompt: Mia creates the video in between."
+  },
+  "nodes": [
+    {
+      "key": "start",
+      "type": "import",
+      "x": 0,
+      "y": 0,
+      "placeholder": {
+        "kind": "image",
+        "fr": "Image de début",
+        "en": "Start image"
+      }
+    },
+    {
+      "key": "end",
+      "type": "import",
+      "x": 0,
+      "y": 420,
+      "placeholder": {
+        "kind": "image",
+        "fr": "Image de fin (conseillée)",
+        "en": "End image (recommended)"
+      }
+    },
+    {
+      "key": "txt",
+      "type": "text",
+      "x": 24,
+      "y": 840
+    },
+    {
+      "key": "i2v",
+      "type": "i2v",
+      "x": 432,
+      "y": 240
+    },
+    {
+      "key": "exp",
+      "type": "export",
+      "x": 864,
+      "y": 240,
+      "params": {
+        "format": "phone"
+      }
+    }
+  ],
+  "edges": [
+    [
+      "start",
+      "out",
+      "i2v",
+      "start"
+    ],
+    [
+      "end",
+      "out",
+      "i2v",
+      "end"
+    ],
+    [
+      "txt",
+      "text",
+      "i2v",
+      "prompt"
+    ],
+    [
+      "i2v",
+      "video",
+      "exp",
+      "media"
+    ]
+  ]
+}

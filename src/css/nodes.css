@@ -1,0 +1,747 @@
+/* ── Contenu des blocs, visionneuse, inspecteur (F) ──────────────────
+   La carte elle-même (cadre, en-tête, ports) est à l'éditeur (graph.css).
+   Ici : ce qu'il y a DEDANS, selon da.md §4.2 (carte), §4.5 (états),
+   §4.12 (mouvement). Sobriété : aucun halo, aucun dégradé décoratif ; le bleu
+   d'accent ne sert qu'à la progression d'un calcul et à l'action primaire.
+   Les jetons de da.md §4.1 sont lus avec un repli sur ceux de Slate. */
+
+/* sur body (pas :root) : les jetons de thème vivent sur body.theme-*, et une
+   variable qui en référence une autre se résout là où elle est déclarée */
+body {
+  --nb-kicker: var(--font-kicker, var(--font-mono, "Cascadia Mono", Consolas, monospace));
+  --nb-mono: var(--font-mono, "Cascadia Mono", Consolas, monospace);
+  --nb-well: var(--node-well, var(--bg-canvas));
+  --nb-err: var(--state-err, var(--danger));
+  --nb-run: var(--run, var(--accent));
+  --nb-chk-a: var(--checker-a, var(--surface-2));
+  --nb-chk-b: var(--checker-b, var(--surface-3));
+  --nb-ease: var(--ease);
+  --nb-ease-out: var(--ease-out);
+  --nb-dur: var(--dur);
+}
+
+/* ── nos conteneurs, posés dans les emplacements de l'éditeur ───────────
+   (slots.preview / slots.controls restent stylés par graph.css) */
+.nb-pv { display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 0; min-width: 0; }
+.nb-pv:empty { display: none; }
+.nb-ct { display: flex; flex-direction: column; min-width: 0; }
+.nb-ct:empty { display: none; }
+
+/* ── puits de média ─────────────────────────────────────────────────── */
+/* Le puits prend le ratio du média (SPEC §16) : pleine largeur pour un média
+   horizontal ; pour un média vertical, plus étroit et centré, 460 px de haut
+   au plus. Jamais de bandes, jamais de rognage. */
+.nb-well {
+  position: relative; width: min(100%, calc(460px * var(--ar, 1.7778))); margin-inline: auto;
+  aspect-ratio: var(--ar, 1.7778); max-height: 460px; flex: none;
+  container-type: inline-size;   /* la barre de lecture s'adapte à la largeur du puits */
+  border-radius: var(--r-media, 8px); overflow: hidden; background: var(--nb-well);
+  isolation: isolate;
+}
+.nb-well.is-missing { box-shadow: inset 0 0 0 1px var(--line-2); }
+.nb-well.alpha, .cmp.alpha .cmp-stage {
+  /* damier 8 px des mattes et de l'alpha (da.md §4.2) */
+  background-color: var(--nb-chk-a);
+  background-image: conic-gradient(var(--nb-chk-b) 25%, transparent 0 50%, var(--nb-chk-b) 0 75%, transparent 0);
+  background-size: 16px 16px;
+}
+.nb-well-stage { position: absolute; inset: 0; }
+.nb-layer {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  opacity: 0; transition: opacity var(--dur-fade) var(--nb-ease);
+}
+.nb-layer.in { opacity: 1; }
+.nb-layer.now { transition: none; }
+.nb-media, .nb-poster {
+  width: 100%; height: 100%; object-fit: contain; display: block;
+  -webkit-user-drag: none; user-select: none;
+}
+.nb-poster { position: absolute; inset: 0; display: none; }
+/* Le média remplit la couche par position absolue, pas par la grille : dans une
+   rangée de grille auto, height:100% ne se résout pas et une vidéo verticale
+   reprenait sa hauteur naturelle, rognée par le puits. */
+.nb-layer > .nb-media, .nb-layer > .nb-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.nb-layer.use-poster .nb-poster { display: block; }
+.nb-layer.use-poster video.nb-media { visibility: hidden; }
+
+/* badge méta (au survol), étiquette (toujours), « en direct » */
+.nb-badge, .nb-tag, .nb-live {
+  position: absolute; top: 6px; z-index: 3; max-width: calc(100% - 12px);
+  display: flex; align-items: center; gap: 6px; padding: 3px 6px 2px;
+  border-radius: 5px; background: rgba(0, 0, 0, .55); color: rgba(255, 255, 255, .92);
+  font: 500 10px/1.3 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+}
+.nb-badge { left: 6px; opacity: 0; transition: opacity var(--nb-dur) var(--nb-ease); }
+.nb-well:hover .nb-badge { opacity: 1; }
+.nb-badge[hidden] { display: none; }
+.nb-tag { right: 6px; transition: opacity var(--nb-dur) var(--nb-ease); }
+/* pas la place pour les deux (media.js) : l'étiquette s'efface pendant que le badge est montré */
+.nb-well:hover .nb-tag.yields { opacity: 0; }
+.nb-live { left: 6px; display: none; }
+.nb-live i { width: 6px; height: 6px; border-radius: 50%; background: #fff; flex: none; }
+.nb-well.is-live .nb-live { display: flex; }
+.nb-well.is-live .nb-badge { display: none; }
+
+/* état vide */
+.nb-empty {
+  height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 12px 18px; text-align: center;
+}
+.nb-empty-ico { color: var(--txt-3); display: grid; place-items: center; margin-bottom: 2px; }
+.nb-empty-title { font-size: 12.5px; font-weight: 550; color: var(--txt-2); }
+.nb-empty-sub { font-size: 11px; color: var(--txt-3); line-height: 1.4; max-width: 260px; }
+
+/* liens discrets (Choisir un fichier…, Voir le détail…) */
+.nb-link {
+  font: inherit; font-size: 11.5px; color: var(--txt-2); padding: 0;
+  text-decoration: underline; text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px; transition: color var(--nb-dur) var(--nb-ease);
+}
+.nb-link:hover { color: var(--txt); text-decoration-color: var(--txt-3); }
+
+/* ── contrôles vidéo : la pastille .media-ctl de Slate ──────────────── */
+.media-ctl.pl {
+  display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 3px;
+  border-radius: 999px; color: #fff;
+  background: rgba(20, 20, 23, .86); border: 1px solid rgba(255, 255, 255, .12);
+  backdrop-filter: blur(12px); box-shadow: var(--shadow-md);
+}
+.nb-well > .media-ctl.pl, .cmp > .media-ctl.pl {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 4;
+  opacity: 0; transform: translateY(4px); pointer-events: none;
+  transition: opacity var(--nb-dur) var(--nb-ease), transform var(--dur-enter) var(--nb-ease-out);
+}
+/* lecteur complet au survol, et tant que le bloc est sélectionné (SPEC §14) */
+.nb-well:hover > .media-ctl.pl, .cmp:hover > .media-ctl.pl, .media-ctl.pl.scrubbing,
+.node.sel .nb-well > .media-ctl.pl, .node.sel .cmp > .media-ctl.pl {
+  opacity: 1; transform: none; pointer-events: auto;
+}
+.pl-btn {
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center;
+  border-radius: 50%; color: #fff; transition: background var(--nb-dur) var(--nb-ease);
+}
+.pl-btn:hover { background: rgba(255, 255, 255, .14); }
+.pl-btn svg { width: 14px; height: 14px; }
+.pl-btn.pl-loop { opacity: .5; }
+.pl-btn.pl-loop.on { opacity: 1; }
+.pl-track { position: relative; flex: 1 1 auto; min-width: 36px; height: 20px; display: flex; align-items: center; cursor: pointer; }
+.pl-rail { position: relative; width: 100%; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .26); }
+.pl-fill { position: absolute; inset: 0; border-radius: 2px; background: #fff; transform-origin: 0 50%; transform: scaleX(0); }
+/* le porteur du pouce n'a pas de taille : player.js le déplace par transform (largeur de piste en cache) */
+.pl-knob { position: absolute; left: 0; top: 50%; width: 0; height: 0; pointer-events: none; }
+.pl-thumb {
+  position: absolute; left: -5px; top: -5px; width: 10px; height: 10px;
+  border-radius: 50%; background: #fff; transform: scale(.8); transition: transform var(--nb-dur) var(--nb-ease);
+}
+.pl-track:hover .pl-thumb, .scrubbing .pl-thumb { transform: scale(1); }
+/* numéro de l'image sous le curseur de la barre (survol et glisser) */
+.pl-hint {
+  position: absolute; bottom: calc(100% + 4px); transform: translateX(-50%); pointer-events: none;
+  padding: 3px 5px 2px; border-radius: 4px; background: rgba(0, 0, 0, .78); color: #fff;
+  font: 500 10px/1 var(--nb-mono); font-variant-numeric: tabular-nums; letter-spacing: .04em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.pl-hint[hidden] { display: none; }
+/* compteur : IMG 48 / 120 · 2,000 S / 5,000 S · 00:00:02:00 (clic = autre unité) */
+.pl-count {
+  flex: none; height: 22px; padding: 0 5px; border-radius: 5px;
+  font: 500 10.5px/22px var(--nb-mono); font-variant-numeric: tabular-nums; letter-spacing: .03em;
+  text-transform: uppercase; color: rgba(255, 255, 255, .78); white-space: nowrap;
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.pl-count:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+.pl-speed {
+  flex: none; min-width: 28px; height: 22px; padding: 0 4px; border-radius: 5px;
+  font: 500 10.5px/22px var(--nb-mono); font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .7);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.pl-speed:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+.pl-speed.on { color: #fff; }
+.pl-compact .pl-mute { margin-left: -2px; }
+.pl-compact .pl-step { width: 20px; }
+.pl-compact .pl-step svg { width: 12px; height: 12px; }
+.pl-compact .pl-snap svg { width: 14px; height: 14px; }
+.media-ctl.pl-compact { gap: 3px; }
+/* compteur : largeur réservée par player.js (son texte le plus long pour cette vidéo et cette unité) */
+.pl-compact .pl-count { font-size: 10px; padding: 0 4px; text-align: center; overflow: hidden; }
+/* pastille trop étroite (média vertical, compteur long) : player.js range d'abord la vitesse et le son,
+   puis le pas à pas, puis l'appareil photo, tant que la piste n'a pas 60 px ; les raccourcis restent */
+.pl-compact.pl-no-speed .pl-speed, .pl-compact.pl-no-mute .pl-mute, .pl-compact.pl-no-step .pl-step,
+.pl-compact.pl-no-snap .pl-snap, .pl-compact.pl-no-count .pl-count { display: none; }
+/* vue d'ensemble (zoom arrière) : pas de barre de lecture minuscule sur les cartes */
+.lod-2 .nb-well > .media-ctl.pl, .lod-3 .nb-well > .media-ctl.pl,
+.lod-2 .cmp > .media-ctl.pl, .lod-3 .cmp > .media-ctl.pl { visibility: hidden; }
+/* pastille plein écran : plus grande, centrée sous l'image */
+.media-ctl.pl-full { gap: 6px; padding: 5px 14px 5px 6px; min-width: min(760px, 92vw); }
+.pl-full .pl-btn { width: 30px; height: 30px; }
+.pl-full .pl-btn svg { width: 16px; height: 16px; }
+.pl-full .pl-count, .pl-full .pl-speed { font-size: 11.5px; height: 26px; line-height: 26px; }
+.pl-full .pl-count { min-width: 128px; text-align: center; }
+
+/* ── onglets de sorties, erreur, conseil ────────────────────────────── */
+.nb-tabs { display: flex; justify-content: flex-start; }
+.nb-error {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+  border-radius: 8px; background: rgba(229, 72, 77, .08); color: var(--txt);
+  font-size: 12px; line-height: 1.4;
+}
+.nb-error[hidden] { display: none; }
+.nb-error-ico { color: var(--nb-err); flex: none; margin-top: 1px; display: grid; }
+.nb-error-ico svg { width: 14px; height: 14px; }
+.nb-error-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; user-select: text; }
+.nb-error-msg { overflow-wrap: anywhere; }
+.nb-error .nb-link { align-self: flex-start; }
+.nb-hint {
+  display: flex; align-items: flex-start; gap: 7px; margin: 2px 12px 8px; padding: 7px 9px;
+  border-radius: 7px; background: var(--wash); color: var(--txt-2); font-size: 11.5px; line-height: 1.4;
+}
+.nb-hint[hidden] { display: none; }
+.nb-hint-ico { color: var(--txt-3); flex: none; display: grid; margin-top: 1px; }
+.nb-hint b { font-weight: 600; color: var(--txt); }
+.nb-hint-ico svg { width: 13px; height: 13px; }
+
+/* ── bande des versions ─────────────────────────────────────────────── */
+.nb-vers { display: flex; gap: 3px; align-items: center; overflow: hidden; padding: 0 0 2px; }
+.nb-vers[hidden] { display: none; }
+.nb-ver {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 2px 6px 2px 2px; border-radius: 7px; border: 1px solid transparent;
+  color: var(--txt-3); font: 500 10px/1 var(--nb-kicker); letter-spacing: .06em; text-transform: uppercase;
+  cursor: default; transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), border-color var(--nb-dur) var(--nb-ease);
+}
+.nb-ver:hover { background: var(--wash); color: var(--txt-2); }
+.nb-ver.is-current { color: var(--txt); }
+.nb-ver.is-viewed { border-color: var(--line-strong); color: var(--txt); }
+.nb-ver-thumb {
+  width: 30px; height: 20px; border-radius: 4px; overflow: hidden; flex: none;
+  background: var(--nb-well); box-shadow: inset 0 0 0 1px var(--line);
+}
+/* « V2 » et, dessous, « FINAL » / « APERÇU » (blocs à deux modes) */
+.nb-ver-txt { display: flex; flex-direction: column; gap: 2px; line-height: 1; }
+.nb-ver-mode { font-size: 8.5px; letter-spacing: .06em; color: var(--txt-3); }
+.nb-ver-mode.is-final { color: var(--txt-2); }
+.nb-ver.is-current .nb-ver-mode.is-final { color: var(--txt); }
+.nb-ver-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nb-ver-star {
+  display: none; width: 16px; height: 16px; margin-left: -2px; place-items: center;
+  border-radius: 4px; color: var(--txt-3);
+}
+.nb-ver-star svg { width: 12px; height: 12px; }
+.nb-ver:hover .nb-ver-star, .nb-ver.is-pinned .nb-ver-star { display: grid; }
+.nb-ver-star:hover { color: var(--txt); background: var(--wash-2); }
+.nb-ver-star.on { color: var(--txt); }
+.nb-ver-more { padding: 0 8px; justify-content: center; font-variant-numeric: tabular-nums; }
+
+/* ── réglages ───────────────────────────────────────────────────────── */
+.np { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px 8px; min-width: 0; }
+/* Une grille, dans la carte comme dans l'inspecteur : la colonne des libellés a la même
+   largeur sur toutes les rangées, tous les contrôles partent du même bord (un libellé long
+   passe sur deux lignes au lieu de pousser son contrôle) et les curseurs ont tous la même longueur. */
+.np { --lbl-w: clamp(72px, 30%, 116px); }
+.np-row {
+  position: relative;
+  display: grid; grid-template-columns: var(--lbl-w) minmax(0, 1fr); align-items: center;
+  column-gap: 10px; min-height: 30px; min-width: 0;
+}
+.np-row > .np-note { grid-column: 1 / -1; }
+/* sonde de largeur (params.js) : suit la largeur de la rangée, jamais sa hauteur */
+.np-probe { position: absolute; left: 0; right: 0; top: 0; height: 0; visibility: hidden; pointer-events: none; }
+/* contrôle trop large pour sa colonne (choix segmenté, curseur d'image sur carte étroite) : libellé
+   au-dessus, contrôle sur toute la largeur — les colonnes de la grille ne bougent pas */
+.np-row.np-stack { row-gap: 5px; padding: 4px 0 3px; }
+.np-row.np-stack > .np-label, .np-row.np-stack > .np-ctl { grid-column: 1 / -1; }
+.np-row.np-stack > .np-label { -webkit-line-clamp: 3; }
+/* interrupteur sur carte étroite (params.js) : libellé sur toute la largeur, interrupteur au bout */
+.np-row.np-tgl-wide { grid-template-columns: minmax(0, 1fr) auto; }
+.np-label {
+  min-width: 0; font-size: 11.5px; font-weight: 450; line-height: 1.25; color: var(--txt-3);
+  overflow-wrap: break-word; hyphens: auto;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+/* une aide existe : le pointillé n'apparaît qu'au survol de la rangée (sinon tout le bloc est souligné) */
+.np-label.has-hint {
+  text-decoration: underline dotted transparent; text-underline-offset: 3px;
+  transition: text-decoration-color var(--nb-dur) var(--nb-ease);
+}
+.np-row:hover > .np-label.has-hint { text-decoration-color: var(--line-strong); }
+.np-ctl { min-width: 0; display: flex; justify-content: flex-start; align-items: center; }
+.np-model .np-ctl > *, .np-select .np-ctl > * { width: 100%; min-width: 0; }
+.np-slider .np-ctl > * { width: 100%; min-width: 0; }
+.np-text .np-ctl > * { width: 100%; }
+.np-block { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 4px 0 2px; }
+.np-block .np-label { white-space: normal; }
+.np-prompt { min-width: 0; }
+.np-prompt textarea { width: 100%; resize: none; }
+.np-from {
+  border: 1px dashed var(--line-2); border-radius: 7px; padding: 7px 9px 8px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.np-from-head { font-size: 11px; color: var(--txt-3); }
+.np-from-text {
+  font-size: 12px; line-height: 1.4; color: var(--txt-3); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.np-from-text.empty { font-style: italic; }
+.np-seed { display: flex; align-items: center; gap: 4px; }
+.np-icon-btn {
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 6px;
+  color: var(--txt-3); transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.np-icon-btn:hover { background: var(--wash-2); color: var(--txt); }
+.np-icon-btn svg { width: 15px; height: 15px; }
+.np-adv {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 3px; height: 26px;
+  font-size: 11.5px; color: var(--txt-3); padding: 0; transition: color var(--nb-dur) var(--nb-ease);
+}
+.np-adv:hover { color: var(--txt-2); }
+.np-adv-chev { display: grid; transition: transform var(--dur-enter) var(--nb-ease-out); }
+.np-adv-chev svg { width: 12px; height: 12px; }
+.np-adv.open .np-adv-chev { transform: rotate(90deg); }
+.np-adv-box { display: flex; flex-direction: column; gap: 2px; }
+.np-adv-box[hidden] { display: none; }
+.np-section {
+  margin: 12px 0 2px; font: 500 10px/1 var(--nb-kicker); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--txt-3);
+}
+.np-row[hidden], .np-section[hidden], .np-adv[hidden] { display: none; }
+/* note sous une rangée : mot déclencheur ajouté, LoRA incompatible */
+.np-row.np-wrap { row-gap: 5px; }
+.np-row.np-wrap > .np-note { padding-bottom: 2px; }
+.np-note {
+  flex: 1 0 100%; display: flex; align-items: flex-start; gap: 5px;
+  font-size: 11px; line-height: 1.35; color: var(--txt-3);
+}
+.np-note[hidden] { display: none; }
+/* note posée seule entre les rangées (« La vidéo n’a pas de son… ») */
+.np > .np-note { flex: none; padding: 3px 0 4px; }
+.np-note-ico { display: grid; flex: none; margin-top: 1px; color: var(--txt-3); }
+.np-note-ico svg { width: 12px; height: 12px; }
+.np-warn, .np-warn .np-note-ico { color: var(--nb-err); }
+/* valeur des curseurs en mono (force du LoRA : « 1,00 ») */
+.np-slider .sld-val { font-family: var(--nb-mono); font-variant-numeric: tabular-nums; }
+
+/* curseur d'image (réglage « frame ») */
+.np-frame { display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0; }
+.np-frame.disabled .np-fr-track, .np-frame.disabled .np-icon-btn { opacity: .35; pointer-events: none; }
+.np-fr-track { position: relative; flex: 1 1 auto; min-width: 48px; height: 22px; display: flex; align-items: center; cursor: pointer; padding: 0 6px; }
+.np-fr-rail { position: relative; width: 100%; height: 3px; border-radius: 2px; background: var(--line-strong); }
+.np-fr-fill { position: absolute; inset: 0; border-radius: 2px; background: var(--txt-2); transform-origin: 0 50%; transform: scaleX(0); }
+.np-fr-knob {
+  position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+  background: var(--txt); box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+.np-frame.active .np-fr-fill { background: var(--txt); }
+/* largeur réservée par params.js (en ch, selon la vidéo) : la même pour toutes les rangées du bloc */
+.np-fr-num {
+  flex: none; min-width: 0; text-align: right; padding-left: 4px;
+  font: 11px/1 var(--nb-mono); font-variant-numeric: tabular-nums; color: var(--txt-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* « Dernière » (-1 : suit la longueur de la vidéo) : le bouton ⇥ reste allumé */
+.np-frame .np-icon-btn.on { color: var(--txt); background: var(--wash-2); }
+
+/* ── sélecteur de modèle ────────────────────────────────────────────── */
+.mp { min-width: 0; width: 100%; }
+.mp-trigger {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: 26px; padding: 0 7px 0 9px;
+  border-radius: var(--r-ctl, 7px); background: var(--surface-3); border: 1px solid var(--line);
+  font-size: 12px; color: var(--txt); text-align: left;
+  transition: border-color var(--nb-dur) var(--nb-ease), background var(--nb-dur) var(--nb-ease);
+}
+.mp-trigger:hover { border-color: var(--line-2); }
+.mp-trigger.open { border-color: var(--line-strong); }
+.mp-trigger.muted { color: var(--txt-3); }
+.mp-trigger.warn .mp-text { color: var(--nb-err); }
+.mp-trigger:disabled { opacity: .5; }
+.mp-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-chev { flex: none; display: grid; color: var(--txt-3); }
+.mp-chev svg { width: 12px; height: 12px; }
+.mp-pop {
+  position: fixed; z-index: 400; display: flex; flex-direction: column; max-height: min(460px, 70vh);
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-md, 10px);
+  box-shadow: var(--shadow-lg); overflow: hidden; animation: nb-pop var(--dur-menu) var(--nb-ease-out);
+}
+.mp-list { overflow: auto; padding: 5px; }
+.mp-group {
+  padding: 9px 9px 4px; font: 500 9.5px/1 var(--nb-kicker); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--txt-3);
+}
+.mp-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border-radius: var(--r-xs, 6px); }
+.mp-row[data-value]:hover, .mp-row.focus { background: var(--accent); color: #fff; }
+.mp-row[data-value]:hover .mp-sub, .mp-row.focus .mp-sub,
+.mp-row[data-value]:hover .mp-fam, .mp-row.focus .mp-fam,
+.mp-row[data-value]:hover .mp-size, .mp-row.focus .mp-size { color: rgba(255, 255, 255, .78); }
+.mp-row[data-value]:hover .mp-badge, .mp-row.focus .mp-badge { color: #fff; border-color: rgba(255, 255, 255, .45); }
+.mp-row.greyed { opacity: .55; }
+.mp-row.greyed .mp-sub { -webkit-line-clamp: 3; }
+.mp-row.muted .mp-name { color: var(--txt-2); }
+.mp-check { width: 14px; flex: none; display: grid; place-items: center; padding-top: 1px; }
+.mp-check svg { width: 13px; height: 13px; }
+.mp-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mp-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+/* le nom passe toujours en premier : la famille se tasse (puis disparaît) avant lui */
+.mp-name { flex: 0 1 auto; max-width: 100%; font-size: 12.5px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mp-fam {
+  flex: 0 100 auto; min-width: 0; font: 500 9.5px/1 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mp-sub {
+  font-size: 11px; line-height: 1.35; color: var(--txt-3);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.mp-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-top: 1px; }
+.mp-size { font: 10.5px/1.2 var(--nb-mono); font-variant-numeric: tabular-nums; color: var(--txt-2); white-space: nowrap; }
+.mp-badge, .mp-note {
+  font: 500 9px/1 var(--nb-kicker); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); white-space: nowrap;
+}
+.mp-badge { padding: 3px 4px 2px; border-radius: 4px; border: 1px solid var(--line-2); }
+.mp-empty { padding: 10px 9px; font-size: 12px; color: var(--txt-3); }
+.mp-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 9px 14px 10px;
+  border-top: 1px solid var(--line); font-size: 12px; color: var(--txt-2);
+  transition: color var(--nb-dur) var(--nb-ease), background var(--nb-dur) var(--nb-ease);
+}
+.mp-foot:hover { color: var(--txt); background: var(--wash); }
+.mp-foot svg { width: 12px; height: 12px; }
+
+/* ── pied du bloc : estimation + lancer ─────────────────────────────── */
+.nb-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 40px; padding: 0 8px 0 12px; border-top: 1px solid var(--line);
+}
+.nb-est {
+  flex: 1 1 auto; min-width: 0; font-size: 11px; color: var(--txt-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;
+}
+/* trop peu de place pour être lue (carte rétrécie) : l'estimation s'efface plutôt que de laisser « ≈… » ;
+   elle reste dans l'info-bulle du pied (body.js) */
+.nb-est.is-cut { visibility: hidden; }
+.nb-actions { flex: none; display: flex; align-items: center; gap: 6px; }
+/* modèle absent : la raison à la place de l'estimation, les boutons éteints */
+.nb-foot.is-blocked .nb-est { color: var(--nb-err); }
+/* « Installer le modèle » prend la place du texte rouge (SPEC §21.4) */
+.nb-install { flex: 0 1 auto; min-width: 0; margin-left: -6px; }
+.nb-install .btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-install[hidden], .nb-est[hidden] { display: none; }
+.nb-act-off { display: inline-flex; cursor: not-allowed; }
+.nb-act-off > * { pointer-events: none; }
+
+/* ── références numérotées (Vidéo à partir de références) ───────────── */
+.nb-refs { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 8px 12px 0; }
+.nb-refs[hidden] { display: none; }
+.nb-ref {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 2px 8px 2px 2px;
+  border-radius: 7px; background: var(--wash); color: var(--txt-2);
+  font: 500 10px/1 var(--nb-kicker); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+}
+.nb-ref-thumb {
+  width: 30px; height: 22px; border-radius: 5px; overflow: hidden; flex: none;
+  background: var(--nb-well); box-shadow: inset 0 0 0 1px var(--line);
+}
+.nb-ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ── état d'exécution dans l'en-tête (la barre de 2 px est à l'éditeur) ── */
+.nb-status {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  font: 500 10px/1.3 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; color: var(--txt-3); white-space: nowrap;
+}
+.nb-status[data-tone="live"] { color: var(--txt); }
+.nb-status[data-tone="err"] { color: var(--nb-err); }
+.nb-st-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* modèle absent, en carte étroite : l'alerte seule, la raison dans l'info-bulle */
+.nb-st-alert { display: grid; flex: none; color: var(--nb-err); }
+.nb-st-alert svg { width: 13px; height: 13px; display: block; }
+.nb-st-ring { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--txt-3); flex: none; }
+.nb-st-ring[hidden] { display: none; }
+
+/* ── consigne et note ───────────────────────────────────────────────── */
+.nb-text-wrap { padding: 0; }
+.nb-textarea {
+  display: block; width: 100%; min-height: 64px; max-height: 300px; resize: none; overflow: auto;
+  padding: 8px 10px; border-radius: var(--r-media, 8px); border: 1px solid var(--line);
+  background: var(--nb-well); color: var(--txt); font: 13px/1.45 var(--font-ui);
+  user-select: text; outline: none; transition: border-color var(--nb-dur) var(--nb-ease);
+}
+.nb-textarea:focus { border-color: var(--line-strong); }
+.nb-textarea::placeholder, .nb-note::placeholder { color: var(--txt-3); }
+[data-body="note"] { background: var(--surface-3); }
+.nb-note-wrap { margin: -8px -8px 0; }
+.nb-note {
+  display: block; width: 100%; min-height: 96px; max-height: 440px; resize: none; overflow: auto;
+  padding: 10px 14px 14px; border: 0; background: transparent; color: var(--txt);
+  font: 13.5px/1.5 var(--font-ui); user-select: text; outline: none;
+}
+
+/* ── zone de dépôt (bloc média d'une recette) ───────────────────────── */
+.nb-drop {
+  width: 100%; aspect-ratio: var(--ar, 1.3333); max-height: 280px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 16px; text-align: center; border-radius: var(--r-media, 8px);
+  border: 1px dashed var(--line-strong); background: var(--nb-well); color: var(--txt-3);
+}
+.nb-drop-ico { display: grid; color: var(--txt-3); margin-bottom: 2px; }
+.nb-drop-title { font-size: 12.5px; font-weight: 550; color: var(--txt-2); max-width: 260px; line-height: 1.35; }
+.nb-drop-sub { display: flex; align-items: baseline; gap: 5px; font-size: 11.5px; color: var(--txt-3); }
+
+/* ── exporter ───────────────────────────────────────────────────────── */
+.nb-export { display: flex; flex-direction: column; gap: 8px; padding: 2px 4px 4px; }
+.nb-export-none { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; line-height: 1.4; color: var(--txt-3); padding: 4px 2px; }
+.nb-export-file { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.nb-export-ico {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--r-ctl, 7px);
+  background: var(--surface-3); color: var(--txt-2);
+}
+.nb-export-none .nb-export-ico { width: auto; height: auto; background: none; color: var(--txt-3); }
+.nb-export-txt { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nb-export-name { font-size: 12.5px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+.nb-export-where { font-size: 11px; color: var(--txt-3); }
+.nb-export-acts { display: flex; gap: 14px; padding-left: 44px; }
+
+/* ── comparaison A/B ────────────────────────────────────────────────── */
+.nb-cmp-host { width: 100%; }
+/* comme le puits : le ratio du média, plus étroit et centré s'il est vertical */
+.cmp { position: relative; width: min(100%, calc(420px * var(--ar, 1.7778))); margin-inline: auto; container-type: inline-size; }
+.cmp-stage {
+  position: relative; width: 100%; aspect-ratio: var(--ar, 1.7778); max-height: 420px;
+  border-radius: var(--r-media, 8px); overflow: hidden; background: var(--nb-well);
+}
+.cmp-layer { position: absolute; inset: 0; display: grid; place-items: center; }
+.cmp-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-drag: none; }
+/* la moitié B ne montre que B : son calque a le fond du puits (damier compris), A ne transparaît pas
+   dans les bandes vides d'un B de cadre différent */
+.cmp[data-mode="slider"] .cmp-b { clip-path: inset(0 0 0 var(--wipe, 50%)); background: inherit; }
+.cmp[data-mode="side"] .cmp-a { right: calc(50% + 1px); }
+.cmp[data-mode="side"] .cmp-b { left: calc(50% + 1px); }
+.cmp-diff { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; background: var(--nb-well); }
+.cmp[data-mode="diff"] .cmp-diff { display: block; }
+.cmp:not(.has-a) .cmp-diff, .cmp:not(.has-b) .cmp-diff { display: none; }
+.cmp-line {
+  position: absolute; top: 0; bottom: 0; left: var(--wipe, 50%); width: 17px; margin-left: -8px;
+  display: none; cursor: ew-resize; z-index: 2;
+}
+.cmp-line::before { content: ''; position: absolute; top: 0; bottom: 0; left: 8px; width: 1px; background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .25); }
+.cmp-handle {
+  position: absolute; left: 1.5px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .45);
+  transition: transform var(--nb-dur) var(--nb-ease);
+}
+.cmp-line:hover .cmp-handle, .cmp.dragging .cmp-handle { transform: scale(1.15); }
+.cmp[data-mode="slider"].has-a.has-b .cmp-line { display: block; }
+.cmp-full.has-a.has-b[data-mode="slider"] .cmp-stage { cursor: ew-resize; }
+.cmp-lab {
+  position: absolute; top: 6px; z-index: 3; padding: 4px 6px 3px; border-radius: 5px;
+  background: rgba(0, 0, 0, .55); color: rgba(255, 255, 255, .92);
+  font: 500 10px/1.1 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase; pointer-events: auto;
+}
+.cmp-lab-a { left: 6px; }
+.cmp-lab-b { right: 6px; }
+.cmp:not(.has-a) .cmp-lab-a, .cmp:not(.has-b) .cmp-lab-b { display: none; }
+.cmp[data-mode="diff"] .cmp-lab { display: none; }
+.cmp-empty { position: absolute; inset: 0; z-index: 1; }
+.cmp-empty:empty { display: none; }
+.cmp.has-a:not(.has-b) .cmp-empty, .cmp.has-b:not(.has-a) .cmp-empty { inset: auto 8px 8px; height: auto; }
+.cmp.has-a:not(.has-b) .cmp-empty .nb-empty, .cmp.has-b:not(.has-a) .cmp-empty .nb-empty {
+  padding: 6px 10px; border-radius: 7px; background: rgba(0, 0, 0, .55);
+}
+.cmp.has-a:not(.has-b) .cmp-empty .nb-empty-title, .cmp.has-b:not(.has-a) .cmp-empty .nb-empty-title { color: rgba(255, 255, 255, .9); font-size: 11.5px; }
+
+/* ── visionneuse plein écran ────────────────────────────────────────── */
+#viewer.vw {
+  position: fixed; inset: 0; z-index: 300; display: grid; grid-template-rows: 52px minmax(0, 1fr) auto;
+  background: var(--bg);
+}
+#viewer.vw[hidden] { display: none; }
+#viewer.vw.in { animation: nb-fade var(--dur-modal) var(--nb-ease-out); }
+#viewer.vw.out { opacity: 0; transition: opacity var(--dur-scrim) var(--nb-ease); }
+.vw-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 0 8px 0 18px; -webkit-app-region: drag; min-width: 0;
+}
+.vw-top > * { -webkit-app-region: no-drag; }
+.vw-title { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.vw-name { font-size: 13px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+.vw-meta {
+  font: 500 10px/1 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--txt-3); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.vw-tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.vw-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line-2); }
+.vw-btn {
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--txt-2);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.vw-btn:hover { background: var(--surface-3); color: var(--txt); }
+.vw-btn:disabled { opacity: .35; pointer-events: none; }
+.vw-btn svg { width: 16px; height: 16px; }
+.vw-stage { position: relative; min-height: 0; overflow: hidden; display: grid; place-items: center; padding: 6px 24px 4px; }
+/* « Ajuster » : l'image entière dans la place disponible, sans déformation ni
+   rognage (un 9:16 se voit en entier) — cadre en position absolue, pas de
+   hauteur en % dans une rangée de grille auto (elle ne se résout pas) */
+.vw-stage:not(.is-actual) .vw-fit { position: absolute; inset: 6px 24px 4px; }
+.vw-stage:not(.is-actual) .vw-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.vw-media { display: block; -webkit-user-drag: none; user-select: none; }
+.vw-stage.is-actual { overflow: auto; place-items: start; cursor: grab; }
+.vw-stage.is-actual.panning { cursor: grabbing; }
+.vw-stage.is-actual .vw-fit { display: grid; place-items: center; width: max-content; height: max-content; min-width: 100%; min-height: 100%; }
+.vw-stage.is-actual .vw-media { object-fit: fill; }
+.vw-stage > .vw-broken { position: absolute; inset: 0; display: grid; place-items: center; }
+.vw-fit > .vw-broken { position: absolute; inset: 0; display: grid; place-items: center; }
+.vw-stage.is-wipe { padding: 6px 24px 4px; }
+.cmp.cmp-full { width: min(100%, calc((100vh - 150px) * var(--ar, 1.7778))); }
+.cmp-full .cmp-stage { max-height: none; border-radius: 4px; }
+.vw-broken { font-size: 13px; color: var(--txt-3); }
+.vw-bottom { display: flex; justify-content: center; padding: 10px 24px 20px; min-height: 20px; }
+.vw-keys {
+  position: absolute; right: 20px; bottom: 12px; pointer-events: none;
+  font: 500 9.5px/1 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+
+/* ── inspecteur ─────────────────────────────────────────────────────── */
+#inspector.insp {
+  position: absolute; top: calc(var(--tb-h, 44px) + 10px); right: 18px; bottom: 76px; width: 340px; z-index: 22;
+  display: flex; flex-direction: column; overflow: hidden;
+  /* panneau de lecture dense : presque opaque (la planche ne doit pas « traverser » le texte) */
+  background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); border-radius: var(--r-panel, 14px); box-shadow: var(--shadow-lg);
+}
+#inspector.insp[hidden] { display: none; }
+#inspector.insp.enter { animation: nb-insp-in var(--dur-enter) var(--nb-ease-out); }
+.insp-head {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 46px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--line);
+}
+.insp-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.insp-glyph { display: grid; color: var(--txt-3); flex: none; }
+.insp-glyph svg { width: 16px; height: 16px; }
+.insp-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.insp-x {
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.insp-x:hover { background: var(--surface-3); color: var(--txt); }
+.insp-scroll { flex: 1 1 auto; overflow: auto; padding: 12px 14px 18px; }
+.insp-desc { font-size: 12.5px; line-height: 1.5; color: var(--txt-2); }
+.insp-sec { margin-top: 18px; }
+.insp-kicker {
+  margin: 0 0 6px; font: 500 10px/1 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+.insp-params .np { padding: 0; }
+.insp-empty { font-size: 12px; color: var(--txt-3); line-height: 1.45; }
+.insp-file { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.insp-file-name { font-size: 13px; font-weight: 550; overflow-wrap: anywhere; user-select: text; }
+.insp-file-meta {
+  font: 500 10px/1.2 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+.insp-row-btns { display: flex; flex-direction: column; gap: 1px; }
+.insp-link {
+  display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 8px; margin: 0 -8px;
+  border-radius: 8px; font-size: 12.5px; color: var(--txt-2); text-align: left; box-sizing: content-box;
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.insp-link:hover { background: var(--wash); color: var(--txt); }
+.insp-link > span:first-child { display: grid; color: var(--txt-3); }
+.insp-link svg { width: 14px; height: 14px; }
+.insp-run { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-bottom: 8px; }
+.insp-run-why { flex: 1 1 auto; min-width: 0; font-size: 11.5px; color: var(--nb-err); }
+.insp-vers { display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; }
+/* « Pas encore de version » : la phrase reprend le bord de la colonne (la marge négative ne sert qu'au survol des rangées) */
+.insp-vers > .insp-empty { padding: 0 6px; }
+.insp-ver {
+  display: flex; align-items: flex-start; gap: 10px; padding: 7px 6px; border-radius: 9px;
+  transition: background var(--nb-dur) var(--nb-ease);
+}
+.insp-ver:hover { background: var(--wash); }
+.insp-ver.is-current { background: var(--wash); }
+.insp-ver-thumb {
+  flex: none; width: 56px; height: 36px; border-radius: 5px; overflow: hidden; display: grid; place-items: center;
+  background: var(--nb-well); box-shadow: inset 0 0 0 1px var(--line); color: var(--txt-3);
+}
+.insp-ver-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.insp-ver-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.insp-ver-line { display: flex; align-items: center; gap: 6px; }
+.insp-ver-n { font: 500 11px/1.2 var(--nb-mono); color: var(--txt); text-transform: uppercase; }
+.insp-tag {
+  padding: 2px 4px 1px; border-radius: 4px; border: 1px solid var(--line-2);
+  font: 500 9px/1.1 var(--nb-kicker); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3);
+}
+.insp-tag.err { color: var(--nb-err); border-color: rgba(229, 72, 77, .35); }
+.insp-ver-detail { font-size: 11px; color: var(--txt-3); }
+.insp-ver-model { font-size: 11px; color: var(--txt-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.insp-ver-err { font-size: 11px; color: var(--nb-err); line-height: 1.35; overflow-wrap: anywhere; }
+.insp-ver.is-failed .insp-ver-n { color: var(--txt-3); }
+.insp-ver-acts { flex: none; display: flex; gap: 2px; }
+.insp-star, .insp-more {
+  width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.insp-star:hover, .insp-more:hover { background: var(--wash-2); color: var(--txt); }
+.insp-star.on { color: var(--txt); }
+.insp-star svg, .insp-more svg { width: 14px; height: 14px; }
+
+/* ── mouvement ──────────────────────────────────────────────────────── */
+@keyframes nb-fade { from { opacity: 0; } }
+@keyframes nb-pop { from { opacity: 0; transform: scale(.98) translateY(-2px); } }
+/* l'inspecteur glisse depuis son bord (la droite) */
+@keyframes nb-insp-in { from { opacity: 0; transform: translateX(16px); } }
+
+/* lecteur : lecture ↔ pause, l'icône se transforme ; un pas d'image, le compteur l'accuse ;
+   la vitesse change, sa pastille bat une fois (player.js, transform / opacity seulement) */
+.pl-play.pl-morph svg { animation: pl-morph var(--dur-enter) var(--nb-ease-out); }
+@keyframes pl-morph { from { opacity: 0; transform: scale(.55) rotate(-25deg); } }
+.pl-count.pl-tick { animation: pl-tick var(--dur-pulse) var(--nb-ease-out); }
+@keyframes pl-tick { from { opacity: .45; transform: translateX(var(--pl-dx, 3px)); } }
+.pl-speed.pl-pop { animation: pl-pop var(--dur-pulse) var(--nb-ease-out); }
+@keyframes pl-pop { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* ── un son (bloc Média → bloc Son) ─────────────────────────────────────
+   Sa forme d'onde (PNG blanc fait à l'import) sert de masque : grise, la partie
+   déjà écoutée en couleur de texte. Pas d'accent, pas de halo. */
+.nb-audio { display: flex; flex-direction: column; place-items: stretch; padding: 10px 10px 6px; gap: 4px; --p: 0; }
+.nb-au-track { position: relative; flex: 1 1 auto; min-height: 0; cursor: pointer; touch-action: none; }
+.nb-wave {
+  position: absolute; inset: 0; background: var(--txt-3); opacity: .55;
+  -webkit-mask: var(--wave) center / 100% 100% no-repeat; mask: var(--wave) center / 100% 100% no-repeat;
+}
+.nb-wave-heard { background: var(--txt); opacity: .9; clip-path: inset(0 calc((1 - var(--p)) * 100%) 0 0); }
+.nb-au-track.no-wave::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong);
+}
+.nb-au-head {
+  position: absolute; top: 0; bottom: 0; left: calc(var(--p) * 100%); width: 1px; margin-left: -.5px;
+  background: var(--txt-2); opacity: 0; transition: opacity var(--nb-dur) var(--nb-ease);
+}
+.nb-audio.playing .nb-au-head, .nb-au-track:hover .nb-au-head { opacity: 1; }
+.nb-au-bar { flex: none; display: flex; align-items: center; gap: 6px; height: 22px; }
+.nb-au-play {
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; color: var(--txt-2);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.nb-au-play:hover { background: var(--wash-2); color: var(--txt); }
+.nb-au-play:disabled { opacity: .4; pointer-events: none; }
+.nb-au-play svg { width: 13px; height: 13px; }
+.nb-au-time { font: 500 10.5px/1 var(--nb-mono); font-variant-numeric: tabular-nums; color: var(--txt-3); }
+
+/* ── réglage « fichier » (LUT .cube de la Finition) ─────────────────── */
+.np-filerow .np-ctl > * { width: 100%; }
+.np-file-wrap { display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0; }
+.np-file {
+  flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 9px 0 8px; border-radius: 7px; font-size: 12px; color: var(--txt); text-align: left;
+  background: var(--surface-3); border: 1px solid var(--line);
+  transition: background var(--nb-dur) var(--nb-ease), border-color var(--nb-dur) var(--nb-ease);
+}
+.np-file:hover { background: var(--surface-hi); border-color: var(--line-2); }
+.np-file.empty { color: var(--txt-3); }
+.np-file-ico { display: grid; flex: none; color: var(--txt-3); }
+.np-file-ico svg { width: 13px; height: 13px; }
+.np-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-file-clear[hidden] { display: none; }
+.np-file-clear svg { width: 12px; height: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-layer, .nb-badge, .media-ctl.pl { transition: none; }
+  #viewer.vw.in, #inspector.insp.enter, .mp-pop, .pl-play.pl-morph svg, .pl-count.pl-tick, .pl-speed.pl-pop { animation: none; }
+}

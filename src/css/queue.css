@@ -1,0 +1,156 @@
+/* ── File d'attente (#queue) et puce GPU (F) ─────────────────────────
+   La file est un îlot de Slate (panel + flou, filet --line-2, r 14) posé en
+   bas à droite au-dessus de la barre de zoom ; elle se replie en pastille.
+   Un seul indicateur d'activité : la barre de 2 px (da.md §3.2.6). */
+
+#queue.q {
+  position: absolute; right: 18px; bottom: 74px; z-index: 21;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  pointer-events: none; max-width: calc(100vw - 36px);
+  /* s'écarte en glissant (translate, jamais right/bottom animés) */
+  translate: var(--q-dx, 0) var(--q-dy, 0);
+  transition: translate var(--dur-fade) var(--ease-out);
+}
+#queue.q[hidden] { display: none; }
+#queue.q > * { pointer-events: auto; }
+/* s'écarte de l'inspecteur et de la minicarte quand ils sont ouverts */
+#view-board:has(#inspector:not([hidden])) #queue.q { --q-dx: -350px; max-width: calc(100vw - 36px - 350px); }
+#view-board:has(#minimap:not([hidden])) #queue.q { --q-dy: -142px; --q-lift: 142px; }
+
+.q-pill {
+  position: relative; display: inline-flex; align-items: center; gap: 8px;
+  height: 34px; max-width: 360px; padding: 0 10px 0 13px; overflow: hidden;
+  border-radius: var(--r-full, 999px); background: var(--panel); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow-lg); color: var(--txt-2);
+  font: 500 10.5px/1 var(--font-kicker, var(--font-mono)); letter-spacing: .08em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.q-pill:hover { color: var(--txt); border-color: var(--line-strong); }
+.q-sum { display: flex; min-width: 0; white-space: nowrap; line-height: 1.4; }
+.q-sum-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.q-sum-st { flex: none; }
+.q-sum-st.after::before { content: '·'; margin: 0 .55em; }
+.q-sum-st:empty { display: none; }
+.q-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; border: 1.5px solid var(--txt-3); }
+.q-dot.on { background: var(--txt); border-color: var(--txt); }
+.q-chev { display: grid; color: var(--txt-3); transition: transform var(--dur-enter) var(--ease-out); }
+.q-chev svg { width: 12px; height: 12px; }
+.q-pill.open .q-chev { transform: rotate(180deg); }
+.q-pill > .q-bar { position: absolute; left: 14px; right: 14px; bottom: 0; }
+
+/* bornée par la place réelle : sous la barre de titre, au-dessus de la pastille (et de la minicarte) */
+.q-panel {
+  width: 330px;
+  max-height: min(52vh, 460px, calc(100vh - var(--tb-h, 44px) - 74px - 34px - 8px - 12px - var(--q-lift, 0px))); display: flex; flex-direction: column; overflow: hidden;
+  border-radius: var(--r-lg, 14px); background: var(--panel); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow-lg);
+}
+.q-panel[hidden] { display: none; }
+/* entrées jouées une seule fois : quand la file apparaît, quand la liste s'ouvre */
+#queue.q.q-enter .q-pill { animation: q-in var(--dur-card) var(--ease-out); }
+.q-panel.q-open { animation: q-in var(--dur-rise) var(--ease-out); transform-origin: 100% 100%; }
+.q-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 11px 14px 6px; }
+.q-kicker {
+  font: 500 10px/1 var(--font-kicker, var(--font-mono)); letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+.q-list { overflow: auto; padding: 0 6px 6px; display: flex; flex-direction: column; gap: 1px; }
+.q-row {
+  position: relative; display: flex; flex-direction: column; gap: 3px; padding: 8px 8px 12px 10px;
+  border-radius: 9px; transition: background var(--dur) var(--ease);
+}
+.q-line { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.q-line > .q-label, .q-line > .q-sub { flex: 1 1 auto; min-width: 0; }
+.q-row:hover { background: var(--wash); }
+.q-label { font-size: 12.5px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-sub { font-size: 11px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* l'état garde sa largeur (c'est ce qu'on vient lire) ; « mode · planche » cède à côté */
+.q-st {
+  flex: 0 0 auto; min-width: 0; max-width: 72%; font: 500 10px/1.4 var(--font-kicker, var(--font-mono)); letter-spacing: .08em;
+  text-transform: uppercase; font-variant-numeric: tabular-nums; color: var(--txt-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.q-st[data-tone="live"] { color: var(--txt); }
+.q-st[data-tone="err"] { color: var(--state-err, var(--danger)); }
+.q-x {
+  flex: none; margin: -3px -2px -3px 0; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.q-x:hover { background: var(--wash-2); color: var(--txt); }
+.q-x svg { width: 12px; height: 12px; }
+/* fini ou annulé : le nom passe au second plan, l'état (qu'on vient lire) reste lisible */
+.q-row.is-done .q-label, .q-row.is-cancelled .q-label { color: var(--txt-2); }
+.q-row.is-done .q-st, .q-row.is-cancelled .q-st { color: var(--txt-2); }
+.q-row > .q-bar { position: absolute; left: 8px; right: 8px; bottom: 4px; }
+
+/* barre de 2 px : déterminée (scaleX) ou indéterminée (segment de 30 % qui glisse) */
+.q-bar { height: 2px; border-radius: 1px; overflow: hidden; display: none; background: var(--line); }
+.q-bar.on { display: block; }
+.q-bar > i {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: var(--run, var(--accent));
+  transform-origin: 0 50%; transform: scaleX(0); transition: transform var(--dur-glide) var(--ease);
+}
+.q-bar { position: absolute; }
+.q-bar.on:not(.ind) > i { animation: q-born var(--dur-rise) var(--ease-out); }
+@keyframes q-born { from { transform: scaleX(0); } }
+.q-bar.ind > i { width: 30%; transition: none; animation: q-ind var(--dur-loop) linear infinite; }
+@keyframes q-ind { from { transform: translateX(-100%); } to { transform: translateX(334%); } }
+@keyframes q-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+
+/* ── puce GPU (barre de titre) ──────────────────────────────────────── */
+.gpu-chip {
+  position: relative; display: inline-flex; align-items: center; height: 28px; padding: 0 9px 2px;
+  border-radius: 8px; color: var(--txt-2); white-space: nowrap;
+  font: 500 11px/1 var(--font-kicker, var(--font-mono)); letter-spacing: .04em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.gpu-chip:hover { background: var(--surface-3); color: var(--txt); }
+.gpu-gauge {
+  position: absolute; left: 9px; right: 9px; bottom: 4px; height: 2px; border-radius: 1px; overflow: hidden;
+  background: var(--line-2);
+}
+.gpu-gauge > i {
+  position: absolute; inset: 0; background: var(--txt-3); transform-origin: 0 50%; transform: scaleX(0);
+  transition: transform var(--dur-cam) var(--ease), background var(--dur) var(--ease);
+}
+.gpu-chip:hover .gpu-gauge > i, .gpu-chip.busy .gpu-gauge > i, .gpu-chip.mine .gpu-gauge > i { background: var(--txt-2); }
+
+.gpu-pop {
+  position: fixed; z-index: 400; width: 300px; padding: 4px;
+  border-radius: var(--r-lg, 14px); background: var(--surface); border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-lg); animation: gp-in var(--dur-menu) var(--ease-out);
+}
+.gpu-pop-body { display: flex; flex-direction: column; }
+.gp-sec { padding: 10px 10px 11px; display: flex; flex-direction: column; gap: 6px; }
+.gp-sec + .gp-sec { border-top: 1px solid var(--line); }
+.gp-kicker {
+  font: 500 10px/1 var(--font-kicker, var(--font-mono)); letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+.gp-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gp-main { font-size: 12.5px; color: var(--txt); min-width: 0; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gp-mono { font: 10.5px/1 var(--font-mono); color: var(--txt-3); flex: none; }
+.gp-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; border: 1.5px solid var(--txt-3); }
+.gp-dot.st-running, .gp-dot.st-foreign { background: var(--txt-2); border-color: var(--txt-2); }
+.gp-dot.st-error { border-color: var(--state-err, var(--danger)); background: var(--state-err, var(--danger)); }
+.gp-err { font-size: 11.5px; line-height: 1.4; color: var(--state-err, var(--danger)); overflow-wrap: anywhere; }
+.gp-hint, .gp-sub { font-size: 11px; line-height: 1.4; color: var(--txt-3); }
+.gp-act { display: flex; padding-top: 2px; }
+/* le bouton fantôme part de la colonne du texte (son icône sous les titres), pas de son rembourrage */
+.gp-act .btn-ghost { margin-left: -12px; }
+.gp-gauge { position: relative; height: 2px; border-radius: 1px; overflow: hidden; background: var(--line-2); margin: 2px 0; }
+.gp-gauge > i { position: absolute; inset: 0; background: var(--txt-2); transform-origin: 0 50%; }
+.gp-holder { font-size: 11.5px; color: var(--txt-2); line-height: 1.4; }
+.gp-holder.busy { color: var(--txt); }
+.gp-link {
+  flex: none; font-size: 11.5px; color: var(--txt-2); text-decoration: underline;
+  text-decoration-color: var(--line-strong); text-underline-offset: 2px;
+}
+.gp-link:hover { color: var(--txt); }
+@keyframes gp-in { from { opacity: 0; transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #queue.q.q-enter .q-pill, .q-panel.q-open, .gpu-pop { animation: none; }
+  .q-bar.ind > i { animation: none; transform: translateX(110%); }
+  #queue.q { transition: none; }
+}

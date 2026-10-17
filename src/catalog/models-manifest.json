@@ -1,0 +1,785 @@
+{
+  "schema": 1,
+  "updated": "2026-10-17",
+  "about": {
+    "fr": "Ce que Mia sait installer, capacité par capacité : fichiers exacts, dépôt Hugging Face figé sur une version, taille, empreinte, licence. Mis à jour depuis setup/models.yaml du labo et les gabarits officiels de ComfyUI.",
+    "en": "What Mia can install, capability by capability: exact files, Hugging Face repository pinned to a version, size, checksum, license. Built from the lab's setup/models.yaml and ComfyUI's official templates."
+  },
+  "source": "https://huggingface.co",
+  "licenses": {
+    "ltx": {
+      "name": "LTX-2.x Community License",
+      "url": "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x",
+      "note": {
+        "fr": "Gratuit, y compris en commercial sous 10 M$ de chiffre d’affaires annuel. Il faut accepter la licence sur la page Hugging Face (compte gratuit).",
+        "en": "Free, commercial use included under $10M yearly revenue. You must accept the license on the Hugging Face page (free account)."
+      }
+    },
+    "ltx-2.3": {
+      "name": "LTX-2 Community License",
+      "url": "https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2",
+      "note": {
+        "fr": "Licence de janvier 2026, celle des fichiers LTX-2.3. Gratuit, y compris en commercial sous 10 M$ de chiffre d’affaires annuel.",
+        "en": "January 2026 license, the one of the LTX-2.3 files. Free, commercial use included under $10M yearly revenue."
+      }
+    },
+    "minimax": {
+      "name": "MiniMax H3",
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3",
+      "note": {
+        "fr": "Licence propre à MiniMax : lis-la avant un usage commercial.",
+        "en": "MiniMax's own license: read it before any commercial use."
+      }
+    },
+    "apache": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "note": {
+        "fr": "Usage commercial autorisé.",
+        "en": "Commercial use allowed."
+      }
+    },
+    "mit": {
+      "name": "MIT",
+      "url": "https://opensource.org/license/mit",
+      "note": {
+        "fr": "Usage commercial autorisé.",
+        "en": "Commercial use allowed."
+      }
+    }
+  },
+  "files": [
+    {
+      "key": "ltx",
+      "model": "ltx",
+      "label": {
+        "fr": "LTX 2.5",
+        "en": "LTX 2.5"
+      },
+      "repo": "Lightricks/LTX-2.5",
+      "revision": "49b093a39c19169a8a81721dcc541e07e945232f",
+      "path": "diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 21504034224,
+      "sizeGB": 21.5,
+      "gated": true,
+      "license": "ltx"
+    },
+    {
+      "key": "ltx-te",
+      "model": "ltx-te",
+      "label": {
+        "fr": "Encodeur de texte LTX",
+        "en": "LTX text encoder"
+      },
+      "repo": "Lightricks/LTX-2.5",
+      "revision": "49b093a39c19169a8a81721dcc541e07e945232f",
+      "path": "text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+      "dest": "text_encoders",
+      "bytes": 15372969374,
+      "sizeGB": 15.37,
+      "gated": true,
+      "license": "ltx"
+    },
+    {
+      "key": "ltx-vae",
+      "model": "ltx-vae",
+      "label": {
+        "fr": "Décodeur vidéo LTX",
+        "en": "LTX video decoder"
+      },
+      "repo": "Lightricks/LTX-2.5",
+      "revision": "49b093a39c19169a8a81721dcc541e07e945232f",
+      "path": "vae/ltx-2.5-video-vae-bf16.safetensors",
+      "dest": "vae",
+      "bytes": 1472223346,
+      "sizeGB": 1.47,
+      "gated": true,
+      "license": "ltx"
+    },
+    {
+      "key": "ltx-audio-vae",
+      "model": "ltx-audio-vae",
+      "label": {
+        "fr": "Décodeur audio LTX",
+        "en": "LTX audio decoder"
+      },
+      "repo": "Lightricks/LTX-2.5",
+      "revision": "49b093a39c19169a8a81721dcc541e07e945232f",
+      "path": "vae/ltx-2.5-audio-vae-bf16.safetensors",
+      "dest": "vae",
+      "bytes": 364866540,
+      "sizeGB": 0.36,
+      "gated": true,
+      "license": "ltx"
+    },
+    {
+      "key": "ltx-l2r",
+      "model": "ltx-l2r",
+      "label": {
+        "fr": "Mode Blockout → rendu",
+        "en": "Blockout to render mode"
+      },
+      "repo": "Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render",
+      "revision": "349625f9bad639dc41f1c70d2c63f75a02a09c59",
+      "path": "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+      "dest": "loras",
+      "bytes": 1308787439,
+      "sizeGB": 1.31,
+      "gated": true,
+      "license": "ltx"
+    },
+    {
+      "key": "ltx-union",
+      "model": "ltx-union",
+      "label": {
+        "fr": "Mode Vidéo guidée",
+        "en": "Guided video mode"
+      },
+      "repo": "Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control",
+      "revision": "b4d1c4d8c9e544e9bbbd6811bb4363708b6093ff",
+      "path": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+      "dest": "loras",
+      "bytes": 654465352,
+      "sizeGB": 0.65,
+      "gated": false,
+      "license": "ltx-2.3",
+      "sha256": "a1b888a87f661d27f08b394ae559e8e1050be33900bcc36a5cdf659e48f88d18"
+    },
+    {
+      "key": "ltx-ingredients",
+      "model": "ltx-ingredients",
+      "label": {
+        "fr": "Mode Personnage d’après une fiche",
+        "en": "Character from a sheet mode"
+      },
+      "repo": "Comfy-Org/ltx-2.3",
+      "revision": "f20f3a54378001e5e6d642acc84719cc78addf4b",
+      "path": "split_files/loras/ltx-2.3-22b-ic-lora-ingredients-0.9.safetensors",
+      "dest": "loras",
+      "bytes": 1308778338,
+      "sizeGB": 1.31,
+      "gated": false,
+      "license": "ltx-2.3",
+      "sha256": "515e4e139001ac6282357a5b35372e42e98b3affd5fcc886a52242abeed19559"
+    },
+    {
+      "key": "minimax",
+      "model": "minimax",
+      "label": {
+        "fr": "MiniMax H3",
+        "en": "MiniMax H3"
+      },
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "path": "diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 20970379616,
+      "sizeGB": 20.97,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "e889202c41dafb67b10d67b97f0d8541508036a6090af23425a5c2615d03c47a"
+    },
+    {
+      "key": "minimax-turbo",
+      "model": "minimax-turbo",
+      "label": {
+        "fr": "Accélérateur MiniMax (8 étapes)",
+        "en": "MiniMax accelerator (8 steps)"
+      },
+      "repo": "lightx2v/Minimax-h3-Turbo",
+      "revision": "a29e57d195f80ead07c89f89e55ecf2911e893c5",
+      "path": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+      "dest": "loras",
+      "bytes": 1956193000,
+      "sizeGB": 1.96,
+      "gated": false,
+      "license": "apache",
+      "sha256": "2339acdf19bfe123f46b971ea35d367a84adb85de43627e1eceafa5a5b2b111e"
+    },
+    {
+      "key": "minimax-te",
+      "model": "minimax-te",
+      "label": {
+        "fr": "Encodeur de texte MiniMax",
+        "en": "MiniMax text encoder"
+      },
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "path": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "dest": "text_encoders",
+      "bytes": 15687142551,
+      "sizeGB": 15.69,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6"
+    },
+    {
+      "key": "minimax-vae",
+      "model": "minimax-vae",
+      "label": {
+        "fr": "Décodeur vidéo MiniMax",
+        "en": "MiniMax video decoder"
+      },
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "path": "vae/minimax_h3_video_vae_fp16.safetensors",
+      "dest": "vae",
+      "bytes": 5207808496,
+      "sizeGB": 5.21,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522"
+    },
+    {
+      "key": "minimax-audio-vae",
+      "model": "minimax-audio-vae",
+      "label": {
+        "fr": "Décodeur audio MiniMax",
+        "en": "MiniMax audio decoder"
+      },
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "path": "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "dest": "vae",
+      "bytes": 605254808,
+      "sizeGB": 0.61,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48"
+    },
+    {
+      "key": "minimax-control",
+      "model": "minimax-control",
+      "label": {
+        "fr": "Guidage MiniMax (profondeur, contours)",
+        "en": "MiniMax guidance (depth, edges)"
+      },
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "path": "model_patches/minimax_h3_fun_controlnet_union_2.0_pruned_int8_convrot.safetensors",
+      "dest": "model_patches",
+      "bytes": 4531220608,
+      "sizeGB": 4.53,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "890af58bb350f0c2f6c409b1c67ea8f4196654297d037769b72de1e6f504c612"
+    },
+    {
+      "key": "ref2v",
+      "model": "ref2v",
+      "label": {
+        "fr": "MiniMax H3 · Références",
+        "en": "MiniMax H3 · References"
+      },
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "path": "diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 20970379616,
+      "sizeGB": 20.97,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "9255f52b6677845ad238f20dfaafa94727053694127ab7f255c048f0f9365779"
+    },
+    {
+      "key": "ref2v-turbo",
+      "model": "ref2v-turbo",
+      "label": {
+        "fr": "Accélérateur MiniMax Références (4 étapes)",
+        "en": "MiniMax References accelerator (4 steps)"
+      },
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "path": "loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+      "dest": "loras",
+      "bytes": 1956193000,
+      "sizeGB": 1.96,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "5b9ab5ade15d0775676d01a907268a69a1468dc6033b3b0d3ded5502f3ebb84c"
+    },
+    {
+      "key": "wan",
+      "model": "wan",
+      "label": {
+        "fr": "Wan Animate 2",
+        "en": "Wan Animate 2"
+      },
+      "repo": "Comfy-Org/Wan-Animate-2",
+      "revision": "e7181fe1896b7f2ce34120d1a3663413548240d7",
+      "path": "diffusion_models/wan_animate_2_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 16653175528,
+      "sizeGB": 16.65,
+      "gated": false,
+      "license": "apache",
+      "sha256": "0580ecdd65e47e97c30df9670d13a6c4a131d26de5a1faf2ccc78392d5167584"
+    },
+    {
+      "key": "wan-te",
+      "model": "wan-te",
+      "label": {
+        "fr": "Encodeur de texte Wan",
+        "en": "Wan text encoder"
+      },
+      "repo": "Comfy-Org/Wan-Animate-2",
+      "revision": "e7181fe1896b7f2ce34120d1a3663413548240d7",
+      "path": "text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "dest": "text_encoders",
+      "bytes": 6735906897,
+      "sizeGB": 6.74,
+      "gated": false,
+      "license": "apache",
+      "sha256": "c3355d30191f1f066b26d93fba017ae9809dce6c627dda5f6a66eaa651204f68"
+    },
+    {
+      "key": "wan-vision",
+      "model": "wan-vision",
+      "label": {
+        "fr": "Lecteur d’image Wan",
+        "en": "Wan image reader"
+      },
+      "repo": "Comfy-Org/Wan-Animate-2",
+      "revision": "e7181fe1896b7f2ce34120d1a3663413548240d7",
+      "path": "clip_vision/clip_vision_h.safetensors",
+      "dest": "clip_vision",
+      "bytes": 1264219396,
+      "sizeGB": 1.26,
+      "gated": false,
+      "license": "apache",
+      "sha256": "64a7ef761bfccbadbaa3da77366aac4185a6c58fa5de5f589b42a65bcc21f161"
+    },
+    {
+      "key": "wan-vae",
+      "model": "wan-vae",
+      "label": {
+        "fr": "Décodeur Wan",
+        "en": "Wan decoder"
+      },
+      "repo": "Comfy-Org/Wan-Animate-2",
+      "revision": "e7181fe1896b7f2ce34120d1a3663413548240d7",
+      "path": "vae/Wan2_1_VAE_bf16.safetensors",
+      "dest": "vae",
+      "bytes": 253806278,
+      "sizeGB": 0.25,
+      "gated": false,
+      "license": "apache",
+      "sha256": "1ab9a32cc2c740f6e39d80d367ce5dcc28db8c71b79b28670546b8973e9d75f9"
+    },
+    {
+      "key": "wan-lightx2v",
+      "model": "wan-lightx2v",
+      "label": {
+        "fr": "Accélérateur Wan",
+        "en": "Wan accelerator"
+      },
+      "repo": "Comfy-Org/Wan-Animate-2",
+      "revision": "e7181fe1896b7f2ce34120d1a3663413548240d7",
+      "path": "loras/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+      "dest": "loras",
+      "bytes": 738005744,
+      "sizeGB": 0.74,
+      "gated": false,
+      "license": "apache",
+      "sha256": "85c4a61c30e0497aa44b91d93a893b624708461a56fe5485183b28fa07e2dfb3"
+    },
+    {
+      "key": "qwen",
+      "model": "qwen",
+      "label": {
+        "fr": "Qwen Image Edit",
+        "en": "Qwen Image Edit"
+      },
+      "repo": "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+      "revision": "f68ace85e60b4a02a323e394253731947657b7d2",
+      "path": "split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 20499083824,
+      "sizeGB": 20.5,
+      "gated": false,
+      "license": "apache",
+      "sha256": "11b5af5ac601821d73930c84846c9a158e67177356daf927ce1c8d10f3963829"
+    },
+    {
+      "key": "qwen-te",
+      "model": "qwen-te",
+      "label": {
+        "fr": "Encodeur de texte Qwen",
+        "en": "Qwen text encoder"
+      },
+      "repo": "Comfy-Org/Qwen-Image_ComfyUI",
+      "revision": "1f12b17be14c89b026c51a91d67c32f84bb047bc",
+      "path": "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "dest": "text_encoders",
+      "bytes": 9384670680,
+      "sizeGB": 9.38,
+      "gated": false,
+      "license": "apache",
+      "sha256": "cb5636d852a0ea6a9075ab1bef496c0db7aef13c02350571e388aea959c5c0b4"
+    },
+    {
+      "key": "qwen-vae",
+      "model": "qwen-vae",
+      "label": {
+        "fr": "Décodeur Qwen",
+        "en": "Qwen decoder"
+      },
+      "repo": "Comfy-Org/Qwen-Image_ComfyUI",
+      "revision": "1f12b17be14c89b026c51a91d67c32f84bb047bc",
+      "path": "split_files/vae/qwen_image_vae.safetensors",
+      "dest": "vae",
+      "bytes": 253806246,
+      "sizeGB": 0.25,
+      "gated": false,
+      "license": "apache",
+      "sha256": "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"
+    },
+    {
+      "key": "qwen-lightning",
+      "model": "qwen-lightning",
+      "label": {
+        "fr": "Accélérateur Qwen (4 étapes)",
+        "en": "Qwen accelerator (4 steps)"
+      },
+      "repo": "lightx2v/Qwen-Image-Edit-2511-Lightning",
+      "revision": "107d238d68b8387e32843d0b4a2e24ceb0d3ad86",
+      "path": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+      "dest": "loras",
+      "bytes": 849608296,
+      "sizeGB": 0.85,
+      "gated": false,
+      "license": "apache",
+      "sha256": "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f"
+    },
+    {
+      "key": "seedvr2-7b",
+      "model": "seedvr2-7b",
+      "label": {
+        "fr": "SeedVR2 · qualité",
+        "en": "SeedVR2 · quality"
+      },
+      "repo": "Comfy-Org/SeedVR2",
+      "revision": "df48879708206a403d2a61acd55578c2e80fd233",
+      "path": "diffusion_models/seedvr2_7b_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 8334897976,
+      "sizeGB": 8.33,
+      "gated": false,
+      "license": "apache",
+      "sha256": "5aa0d25fc9d35e449b659d0c9a5dcb22e2a4fa04032101b95a39da42b32c1be6"
+    },
+    {
+      "key": "seedvr2-3b",
+      "model": "seedvr2-3b",
+      "label": {
+        "fr": "SeedVR2 · rapide",
+        "en": "SeedVR2 · fast"
+      },
+      "repo": "Comfy-Org/SeedVR2",
+      "revision": "df48879708206a403d2a61acd55578c2e80fd233",
+      "path": "diffusion_models/seedvr2_3b_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 3458259704,
+      "sizeGB": 3.46,
+      "gated": false,
+      "license": "apache",
+      "sha256": "c3dec8bcc5916843a8a858572970597462e1f2dc598d6dfd818f6cd40f53a157"
+    },
+    {
+      "key": "seedvr2-vae",
+      "model": "seedvr2-vae",
+      "label": {
+        "fr": "Décodeur SeedVR2",
+        "en": "SeedVR2 decoder"
+      },
+      "repo": "Comfy-Org/SeedVR2",
+      "revision": "df48879708206a403d2a61acd55578c2e80fd233",
+      "path": "vae/seedvr2_ema_vae_fp16.safetensors",
+      "dest": "vae",
+      "bytes": 501324814,
+      "sizeGB": 0.5,
+      "gated": false,
+      "license": "apache",
+      "sha256": "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
+    },
+    {
+      "key": "vda",
+      "model": "vda",
+      "label": {
+        "fr": "Video Depth Anything · Small",
+        "en": "Video Depth Anything · Small"
+      },
+      "repo": "depth-anything/Video-Depth-Anything-Small",
+      "revision": "256875362cff76724b920335dfb4b29dd611f66e",
+      "path": "video_depth_anything_vits.pth",
+      "dest": "videodepthanything",
+      "bytes": 116440756,
+      "sizeGB": 0.12,
+      "gated": false,
+      "license": "apache",
+      "sha256": "13379300b739e659f076a59d52e9801bd8d38c541a7e71f73bbca4dcfb013609"
+    },
+    {
+      "key": "birefnet",
+      "model": "birefnet",
+      "label": {
+        "fr": "BiRefNet",
+        "en": "BiRefNet"
+      },
+      "repo": "ZhengPeng7/BiRefNet",
+      "revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+      "path": "model.safetensors",
+      "dest": "outils/BiRefNet",
+      "bytes": 444473596,
+      "sizeGB": 0.44,
+      "gated": false,
+      "license": "mit",
+      "sha256": "9ab37426bf4de0567af6b5d21b16151357149139362e6e8992021b8ce356a154"
+    },
+    {
+      "key": "birefnet-config",
+      "model": "birefnet",
+      "label": {
+        "fr": "BiRefNet · réglages",
+        "en": "BiRefNet · settings"
+      },
+      "repo": "ZhengPeng7/BiRefNet",
+      "revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+      "path": "config.json",
+      "dest": "outils/BiRefNet",
+      "bytes": 405,
+      "sizeGB": 0,
+      "gated": false,
+      "license": "mit",
+      "gitOid": "06d8fa9d7f2f4c6f1cf0dc6e7bfd194153176a42"
+    },
+    {
+      "key": "birefnet-code",
+      "model": "birefnet",
+      "label": {
+        "fr": "BiRefNet · code du modèle",
+        "en": "BiRefNet · model code"
+      },
+      "repo": "ZhengPeng7/BiRefNet",
+      "revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+      "path": "birefnet.py",
+      "dest": "outils/BiRefNet",
+      "bytes": 91896,
+      "sizeGB": 0,
+      "gated": false,
+      "license": "mit",
+      "gitOid": "8dea801e2b56facb8486ba351e6f91c3e664eb6d"
+    },
+    {
+      "key": "birefnet-code-config",
+      "model": "birefnet",
+      "label": {
+        "fr": "BiRefNet · code des réglages",
+        "en": "BiRefNet · settings code"
+      },
+      "repo": "ZhengPeng7/BiRefNet",
+      "revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+      "path": "BiRefNet_config.py",
+      "dest": "outils/BiRefNet",
+      "bytes": 298,
+      "sizeGB": 0,
+      "gated": false,
+      "license": "mit",
+      "gitOid": "37c8ac58bec2f52dac34204978a7b61b69e3da76"
+    }
+  ],
+  "capabilities": {
+    "image-to-video": {
+      "label": {
+        "fr": "Animer une image",
+        "en": "Animate an image"
+      },
+      "needs": [
+        "ltx",
+        "ltx-te",
+        "ltx-vae",
+        "ltx-audio-vae"
+      ],
+      "options": [
+        {
+          "id": "sheet",
+          "label": {
+            "fr": "Fiche de référence",
+            "en": "Reference sheet"
+          },
+          "desc": {
+            "fr": "Garde l’identité d’un personnage d’après une fiche.",
+            "en": "Keeps a character's identity from a sheet."
+          },
+          "keys": [
+            "ltx-ingredients"
+          ]
+        },
+        {
+          "id": "minimax",
+          "label": {
+            "fr": "MiniMax H3 (vidéo avec le son)",
+            "en": "MiniMax H3 (video with sound)"
+          },
+          "desc": {
+            "fr": "Un second modèle vidéo, entre une première et une dernière image.",
+            "en": "A second video model, between a first and a last frame."
+          },
+          "keys": [
+            "minimax",
+            "minimax-turbo",
+            "minimax-te",
+            "minimax-vae",
+            "minimax-audio-vae"
+          ]
+        }
+      ]
+    },
+    "text-to-video": {
+      "label": {
+        "fr": "Vidéo depuis un texte",
+        "en": "Video from text"
+      },
+      "needs": [
+        "ltx",
+        "ltx-te",
+        "ltx-vae",
+        "ltx-audio-vae"
+      ]
+    },
+    "3d-to-real": {
+      "label": {
+        "fr": "Rendre photoréaliste",
+        "en": "Make it photoreal"
+      },
+      "needs": [
+        "ltx",
+        "ltx-te",
+        "ltx-vae",
+        "ltx-audio-vae",
+        "ltx-l2r"
+      ]
+    },
+    "guided-video": {
+      "label": {
+        "fr": "Vidéo guidée",
+        "en": "Guided video"
+      },
+      "needs": [
+        "ltx",
+        "ltx-te",
+        "ltx-vae",
+        "ltx-audio-vae",
+        "ltx-union",
+        "vda"
+      ],
+      "options": [
+        {
+          "id": "minimax",
+          "label": {
+            "fr": "Guidage MiniMax H3",
+            "en": "MiniMax H3 guidance"
+          },
+          "desc": {
+            "fr": "La même chose avec MiniMax H3, avec le son.",
+            "en": "The same with MiniMax H3, with sound."
+          },
+          "keys": [
+            "minimax",
+            "minimax-turbo",
+            "minimax-te",
+            "minimax-vae",
+            "minimax-audio-vae",
+            "minimax-control"
+          ]
+        }
+      ]
+    },
+    "reference-to-video": {
+      "label": {
+        "fr": "Vidéo à partir de références",
+        "en": "Video from references"
+      },
+      "needs": [
+        "ref2v",
+        "ref2v-turbo",
+        "minimax-te",
+        "minimax-vae",
+        "minimax-audio-vae"
+      ]
+    },
+    "character-performance": {
+      "label": {
+        "fr": "Animer un personnage",
+        "en": "Animate a character"
+      },
+      "needs": [
+        "wan",
+        "wan-te",
+        "wan-vision",
+        "wan-vae",
+        "wan-lightx2v"
+      ]
+    },
+    "image-edit": {
+      "label": {
+        "fr": "Retoucher une image",
+        "en": "Edit an image"
+      },
+      "needs": [
+        "qwen",
+        "qwen-te",
+        "qwen-vae",
+        "qwen-lightning"
+      ]
+    },
+    "upscale": {
+      "label": {
+        "fr": "Agrandir",
+        "en": "Upscale"
+      },
+      "needs": [
+        "seedvr2-7b",
+        "seedvr2-vae"
+      ],
+      "options": [
+        {
+          "id": "fast",
+          "label": {
+            "fr": "Version rapide",
+            "en": "Fast version"
+          },
+          "desc": {
+            "fr": "Pour les aperçus.",
+            "en": "For previews."
+          },
+          "keys": [
+            "seedvr2-3b"
+          ]
+        }
+      ]
+    },
+    "depth": {
+      "label": {
+        "fr": "Profondeur",
+        "en": "Depth"
+      },
+      "needs": [
+        "vda"
+      ]
+    },
+    "cutout": {
+      "label": {
+        "fr": "Détourer",
+        "en": "Cut out"
+      },
+      "needs": [
+        "birefnet",
+        "birefnet-config",
+        "birefnet-code",
+        "birefnet-code-config"
+      ]
+    }
+  }
+}

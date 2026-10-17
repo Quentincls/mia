@@ -1,0 +1,102 @@
+/* Mia — the assistant at work (SPEC §13): presence cursor, mia_say bubble, title bar pill.
+   One neutral tone (light on the dark theme, dark on the light one), no glow, no gradient. */
+
+/* ── the cursor ───────────────────────────────────────────────────────── */
+.pr-cursor {
+  --pr-fill: #ececee;
+  --pr-ink: #0b0b0d;
+  --pr-edge: rgba(7, 7, 9, 0.72);
+  position: fixed; left: 0; top: 0;
+  z-index: 36;                        /* over the board and its docks, under the title bar (40) and menus */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-cam) var(--ease);
+  will-change: transform, opacity;
+}
+.theme-light .pr-cursor {
+  --pr-fill: #2a2a2f;
+  --pr-ink: #ffffff;
+  --pr-edge: rgba(255, 255, 255, 0.9);
+}
+.pr-cursor.on { opacity: 1; transition-duration: var(--dur-exit); }
+
+/* the arrow's tip is the cursor's point */
+.pr-arrow {
+  position: absolute; left: -3px; top: -2px;
+  display: block; overflow: visible;
+  transform-origin: 3px 2px;
+  transition: transform var(--dur-exit) var(--ease-out);
+}
+.pr-arrow path {
+  fill: var(--pr-fill);
+  stroke: var(--pr-edge);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+}
+.pr-cursor.press .pr-arrow { transform: scale(0.84); }
+
+.pr-label {
+  position: absolute; left: 13px; top: 17px;
+  padding: 2px 7px 3px;
+  border-radius: 6px;
+  background: var(--pr-fill);
+  color: var(--pr-ink);
+  font: 600 11.5px/16px var(--font-ui);
+  letter-spacing: .01em;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+
+/* what the assistant says (mia_say) */
+.pr-bubble {
+  position: absolute; left: 13px; top: 42px;
+  width: max-content; max-width: 300px;
+  padding: 8px 11px 9px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  color: var(--txt);
+  font: 400 13px/1.45 var(--font-ui);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  /* la bulle naît du curseur : elle grandit depuis la pointe de la flèche (côté choisi par presence.js) */
+  transform-origin: var(--pr-ox, -6px) var(--pr-oy, -26px);
+  transform: scale(0.88);
+  transition: opacity var(--dur-rise) var(--ease), transform var(--dur-fade) var(--ease-out);
+}
+.pr-bubble.on { opacity: 1; transform: none; }
+/* près du bord droit / bas de la fenêtre (presence.js place) : bulle et étiquette de l'autre côté de la pointe */
+.pr-cursor.pr-flip-x .pr-label { left: auto; right: 6px; }
+.pr-cursor.pr-flip-x .pr-bubble { left: auto; right: 6px; --pr-ox: calc(100% + 6px); }
+.pr-cursor.pr-flip-y .pr-bubble { top: auto; bottom: 8px; --pr-oy: calc(100% + 8px); }
+
+/* ── the title bar pill: « Claude pilote Mia » ───────────────────────── */
+.pr-pill {
+  display: none;
+  align-items: center; gap: 7px;
+  height: 28px; padding: 0 10px 1px 9px; margin-right: 2px;
+  border-radius: 8px;
+  color: var(--txt-2);
+  font: 500 11px/1 var(--font-kicker, var(--font-mono));
+  letter-spacing: .04em; text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--dur-check) var(--ease);
+}
+.pr-pill.on { display: inline-flex; opacity: 1; animation: pr-pill-in var(--dur-card) var(--ease-out); }
+.pr-pill:hover { background: var(--surface-3); color: var(--txt); }
+.pr-pill-dot {
+  width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%;
+  background: var(--txt-2);
+  animation: pr-breathe var(--dur-loop) var(--ease) infinite alternate;
+}
+@keyframes pr-pill-in { from { opacity: 0; transform: translateY(-3px); } }
+@keyframes pr-breathe { from { opacity: 1; } to { opacity: .35; } }
+
+body.tiny .pr-pill { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-pill-dot { animation: none; }
+  .pr-cursor, .pr-bubble, .pr-arrow { transition: none; }
+}

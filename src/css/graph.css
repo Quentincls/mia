@@ -1,0 +1,981 @@
+/* ── Mia · planche nodale ─────────────────────────────────────────────
+   Tout le visuel de l'éditeur (da.md §4) : cartes, ports, fils, sections,
+   guides, rectangle de sélection, minicarte, palette, dock, zoom, état vide,
+   voile de dépose, niveaux de détail. Deux thèmes par les tokens.
+
+   Règle de la maison : un seul accent (sélection, calcul en cours, action
+   primaire), aucun halo, aucun dégradé décoratif. La couleur des types n'est
+   portée que par les pastilles de port. */
+
+/* ── tokens du graphe : valeurs par défaut ─────────────────────────────
+   tokens.css (D) les définit normalement ; `:where()` (spécificité nulle)
+   laisse toujours gagner sa version, et sert de filet si elle manque. */
+:where(:root) {
+  --r-node: 12px;
+  --r-media: 8px;
+  --node-head-h: 36px;
+  --node-row-h: 28px;
+  --wire-sw: 2px;            /* épaisseur d'un fil à l'écran */
+  --wire-hit: 12px;          /* zone de clic d'un fil, à l'écran */
+  /* (durées et courbes : la table unique de tokens.css, SPEC §20.2) */
+  --font-kicker: "Martian Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+}
+:where(.theme-dark) {
+  --node-bg: #111114;
+  --node-head: #111114;
+  --node-well: #0b0b0d;
+  --node-border: rgba(255, 255, 255, 0.10);
+  --node-border-hover: rgba(255, 255, 255, 0.16);
+  --node-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.7), 0 1px 2px rgba(0, 0, 0, 0.5);
+  --node-sel: var(--accent);
+  --checker-a: #141417;
+  --checker-b: #1b1b1f;
+  --wire: rgba(236, 236, 238, 0.30);
+  --wire-hot: #ececee;
+  --wire-run: var(--accent);
+  --t-image: #d4b483;
+  --t-video: #d98e73;
+  --t-media: #ececee;
+  --t-text: #8fc2a1;
+  --run: var(--accent);
+  --state-err: #e5484d;
+  --group-bg: rgba(255, 255, 255, 0.02);
+  --tone-grey: #bdbdc4;
+  --tone-blue: #8aa6dc;
+  --tone-lavender: #a99bd6;
+  --mm-node: rgba(255, 255, 255, 0.2);
+  --mm-group: rgba(255, 255, 255, 0.045);
+  --mm-view: rgba(236, 236, 238, 0.5);
+  --lod-card: #18181c;
+  /* un bloc qu'on porte : l'ombre s'allonge un peu (da.md §4.12, SPEC §20.1) */
+  --node-shadow-lift: 0 18px 38px -16px rgba(0, 0, 0, 0.85), 0 4px 10px -2px rgba(0, 0, 0, 0.45);
+}
+:where(.theme-light) {
+  --node-bg: #ffffff;
+  --node-head: #ffffff;
+  --node-well: #f3f3f5;
+  --node-border: rgba(15, 15, 20, 0.12);
+  --node-border-hover: rgba(15, 15, 20, 0.22);
+  --node-shadow: 0 6px 16px -8px rgba(20, 20, 30, 0.18), 0 1px 2px rgba(20, 20, 30, 0.06);
+  --node-sel: var(--accent);
+  --checker-a: #f0f0f2;
+  --checker-b: #e6e6e9;
+  --wire: rgba(23, 23, 26, 0.30);
+  --wire-hot: #17171a;
+  --wire-run: var(--accent);
+  --t-image: #a5814a;
+  --t-video: #b2603f;
+  --t-media: #3a3a40;
+  --t-text: #4f8f68;
+  --run: var(--accent);
+  --state-err: #d33b3f;
+  --group-bg: rgba(15, 15, 20, 0.025);
+  --tone-grey: #55555c;
+  --tone-blue: #4a6fb8;
+  --tone-lavender: #7563b0;
+  --mm-node: rgba(15, 15, 20, 0.2);
+  --mm-group: rgba(15, 15, 20, 0.05);
+  --mm-view: rgba(23, 23, 26, 0.45);
+  --lod-card: #e9e9ec;
+  --node-shadow-lift: 0 18px 36px -16px rgba(20, 20, 30, 0.28), 0 4px 10px -2px rgba(20, 20, 30, 0.1);
+}
+
+/* ── scène ─────────────────────────────────────────────────────────── */
+#view-board { overflow: hidden; background: var(--bg-canvas); }
+#stage {
+  position: absolute; inset: 0; overflow: hidden;
+  background: var(--bg-canvas);
+  touch-action: none; user-select: none;
+  outline: none;
+}
+#grid, #grid-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+#world {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  transform-origin: 0 0;
+  /* le zoom n'est jamais écrit ici : un changement de --z restylait les milliers
+     d'éléments des cartes. Il vit sur #wires et sur les barres de calcul (écrit à
+     l'arrêt du geste) ; --zl (zoom au dernier changement de niveau de détail)
+     sert aux vues lointaines. */
+  --z: 1;
+  --zl: 1;
+}
+
+/* Couche composée en permanence : la promouvoir au début de chaque geste et la
+   rendre à la fin coûtait deux repeintures complètes (≈ 40 ms chacune, mesuré).
+   Chromium re-rastérise quand même le texte net à la nouvelle échelle dès que
+   le zoom s’arrête (vérifié de 0,4 à 1,8). */
+#world { will-change: transform; }
+#stage.tool-section, #stage.tool-section * { cursor: crosshair !important; }
+#groups { position: absolute; left: 0; top: 0; z-index: 0; }
+#wires {
+  position: absolute; left: 0; top: 0; width: 1px; height: 1px;
+  overflow: visible; pointer-events: none; z-index: 1;
+}
+#nodes { position: absolute; left: 0; top: 0; z-index: 2; }
+
+#overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 4; }
+#overlay > * { pointer-events: auto; }
+#overlay > .ov-titles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#overlay > .ov-svg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none;
+}
+
+#marquee {
+  position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none;
+  border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 2px;
+}
+
+#stage.space { cursor: grab; }
+#stage.panning, #stage.panning * { cursor: grabbing !important; }
+#stage.connecting-cursor, #stage.connecting-cursor * { cursor: crosshair !important; }
+#stage.resizing, #stage.resizing * { cursor: nwse-resize !important; }
+
+/* ── carte de bloc (da.md §4.2) ──────────────────────────────────────── */
+.node {
+  position: absolute; left: 0; top: 0;
+  box-sizing: border-box;
+  display: flex; flex-direction: column;
+  border-radius: var(--r-node);
+  background: var(--node-bg);
+  border: 1px solid var(--node-border);
+  box-shadow: var(--node-shadow);
+  color: var(--txt);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  transition: border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.node:hover { border-color: var(--node-border-hover); }
+.node.sel { border-color: var(--node-sel); }
+/* l'anneau de sélection (1,5 px net, sans lueur) se pose : il arrive d'un rien plus
+   grand et se resserre sur le filet (opacité + transform seulement) */
+.node.sel::before {
+  content: ""; position: absolute; inset: -1.5px; z-index: 2; pointer-events: none;
+  border-radius: calc(var(--r-node) + 0.5px);
+  border: 1.5px solid var(--node-sel);
+  animation: g-sel-in var(--dur-pop) var(--ease-out);
+}
+@keyframes g-sel-in { from { opacity: 0; transform: scale(1.018); } }
+/* un bloc qu'on porte : son ombre s'allonge (un pseudo-élément en fondu, jamais une box-shadow animée) */
+.node.lifted::after, .node.landing::after {
+  content: ""; position: absolute; inset: -1px; z-index: -1; pointer-events: none;
+  border-radius: var(--r-node);
+  box-shadow: var(--node-shadow-lift);
+}
+.node.lifted::after { animation: g-fade-in var(--dur-pop) var(--ease-out); }
+.node.landing::after { opacity: 0; animation: g-fade-out var(--dur-exit) var(--ease); }
+@keyframes g-fade-in { from { opacity: 0; } }
+@keyframes g-fade-out { from { opacity: 1; } to { opacity: 0; } }
+/* Le reflet « shiny » des boutons Lancer (app.css) anime un dégradé conique :
+   chaque bouton repeint sa carte à chaque image, en permanence. Sur une planche
+   de 100 blocs c'était l'essentiel du coût d'une image (mesuré : 73 cartes
+   repeintes par image en panoramique). Il ne tourne donc que sur la carte
+   survolée ou choisie, et jamais pendant un mouvement de caméra. */
+/* À l'arrêt, le reflet est éteint (pas figé) : un bouton immobile est une
+   pastille d'encre unie, sans éclat bleu sur sa bordure (sinon 8 blocs = 8
+   rayures bleues). Survoler la carte (ou la choisir) ne l'allume pas : sur une
+   planche dense le pointeur repose presque toujours sur un bloc, et le dégradé
+   conique tournait alors sans fin (23 % du fil principal, mesuré). Il ne tourne
+   que sous le pointeur, sur le bouton lui-même (SPEC §20.2 : aucune boucle hors calcul). */
+#world .shiny,
+#world .node:hover .shiny,
+#world .node.sel .shiny { --sh-span: 0%; animation-play-state: paused; }
+#world .node .shiny:hover { --sh-span: 10%; animation-play-state: running; }
+.kbd #world .node .shiny:focus-visible { --sh-span: 10%; animation-play-state: running; }
+/* Pendant un geste de caméra, les cartes défilent sous le pointeur : chaque
+   survol relançait des transitions (filet, ⋯, reflet, fil) qui repeignent
+   image après image et font recomposer toute la planche. On les coupe le
+   temps du geste (quelques sélecteurs ciblés : basculer la classe reste bon marché). */
+#world.moving .shiny, #world.moving .node .shiny:hover { --sh-span: 0%; animation-play-state: paused; transition: none; }
+#world.moving .node, #world.moving .n-more, #world.moving .w-line { transition: none; }
+
+/* Hors de la vue, une carte n'est pas peinte du tout. Chromium remet les
+   morceaux de peinture en couches à chaque image d'un panoramique : leur
+   nombre fait le coût. `visibility` garde la mise en page (mesures, ancres des
+   ports) ; `content-visibility` repeignait au contraire les cartes cachées. */
+.node.off { visibility: hidden; }
+
+/* en-tête : glyphe, titre, état, menu — sans couleur de catégorie */
+.n-head {
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  flex: none;
+  height: var(--node-head-h);
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--line);
+  border-radius: calc(var(--r-node) - 1px) calc(var(--r-node) - 1px) 0 0;
+  background: var(--node-head);
+}
+.n-glyph {
+  flex: none; width: 14px; height: 14px;
+  display: grid; place-items: center;
+  color: var(--txt-3);
+}
+.n-glyph svg { width: 14px; height: 14px; display: block; }
+/* Le titre cède d'abord (rétrécissement très prioritaire), jusqu'à une part toujours lisible (la moitié de
+   l'en-tête, ou 12 signes) ; ensuite seulement l'état (court en carte étroite, body.js) cède à son tour. */
+.n-title {
+  min-width: min(50%, 12ch); flex: 0 1000 auto;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.003em;
+  color: var(--txt);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.n-gap { flex: 1 1 0; min-width: 2px; }
+.n-stale {
+  display: none; flex: none;
+  width: 6px; height: 6px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--txt-3);
+}
+.n-stale.on { display: block; }
+.n-state {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-kicker);
+  font-size: 10px; font-weight: 500; line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--txt-3);
+  white-space: nowrap;
+  padding-right: 2px;
+}
+.n-state:empty { display: none; }
+.node.f-status .n-state { display: none; }
+.node[data-state="running"] .n-state { color: var(--txt); }
+.node[data-state="error"] .n-state { color: var(--state-err); }
+/* en file : anneau de 8 px devant le texte (da.md §4.5) */
+.node[data-state="queued"] .n-state::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; margin: 0 6px -1px 0;
+  border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--txt-3);
+}
+.n-status { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; }
+.n-status:empty { display: none; }
+.n-more {
+  flex: none; width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center;
+  color: transparent;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.n-more svg { width: 16px; height: 16px; }
+.node:hover .n-more, .node.sel .n-more { color: var(--txt-3); }
+.n-more:hover { color: var(--txt); background: var(--wash-2); }
+
+.n-title-input {
+  width: 100%; min-width: 60px; height: 22px; padding: 0;
+  border: 0; outline: 0; background: transparent;
+  font: inherit; color: var(--txt);
+  border-bottom: 1px solid var(--accent-line);
+  user-select: text;
+}
+.node.renaming .n-title { flex: 1 1 auto; overflow: visible; }
+
+/* barre de progression : 2 px en haut de la carte, rognée par son rayon */
+.n-prog {
+  position: absolute; left: -1px; right: -1px; top: -1px; height: 24px;
+  border-radius: var(--r-node) var(--r-node) 0 0;
+  overflow: hidden; pointer-events: none; z-index: 3;
+  display: none;
+}
+.n-prog.on, .n-prog.fade { display: block; }
+.n-prog.fade { animation: g-prog-out var(--dur-cam) var(--ease) forwards; }
+@keyframes g-prog-out { to { opacity: 0; } }
+.n-prog::before {
+  content: ""; position: absolute; left: 0; top: 0; width: 100%;
+  height: clamp(1px, calc(2px / var(--z)), 10px);
+  background: var(--run);
+  transform-origin: 0 0;
+  transform: scaleX(var(--p, 0));
+  /* la progression glisse vers sa nouvelle valeur, jamais par sauts */
+  transition: transform var(--dur-glide) var(--ease);
+}
+/* calcul réussi : la barre finit de se remplir (vite) avant de s'effacer */
+.n-prog.filling::before { transition-duration: var(--dur-pop); transition-timing-function: var(--ease-out); }
+/* la barre naît depuis la gauche quand le calcul démarre (et quand l'indéterminé devient chiffré) */
+.n-prog.on:not(.indet)::before { animation: g-bar-born var(--dur-rise) var(--ease-out); }
+@keyframes g-bar-born { from { transform: scaleX(0); } }
+.n-prog.indet::before {
+  width: 30%; transform: translateX(-100%);
+  animation: g-indet var(--dur-loop) linear infinite;
+  transition: none;
+}
+@keyframes g-indet { to { transform: translateX(340%); } }
+
+/* emplacements remplis par F (nodes/body.js) : aucun rembourrage imposé */
+.n-preview { position: relative; flex: none; }
+.n-preview:empty { display: none; }
+.n-controls { position: relative; flex: none; }
+.n-controls:empty { display: none; }
+
+/* ── ports (da.md §4.3) ──────────────────────────────────────────────── */
+.n-ports { flex: none; padding: 6px 0; }
+.node.no-ports .n-ports { display: none; }
+.n-row {
+  position: relative;
+  display: flex; align-items: center;
+  height: var(--node-row-h);
+  padding: 0 12px;
+  gap: 12px;
+}
+.n-port {
+  --pc: var(--t-media);
+  display: flex; align-items: center; min-width: 0; height: 100%;
+  color: var(--txt-2);
+  font-size: 11.5px; font-weight: 450;
+}
+.n-port.out { margin-left: auto; justify-content: flex-end; text-align: right; }
+.n-port[data-t="image"] { --pc: var(--t-image); }
+.n-port[data-t="video"] { --pc: var(--t-video); }
+.n-port[data-t="media"] { --pc: var(--t-media); }
+.n-port[data-t="text"] { --pc: var(--t-text); }
+.n-port[data-t="audio"] { --pc: var(--t-audio); }
+.n-port .lbl {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color var(--dur-pop) var(--ease-out);
+}
+.n-port:hover .lbl { color: var(--txt); }
+
+/* pastille 10 px à cheval sur le bord ; la forme double la couleur :
+   rond = une image ou un texte, carré arrondi = vidéo, rond barré = l'un ou l'autre, losange = un son */
+.n-port .dot, .n-cdot {
+  position: absolute; top: 50%; z-index: 3;
+  width: 10px; height: 10px; margin-top: -5px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--pc);
+  background: var(--node-bg);
+  cursor: crosshair;
+  transition: transform var(--dur-pop) var(--ease-out), background var(--dur-pop) var(--ease-out), opacity var(--dur-pop) var(--ease);
+}
+.n-port.in .dot { left: -6px; }
+.n-port.out .dot { right: -6px; }
+.n-port .dot::before, .n-cdot::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+.n-port[data-t="video"] .dot, .n-cdot[data-t="video"] { border-radius: 2.5px; }
+.n-port[data-t="video"] .dot::before { border-radius: 4px; }
+.n-port[data-t="media"] .dot::after, .n-cdot[data-t="media"]::after {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 1.5px; height: 4px; margin: -2px 0 0 -0.75px;
+  border-radius: 1px; background: var(--pc);
+}
+.n-port.on .dot, .n-cdot.on { background: var(--pc); }
+.n-port.on[data-t="media"] .dot::after, .n-cdot.on[data-t="media"]::after { display: none; }
+.n-port:hover .dot { transform: scale(1.3); }
+/* un fil vient de s'y brancher : un seul battement, sans halo (scale se compose avec transform) */
+.n-port .dot.pulse, .n-cdot.pulse { animation: g-port-pulse var(--dur-pulse) var(--ease-out); }
+@keyframes g-port-pulse { 0% { scale: 1; } 40% { scale: 1.25; } 100% { scale: 1; } }
+/* losange : même centre que les autres pastilles (le fil y arrive pile) */
+.n-port[data-t="audio"] .dot, .n-cdot[data-t="audio"] { border-radius: 2px; transform: rotate(45deg) scale(0.84); }
+.n-port[data-t="audio"]:hover .dot { transform: rotate(45deg) scale(1.1); }
+
+/* pastilles du mode replié, au centre de l'en-tête */
+.n-cdot { display: none; top: 18px; --pc: var(--t-media); }
+.n-cdot[data-t="image"] { --pc: var(--t-image); }
+.n-cdot[data-t="video"] { --pc: var(--t-video); }
+.n-cdot[data-t="text"] { --pc: var(--t-text); }
+.n-cdot[data-t="audio"] { --pc: var(--t-audio); }
+.n-cdot.in { left: -6px; }
+.n-cdot.out { right: -6px; }
+.node.collapsed .n-cdot:not([hidden]) { display: block; }
+
+/* poignée de largeur, invisible (coin bas-droit) ; les ports passent devant elle :
+   viser un peu bas sur une sortie tire un fil, pas une largeur */
+.n-port .dot { z-index: 5; }
+.n-resize {
+  position: absolute; right: -3px; bottom: -3px; z-index: 4;
+  width: 12px; height: 12px;
+  cursor: nwse-resize;
+}
+/* en vue éloignée, élargir un bloc n'a pas de sens et la poignée gêne les ports */
+.lod-1 .n-resize { visibility: hidden; }
+
+/* (le titre à taille écran des vues lointaines est peint sur le canevas de la planche) */
+
+/* ── états (da.md §4.5) ──────────────────────────────────────────────── */
+.node[data-state="error"] { border-color: var(--state-err); }
+.node[data-state="error"].sel { border-color: var(--node-sel); }
+/* l'erreur arrive : l'en-tête marque un léger refus (2 px, deux allers-retours), une fois */
+.node.err-shake .n-head > * { animation: g-shake var(--dur-fade) var(--ease); }
+@keyframes g-shake {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-2px); } 40% { transform: translateX(2px); }
+  60% { transform: translateX(-2px); } 80% { transform: translateX(1px); }
+}
+/* « fait » : une petite coche qui se trace (300 ms), reste un instant, puis s'efface */
+.n-done {
+  flex: none; width: 12px; height: 12px; margin-right: -3px; color: var(--txt-2);
+  transition: opacity var(--dur-cam) var(--ease);
+}
+.n-done path {
+  fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 14; stroke-dashoffset: 0;
+  animation: g-check var(--dur-check) var(--ease-out) backwards;
+}
+.n-done.out { opacity: 0; }
+@keyframes g-check { from { stroke-dashoffset: 14; } }
+.lod-2 .n-done, .lod-3 .n-done { display: none; }
+
+/* désactivé : la carte reste opaque (rien ne transparaît derrière elle), seul
+   son contenu s'efface ; filet en tirets, fils traversants en tirets */
+.node.bypass { border-style: dashed; }
+.node.bypass > :not(.n-prog):not(.n-resize) { opacity: 0.45; transition: opacity var(--dur) var(--ease); }
+.node.bypass:hover > :not(.n-prog):not(.n-resize), .node.bypass.sel > :not(.n-prog):not(.n-resize) { opacity: 0.7; }
+
+.node.collapsed .n-preview,
+.node.collapsed .n-ports,
+.node.collapsed .n-controls { display: none; }
+/* replier (FLIP) : le contenu reste le temps que la carte se referme comme un store
+   (clip-path, view.js) ; les fils sont déjà sur les pastilles de l'en-tête */
+.node.collapsed.folding .n-preview:not(:empty),
+.node.collapsed.folding .n-controls:not(:empty) { display: block; }
+.node.collapsed.folding:not(.no-ports) .n-ports { display: block; }
+.node.folding .n-port .dot { visibility: hidden; }
+.node.collapsed .n-head { border-bottom-color: transparent; border-radius: calc(var(--r-node) - 1px); }
+.n-thumb { display: none; flex: none; width: 24px; height: 24px; margin-left: -5px; border-radius: 4px; overflow: hidden; background: var(--node-well); }
+.n-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.node.collapsed .n-thumb.has { display: block; }
+/* pas de :has() ici : sa vérification se relançait à chaque mutation de la planche */
+.node.collapsed.has-thumb .n-glyph { display: none; }
+
+.node.drop-into {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.5px var(--accent), var(--node-shadow);
+}
+
+.node.unknown { border-style: dashed; }
+
+/* arrivée et départ (da.md §4.12) : la mise à l'échelle part du centre de la carte */
+.node.entering { animation: g-node-in var(--dur-enter) var(--ease-out); }
+.node.leaving { animation: g-node-out var(--dur-pop) var(--ease-in) forwards; }
+@keyframes g-node-in { from { opacity: 0; scale: 0.96; } }
+@keyframes g-node-out { to { opacity: 0; scale: 0.98; } }
+
+/* ── fils (da.md §4.4) ───────────────────────────────────────────────── */
+#wires .w-hit {
+  fill: none; stroke: transparent;
+  stroke-width: calc(var(--wire-hit) / var(--z));
+  pointer-events: stroke; cursor: pointer;
+}
+#wires .w-line {
+  fill: none;
+  stroke: var(--wire);
+  stroke-width: calc(var(--wire-sw) / var(--z));
+  stroke-linecap: round;
+  pointer-events: none;
+  transition: stroke var(--dur) var(--ease);
+}
+#wires .wire.hot .w-line { stroke: var(--wire-hot); }
+#wires .wire.sel .w-line { stroke: var(--accent); }
+#wires .wire.stale .w-line {
+  stroke: color-mix(in srgb, var(--wire) 50%, transparent);
+  stroke-dasharray: calc(4px / var(--z)) calc(4px / var(--z));
+}
+#wires .wire.stale.hot .w-line { stroke: color-mix(in srgb, var(--wire-hot) 80%, transparent); }
+#wires .wire.bypass .w-line {
+  stroke: color-mix(in srgb, var(--wire) 60%, transparent);
+  stroke-dasharray: calc(5px / var(--z)) calc(5px / var(--z));
+}
+#wires .wire.bad .w-line {
+  stroke: color-mix(in srgb, var(--state-err) 75%, transparent);
+  stroke-dasharray: calc(2px / var(--z)) calc(5px / var(--z));
+}
+/* flux : des points ronds de la largeur du fil, tous les 12 px écran, ≈ 20 px/s */
+#wires .w-flow {
+  fill: none;
+  stroke: var(--wire-run);
+  stroke-width: calc(var(--wire-sw) * 1.25 / var(--z));
+  stroke-linecap: round;
+  stroke-dasharray: 0 calc(12px / var(--z));
+  animation: g-wire-flow var(--dur-flow) linear infinite;
+  pointer-events: none;
+}
+/* le fil d'un bloc qui arrive naît avec lui : invisible tant que la carte grandit
+   encore, il n'apparaît que quand elle est (presque) à sa place */
+#wires .wire.w-in { animation: g-wire-in var(--dur-enter) var(--ease-in) backwards; }
+@keyframes g-wire-in { 0% { opacity: 0; } 35% { opacity: 0; } }
+/* un fil retiré avec son bloc s'efface ; un fil coupé se rétracte vers sa sortie (wires.js) */
+#wires .wire.w-out { animation: g-fade-out var(--dur-pop) var(--ease) forwards; }
+#wires .wire.w-out .w-hit, #wires .wire.w-cutting .w-hit { pointer-events: none; }
+@keyframes g-wire-flow { to { stroke-dashoffset: calc(-12px / var(--z)); } }
+
+/* option « câbles colorés par type » (Réglages) */
+.wires-typed #wires .wire[data-t="image"] .w-line { stroke: color-mix(in srgb, var(--t-image) 62%, transparent); }
+.wires-typed #wires .wire[data-t="video"] .w-line { stroke: color-mix(in srgb, var(--t-video) 62%, transparent); }
+.wires-typed #wires .wire[data-t="media"] .w-line { stroke: color-mix(in srgb, var(--t-media) 45%, transparent); }
+.wires-typed #wires .wire[data-t="text"] .w-line { stroke: color-mix(in srgb, var(--t-text) 62%, transparent); }
+.wires-typed #wires .wire[data-t="audio"] .w-line { stroke: color-mix(in srgb, var(--t-audio) 62%, transparent); }
+.wires-typed #wires .wire.hot .w-line { stroke: var(--wire-hot); }
+
+/* fil en cours de tirage, guides, pastille « × » (calque écran) */
+.ov-wire { fill: none; stroke: var(--wire-hot); stroke-width: 2; stroke-linecap: round; }
+.ov-wire[data-t="image"] { stroke: var(--t-image); }
+.ov-wire[data-t="video"] { stroke: var(--t-video); }
+.ov-wire[data-t="media"] { stroke: var(--t-media); }
+.ov-wire[data-t="text"] { stroke: var(--t-text); }
+.ov-wire[data-t="audio"] { stroke: var(--t-audio); }
+.ov-wire-end { fill: var(--bg-canvas); stroke: var(--t-media); stroke-width: 1.5; }
+.ov-wire-end[data-t="image"] { stroke: var(--t-image); }
+.ov-wire-end[data-t="video"] { stroke: var(--t-video); }
+.ov-wire-end[data-t="text"] { stroke: var(--t-text); }
+.ov-wire-end[data-t="audio"] { stroke: var(--t-audio); }
+.ov-guides line { stroke: var(--accent); stroke-opacity: 0.5; stroke-width: 1; shape-rendering: crispEdges; }
+
+.w-cut {
+  position: absolute; left: 0; top: 0;
+  width: 18px; height: 18px; padding: 0;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--txt-2);
+  background: var(--panel);
+  backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  animation: g-pop var(--dur-pop) var(--ease-out);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.w-cut:active { scale: 0.92; }
+.w-cut:hover { color: #fff; background: var(--danger, var(--state-err)); border-color: transparent; }
+.w-cut[hidden] { display: none; }
+@keyframes g-pop { from { opacity: 0; } }
+
+/* ── tirer un fil : compatibles nets, le reste s'efface ──────────────── */
+.connecting .node.no-compat { opacity: 0.6; }
+.connecting .n-port:not(.compat):not(.origin) .dot { opacity: 0.25; }
+.connecting .n-port.compat .dot { outline: 2px solid var(--txt); outline-offset: 2px; }
+.connecting .n-port.target .dot { transform: scale(1.3); outline-color: var(--accent); background: var(--pc); }
+.connecting .n-port.target .lbl { color: var(--txt); }
+
+/* ── sections (SPEC §15, comme dans Slate) ───────────────────────────────
+   Le cadre, son fond teinté et son titre sont peints sur le canevas de la
+   planche (sections.js) : rien ici ne suit le zoom. Seul le champ de
+   renommage est un élément, posé sur le titre dans le calque écran. */
+.g-title-input {
+  position: absolute; left: 0; top: 0;
+  box-sizing: border-box;
+  min-width: 140px; padding: 0 2px; margin: 0;
+  border: 0; outline: 0; border-radius: 4px;
+  background: transparent;
+  font-family: var(--font-ui); font-weight: 700; line-height: 1.2;
+  border-bottom: 1px solid var(--accent-line);
+  user-select: text;
+  pointer-events: auto;
+}
+.g-title-input::selection { background: var(--accent-soft); }
+
+/* ── niveaux de détail (da.md §4.7, seuils SPEC §16 : 0,45 / 0,22 / 0,10) ──
+   Toujours `visibility`, jamais `display` : un bloc ne change jamais de taille
+   avec le zoom. */
+/* 0,22 – 0,45 : tout reste visible, sauf le menu ⋯ ; le titre de l'en-tête (3 à 6 px à l'écran)
+   cède la place au titre à taille écran peint au-dessus de la carte (editor.js, drawTitles) */
+.lod-1 .n-more, .lod-1 .n-title { visibility: hidden; }
+
+/* 0,10 – 0,22 : carte pleine + vignette ; titre à taille écran au-dessus (canevas) ; ports cachés */
+.lod-2 { --wire-sw: 1.25px; }
+.lod-2 .node { background: var(--lod-card); box-shadow: none; }
+.lod-2 .n-head { background: transparent; border-bottom-color: transparent; }
+.lod-2 .n-head > * { visibility: hidden; }
+.lod-2 .n-port, .lod-2 .n-cdot, .lod-2 .n-resize { visibility: hidden; }
+.lod-2 .n-controls { visibility: hidden; }
+/* puits vides (« Pas encore calculé »), consignes, notes, erreurs, fiches d'export, conseils : du texte
+   de 2 px n'est que du bruit ; seules les vraies vignettes restent */
+.lod-2 .nb-empty > *, .lod-2 .nb-textarea, .lod-2 .nb-note, .lod-2 .nb-error, .lod-2 .nb-export,
+.lod-2 .nb-hint, .lod-2 .nb-refs, .lod-2 .nb-drop > * { visibility: hidden; }
+.lod-2 .node.sel, .lod-3 .node.sel { box-shadow: 0 0 0 calc(1.5px / var(--zl)) var(--node-sel); }
+
+/* < 0,10 : des rectangles ; seuls les blocs en calcul gardent leur barre */
+.lod-3 { --wire-sw: 1px; }
+.lod-3 #wires { opacity: 0.5; }
+.lod-3 .node { background: var(--lod-card); box-shadow: none; border-radius: calc(4px / var(--zl)); }
+.lod-3 .node > :not(.n-prog) { visibility: hidden; }
+.lod-3 .n-prog { border-radius: calc(4px / var(--zl)) calc(4px / var(--zl)) 0 0; }
+
+/* ── dock, zoom, minicarte (îlots de Slate) ──────────────────────────── */
+#dock, #zoombar {
+  position: absolute; bottom: 20px; z-index: 20;
+  display: flex; align-items: center; gap: 1px;
+  height: 44px; padding: 5px;
+  box-sizing: border-box;
+  border-radius: var(--r-lg, 14px);
+  background: var(--panel);
+  backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-lg);
+  animation: g-dock-in var(--dur-card) var(--ease-out);
+  user-select: none;
+}
+#dock { left: 18px; }
+#zoombar { right: 18px; }
+@keyframes g-dock-in { from { opacity: 0; transform: translateY(10px); } }
+
+.g-dock-btn {
+  height: 32px; padding: 0 12px 0 9px;
+  display: flex; align-items: center; gap: 7px;
+  border-radius: 9px;
+  color: var(--txt-2);
+  font-size: 12.5px; font-weight: 550;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.g-dock-btn svg { width: 16px; height: 16px; flex: none; }
+.g-dock-btn:hover { color: var(--txt); background: var(--surface-3); }
+/* outil armé (« Section » : le prochain glisser dessine le cadre) */
+.g-dock-btn.on { color: var(--txt); background: var(--wash-2); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.g-dock-btn[disabled] { opacity: 0.4; pointer-events: none; }
+
+/* ── lecture seule (graph.json abîmé) : une pastille fixe sous la barre de titre ── */
+.g-readonly {
+  position: absolute; z-index: 21; left: 50%; top: calc(var(--tb-h, 44px) + 10px);
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  max-width: calc(100% - 32px);
+  height: 36px; padding: 0 6px 0 12px;
+  border-radius: 999px;
+  background: var(--panel); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow-lg);
+  font-size: 12px; color: var(--txt-2);
+  white-space: nowrap;
+}
+.g-readonly[hidden] { display: none; }
+.g-ro-ico { display: grid; place-items: center; color: var(--state-err); flex: none; }
+/* planche d'un Mia plus récent : rien d'abîmé, pas de rouge */
+.g-readonly.info .g-ro-ico { color: var(--txt-2); }
+.g-ro-ico svg { width: 14px; height: 14px; }
+.g-ro-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.g-ro-text b { color: var(--txt); font-weight: 600; }
+.g-ro-btn {
+  flex: none; height: 26px; padding: 0 11px; border-radius: 999px;
+  font-size: 12px; font-weight: 550; color: var(--txt);
+  background: var(--surface-3); border: 1px solid var(--line-2);
+  transition: background var(--dur) var(--ease);
+}
+.g-ro-btn:hover { background: var(--surface-hi); }
+/* planche illisible : pas de recettes ni d'invitation à ajouter */
+#board-empty.readonly .be-recipes, #board-empty.readonly .be-hint { display: none; }
+
+.zb-btn, .zb-mini {
+  width: 32px; height: 32px; border-radius: 9px;
+  display: grid; place-items: center;
+  color: var(--txt-2);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.zb-btn svg, .zb-mini svg { width: 16px; height: 16px; }
+.zb-level {
+  min-width: 56px; height: 32px; padding: 0 6px; border-radius: 9px;
+  font-size: 11.5px; font-weight: 550; font-variant-numeric: tabular-nums;
+  color: var(--txt-2);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.zb-btn:hover, .zb-mini:hover, .zb-level:hover { color: var(--txt); background: var(--surface-3); }
+.zb-mini.on { color: var(--txt); background: var(--surface-3); }
+.zb-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line-2); flex: none; }
+
+#minimap {
+  position: absolute; right: 18px; z-index: 19;
+  bottom: calc(20px + 44px + 10px);
+  width: 200px; height: 132px;
+  border-radius: var(--r-lg, 14px);
+  overflow: hidden;
+  background: var(--panel);
+  backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-lg);
+  animation: g-dock-in var(--dur-enter) var(--ease-out);
+}
+#minimap canvas { display: block; cursor: pointer; }
+
+/* ── palette « Ajouter un bloc » (da.md §4.9) ────────────────────────── */
+#palette { position: fixed; inset: 0; z-index: 300; }
+.pal-catcher { position: absolute; inset: 0; }
+.pal-panel {
+  position: absolute; left: 50%; top: 13vh;
+  width: min(560px, calc(100vw - 32px));
+  display: flex; flex-direction: column;
+  transform: translateX(-50%);
+  border-radius: var(--r-lg, 14px);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+/* la palette naît du point du geste (double-clic, fil lâché, bouton « + Bloc ») : palette.js
+   pose transform-origin sur ce point ; sans point, du haut du panneau */
+.pal-panel.pal-in { animation: g-pal-in var(--dur-modal) var(--ease-out); }
+@keyframes g-pal-in { from { opacity: 0; transform: translateX(-50%) scale(0.96); } }
+.pal-search {
+  display: flex; align-items: center; gap: 10px;
+  height: 52px; padding: 0 12px 0 16px;
+}
+.pal-search-ico { color: var(--txt-3); display: grid; place-items: center; flex: none; }
+.pal-search-ico svg { width: 16px; height: 16px; }
+.pal-input {
+  flex: 1; min-width: 0; height: 40px; padding: 0;
+  border: 0; outline: 0; background: transparent;
+  font-family: var(--font-ui); font-size: 14px; color: var(--txt);
+  user-select: text;
+}
+.pal-input::placeholder { color: var(--txt-3); }
+/* le curseur de saisie suffit : pas d’anneau clavier sur ces champs (app.css le pose en mode clavier) */
+#palette .pal-input:focus-visible, #stage .g-title-input:focus-visible, #stage .n-title-input:focus-visible { outline: none; }
+.pal-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 7px;
+  height: 24px; padding: 0 9px; border-radius: 999px;
+  background: var(--surface-3); border: 1px solid var(--line);
+  font-family: var(--font-kicker); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--txt-2); white-space: nowrap;
+}
+.pal-chip[hidden] { display: none; }
+.pal-dot {
+  --pc: var(--t-media);
+  width: 8px; height: 8px; border-radius: 50%; background: var(--pc); flex: none;
+}
+.pal-dot[data-t="image"] { --pc: var(--t-image); }
+.pal-dot[data-t="video"] { --pc: var(--t-video); border-radius: 2px; }
+.pal-dot[data-t="text"] { --pc: var(--t-text); }
+.pal-dot[data-t="audio"] { --pc: var(--t-audio); border-radius: 1.5px; transform: rotate(45deg) scale(0.85); }
+.pal-search kbd, .pal-foot kbd {
+  font-family: var(--font-mono); font-size: 10px; line-height: 1;
+  padding: 3px 5px; border-radius: 5px;
+  background: var(--surface-3); border: 1px solid var(--line-2); color: var(--txt-3);
+}
+.pal-body { display: flex; height: min(400px, 56vh); border-top: 1px solid var(--line); }
+.pal-cats {
+  flex: none; width: 136px; padding: 8px;
+  display: flex; flex-direction: column; gap: 1px;
+  border-right: 1px solid var(--line);
+  overflow: auto;
+}
+.pal-cat {
+  height: 30px; padding: 0 10px; border-radius: 8px; flex: none;
+  text-align: left; font-size: 12.5px; color: var(--txt-2);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.pal-cat:hover { color: var(--txt); background: var(--wash); }
+.pal-cat.on { color: var(--txt); background: var(--wash-2); }
+.pal-list { position: relative; flex: 1; min-width: 0; overflow: auto; padding: 4px 8px 10px; scroll-padding: 8px; }
+/* la surbrillance de la ligne active : un seul élément qui glisse de ligne en ligne */
+.pal-hl {
+  position: absolute; left: 8px; right: 8px; top: 0; z-index: 0;
+  border-radius: 10px; background: var(--wash-2); pointer-events: none;
+  transition: transform var(--dur-pop) var(--ease-out);
+}
+.pal-hl.still { transition: none; }
+.pal-sec {
+  padding: 12px 8px 6px;
+  font-family: var(--font-kicker); font-size: 10px; font-weight: 500; line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--txt-3);
+}
+.pal-item {
+  position: relative; z-index: 1;
+  width: 100%; display: flex; align-items: center; gap: 11px;
+  padding: 7px 8px; border-radius: 10px;
+  text-align: left;
+}
+.pal-item.on { background: transparent; }
+.pal-glyph {
+  flex: none; width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--surface-3); border: 1px solid var(--line);
+  color: var(--txt-2);
+}
+.pal-glyph svg { width: 16px; height: 16px; }
+.pal-item.on .pal-glyph { color: var(--txt); border-color: var(--line-2); }
+.pal-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* 1re ligne : le nom, et à droite en mono gris le modèle (ou le port qui recevra le fil) */
+.pal-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.pal-name { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* la phrase entière sur toute la largeur, 2 lignes au plus (au-delà : infobulle, palette.js) */
+.pal-desc {
+  font-size: 11.5px; line-height: 1.38; color: var(--txt-3);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  overflow-wrap: break-word;
+}
+.pal-meta {
+  flex: 0 1 auto; margin-left: auto; min-width: 0; max-width: 55%;
+  /* 1,4 et non 1 : une boîte de 10 px rognait les accents des capitales (« VIDÉO ») */
+  font-family: var(--font-kicker); font-size: 10px; line-height: 1.4;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--txt-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pal-meta.missing { opacity: 0.55; }
+/* le modèle déborde de la carte graphique : le seul mot de la méta, en avertissement */
+.pal-meta.over { color: var(--danger, var(--state-err)); }
+/* la phrase entière d'une description coupée, à côté du panneau (palette.js) */
+.pal-side { max-width: 300px; white-space: normal; }
+.pal-side[hidden] { display: none; }
+.pal-meta.port { color: var(--txt-2); }
+.pal-empty { padding: 36px 12px; text-align: center; color: var(--txt-3); font-size: 12.5px; }
+.pal-foot {
+  display: flex; align-items: center; gap: 18px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--txt-3);
+}
+.pal-foot span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ── planche vide ────────────────────────────────────────────────────── */
+#board-empty {
+  position: absolute; inset: 0; z-index: 3;
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+#board-empty[hidden] { display: none; }
+.be-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  padding: 0 24px;
+  transform: translateY(-1.5vh);
+}
+.be-title {
+  font-family: var(--font-display);
+  font-size: 19px; font-weight: 350; letter-spacing: -0.005em;
+  color: var(--txt-2);
+  text-align: center;
+}
+.be-recipes {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+  max-width: 1120px;
+}
+.be-card {
+  --i: 0;
+  width: 204px; min-height: 164px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+  padding: 14px 14px 12px;
+  border-radius: var(--r-lg, 14px);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  text-align: left;
+  pointer-events: auto;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  animation: g-card-in var(--dur-card) var(--ease-out) both;
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+.be-card:hover { border-color: var(--line-strong); background: var(--surface-2); }
+@keyframes g-card-in { from { opacity: 0; transform: translateY(8px); } }
+.be-glyph {
+  width: 32px; height: 32px; margin-bottom: 5px; border-radius: 9px;
+  display: grid; place-items: center;
+  background: var(--surface-3); border: 1px solid var(--line);
+  color: var(--txt-2);
+}
+.be-glyph svg { width: 18px; height: 18px; }
+.be-card:hover .be-glyph { color: var(--txt); }
+.be-name { font-size: 13px; font-weight: 600; color: var(--txt); line-height: 1.3; }
+.be-desc {
+  font-size: 11.5px; line-height: 1.45; color: var(--txt-3);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.be-meta {
+  margin-top: auto; padding-top: 6px;
+  font-family: var(--font-kicker); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--txt-3);
+}
+.be-hint { font-size: 12px; color: var(--txt-3); display: flex; align-items: center; gap: 6px; }
+.be-hint kbd {
+  font-family: var(--font-mono); font-size: 10.5px; padding: 2px 6px; border-radius: 5px;
+  background: var(--surface-3); border: 1px solid var(--line-2); color: var(--txt-2);
+}
+/* la planche vide cache ses îlots de navigation : rien à cadrer */
+.g-is-empty #zoombar, .g-is-empty #minimap { opacity: 0; pointer-events: none; transition: opacity var(--dur-rise) var(--ease); }
+
+/* ── voile de dépose ─────────────────────────────────────────────────── */
+.drop-veil {
+  /* sous la barre de titre flottante : le voile n'encadre que la planche */
+  position: absolute; inset: calc(var(--tb-h, 44px) + 10px) 10px 10px 10px; z-index: 60;
+  display: grid; place-items: center;
+  border-radius: var(--r-lg, 14px);
+  border: 1.5px dashed var(--accent-line);
+  /* un voile à peine teinté : le cadre en tirets suffit à dire « ici » */
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  pointer-events: none;
+  animation: g-pop var(--dur-pop) var(--ease);
+}
+.drop-veil[hidden] { display: none; }
+.drop-veil.targeted { background: transparent; }
+.drop-pill {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 11px 20px; border-radius: 999px;
+  background: var(--panel); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow-lg);
+}
+.drop-title { font-size: 13px; font-weight: 550; color: var(--txt); }
+.drop-sub { font-size: 11.5px; color: var(--txt-3); }
+.drop-sub[hidden] { display: none; }
+
+/* ── corps minimal (si nodes/body.js manque) ─────────────────────────── */
+.mb-well {
+  position: relative;
+  margin: 8px 8px 0;
+  aspect-ratio: 16 / 9; max-height: 360px;
+  border-radius: var(--r-media);
+  background: var(--node-well);
+  overflow: hidden;
+}
+.mb-wave {
+  position: absolute; inset: 14% 10px;
+  background: var(--txt-3);
+  -webkit-mask: var(--wave) center / 100% 100% no-repeat; mask: var(--wave) center / 100% 100% no-repeat;
+}
+.mb-well img, .mb-well video { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-drag: none; }
+.mb-well.empty {
+  aspect-ratio: 16 / 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  color: var(--txt-3);
+  text-align: center; padding: 0 16px;
+}
+.mb-ph-glyph { color: var(--txt-3); margin-bottom: 4px; }
+.mb-ph-glyph svg { width: 22px; height: 22px; }
+.mb-ph-title { font-size: 12.5px; font-weight: 550; color: var(--txt-2); }
+.mb-ph-sub { font-size: 11px; color: var(--txt-3); }
+.mb-badge {
+  position: absolute; left: 8px; top: 8px;
+  padding: 3px 6px; border-radius: 5px;
+  background: rgba(0, 0, 0, 0.55); color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-kicker); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  visibility: hidden;
+}
+.node:hover .mb-badge { visibility: visible; }
+.mb-rows { padding: 4px 12px 8px; }
+.mb-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 28px; }
+.mb-k { color: var(--txt-3); font-size: 11.5px; white-space: nowrap; }
+.mb-v { color: var(--txt); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
+.mb-foot {
+  display: flex; align-items: center; gap: 6px;
+  height: 40px; padding: 0 7px 0 12px;
+  border-top: 1px solid var(--line);
+}
+.mb-est { flex: 1; min-width: 0; font-size: 11px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-btn {
+  height: 26px; padding: 0 11px; border-radius: 8px;
+  font-size: 12px; font-weight: 550;
+  color: var(--txt); background: var(--surface-3);
+  border: 1px solid var(--line-2);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.mb-btn:hover { background: var(--surface-hi); }
+.mb-btn.ghost { background: transparent; color: var(--txt-2); }
+.mb-text {
+  display: block; box-sizing: border-box;
+  width: calc(100% - 20px); margin: 10px;
+  min-height: 70px; resize: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-3); border: 1px solid var(--line);
+  font-family: var(--font-ui); font-size: 12.5px; line-height: 1.5; color: var(--txt);
+  outline: none; user-select: text;
+}
+.mb-text:focus { border-color: var(--accent-line); }
+.mb-text::placeholder { color: var(--txt-3); }
+.mb-note { padding: 12px; color: var(--txt-3); font-size: 11.5px; }
+
+/* sélection : en vue lointaine l'anneau est l'ombre de la carte (épaisseur écran constante) */
+.lod-2 .node.sel::before, .lod-3 .node.sel::before { display: none; }
+
+/* ── mouvement réduit ────────────────────────────────────────────────── */
+/* les durées passent à 1 ms dans tokens.css ; ici, ce qui boucle s'arrête */
+@media (prefers-reduced-motion: reduce) {
+  #wires .w-flow { animation: none; }
+  .n-prog.indet::before { animation: none; width: 100%; transform: none; opacity: 0.5; }
+  .node.entering, .node.leaving, .be-card, .pal-panel, #dock, #zoombar, #minimap, .w-cut, .drop-veil { animation: none; }
+}

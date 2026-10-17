@@ -1,0 +1,106 @@
+[
+ {
+  "id": "etalo",
+  "file": "<labo>/projects/close_up/etalo/etalo_33.cube",
+  "label": {
+   "fr": "Etalo (le tien)",
+   "en": "Etalo (yours)"
+  },
+  "desc": {
+   "fr": "Ton étalonnage Lightroom du close-up, appris sur ta planche : sombre, mat, ambré.",
+   "en": "Your Lightroom grade of the close-up, learned from your board: dark, matte, amber."
+  },
+  "preview": "previews/etalo.jpg"
+ },
+ {
+  "id": "etalo-doux",
+  "file": "etalo_doux.cube",
+  "label": {
+   "fr": "Etalo doux",
+   "en": "Etalo soft"
+  },
+  "desc": {
+   "fr": "Ton étalonnage en plus tendre : noirs moins appuyés, contraste et couleurs adoucis.",
+   "en": "Your grade, gentler: lighter blacks, softer contrast and colours."
+  },
+  "preview": "previews/etalo-doux.jpg"
+ },
+ {
+  "id": "etalo-nuit",
+  "file": "etalo_nuit.cube",
+  "label": {
+   "fr": "Etalo nuit",
+   "en": "Etalo night"
+  },
+  "desc": {
+   "fr": "Ton étalonnage de nuit : plus sombre et plus froid, ombres profondes, peau gardée.",
+   "en": "Your grade at night: darker and cooler, deep shadows, skin kept."
+  },
+  "preview": "previews/etalo-nuit.jpg"
+ },
+ {
+  "id": "pellicule-chaude",
+  "file": "pellicule_chaude.cube",
+  "label": {
+   "fr": "Pellicule chaude",
+   "en": "Warm film"
+  },
+  "desc": {
+   "fr": "Négatif chaud façon Kodak : tons dorés, rouges pleins, noirs bruns.",
+   "en": "Warm Kodak-like negative: golden tones, rich reds, brown blacks."
+  },
+  "preview": "previews/pellicule-chaude.jpg"
+ },
+ {
+  "id": "pellicule-froide",
+  "file": "pellicule_froide.cube",
+  "label": {
+   "fr": "Pellicule froide",
+   "en": "Cool film"
+  },
+  "desc": {
+   "fr": "Négatif froid façon Fuji : ombres vertes, blancs neutres, couleurs retenues.",
+   "en": "Cool Fuji-like negative: green shadows, neutral whites, restrained colours."
+  },
+  "preview": "previews/pellicule-froide.jpg"
+ },
+ {
+  "id": "sans-blanchiment",
+  "file": "sans_blanchiment.cube",
+  "label": {
+   "fr": "Sans blanchiment",
+   "en": "Bleach bypass"
+  },
+  "desc": {
+   "fr": "Traitement sans blanchiment : couleurs éteintes, contraste dur, reflets argentés.",
+   "en": "Bleach bypass: muted colours, hard contrast, silvery highlights."
+  },
+  "preview": "previews/sans-blanchiment.jpg"
+ },
+ {
+  "id": "crepuscule",
+  "file": "crepuscule.cube",
+  "label": {
+   "fr": "Crépuscule",
+   "en": "Dusk"
+  },
+  "desc": {
+   "fr": "Fin de jour : hautes lumières ambrées, ombres bleu-vert, sans excès.",
+   "en": "End of day: amber highlights, teal shadows, kept subtle."
+  },
+  "preview": "previews/crepuscule.jpg"
+ },
+ {
+  "id": "nb-argentique",
+  "file": "nb_argentique.cube",
+  "label": {
+   "fr": "Noir et blanc argentique",
+   "en": "Silver black & white"
+  },
+  "desc": {
+   "fr": "Noir et blanc de pellicule : gris riches, noirs mats, une pointe de chaleur.",
+   "en": "Film black and white: rich greys, matte blacks, a hint of warmth."
+  },
+  "preview": "previews/nb-argentique.jpg"
+ }
+]

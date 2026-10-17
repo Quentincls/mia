@@ -1,0 +1,16 @@
+# Versions figées du moteur de Mia, lues par install-engine.ps1.
+# Adapté de setup\versions.txt du labo (17/10/2026) : mêmes versions que le moteur avec lequel Mia est testée.
+# Les autres paquets Python sont tenus par constraints.txt (même relevé).
+# Changer une version ici, puis relancer install-engine.ps1 (chaque étape déjà faite est sautée).
+PYTHON=3.13.15
+UV=0.12.13
+COMFYUI_TAG=v0.39.2
+COMFYUI_REPO=https://github.com/comfyanonymous/ComfyUI
+TORCH=2.14.1
+TORCHVISION=0.29.1
+TORCHAUDIO=2.11.0
+TORCH_INDEX=https://download.pytorch.org/whl/cu130
+# Pilote NVIDIA minimal pour PyTorch CUDA 13.0
+MIN_DRIVER=580
+# Place libre conseillée pour le moteur seul (Go) ; les modèles demandent en plus 20 à 150 Go
+MIN_FREE_GB=25

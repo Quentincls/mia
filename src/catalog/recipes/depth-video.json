@@ -1,0 +1,69 @@
+{
+  "id": "depth-video",
+  "icon": "depth",
+  "label": {
+    "fr": "Passe de profondeur d’une vidéo",
+    "en": "Depth pass of a video"
+  },
+  "desc": {
+    "fr": "Dépose une vidéo, Mia en calcule la profondeur et te la montre à côté de l’original.",
+    "en": "Drop a video; Mia computes its depth and shows it next to the original."
+  },
+  "nodes": [
+    {
+      "key": "src",
+      "type": "import",
+      "x": 0,
+      "y": 0,
+      "placeholder": {
+        "kind": "video",
+        "fr": "Vidéo source",
+        "en": "Source video"
+      }
+    },
+    {
+      "key": "depth",
+      "type": "depth",
+      "x": 432,
+      "y": -460
+    },
+    {
+      "key": "cmp",
+      "type": "compare",
+      "x": 864,
+      "y": 0
+    },
+    {
+      "key": "exp",
+      "type": "export",
+      "x": 1320,
+      "y": -460
+    }
+  ],
+  "edges": [
+    [
+      "src",
+      "out",
+      "depth",
+      "media"
+    ],
+    [
+      "src",
+      "out",
+      "cmp",
+      "a"
+    ],
+    [
+      "depth",
+      "depth",
+      "cmp",
+      "b"
+    ],
+    [
+      "depth",
+      "depth",
+      "exp",
+      "media"
+    ]
+  ]
+}

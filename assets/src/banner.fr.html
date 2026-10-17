@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  html { zoom: .5; } html, body { margin: 0; width: 1920px; height: 480px; background: #000; overflow: hidden; }
+  body { position: relative; color: #ececee; font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; }
+  .grid { position: absolute; inset: 0; }
+  .wrap { position: absolute; left: 150px; top: 0; bottom: 0; display: flex; align-items: center; gap: 40px; }
+  .mark { width: 196px; height: 196px; margin-top: -6px; color: #ececee; }
+  .txt { display: flex; flex-direction: column; gap: 16px; }
+  .name { font-size: 112px; font-weight: 600; letter-spacing: -0.03em; line-height: 0.9; }
+  .tag { font-size: 33px; font-weight: 350; color: #a1a1a8; letter-spacing: 0.005em; }
+  .kick { font-family: "Cascadia Mono", Consolas, monospace; font-size: 18px; letter-spacing: .16em; color: #6b6b73; text-transform: uppercase; }
+  .kick b { color: #4d82f3; font-weight: 500; }
+  /* a small node graph on the right: blocks and one wire, flat, monochrome, one accent */
+  .graph { position: absolute; right: 110px; top: 0; height: 480px; width: 750px; }
+</style></head>
+<body>
+<svg class="grid" width="1920" height="480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dots" width="36" height="36" patternUnits="userSpaceOnUse">
+      <circle cx="18" cy="18" r="1.3" fill="#1c1c20"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="480" fill="url(#dots)"/>
+</svg>
+<div class="wrap">
+  <svg class="mark" viewBox="0 0 256 256" fill="none">
+    <path d="M50 202V70C108 70 82 166 128 166S148 70 206 70V202" stroke="currentColor" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div class="txt">
+    <div class="name">Mia</div>
+    <div class="tag">Une planche nodale pour l’IA vidéo, en local.</div>
+    <div class="kick">Ton GPU <b>·</b> tes modèles <b>·</b> tes fichiers</div>
+  </div>
+</div>
+<svg class="graph" viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- wires: horizontal-tangent cubic beziers like Mia's -->
+  <path d="M286 214 C 380 214, 380 330, 474 330" stroke="#4a4a52" stroke-width="3"/>
+  <path d="M286 446 C 380 446, 380 370, 474 370" stroke="#4a4a52" stroke-width="3"/>
+  <path d="M766 350 C 820 350, 800 350, 854 350" stroke="#4a4a52" stroke-width="3"/>
+  <!-- block: image -->
+  <rect x="40" y="140" width="246" height="148" rx="16" fill="#111114" stroke="#26262b" stroke-width="2"/>
+  <rect x="58" y="158" width="210" height="112" rx="9" fill="#1a1a1e"/>
+  <path d="M58 250 L120 202 L160 232 L200 196 L268 250 V262 a8 8 0 0 1 -8 8 H66 a8 8 0 0 1 -8 -8 Z" fill="#232328"/>
+  <circle cx="286" cy="214" r="9" fill="#000" stroke="#d4b483" stroke-width="3"/>
+  <!-- block: prompt -->
+  <rect x="40" y="372" width="246" height="148" rx="16" fill="#111114" stroke="#26262b" stroke-width="2"/>
+  <rect x="62" y="402" width="170" height="10" rx="5" fill="#2a2a30"/>
+  <rect x="62" y="428" width="196" height="10" rx="5" fill="#222227"/>
+  <rect x="62" y="454" width="140" height="10" rx="5" fill="#222227"/>
+  <rect x="62" y="480" width="164" height="10" rx="5" fill="#222227"/>
+  <circle cx="286" cy="446" r="9" fill="#000" stroke="#8fc2a1" stroke-width="3"/>
+  <!-- block: animate (running) -->
+  <rect x="474" y="200" width="292" height="300" rx="16" fill="#111114" stroke="#4d82f3" stroke-width="2.5"/>
+  <rect x="496" y="222" width="132" height="12" rx="6" fill="#3a3a42"/>
+  <rect x="496" y="250" width="248" height="140" rx="9" fill="#1a1a1e"/>
+  <path d="M496 370 L560 320 L604 350 L650 312 L744 370 V382 a8 8 0 0 1 -8 8 H504 a8 8 0 0 1 -8 -8 Z" fill="#232328"/>
+  <rect x="496" y="410" width="248" height="4" rx="2" fill="#1f1f24"/>
+  <rect x="496" y="410" width="150" height="4" rx="2" fill="#4d82f3"/>
+  <rect x="496" y="440" width="110" height="34" rx="9" fill="#ececee"/>
+  <rect x="616" y="440" width="128" height="34" rx="9" fill="none" stroke="#2c2c32" stroke-width="2"/>
+  <circle cx="474" cy="330" r="9" fill="#000" stroke="#d4b483" stroke-width="3"/>
+  <circle cx="474" cy="370" r="9" fill="#000" stroke="#8fc2a1" stroke-width="3"/>
+  <circle cx="766" cy="350" r="9" fill="#000" stroke="#d98e73" stroke-width="3"/>
+  <!-- block: result -->
+  <rect x="854" y="262" width="146" height="176" rx="16" fill="#111114" stroke="#26262b" stroke-width="2"/>
+  <circle cx="854" cy="350" r="9" fill="#000" stroke="#d98e73" stroke-width="3"/>
+  <rect x="872" y="284" width="110" height="132" rx="9" fill="#1a1a1e"/>
+  <path d="M916 330 L946 350 L916 370 Z" fill="#6b6b73"/>
+</svg>
+</body></html>

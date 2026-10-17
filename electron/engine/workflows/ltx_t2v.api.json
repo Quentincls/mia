@@ -1,0 +1,391 @@
+{
+ "5508": {
+  "inputs": {
+   "value": ""
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Prompt (positive)"
+  }
+ },
+ "5509": {
+  "inputs": {
+   "value": ""
+  },
+  "class_type": "PrimitiveStringMultiline",
+  "_meta": {
+   "title": "Prompt (negative)"
+  }
+ },
+ "5511": {
+  "inputs": {
+   "value": 24
+  },
+  "class_type": "PrimitiveFloat",
+  "_meta": {
+   "title": "fps (frames per second)"
+  }
+ },
+ "5512": {
+  "inputs": {
+   "value": 5
+  },
+  "class_type": "PrimitiveFloat",
+  "_meta": {
+   "title": "duration in seconds (determines frames #)"
+  }
+ },
+ "9990": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "mia/t2v/frame",
+   "images": [
+    "5518:5538",
+    0
+   ]
+  }
+ },
+ "9991": {
+  "class_type": "SaveAudioAdvanced",
+  "inputs": {
+   "filename_prefix": "mia/t2v/audio",
+   "format": "flac",
+   "audio": [
+    "5518:4848",
+    0
+   ]
+  }
+ },
+ "5004:5570": {
+  "inputs": {
+   "vae_name": "ltx-2.5-audio-vae-bf16.safetensors"
+  },
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "Load VAE - Audio"
+  }
+ },
+ "5004:5571": {
+  "inputs": {
+   "vae_name": "ltx-2.5-video-vae-bf16.safetensors"
+  },
+  "class_type": "VAELoader",
+  "_meta": {
+   "title": "Load VAE - Video"
+  }
+ },
+ "5004:5569": {
+  "inputs": {
+   "unet_name": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "weight_dtype": "default"
+  },
+  "class_type": "UNETLoader",
+  "_meta": {
+   "title": "Charger Modèle Diffusion"
+  }
+ },
+ "5004:5572": {
+  "inputs": {
+   "clip_name": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+   "type": "ltxv",
+   "device": "default"
+  },
+  "class_type": "CLIPLoader",
+  "_meta": {
+   "title": "Load CLIP - Text Encoder"
+  }
+ },
+ "5014:2612": {
+  "inputs": {
+   "text": [
+    "5509",
+    0
+   ],
+   "clip": [
+    "5004:5572",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "CLIP Text Encode (Negative Prompt)"
+  }
+ },
+ "5014:2483": {
+  "inputs": {
+   "text": [
+    "5508",
+    0
+   ],
+   "clip": [
+    "5004:5572",
+    0
+   ]
+  },
+  "class_type": "CLIPTextEncode",
+  "_meta": {
+   "title": "CLIP Text Encode (Positive Prompt)"
+  }
+ },
+ "5014:1241": {
+  "inputs": {
+   "frame_rate": [
+    "5014:5017",
+    0
+   ],
+   "positive": [
+    "5014:2483",
+    0
+   ],
+   "negative": [
+    "5014:2612",
+    0
+   ]
+  },
+  "class_type": "LTXVConditioning",
+  "_meta": {
+   "title": "LTXVConditioning"
+  }
+ },
+ "5014:5017": {
+  "inputs": {
+   "value": [
+    "5511",
+    0
+   ]
+  },
+  "class_type": "PrimitiveFloat",
+  "_meta": {
+   "title": "fps"
+  }
+ },
+ "5014:5507": {
+  "inputs": {
+   "value": [
+    "5512",
+    0
+   ]
+  },
+  "class_type": "PrimitiveFloat",
+  "_meta": {
+   "title": "Duration in seconds - Float"
+  }
+ },
+ "5014:5561": {
+  "inputs": {
+   "expression": "1 + floor(a*b/8)*8",
+   "values.a": [
+    "5014:5017",
+    0
+   ],
+   "values.b": [
+    "5014:5507",
+    0
+   ]
+  },
+  "class_type": "ComfyMathExpression",
+  "_meta": {
+   "title": "calculate frames count - Math Expression"
+  }
+ },
+ "5014:4988": {
+  "inputs": {
+   "value": [
+    "5014:5561",
+    1
+   ]
+  },
+  "class_type": "PrimitiveInt",
+  "_meta": {
+   "title": "number of frames"
+  }
+ },
+ "5514:3059": {
+  "inputs": {
+   "width": 1920,
+   "height": 1088,
+   "length": [
+    "5014:4988",
+    0
+   ],
+   "batch_size": 1
+  },
+  "class_type": "EmptyLTXVLatentVideo",
+  "_meta": {
+   "title": "Vidéo latente LTXV vide"
+  }
+ },
+ "5514:5000": {
+  "inputs": {
+   "a": [
+    "5014:5017",
+    0
+   ]
+  },
+  "class_type": "LTXFloatToInt",
+  "_meta": {
+   "title": "🅛🅣🅧 Float To Int"
+  }
+ },
+ "5514:3980": {
+  "inputs": {
+   "frames_number": [
+    "5014:4988",
+    0
+   ],
+   "frame_rate": [
+    "5514:5000",
+    0
+   ],
+   "batch_size": 1,
+   "audio_vae": [
+    "5004:5570",
+    0
+   ]
+  },
+  "class_type": "LTXVEmptyLatentAudio",
+  "_meta": {
+   "title": "Audio latent LTXV vide"
+  }
+ },
+ "5514:4528": {
+  "inputs": {
+   "video_latent": [
+    "5514:3059",
+    0
+   ],
+   "audio_latent": [
+    "5514:3980",
+    0
+   ]
+  },
+  "class_type": "LTXVConcatAVLatent",
+  "_meta": {
+   "title": "Concaténer le latent AV"
+  }
+ },
+ "5516:4832": {
+  "inputs": {
+   "noise_seed": 42
+  },
+  "class_type": "RandomNoise",
+  "_meta": {
+   "title": "BruitAléatoire"
+  }
+ },
+ "5516:4828": {
+  "inputs": {
+   "cfg": 1,
+   "model": [
+    "5004:5569",
+    0
+   ],
+   "positive": [
+    "5014:1241",
+    0
+   ],
+   "negative": [
+    "5014:1241",
+    1
+   ]
+  },
+  "class_type": "CFGGuider",
+  "_meta": {
+   "title": "GuideCFG"
+  }
+ },
+ "5516:4831": {
+  "inputs": {
+   "sampler_name": "euler"
+  },
+  "class_type": "KSamplerSelect",
+  "_meta": {
+   "title": "KSamplerSelect"
+  }
+ },
+ "5516:4984": {
+  "inputs": {
+   "sigmas": "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+  },
+  "class_type": "ManualSigmas",
+  "_meta": {
+   "title": "Sigmas manuels"
+  }
+ },
+ "5516:4829": {
+  "inputs": {
+   "noise": [
+    "5516:4832",
+    0
+   ],
+   "guider": [
+    "5516:4828",
+    0
+   ],
+   "sampler": [
+    "5516:4831",
+    0
+   ],
+   "sigmas": [
+    "5516:4984",
+    0
+   ],
+   "latent_image": [
+    "5514:4528",
+    0
+   ]
+  },
+  "class_type": "SamplerCustomAdvanced",
+  "_meta": {
+   "title": "ÉchantillonneurPersonnaliséAvancé"
+  }
+ },
+ "5516:4845": {
+  "inputs": {
+   "av_latent": [
+    "5516:4829",
+    0
+   ]
+  },
+  "class_type": "LTXVSeparateAVLatent",
+  "_meta": {
+   "title": "Séparer le latent AV"
+  }
+ },
+ "5518:4848": {
+  "inputs": {
+   "samples": [
+    "5516:4845",
+    1
+   ],
+   "audio_vae": [
+    "5004:5570",
+    0
+   ]
+  },
+  "class_type": "LTXVAudioVAEDecode",
+  "_meta": {
+   "title": "Décodage Audio VAE LTXV"
+  }
+ },
+ "5518:5538": {
+  "inputs": {
+   "tile_size": 512,
+   "overlap": 64,
+   "temporal_size": 128,
+   "temporal_overlap": 32,
+   "samples": [
+    "5516:4845",
+    0
+   ],
+   "vae": [
+    "5004:5571",
+    0
+   ]
+  },
+  "class_type": "VAEDecodeTiled",
+  "_meta": {
+   "title": "VAE Decode (Tiled)"
+  }
+ }
+}

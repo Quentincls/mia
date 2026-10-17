@@ -1,0 +1,9 @@
+# Nœuds ComfyUI ajoutés au moteur de Mia, un par ligne : <url git> <commit complet>
+# Adapté de setup\custom_nodes.txt du labo (17/10/2026) ; les nœuds natifs de ComfyUI sont préférés, n'ajouter ici que
+# ce qui manque, toujours à un commit précis. install-engine.ps1 les télécharge en zip (git n'est pas nécessaire).
+# Profondeur (bloc « Profondeur », « Vidéo guidée ») : Video Depth Anything
+https://github.com/yuvraj108c/ComfyUI-Video-Depth-Anything.git a0db08e63d1ea571601c45cde4aaee0acdd0544d
+# LTX (« Animer une image », « Vidéo depuis un texte », « Rendre photoréaliste », « Vidéo guidée ») : IC-LoRA
+https://github.com/Lightricks/ComfyUI-LTXVideo.git 3bf3ca62595f1764c47d01c35c8e5dfe47e1a88f
+# Agrandir : SeedVR2
+https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git 4490bd1f482e026674543386bb2a4d176da245b9

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Mia — icône d'application (dérivée du logo 1)</title>
+  <defs>
+    <mask id="mia-tile">
+      <rect width="256" height="256" fill="#fff"/>
+      <path d="M78 182V88C116 88 100 156 128 156S140 88 178 88V182" fill="none" stroke="#000" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect x="12" y="12" width="232" height="232" rx="64" fill="#fff" mask="url(#mia-tile)"/>
+</svg>

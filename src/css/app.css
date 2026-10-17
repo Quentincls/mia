@@ -1,0 +1,624 @@
+/* ── base ───────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--line-strong); background-clip: content-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  background: var(--bg); color: var(--txt);
+  font-family: var(--font-ui);
+  font-size: 13.5px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  user-select: none; cursor: default;
+}
+/* focus rings are for the keyboard only (body.kbd, set on Tab / arrows by chrome.js):
+   a mouse click followed by Esc must not leave an accent ring behind */
+:focus { outline: none; }
+:focus-visible { outline: none; }
+body.kbd :focus-visible { outline: 1.5px solid var(--accent); outline-offset: 1px; border-radius: 5px; }
+body:not(.kbd) :focus-visible { outline-color: transparent !important; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+input, textarea { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+[hidden] { display: none !important; }
+/* no native drag ghost of pictures, a selection colour that belongs to us */
+img, svg { -webkit-user-drag: none; }
+::selection { background: var(--accent-soft); color: inherit; }
+input::selection, textarea::selection { background: var(--accent); color: #fff; }
+
+/* views sit under the floating title bar — the canvas runs edge to edge */
+.view { position: absolute; inset: 0; }
+/* the board's frame (graph.css draws what is inside) */
+#view-board { overflow: hidden; background: var(--bg-canvas); }
+#stage { position: absolute; inset: 0; overflow: hidden; }
+
+/* MONO CAPS label (da.md §4.1) — section titles, badges, states, never prose */
+.kicker {
+  font-family: var(--font-kicker); font-size: var(--fs-kicker); font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+
+/* ── floating title bar ─────────────────────────────────────────────── */
+#titlebar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--tb-h);
+  display: flex; align-items: center; padding-left: 10px;
+  z-index: var(--z-titlebar);
+}
+#titlebar > .tb-left, #titlebar > .tb-drag, #titlebar > .tb-right { transition: opacity var(--dur); }
+/* an inactive window dims its controls, never the veil (the board must not show through) */
+#titlebar.blur > .tb-left, #titlebar.blur > .tb-right { opacity: .6; }
+
+/* The veil under the controls: the page's own colour, solid over the whole bar
+   (no wire, no block foot can cross a tab's name), then a short fade below it
+   so the canvas has no hard edge. */
+.tb-veil {
+  position: absolute; inset: -2px 0 -20px 0; pointer-events: none;
+  background: var(--bg);
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent 100%);
+}
+body.on-board .tb-veil { background: var(--bg-canvas); }
+
+/* Only the tabs give way. The actions and the window's own buttons are
+   flex:none: whatever the number of tabs, close is always on screen. The tabs
+   fold by measure (tabs.js layout), never by a fixed width. */
+.tb-drag { flex: 1 1 0; align-self: stretch; -webkit-app-region: drag; min-width: 40px; }
+.tb-left, .tb-right { position: relative; display: flex; align-items: center; }
+.tb-right { flex: none; gap: 6px; }
+.tb-left { flex: 0 1 auto; min-width: 0; -webkit-app-region: drag; }
+.tb-left > *, .tb-right > * { -webkit-app-region: no-drag; }
+
+/* the mark is also the way home */
+.tb-mark {
+  display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 auto;
+  margin-right: 6px; border-radius: 8px; color: var(--txt-2);
+  transition: color var(--dur), background var(--dur);
+}
+.tb-mark:hover { color: var(--txt); background: var(--wash); }
+.tb-mark svg { display: block; }
+
+/* ── tab strip ──────────────────────────────────────────────────────
+   Quiet by design: no border, no fill until you hover. Only the active tab
+   lifts, and barely — it should read as part of the bar, not on top of it. */
+.tb-tabs {
+  display: flex; align-items: center; gap: 2px; min-width: 0; flex: 0 1 auto;
+  max-width: 2400px; overflow: hidden;
+}
+/* a strip that still overflows for a frame (a resize in progress) fades out, never cuts */
+.tb-tabs.clip { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+
+.tb-home {
+  width: 26px; height: 26px; flex: 0 0 auto; border-radius: 7px;
+  display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--dur), color var(--dur);
+}
+.tb-home:hover { background: var(--wash); color: var(--txt-2); }
+.tb-home.active { background: var(--wash-2); color: var(--txt); }
+
+.tb-tab {
+  position: relative;
+  display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px;
+  border-radius: 7px; max-width: 200px; min-width: 0; flex: 0 0 auto;
+  color: var(--txt-3); background: transparent;
+  transition: background var(--dur), color var(--dur);
+}
+/* not enough room for the natural widths: every tab gets the same share (tabs.js) */
+.tb-tabs.tight .tb-tab { flex: 0 0 auto; }   /* width set per tab by tabs.js */
+.tb-tab .tb-title { flex: 1 1 auto; min-width: 0; }
+.tb-tab:hover { background: var(--wash); color: var(--txt-2); }
+.tb-tab.active { background: var(--wash-2); color: var(--txt); }
+
+.tb-title {
+  font-size: 12px; font-weight: 500; color: inherit;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tb-tab.active .tb-title { cursor: text; }
+.tb-title-input {
+  font-size: 12px; font-weight: 500; background: transparent; color: var(--txt);
+  border: 0; border-bottom: 1px solid var(--accent-line); border-radius: 0;
+  padding: 0; width: 150px; user-select: text;
+}
+.tb-title-input:focus-visible { outline: none; }
+
+/* a dot confirms the project reached the disk — pinned to the corner so it
+   never nudges the label (Slate wrote `content: ;` and never showed it) */
+.tb-tab::after {
+  content: ''; position: absolute; top: 4px; right: 4px;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--txt-3); opacity: 0; transition: opacity var(--dur-check) var(--ease);
+  pointer-events: none;
+}
+/* the board reached the disk: the dot shows, with one beat (SPEC §20.1) */
+.tb-tab.saved::after { opacity: .85; animation: tb-saved var(--dur-pulse) var(--ease-out); }
+@keyframes tb-saved { 0% { transform: scale(1); } 45% { transform: scale(1.75); } 100% { transform: scale(1); } }
+
+/* a tab that leaves the strip (closed, folded under its chip): its ghost, where it stood (tabs.js) */
+.tb-ghost { position: fixed; z-index: calc(var(--z-titlebar) + 1); margin: 0; pointer-events: none; }
+.tb-ghost::after { display: none; }
+
+.tb-tab-close {
+  width: 15px; height: 15px; flex: 0 0 auto; border-radius: 4px; margin-right: -2px;
+  display: grid; place-items: center; color: var(--txt-3);
+  opacity: .45; transition: opacity var(--dur), background var(--dur), color var(--dur);
+}
+.tb-tab:hover .tb-tab-close { opacity: .85; }
+.tb-tab-close:hover { opacity: 1; background: var(--wash-2); color: var(--txt); }
+
+.tb-tab-add {
+  width: 24px; height: 24px; flex: 0 0 auto; border-radius: 7px; margin-left: 2px;
+  display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--dur), color var(--dur);
+}
+.tb-tab-add:hover { background: var(--wash); color: var(--txt-2); }
+
+/* ── chips & buttons in the bar ─────────────────────────────────────── */
+.tb-actions { display: flex; align-items: center; gap: 4px; }
+.tb-chip {
+  width: 28px; height: 28px; flex: 0 0 auto; border-radius: 8px;
+  display: grid; place-items: center; font-size: 13px; font-weight: 600;
+  color: var(--txt-2); transition: background var(--dur), color var(--dur);
+}
+.tb-chip:hover { background: var(--surface-3); color: var(--txt); }
+.tb-chip.on { background: var(--wash-2); color: var(--txt); }
+.tb-chip svg { display: block; }
+
+.tb-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 28px; padding: 0 12px; border-radius: 8px;
+  font-size: 12.5px; font-weight: 550; color: var(--txt-2);
+  transition: background var(--dur), color var(--dur);
+}
+.tb-btn:hover { background: var(--surface-3); color: var(--txt); }
+
+.win-controls { display: flex; height: var(--tb-h); margin-left: 6px; }
+
+/* The button keeps its full-height hit area — Windows measures it for snap
+   layouts — but the hover is painted on an inner pill, so it matches the chips
+   beside it instead of dropping a grey slab into the title bar. */
+.win-btn {
+  position: relative; width: 44px; height: var(--tb-h);
+  display: grid; place-items: center;
+  color: var(--txt-2); transition: color var(--dur-pop) linear;
+}
+.win-btn::before {
+  content: ''; position: absolute; inset: 8px 7px; border-radius: 8px;
+  background: transparent; transition: background var(--dur-pop) linear;
+}
+.win-btn > * { position: relative; }
+.win-btn:hover { color: var(--txt); }
+.win-btn:hover::before { background: var(--wash-2); }
+.win-btn:active::before { background: var(--wash-3); }
+.win-btn:focus-visible { outline: none; }
+body.kbd .win-btn:focus-visible::before { box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+.win-close:hover { color: #fff; }
+.win-close:hover::before { background: var(--win-close); }
+.win-close:active::before { background: var(--win-close-down); }
+
+/* ── generic buttons ────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 34px; padding: 0 14px; border-radius: 9px; flex: 0 0 auto;
+  font-size: 13px; font-weight: 550; white-space: nowrap;
+  color: var(--txt); background: var(--surface-3); border: 1px solid var(--line);
+  transition: background var(--dur), border-color var(--dur), color var(--dur), opacity var(--dur), transform var(--dur-pop) var(--ease-out);
+}
+.btn:hover { background: var(--surface-hi); border-color: var(--line-2); }
+/* pressed: the button gives a little (0,98), and comes back as it is released */
+.btn:active { transform: scale(0.98); }
+.btn[disabled], .btn.is-disabled { opacity: .4; pointer-events: none; }
+.btn svg { display: block; flex: 0 0 auto; }
+
+/* the primary action: Slate's night-blue pill, static */
+.btn-primary {
+  color: var(--primary-txt); border-color: transparent;
+  background: var(--primary-body);
+  box-shadow: inset 0 0 0 1px var(--primary-inner);
+}
+.btn-primary:hover { border-color: transparent; background: var(--primary-body); filter: brightness(1.18); }
+.theme-light .btn-primary:hover { filter: none; background: #2a2a2f; }
+
+/* ── shiny surface ──────────────────────────────────────────────────────
+   One travelling highlight around the border, after Ryan Mulligan's
+   "Shiny CTA" — Slate's only decorative effect. Mia keeps it for the primary
+   launch-type actions only, and drops Slate's speckle and rising glow (the
+   "rich" layer): Quentin reads those as AI slop. In light the button is a
+   plain ink pill (da.md §2). */
+@property --sh-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@property --sh-span { syntax: "<percentage>"; initial-value: 5%; inherits: false; }
+
+.theme-dark .shiny {
+  --sh-body: var(--primary-body);
+  --sh-inner: var(--primary-inner);
+  --sh-hi: var(--accent);
+  --sh-shine: #dbe7ff;
+  --sh-dur: var(--dur-shine);
+  position: relative; isolation: isolate; overflow: hidden;
+  color: #fff; border: 1px solid transparent;
+  background:
+    linear-gradient(var(--sh-body), var(--sh-body)) padding-box,
+    conic-gradient(
+      from var(--sh-angle),
+      transparent,
+      var(--sh-hi) var(--sh-span),
+      var(--sh-shine) calc(var(--sh-span) * 2),
+      var(--sh-hi) calc(var(--sh-span) * 3),
+      transparent calc(var(--sh-span) * 4)
+    ) border-box;
+  box-shadow: inset 0 0 0 1px var(--sh-inner);
+  animation: sh-angle var(--sh-dur) linear infinite;
+  transition: --sh-span var(--dur-cam) var(--ease-out), opacity var(--dur), transform var(--dur-pop) var(--ease-out);
+}
+@keyframes sh-angle { to { --sh-angle: 360deg; } }
+/* No idle loop (SPEC §20.2), and no frozen glint either: at rest the shiny is a
+   plain pill (a still highlight reads as a blue scratch on its edge). The glint
+   fades in (--sh-span, --dur-cam) and travels only while pointed at, or focused
+   from the keyboard. */
+.theme-dark .shiny { --sh-span: 0%; animation-play-state: paused; }
+.theme-dark .shiny:hover, .theme-dark.kbd .shiny:focus-visible { --sh-span: 10%; animation-play-state: running; filter: none; }
+.shiny > span:not([class]) { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shiny { animation: none !important; }
+}
+
+/* On the board the glint only travels on the block you are pointing at; graph.css
+   pauses the others. A paused glint must vanish, not freeze as a blue scratch on
+   every Lancer button (the selected block's included): a still shiny is a plain pill. */
+#world .shiny { --sh-span: 0%; }
+#world .node:hover .shiny { --sh-span: 5%; }
+#world .shiny:hover { --sh-span: 10%; }
+#world.moving .node .shiny, #world.moving .node:hover .shiny { --sh-span: 0%; }
+
+.btn-ghost { background: transparent; border-color: transparent; color: var(--txt-2); box-shadow: none; }
+.btn-ghost:hover { background: var(--surface-3); border-color: transparent; color: var(--txt); }
+.btn-danger { color: var(--danger); }
+.btn-danger:hover { background: var(--surface-hi); border-color: var(--line-2); }
+
+.search {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+  border-radius: 9px; color: var(--txt-3);
+  background: var(--surface-3); border: 1px solid var(--line);
+  transition: border-color var(--dur), color var(--dur);
+}
+.search:focus-within { border-color: var(--line-strong); color: var(--txt-2); }
+.search svg { flex: 0 0 auto; display: block; }
+.search input { background: none; border: 0; width: 190px; font-size: 13px; color: var(--txt); user-select: text; padding: 0; }
+.search input:focus-visible { outline: none; }
+.search input::placeholder { color: var(--txt-3); }
+
+kbd {
+  font-family: var(--font-mono); font-size: 10.5px; padding: 2px 6px; border-radius: 5px;
+  background: var(--surface-3); border: 1px solid var(--line-2);
+  color: var(--txt-2); white-space: nowrap;
+}
+
+/* ── context menu ───────────────────────────────────────────────────── */
+.ctxmenu {
+  position: fixed; z-index: var(--z-menu); min-width: 214px; max-width: min(440px, calc(100vw - 12px));
+  max-height: calc(100vh - 16px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 5px;
+  background: var(--menu-bg); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md); box-shadow: var(--shadow-lg);
+  animation: pop var(--dur-menu) var(--ease-out);
+}
+@keyframes pop { from { opacity: 0; transform: scale(.98) translateY(var(--pop-dy, -2px)); } }
+.ctx-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 29px; padding: 0 9px;
+  border-radius: var(--r-xs); font-size: 12.5px; color: var(--txt); text-align: left; white-space: nowrap;
+}
+.ctx-item.rich { padding-top: 5px; padding-bottom: 5px; align-items: flex-start; }
+.ctx-item.rich .ctx-ico { margin-top: 2px; }
+/* keyboard and mouse share one highlight, so the two never disagree */
+.ctx-item.hot { background: var(--accent); color: #fff; }
+.ctx-item.hot .ctx-key, .ctx-item.hot .ctx-meta, .ctx-item.hot .ctx-hint { color: rgba(255,255,255,.72); }
+.ctx-item.hot .ctx-badge { color: #fff; border-color: rgba(255,255,255,.4); }
+.ctx-item.is-disabled { opacity: .32; }
+.ctx-item.danger { color: var(--danger); }
+.ctx-item.danger.hot { background: var(--danger); color: #fff; }
+.ctx-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.ctx-label { overflow: hidden; text-overflow: ellipsis; }
+.ctx-hint {
+  font-size: 11.5px; color: var(--txt-3); white-space: normal; line-height: 1.35; margin-top: 1px;
+  max-width: 340px;
+}
+.ctx-key { margin-left: auto; padding-left: 12px; font-size: 11px; color: var(--txt-3); font-family: var(--font-mono); }
+.ctx-meta {
+  margin-left: auto; padding-left: 12px; font-family: var(--font-mono); font-size: 11px;
+  font-variant-numeric: tabular-nums; color: var(--txt-3); white-space: nowrap;
+}
+.ctx-badge {
+  font-family: var(--font-kicker); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: var(--r-chip); border: 1px solid var(--line-2); color: var(--txt-3);
+  white-space: nowrap; flex: 0 0 auto; margin-left: 8px;
+}
+.ctx-item.rich .ctx-meta, .ctx-item.rich .ctx-badge { margin-top: 1px; }
+.ctx-sub { margin-left: auto; padding-left: 12px; display: grid; place-items: center; opacity: .7; }
+.ctx-sep { height: 1px; background: var(--line); margin: 5px 8px; }
+.ctx-group { padding: 8px 9px 4px; }
+.ctx-group:first-child { padding-top: 4px; }
+.ctx-ico { width: 15px; flex: 0 0 auto; display: grid; place-items: center; opacity: .75; }
+.ctx-ico svg { display: block; }
+.ctx-item.hot .ctx-ico { opacity: 1; }
+.ctx-empty { padding: 8px 9px; font-size: 12px; color: var(--txt-3); }
+.ctx-search {
+  display: flex; align-items: center; gap: 7px; height: 30px; margin: 0 0 4px; padding: 0 8px;
+  border-radius: var(--r-xs); background: var(--surface-3); color: var(--txt-3);
+  position: sticky; top: -5px; z-index: 1;
+}
+.ctx-search input { flex: 1; min-width: 0; background: none; border: 0; padding: 0; font-size: 12.5px; color: var(--txt); user-select: text; }
+.ctx-search input:focus-visible { outline: none; }
+.ctx-search input::placeholder { color: var(--txt-3); }
+
+/* ── tooltip ────────────────────────────────────────────────────────────
+   Ours, never Windows' grey box: a small panel in the toast's material. */
+.tooltip {
+  position: fixed; z-index: var(--z-tip); left: 0; top: 0; pointer-events: none;
+  display: flex; align-items: center; gap: 8px; max-width: 320px;
+  padding: 5px 9px; border-radius: 7px;
+  font-size: 11.5px; line-height: 1.4; color: var(--txt);
+  background: var(--tip-bg); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow-md);
+  animation: tip-in var(--dur-menu) var(--ease-out);
+}
+.tooltip kbd { font-size: 10px; padding: 1px 5px; }
+.tooltip.multi { white-space: normal; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(var(--tip-dy, 2px)); } }
+
+/* ── toasts ─────────────────────────────────────────────────────────── */
+.toasts {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column-reverse; align-items: center; gap: 8px;
+  z-index: var(--z-toast); pointer-events: none;
+  transition: transform var(--dur-fade) var(--ease-out);
+}
+/* on the board the toasts rise above the floating islands of the bottom edge */
+body.on-board .toasts { transform: translate(-50%, -58px); }
+.toast {
+  display: flex; align-items: center; gap: 9px; padding: 9px 15px; max-width: min(620px, 92vw);
+  border-radius: var(--r-full); font-size: 12.5px; color: var(--txt);
+  background: var(--panel); backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow-lg);
+  animation: toast-in var(--dur-rise) var(--ease-out);
+  pointer-events: auto;
+}
+.toast-ico { display: grid; place-items: center; flex: 0 0 auto; color: var(--txt-2); }
+.toast-ico svg { display: block; }
+.toast.ok .toast-ico { color: var(--ok); }
+.toast.error .toast-ico { color: var(--danger); }
+.toast-msg { min-width: 0; }
+.toast-action {
+  margin: -4px -9px -4px 2px; height: 26px; padding: 0 10px; border-radius: var(--r-full);
+  font-size: 12px; font-weight: 600; color: var(--txt);
+  background: var(--wash-2); transition: background var(--dur);
+  flex: 0 0 auto;
+}
+.toast-action:hover { background: var(--wash-3); }
+.toast.out { animation: toast-out var(--dur-exit) var(--ease-in) forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(6px); } }
+
+/* ── modal ──────────────────────────────────────────────────────────── */
+.modal-scrim {
+  position: fixed; inset: 0; z-index: var(--z-modal); background: var(--scrim);
+  display: grid; place-items: center; backdrop-filter: blur(3px);
+  animation: fade var(--dur-scrim) var(--ease);
+}
+.modal-scrim.out { animation: fade-out var(--dur-menu) var(--ease-in) forwards; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+.modal {
+  width: min(460px, 92vw); max-height: calc(100vh - 64px); overflow: auto;
+  padding: 22px; border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow-lg);
+  animation: pop var(--dur-modal) var(--ease-out);
+}
+.modal-scrim.out .modal { animation: modal-out var(--dur-menu) var(--ease-in) forwards; }
+@keyframes modal-out { to { opacity: 0; transform: scale(.985); } }
+.modal h2 { font-size: 16px; font-weight: 620; margin-bottom: 6px; font-family: var(--font-display); }
+.modal p { font-size: 13px; color: var(--txt-2); margin-bottom: 18px; white-space: pre-line; }
+.modal-field {
+  display: block; width: 100%; height: 38px; padding: 0 12px; border-radius: 9px;
+  background: var(--surface-3); border: 1px solid var(--line-2); color: var(--txt);
+  font-size: 13.5px; user-select: text; margin-bottom: 18px;
+  transition: border-color var(--dur);
+}
+/* one ring, not two: the border lights up, the outline stays off (slate-ui §11.11) */
+.modal-field:focus, .modal-field:focus-visible { border-color: var(--accent-line); outline: none; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 9px; }
+
+/* ── settings ───────────────────────────────────────────────────────── */
+.settings { width: min(560px, 94vw); padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.set-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 6px 22px; }
+.set-head h2 { margin: 0; }
+.set-close {
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--txt-3);
+  transition: background var(--dur), color var(--dur);
+}
+.set-close:hover { background: var(--surface-3); color: var(--txt); }
+.set-body { padding: 4px 22px 22px; overflow: auto; min-height: 0; }
+.set-sec { margin-top: 18px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.set-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  min-height: 46px; padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.set-row:last-child { border-bottom: 0; }
+.set-label { min-width: 0; flex: 1 1 auto; }
+.set-name { font-size: 13px; color: var(--txt); }
+.set-hint { font-size: 11.5px; color: var(--txt-3); margin-top: 1px; }
+.set-ctl { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.set-path {
+  font-family: var(--font-mono); font-size: 11px; color: var(--txt-2); margin-top: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;
+  max-width: 290px; user-select: text;
+}
+.set-path bdi { direction: ltr; unicode-bidi: isolate; }
+
+/* a folder row: the path is a Mia text field (type or paste, Enter), the native
+   picker is only « Parcourir… »; a folder dropped on the row works too */
+.set-row.folder { flex-wrap: wrap; row-gap: 8px; }
+.set-row.folder .set-ctl { flex: 1 1 100%; }
+.set-row.folder .set-ctl .tf { flex: 1 1 auto; min-width: 0; }
+/* au repos, un chemin trop long montre sa fin (la partie qui parle) avec « … » à gauche, comme les listes de
+   dossiers juste dessous ; au focus, il s'édite normalement (settings.js : chemin entier en info-bulle) */
+.set-row.folder .set-ctl .tf.set-dir:not(:focus) { direction: rtl; text-align: left; text-overflow: ellipsis; }
+.set-row.drop-on { background: var(--accent-soft); border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--accent-line); }
+
+/* lists of folders (LoRA, extra models) */
+.set-list { display: flex; flex-direction: column; gap: 2px; padding: 0 0 10px; border-bottom: 1px solid var(--line); }
+.set-list:empty { display: none; }
+.set-item {
+  display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 4px 0 10px;
+  border-radius: var(--r-xs); background: var(--surface-3); border: 1px solid var(--line);
+}
+.set-item .set-path { flex: 1 1 auto; max-width: none; margin: 0; }
+.set-item .btn { flex: 0 0 auto; }
+.set-empty { font-size: 11.5px; color: var(--txt-3); padding: 0 0 10px; }
+
+/* assistants (Claude, Codex) */
+.set-state {
+  display: inline-flex; align-items: center; gap: 7px; height: 24px; padding: 0 10px;
+  border-radius: var(--r-full); border: 1px solid var(--line-2);
+  font-family: var(--font-mono); font-size: 11px; color: var(--txt-2); white-space: nowrap;
+}
+.set-state::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--txt-3); }
+.set-state.on::before { background: var(--ok); }
+.set-text { font-size: 12px; line-height: 1.5; color: var(--txt-2); padding: 4px 0 10px; }
+.set-text p { margin: 0 0 6px; }
+.set-text em { font-style: normal; color: var(--txt); }
+.set-cmd {
+  display: flex; align-items: center; gap: 6px; margin: 2px 0 12px; padding: 0 4px 0 10px; min-height: 32px;
+  border-radius: var(--r-xs); background: var(--surface-3); border: 1px solid var(--line);
+}
+.set-cmd code {
+  flex: 1 1 auto; min-width: 0; font-family: var(--font-mono); font-size: 11px; color: var(--txt-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: text;
+}
+.set-about-data { margin-top: 6px; }
+.set-about-data .set-path { max-width: 420px; margin-top: 1px; }
+.set-about { display: flex; align-items: center; gap: 14px; padding: 14px 0 2px; color: var(--txt-2); }
+.set-about-mark { color: var(--txt); display: grid; place-items: center; }
+.set-about-name { font-size: 13px; color: var(--txt); font-weight: 550; }
+.set-about-meta { font-size: 11.5px; color: var(--txt-3); }
+
+/* ── compact window ─────────────────────────────────────────────────────
+   Not enough room for the tabs even at their floor (tabs.js measures): the
+   strip fades away the way Slate's does (opacity, rise, width) and one chip
+   takes its place — the current project and the number of tabs, opening the
+   list. The window's own buttons and the actions never move. */
+.tb-tabs, .tb-switch {
+  transition: opacity var(--dur-rise) var(--ease-out), transform var(--dur-fade) var(--ease-out), max-width var(--dur-fade) var(--ease-out);
+}
+body.compact .tb-tabs { opacity: 0; transform: translateY(-10px); max-width: 0; pointer-events: none; }
+
+.tb-switch {
+  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px 0 8px;
+  border-radius: 8px; color: var(--txt-2); white-space: nowrap; overflow: hidden; flex: 0 1 auto; min-width: 0;
+  max-width: 0; opacity: 0; transform: translateY(-10px); pointer-events: none; padding-left: 0; padding-right: 0;
+}
+body.compact .tb-switch { max-width: var(--sw-max, 280px); opacity: 1; transform: none; pointer-events: auto; padding: 0 9px 0 8px; }
+.tb-switch:hover, .tb-switch.on { background: var(--wash); color: var(--txt); }
+.tb-switch-ico { display: grid; place-items: center; flex: 0 0 auto; color: var(--txt-3); }
+.tb-switch-ico svg { display: block; }
+.tb-switch-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; min-width: min(9em, 50%); flex: 0 1 auto; }
+/* le projet de la planche : en second plan, base nulle, il ne prend que la place qui reste — le nom de la
+   planche ne rétrécit (ellipse) qu'une fois le projet à zéro, jamais d'une fraction de pixel avant lui */
+.tb-switch-proj { display: inline-flex; align-items: center; gap: 5px; flex: 1 1 0; min-width: 0; font-size: 11.5px; color: var(--txt-3); overflow: hidden; }
+.tb-switch-proj .fdot { width: 6px; height: 6px; flex: none; }
+.tb-switch-pname { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tb-switch-count {
+  font-family: var(--font-mono); font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--txt-3);
+  padding: 0 5px; border-radius: var(--r-chip); border: 1px solid var(--line-2); flex: 0 0 auto;
+}
+.tb-switch-count:empty { display: none; }
+.tb-switch-chev { display: grid; place-items: center; opacity: .6; flex: 0 0 auto; }
+.tb-switch-chev svg { display: block; }
+@media (prefers-reduced-motion: reduce) { .tb-tabs, .tb-switch { transition: none; } }
+
+body.tiny .tb-actions { display: none; }
+
+/* ── project colours (SPEC §18.1) ──────────────────────────────────────
+   Chrome's tab-group hues, muted: never saturated, readable as 11.5 px text
+   on the bar and as a 22 % fill. Blue is the accent. */
+.theme-dark {
+  --fc-grey: #a2a5ae;
+  --fc-blue: var(--accent-2);
+  --fc-teal: #5ebdb2;
+  --fc-green: #80b988;
+  --fc-yellow: #d2b462;
+  --fc-orange: #d79563;
+  --fc-red: #dc7f7f;
+  --fc-pink: #d18ab2;
+}
+.theme-light {
+  --fc-grey: #6b6e78;
+  --fc-blue: var(--accent);
+  --fc-teal: #1f8b80;
+  --fc-green: #3c874a;
+  --fc-yellow: #94761a;
+  --fc-orange: #b5622b;
+  --fc-red: #bf4747;
+  --fc-pink: #b04d84;
+}
+
+/* ── tab groups, Chrome's way (SPEC §18.4) ──────────────────────────────
+   A chip in the project's colour leads its tabs; the tabs carry a 2 px line
+   of that colour, from under the chip to the last tab. Nothing else changes
+   on a tab. Folded: only the chip stays, with the number of tabs. */
+.tb-tabs { padding-block: 5px; margin-block: -5px; }   /* room for the group line under the tabs */
+.tb-group { position: relative; display: flex; align-items: center; gap: 2px; flex: 0 0 auto; min-width: 0; }
+.tb-group:not(.collapsed)::after {
+  content: ''; position: absolute; left: 9px; right: 3px; bottom: -4px; height: 2px; border-radius: 2px;
+  background: var(--gc); opacity: .9; pointer-events: none;
+}
+.tb-group.tb-unfold::after { transform-origin: 0 50%; animation: tb-line-in var(--dur-exit) var(--ease-out); }
+@keyframes tb-line-in { from { transform: scaleX(0.2); } }
+.tb-gtabs { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.tb-gchip {
+  display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px; border-radius: 6px;
+  flex: 0 0 auto; max-width: 168px; min-width: 0; margin: 0 2px 0 1px;
+  font-size: 11.5px; font-weight: 600; line-height: 20px; white-space: nowrap;
+  color: var(--gc); background: color-mix(in srgb, var(--gc) 22%, transparent);
+  transition: background var(--dur);
+}
+.tb-gchip:hover, .tb-gchip.on { background: color-mix(in srgb, var(--gc) 32%, transparent); }
+.tb-gname { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tb-gcount {
+  display: none; font-family: var(--font-mono); font-size: 10.5px; font-weight: 500;
+  font-variant-numeric: tabular-nums; opacity: .9;
+}
+.tb-group.collapsed .tb-gcount { display: inline; }
+/* short of room: a folded group keeps only its coloured count… */
+.tb-gchip.mini { padding: 0 7px; }
+.tb-gchip.mini .tb-gname { display: none; }
+/* …then an unfolded group's name shortens */
+.tb-gchip.tight { max-width: 92px; }
+.theme-light .tb-gchip { background: color-mix(in srgb, var(--gc) 16%, transparent); }
+.theme-light .tb-gchip:hover, .theme-light .tb-gchip.on { background: color-mix(in srgb, var(--gc) 26%, transparent); }
+
+/* ── a choice inside a dialog (« Garder les planches ») ──────────────── */
+.modal-choice {
+  display: flex; align-items: center; gap: 16px; margin: -4px 0 20px; padding: 10px 12px 10px 14px;
+  border-radius: var(--r-md); background: var(--surface-3); border: 1px solid var(--line);
+  cursor: pointer;
+}
+.modal-choice-text { flex: 1 1 auto; min-width: 0; }
+.modal-choice-name { font-size: 13px; color: var(--txt); }
+.modal-choice-hint { font-size: 11.5px; color: var(--txt-3); margin-top: 1px; }
+.modal-choice .tgl { flex: 0 0 auto; }
+
+/* ── home thumbnail capture (app.js) ────────────────────────────────────
+   For the time of one capturePage, everything floating over the board steps
+   aside: the picture shows the blocks, not the minimap or the queue. */
+body.thumbing #minimap, body.thumbing #queue, body.thumbing #inspector, body.thumbing #palette,
+body.thumbing #viewer, body.thumbing #library, body.thumbing .modal-scrim,
+body.thumbing #dock, body.thumbing #zoombar, body.thumbing #board-empty, body.thumbing #marquee,
+body.thumbing #overlay > *, body.thumbing #tooltip, body.thumbing #contextmenu, body.thumbing #toasts,
+body.thumbing .pr-cursor, body.thumbing #presence, body.thumbing .presence,
+body.thumbing [data-thumb-hide], body.thumbing .tb-veil {
+  visibility: hidden !important;
+}

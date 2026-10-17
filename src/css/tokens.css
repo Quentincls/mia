@@ -1,0 +1,253 @@
+/* ── Mia design tokens ──────────────────────────────────────────────────
+   Slate's tokens, unchanged (Mia is Slate's sister: same blacks, same lines,
+   same accent), then the additions of the art direction:
+   typographic scale, the graph's geometry and colours, the Surface-style
+   segmented control. Theme = one class on <body>. */
+
+:root {
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  /* labels in MONO CAPS (Surface "Aux Mono" grammar); Cascadia Mono is installed
+     with Windows Terminal — nothing is downloaded */
+  --font-kicker: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-full: 999px;
+
+  /* ── motion: THE table (SPEC §20, da.md §4.12) ─────────────────────────
+     Every duration and curve of Mia lives here; the CSS uses the variables
+     and the JS reads them (ui/motion.js). Only transform and opacity move.
+     Under prefers-reduced-motion every duration becomes instant (below). */
+  --dur: 140ms;          /* hover, press: colour, fill, line */
+  --dur-menu: 110ms;     /* menus, tooltips, pop-overs open */
+  --dur-pop: 120ms;      /* port grows, ring lands, wire snaps, a block leaves */
+  --dur-scrim: 130ms;    /* modal veil */
+  --dur-modal: 150ms;    /* modal, palette, viewer */
+  --dur-exit: 160ms;     /* toast leaves, tab opens / closes, wire retracts, card leaves */
+  --dur-enter: 180ms;    /* block arrives, pill slides, panel slides in, block folds */
+  --dur-rise: 200ms;     /* toast rises, the run bar is born */
+  --dur-pulse: 220ms;    /* the port a wire just landed on */
+  --dur-fade: 240ms;     /* result cross-fade, error shake, tab strip */
+  --dur-card: 260ms;     /* home cards in cascade, docks arrive */
+  --dur-check: 300ms;    /* the « done » tick draws itself */
+  --dur-cam: 400ms;      /* camera, reframing, end of a run bar */
+  --dur-glide: 600ms;    /* a progress bar glides to its new value */
+  --dur-flow: 600ms;     /* dots flowing on a wire (only while computing) */
+  --dur-loop: 1200ms;    /* indeterminate bar (only while computing) */
+  --dur-shine: 3400ms;   /* the glint around the primary button (only while pointed at) */
+  --stagger: 30ms;       /* cascade step */
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);     /* Slate: hovers */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);     /* Slate: arrivals */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);         /* departures */
+  --ease-cam: cubic-bezier(0.8, 0, 0.2, 1);      /* Surface --ease-ms: camera, reframing, FLIP */
+
+  --tb-h: 44px;
+
+  /* ── type scale (px) ── */
+  --fs-display: 26px;   /* home title — 620, -.02em (Slate) */
+  --fs-hero: 22px;
+  --fs-title: 16px;     /* modals — 620 */
+  --fs-body: 13.5px;
+  --fs-ui: 12.5px;      /* buttons, tabs, menus */
+  --fs-node: 12.5px;
+  --fs-label: 11.5px;
+  --fs-meta: 11px;
+  --fs-kicker: 10px;    /* mono caps, .08em */
+  --fs-num: 11.5px;     /* values, timers, GB — mono, tabular */
+
+  /* ── radii ── */
+  --r-chip: 5px;
+  --r-ctl: 7px;
+  --r-btn: 9px;
+  --r-node: 12px;
+  --r-media: 8px;
+  --r-panel: 14px;
+
+  /* ── graph geometry (world units at zoom 1) ── */
+  --node-w: 288px;
+  --node-w-media: 336px;
+  --node-min-w: 216px;  --node-max-w: 720px;
+  --node-head-h: 36px;
+  --node-row-h: 28px;
+  --node-pad: 12px;
+  --port-d: 10px;   --port-ring: 1.5px;   --port-hit: 22px;
+  --wire-w: 2px;    --wire-hit: 12px;
+
+
+  /* ── layers ── (menus and tooltips must also float over an open modal) */
+  --z-titlebar: 40;
+  --z-modal: 600;
+  --z-menu: 650;
+  --z-toast: 680;
+  --z-tip: 700;
+}
+
+/* ── dark ───────────────────────────────────────────────────────────── */
+.theme-dark {
+  --bg: #070709;
+  --bg-canvas: #09090b;
+  --surface: #0e0e11;
+  --surface-2: #111114;
+  --surface-3: #191a1d;
+  --surface-hi: #212226;
+
+  --line: rgba(255, 255, 255, 0.065);
+  --line-2: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.22);
+
+  --txt: #ececee;
+  --txt-2: #9a9aa2;
+  --txt-3: #77777f;   /* ≈ 4,5:1 on --bg: 11–12 px labels stay readable */
+
+  --accent: #4d82f3;
+  --accent-2: #6f9dff;
+  --accent-soft: rgba(77, 130, 243, 0.16);
+  --accent-line: rgba(111, 157, 255, 0.5);
+
+  --danger: #e5484d;
+  --ok: #46a758;
+
+  /* the overlay used for hover and pressed states; it has to flip with the
+     theme or every "on" state disappears on white */
+  --wash: rgba(255, 255, 255, 0.055);
+  --wash-2: rgba(255, 255, 255, 0.085);
+  --wash-3: rgba(255, 255, 255, 0.12);
+
+  --grid-dot: rgba(255, 255, 255, 0.075);
+  --grid-dot-strong: rgba(255, 255, 255, 0.14);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 6px 18px -8px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 16px 42px -16px rgba(0, 0, 0, 0.8), 0 3px 10px rgba(0, 0, 0, 0.35);
+
+  /* floating chrome: darker than the canvas, and see-through */
+  --panel: rgba(9, 9, 12, 0.62);
+  --panel-blur: blur(22px) saturate(1.15);
+
+  --scrim: rgba(5, 5, 7, 0.66);
+
+  /* ── Mia additions to the chrome ── */
+  /* menus a little more opaque than Slate's (its docks showed through, slate-ui §11.10) */
+  --menu-bg: rgba(12, 12, 15, 0.88);
+  --tip-bg: rgba(16, 16, 19, 0.94);
+  --win-close: #c8353b;
+  --win-close-down: #a72a2f;
+  /* primary button: Slate's night-blue pill */
+  --primary-body: #13161d;
+  --primary-inner: #232833;
+  --primary-txt: #ffffff;
+
+  /* ── graph ── */
+  --node-bg: #111114;
+  --node-head: #111114;
+  --node-well: #0b0b0d;
+  --node-border: rgba(255, 255, 255, 0.10);
+  --node-border-hover: rgba(255, 255, 255, 0.16);
+  --node-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.7), 0 1px 2px rgba(0, 0, 0, 0.5);
+  --node-sel: var(--accent);
+  --checker-a: #141417;  --checker-b: #1b1b1f;
+
+  --wire: rgba(236, 236, 238, 0.30);
+  --wire-hot: #ececee;
+  --wire-run: var(--accent);
+
+  /* type colours: port dots only, muted, same luminance */
+  --t-image: #d4b483;
+  --t-video: #d98e73;
+  --t-media: #ececee;
+  --t-text:  #8fc2a1;
+  --t-mask:  #bdbdc4;   --t-depth: #a99bd6;  --t-model: #8d8d96;  --t-audio: #c9c27a;
+
+  --run: var(--accent);
+  --state-ok: #46a758;  --state-err: #e5484d;
+  --seg-track: #0e0e11; --seg-on: #ececee; --seg-on-txt: #070709;
+
+  color-scheme: dark;
+}
+
+/* ── light ──────────────────────────────────────────────────────────── */
+.theme-light {
+  --bg: #f6f6f7;
+  --bg-canvas: #fbfbfc;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #f0f0f2;
+  --surface-hi: #e6e6e9;
+
+  --line: rgba(15, 15, 20, 0.1);
+  --line-2: rgba(15, 15, 20, 0.15);
+  --line-strong: rgba(15, 15, 20, 0.28);
+
+  --txt: #17171a;
+  --txt-2: #5f5f68;
+  --txt-3: #74747d;   /* ≈ 4,3:1 on --bg, 4,6:1 on white */
+
+  --accent: #3b6fe0;
+  --accent-2: #2f5fd0;
+  --accent-soft: rgba(59, 111, 224, 0.12);
+  --accent-line: rgba(59, 111, 224, 0.45);
+
+  --danger: #d33b3f;
+  --ok: #2f8a43;
+
+  --wash: rgba(15, 15, 25, 0.055);
+  --wash-2: rgba(15, 15, 25, 0.09);
+  --wash-3: rgba(15, 15, 25, 0.14);
+
+  --grid-dot: rgba(15, 15, 30, 0.11);
+  --grid-dot-strong: rgba(15, 15, 30, 0.2);
+
+  --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.07);
+  --shadow-md: 0 6px 16px -8px rgba(20, 20, 30, 0.2);
+  --shadow-lg: 0 16px 38px -16px rgba(20, 20, 30, 0.24), 0 2px 8px rgba(20, 20, 30, 0.07);
+
+  --panel: rgba(255, 255, 255, 0.66);
+  --panel-blur: blur(22px) saturate(1.1);
+
+  --scrim: rgba(240, 240, 244, 0.6);
+
+  --menu-bg: rgba(255, 255, 255, 0.92);
+  --tip-bg: rgba(255, 255, 255, 0.96);
+  --win-close: #c8353b;
+  --win-close-down: #a72a2f;
+  /* da.md §2: no travelling reflection in light — a plain ink pill */
+  --primary-body: #17171a;
+  --primary-inner: #17171a;
+  --primary-txt: #ffffff;
+
+  --node-bg: #ffffff;  --node-head: #ffffff;  --node-well: #f3f3f5;
+  --node-border: rgba(15, 15, 20, 0.12);  --node-border-hover: rgba(15, 15, 20, 0.22);
+  --node-shadow: 0 6px 16px -8px rgba(20, 20, 30, 0.18), 0 1px 2px rgba(20, 20, 30, 0.06);
+  --node-sel: var(--accent);
+  --checker-a: #f0f0f2;  --checker-b: #e6e6e9;
+
+  --wire: rgba(23, 23, 26, 0.30);  --wire-hot: #17171a;  --wire-run: var(--accent);
+
+  --t-image: #a5814a;  --t-video: #b2603f;  --t-media: #3a3a40;  --t-text: #4f8f68;
+  --t-mask: #55555c;   --t-depth: #7563b0;  --t-model: #6a6a73;  --t-audio: #8a8430;
+
+  --run: var(--accent);
+  --state-ok: #2f8a43;  --state-err: #d33b3f;
+  --seg-track: #ececef; --seg-on: #17171a; --seg-on-txt: #ffffff;
+
+  color-scheme: light;
+}
+
+/* ── reduced motion (SPEC §20.2) ───────────────────────────────────────
+   Windows « Afficher les animations » off: every duration of the table is
+   instant, nothing cascades. Loops (flow on wires, indeterminate bars, the
+   shiny) are switched off where they are declared. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 1ms; --dur-menu: 1ms; --dur-pop: 1ms; --dur-scrim: 1ms; --dur-modal: 1ms;
+    --dur-exit: 1ms; --dur-enter: 1ms; --dur-rise: 1ms; --dur-pulse: 1ms; --dur-fade: 1ms;
+    --dur-card: 1ms; --dur-check: 1ms; --dur-cam: 1ms; --dur-glide: 1ms;
+    --stagger: 0ms;
+  }
+}

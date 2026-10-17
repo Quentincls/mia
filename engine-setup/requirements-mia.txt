@@ -1,0 +1,16 @@
+# Dépendances du calcul de Mia (python\mia_worker.py et python\tasks\*), en plus de celles de ComfyUI et de ses nœuds.
+# Adapté de setup\requirements-tool.txt du labo (17/10/2026). PyTorch est installé à part (index CUDA, versions.txt).
+av                # lecture et écriture des vidéos (PyAV)
+imageio-ffmpeg    # le ffmpeg qu'utilise Mia (binaire fourni par ce paquet)
+numpy
+pillow
+opencv-python     # même paquet que Video-Depth-Anything (pas la variante headless : conflit)
+transformers      # Détourer (BiRefNet)
+timm
+kornia
+einops
+openexr           # images EXR
+huggingface_hub   # commande « hf auth login » pour les modèles à licence à accepter
+pyyaml
+requests
+websocket-client

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' mia:; img-src 'self' mia: data: blob:; media-src 'self' mia: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self' mia:" />
+<meta name="color-scheme" content="dark light" />
+<title>Mia</title>
+<link rel="icon" href="assets/icon.png" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/controls.css" />
+<link rel="stylesheet" href="css/home.css" />
+<link rel="stylesheet" href="css/graph.css" />
+<link rel="stylesheet" href="css/nodes.css" />
+<link rel="stylesheet" href="css/queue.css" />
+<link rel="stylesheet" href="css/library.css" />
+<link rel="stylesheet" href="css/presence.css" data-presence />
+</head>
+<body class="theme-dark">
+
+  <!-- ─────────────────────────────────────────────── title bar -->
+  <header id="titlebar">
+    <div class="tb-veil" aria-hidden="true"></div>
+
+    <div class="tb-left">
+      <button id="tb-mark" class="tb-mark" type="button" data-i18n-tip="app.win.home"></button>
+      <div id="tb-tabs" class="tb-tabs" role="tablist"></div>
+      <input id="tb-title-input" class="tb-title-input" type="text" hidden spellcheck="false" autocomplete="off" />
+    </div>
+
+    <div class="tb-drag"></div>
+
+    <div class="tb-right">
+      <!-- filled at boot, in this order: models (library), GPU chip (queue), settings -->
+      <div id="tb-actions" class="tb-actions"></div>
+
+      <div class="win-controls">
+        <button class="win-btn" id="win-min" type="button" data-i18n-tip="app.win.min"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg></button>
+        <button class="win-btn" id="win-max" type="button" data-i18n-tip="app.win.max"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg></button>
+        <button class="win-btn win-close" id="win-close" type="button" data-i18n-tip="app.win.close"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─────────────────────────────────────────────── home -->
+  <main id="view-home" class="view">
+    <div class="home-wrap">
+      <div class="home-head">
+        <div>
+          <h1 class="home-title" data-i18n="home.title"></h1>
+          <p class="home-sub" id="home-count"></p>
+        </div>
+        <div class="home-head-actions">
+          <label class="search">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input id="home-search" type="text" data-i18n-placeholder="home.search" spellcheck="false" autocomplete="off" />
+          </label>
+          <button id="home-sort" class="home-sort" type="button">
+            <span id="home-sort-label"></span>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>
+          </button>
+          <button id="home-new" class="btn btn-primary shiny" type="button">
+            <span>
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <span data-i18n="home.new"></span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div id="home-grid" class="home-grid"></div>
+
+      <div id="home-empty" class="home-empty" hidden>
+        <div class="home-empty-art" aria-hidden="true">
+          <div class="home-empty-mark"></div>
+          <span class="kicker" data-i18n="app.name"></span>
+        </div>
+        <h2 data-i18n="home.emptyTitle"></h2>
+        <p data-i18n="home.emptyBody"></p>
+        <button class="btn btn-primary" type="button" data-act="new"><span data-i18n="home.emptyCta"></span></button>
+      </div>
+
+      <section id="home-recipes" class="home-sec">
+        <div class="home-sec-head"><h2 class="kicker" data-i18n="home.recipes"></h2></div>
+        <div id="home-recipe-list" class="recipes"></div>
+      </section>
+
+      <!-- the models found on this PC (library.js) -->
+      <section id="home-models"></section>
+    </div>
+  </main>
+
+  <!-- ─────────────────────────────────────────────── board -->
+  <main id="view-board" class="view" hidden>
+    <div id="stage">
+      <canvas id="grid"></canvas>
+      <div id="world">
+        <svg id="wires" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="nodes"></div>
+        <div id="groups"></div>
+      </div>
+      <div id="marquee" hidden></div>
+      <div id="overlay"></div>
+    </div>
+    <div id="dock"></div>
+    <div id="zoombar"></div>
+    <div id="minimap" hidden></div>
+    <div id="queue"></div>
+    <aside id="inspector" hidden></aside>
+    <div id="board-empty"></div>
+  </main>
+
+  <!-- ─────────────────────────────────────────────── panels -->
+  <aside id="library" hidden></aside>
+  <div id="palette" hidden></div>
+  <div id="viewer" hidden></div>
+
+  <!-- ─────────────────────────────────────────────── chrome -->
+  <div id="contextmenu" class="ctxmenu" role="menu" hidden></div>
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="modal-root"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

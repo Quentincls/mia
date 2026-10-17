@@ -1,0 +1,3098 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "source",
+      "label": {
+        "fr": "Sources",
+        "en": "Sources"
+      }
+    },
+    {
+      "id": "generate",
+      "label": {
+        "fr": "Créer",
+        "en": "Create"
+      }
+    },
+    {
+      "id": "analysis",
+      "label": {
+        "fr": "Analyser",
+        "en": "Analyse"
+      }
+    },
+    {
+      "id": "tools",
+      "label": {
+        "fr": "Outils",
+        "en": "Tools"
+      }
+    },
+    {
+      "id": "board",
+      "label": {
+        "fr": "Planche",
+        "en": "Board"
+      }
+    }
+  ],
+  "types": [
+    {
+      "id": "import",
+      "category": "source",
+      "icon": "import",
+      "width": 336,
+      "label": {
+        "fr": "Média",
+        "en": "Media"
+      },
+      "desc": {
+        "fr": "Une image, une vidéo ou un son de ton PC, posé sur la planche.",
+        "en": "An image, a video or a sound from your PC, placed on the board."
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "out",
+          "type": "data",
+          "label": {
+            "fr": "Média",
+            "en": "Media"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "skipFirst",
+          "kind": "toggle",
+          "default": false,
+          "advanced": true,
+          "label": {
+            "fr": "Ignorer la 1re image",
+            "en": "Skip the first frame"
+          },
+          "hint": {
+            "fr": "Utile pour les rendus Unreal dont la première image est ratée.",
+            "en": "Useful for Unreal renders whose first frame is broken."
+          }
+        }
+      ],
+      "engine": null
+    },
+    {
+      "id": "text",
+      "category": "source",
+      "icon": "text",
+      "width": 288,
+      "label": {
+        "fr": "Consigne",
+        "en": "Prompt"
+      },
+      "desc": {
+        "fr": "Un texte qui dit à l’IA quoi montrer ou quoi faire.",
+        "en": "A text telling the AI what to show or do."
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "text",
+          "type": "text",
+          "label": {
+            "fr": "Texte",
+            "en": "Text"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "text",
+          "kind": "prompt",
+          "default": "",
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ex. : static locked-off camera, photoreal, soft morning light…",
+            "en": "E.g. static locked-off camera, photoreal, soft morning light…"
+          },
+          "hint": {
+            "fr": "Les modèles comprennent mieux l’anglais.",
+            "en": "Models understand English best."
+          }
+        },
+        {
+          "id": "negative",
+          "kind": "prompt",
+          "default": "",
+          "advanced": true,
+          "label": {
+            "fr": "À éviter",
+            "en": "Avoid"
+          },
+          "placeholder": {
+            "fr": "Ex. : text, watermark, blur",
+            "en": "E.g. text, watermark, blur"
+          }
+        }
+      ],
+      "engine": null
+    },
+    {
+      "id": "note",
+      "category": "board",
+      "icon": "note",
+      "width": 264,
+      "label": {
+        "fr": "Note",
+        "en": "Note"
+      },
+      "desc": {
+        "fr": "Un mot pour toi, sur la planche. Ne calcule rien.",
+        "en": "A note to yourself on the board. Computes nothing."
+      },
+      "inputs": [],
+      "outputs": [],
+      "params": [
+        {
+          "id": "text",
+          "kind": "prompt",
+          "default": "",
+          "label": {
+            "fr": "Note",
+            "en": "Note"
+          },
+          "placeholder": {
+            "fr": "Écris ici…",
+            "en": "Write here…"
+          }
+        }
+      ],
+      "engine": null
+    },
+    {
+      "id": "i2v",
+      "category": "generate",
+      "icon": "animate",
+      "width": 336,
+      "label": {
+        "fr": "Animer une image",
+        "en": "Animate an image"
+      },
+      "desc": {
+        "fr": "Transforme une image en courte vidéo. Une image de fin dit où la scène doit arriver.",
+        "en": "Turns an image into a short video. An end image tells where the shot must land."
+      },
+      "inputs": [
+        {
+          "id": "start",
+          "type": "image",
+          "required": true,
+          "label": {
+            "fr": "Image de début",
+            "en": "Start image"
+          }
+        },
+        {
+          "id": "end",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Image de fin",
+            "en": "End image"
+          },
+          "hint": {
+            "fr": "Conseillée : le texte seul ne place pas l’action.",
+            "en": "Recommended: text alone does not place the action."
+          }
+        },
+        {
+          "id": "sheet",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Fiche de référence",
+            "en": "Reference sheet"
+          },
+          "hint": {
+            "fr": "Une image qui montre ton personnage ou tes objets (plusieurs vues sur une même image). LTX s’en inspire sur tout le plan. Ignorée avec MiniMax.",
+            "en": "One image showing your character or objects (several views on one image). LTX follows it through the shot. Ignored with MiniMax."
+          }
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ce qui se passe, la caméra, la lumière… (en anglais)",
+            "en": "What happens, camera, light…"
+          }
+        },
+        {
+          "id": "duration",
+          "kind": "slider",
+          "min": 2,
+          "max": 10,
+          "step": 1,
+          "default": 5,
+          "unit": "s",
+          "label": {
+            "fr": "Durée",
+            "en": "Duration"
+          }
+        },
+        {
+          "id": "format",
+          "kind": "select",
+          "default": "auto",
+          "label": {
+            "fr": "Format",
+            "en": "Format"
+          },
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "fr": "Comme l’image de début",
+                "en": "Same as the start image"
+              }
+            },
+            {
+              "value": "16:9",
+              "label": {
+                "fr": "16:9 · horizontal",
+                "en": "16:9 · landscape"
+              }
+            },
+            {
+              "value": "9:16",
+              "label": {
+                "fr": "9:16 · vertical",
+                "en": "9:16 · portrait"
+              }
+            },
+            {
+              "value": "1:1",
+              "label": {
+                "fr": "1:1 · carré",
+                "en": "1:1 · square"
+              }
+            },
+            {
+              "value": "4:3",
+              "label": {
+                "fr": "4:3",
+                "en": "4:3"
+              }
+            },
+            {
+              "value": "3:4",
+              "label": {
+                "fr": "3:4",
+                "en": "3:4"
+              }
+            },
+            {
+              "value": "21:9",
+              "label": {
+                "fr": "21:9 · cinéma",
+                "en": "21:9 · cinema"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Si le format diffère de l’image, elle est recadrée au centre.",
+            "en": "If the format differs from the image, it is cropped to the centre."
+          }
+        },
+        {
+          "id": "resolution",
+          "kind": "seg",
+          "default": "720",
+          "label": {
+            "fr": "Résolution",
+            "en": "Resolution"
+          },
+          "options": [
+            {
+              "value": "540",
+              "label": {
+                "fr": "540p",
+                "en": "540p"
+              }
+            },
+            {
+              "value": "720",
+              "label": {
+                "fr": "720p",
+                "en": "720p"
+              }
+            },
+            {
+              "value": "1080",
+              "label": {
+                "fr": "1080p",
+                "en": "1080p"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
+            "en": "Previews stay low resolution; the resolution applies to the final render."
+          }
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "image-to-video"
+          ],
+          "default": "auto",
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "fps",
+          "kind": "select",
+          "default": 24,
+          "advanced": true,
+          "label": {
+            "fr": "Cadence",
+            "en": "Frame rate"
+          },
+          "options": [
+            {
+              "value": 24,
+              "label": {
+                "fr": "24 i/s",
+                "en": "24 fps"
+              }
+            },
+            {
+              "value": 25,
+              "label": {
+                "fr": "25 i/s",
+                "en": "25 fps"
+              }
+            },
+            {
+              "value": 30,
+              "label": {
+                "fr": "30 i/s",
+                "en": "30 fps"
+              }
+            }
+          ]
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "modes": [
+        "preview",
+        "final"
+      ],
+      "engine": {
+        "executor": "i2v",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "preview": {
+          "fr": "≈ 1 min",
+          "en": "≈ 1 min"
+        },
+        "final": {
+          "fr": "≈ 5 à 9 min",
+          "en": "≈ 5–9 min"
+        }
+      }
+    },
+    {
+      "id": "t2v",
+      "category": "generate",
+      "icon": "film",
+      "width": 336,
+      "label": {
+        "fr": "Vidéo depuis un texte",
+        "en": "Video from text"
+      },
+      "desc": {
+        "fr": "Crée une courte vidéo à partir d’une simple description.",
+        "en": "Creates a short video from a plain description."
+      },
+      "inputs": [
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "required": true,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ex. : a slow ocean wave rolling under a grey sky, static camera…",
+            "en": "E.g. a slow ocean wave rolling under a grey sky, static camera…"
+          }
+        },
+        {
+          "id": "duration",
+          "kind": "slider",
+          "min": 2,
+          "max": 10,
+          "step": 1,
+          "default": 5,
+          "unit": "s",
+          "label": {
+            "fr": "Durée",
+            "en": "Duration"
+          }
+        },
+        {
+          "id": "format",
+          "kind": "select",
+          "default": "16:9",
+          "label": {
+            "fr": "Format",
+            "en": "Format"
+          },
+          "options": [
+            {
+              "value": "16:9",
+              "label": {
+                "fr": "16:9 · horizontal",
+                "en": "16:9 · landscape"
+              }
+            },
+            {
+              "value": "9:16",
+              "label": {
+                "fr": "9:16 · vertical",
+                "en": "9:16 · portrait"
+              }
+            },
+            {
+              "value": "1:1",
+              "label": {
+                "fr": "1:1 · carré",
+                "en": "1:1 · square"
+              }
+            },
+            {
+              "value": "4:3",
+              "label": {
+                "fr": "4:3",
+                "en": "4:3"
+              }
+            },
+            {
+              "value": "3:4",
+              "label": {
+                "fr": "3:4",
+                "en": "3:4"
+              }
+            },
+            {
+              "value": "21:9",
+              "label": {
+                "fr": "21:9 · cinéma",
+                "en": "21:9 · cinema"
+              }
+            }
+          ]
+        },
+        {
+          "id": "resolution",
+          "kind": "seg",
+          "default": "720",
+          "label": {
+            "fr": "Résolution",
+            "en": "Resolution"
+          },
+          "options": [
+            {
+              "value": "540",
+              "label": {
+                "fr": "540p",
+                "en": "540p"
+              }
+            },
+            {
+              "value": "720",
+              "label": {
+                "fr": "720p",
+                "en": "720p"
+              }
+            },
+            {
+              "value": "1080",
+              "label": {
+                "fr": "1080p",
+                "en": "1080p"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
+            "en": "Previews stay low resolution; the resolution applies to the final render."
+          }
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "text-to-video"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "negative",
+          "kind": "prompt",
+          "default": "text, watermark, cuts",
+          "advanced": true,
+          "label": {
+            "fr": "À éviter",
+            "en": "Avoid"
+          }
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "modes": [
+        "preview",
+        "final"
+      ],
+      "engine": {
+        "executor": "t2v",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "preview": {
+          "fr": "≈ 1 min",
+          "en": "≈ 1 min"
+        },
+        "final": {
+          "fr": "≈ 5 à 9 min",
+          "en": "≈ 5–9 min"
+        }
+      }
+    },
+    {
+      "id": "ref2v",
+      "category": "generate",
+      "icon": "refs",
+      "width": 336,
+      "label": {
+        "fr": "Vidéo à partir de références",
+        "en": "Video from references"
+      },
+      "desc": {
+        "fr": "Crée une vidéo où apparaissent tes personnages, objets ou lieux, à partir de jusqu’à 9 images de référence. Cite-les dans la consigne : « Image 1 », « Image 2 »…",
+        "en": "Creates a video featuring your characters, objects or places, from up to 9 reference images. Name them in the prompt: “Image 1”, “Image 2”…"
+      },
+      "inputs": [
+        {
+          "id": "refs",
+          "type": "image",
+          "required": true,
+          "multi": true,
+          "max": 9,
+          "label": {
+            "fr": "Images de référence",
+            "en": "Reference images"
+          },
+          "hint": {
+            "fr": "Jusqu’à 9. Elles sont numérotées dans l’ordre des fils : Image 1, Image 2…",
+            "en": "Up to 9. Numbered in wire order: Image 1, Image 2…"
+          }
+        },
+        {
+          "id": "refVideos",
+          "type": "video",
+          "required": false,
+          "multi": true,
+          "max": 3,
+          "label": {
+            "fr": "Vidéos de référence",
+            "en": "Reference videos"
+          },
+          "hint": {
+            "fr": "Jusqu’à 3, de 2 à 15 s : un mouvement, une ambiance, une voix. Citées « Vidéo 1 »…",
+            "en": "Up to 3, 2–15 s: a motion, a mood, a voice. Named “Video 1”…"
+          }
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "required": true,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ex. : Image 1 walks into the room of Image 2 and picks up Image 3…",
+            "en": "E.g. Image 1 walks into the room of Image 2 and picks up Image 3…"
+          },
+          "hint": {
+            "fr": "Écris « Image 1 », « Image 2 »… pour désigner tes références ; Mia les traduit pour le modèle.",
+            "en": "Write “Image 1”, “Image 2”… to point at your references; Mia translates them for the model."
+          }
+        },
+        {
+          "id": "duration",
+          "kind": "slider",
+          "min": 2,
+          "max": 10,
+          "step": 1,
+          "default": 5,
+          "unit": "s",
+          "label": {
+            "fr": "Durée",
+            "en": "Duration"
+          }
+        },
+        {
+          "id": "format",
+          "kind": "select",
+          "default": "16:9",
+          "label": {
+            "fr": "Format",
+            "en": "Format"
+          },
+          "options": [
+            {
+              "value": "16:9",
+              "label": {
+                "fr": "16:9 · horizontal",
+                "en": "16:9 · landscape"
+              }
+            },
+            {
+              "value": "9:16",
+              "label": {
+                "fr": "9:16 · vertical",
+                "en": "9:16 · portrait"
+              }
+            },
+            {
+              "value": "1:1",
+              "label": {
+                "fr": "1:1 · carré",
+                "en": "1:1 · square"
+              }
+            },
+            {
+              "value": "4:3",
+              "label": {
+                "fr": "4:3",
+                "en": "4:3"
+              }
+            },
+            {
+              "value": "3:4",
+              "label": {
+                "fr": "3:4",
+                "en": "3:4"
+              }
+            },
+            {
+              "value": "21:9",
+              "label": {
+                "fr": "21:9 · cinéma",
+                "en": "21:9 · cinema"
+              }
+            }
+          ]
+        },
+        {
+          "id": "resolution",
+          "kind": "seg",
+          "default": "720",
+          "label": {
+            "fr": "Résolution",
+            "en": "Resolution"
+          },
+          "options": [
+            {
+              "value": "540",
+              "label": {
+                "fr": "540p",
+                "en": "540p"
+              }
+            },
+            {
+              "value": "720",
+              "label": {
+                "fr": "720p",
+                "en": "720p"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fidelity",
+          "kind": "seg",
+          "default": "match",
+          "advanced": true,
+          "label": {
+            "fr": "Fidélité des références",
+            "en": "Reference fidelity"
+          },
+          "options": [
+            {
+              "value": "match",
+              "label": {
+                "fr": "Normale",
+                "en": "Normal"
+              }
+            },
+            {
+              "value": "max",
+              "label": {
+                "fr": "Maximale (plus lent)",
+                "en": "Maximum (slower)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "reference-to-video"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "modes": [
+        "preview",
+        "final"
+      ],
+      "engine": {
+        "executor": "ref2v",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "preview": {
+          "fr": "≈ 2 min",
+          "en": "≈ 2 min"
+        },
+        "final": {
+          "fr": "≈ 6 min pour 5 s",
+          "en": "≈ 6 min per 5 s"
+        }
+      }
+    },
+    {
+      "id": "real",
+      "category": "generate",
+      "icon": "real",
+      "width": 336,
+      "label": {
+        "fr": "Rendre photoréaliste",
+        "en": "Make it photoreal"
+      },
+      "desc": {
+        "fr": "Repeint ta vidéo (rendu 3D ou autre) en image filmée, sans toucher à la caméra ni aux mouvements. Une image retouchée donne le look ; sans elle, la consigne suffit.",
+        "en": "Repaints your video (3D render or other) as filmed footage, keeping camera and motion. A retouched image sets the look; without it, the prompt is enough."
+      },
+      "inputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "required": true,
+          "label": {
+            "fr": "Rendu 3D",
+            "en": "3D render"
+          },
+          "hint": {
+            "fr": "Idéalement la passe « Lumière seule », sans flou de mouvement.",
+            "en": "Ideally the Lighting Only pass, without motion blur."
+          }
+        },
+        {
+          "id": "look",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Image de look",
+            "en": "Look image"
+          },
+          "hint": {
+            "fr": "Conseillée : la 1re image du rendu, retouchée comme tu veux le résultat. Sans elle, Mia suit seulement la consigne (look moins maîtrisé).",
+            "en": "Recommended: the render’s first frame, retouched the way you want the result. Without it, Mia only follows the prompt (less control over the look)."
+          }
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ex. : photoreal, cinematic, natural skin…",
+            "en": "E.g. photoreal, cinematic, natural skin…"
+          }
+        },
+        {
+          "id": "keepBlacks",
+          "kind": "toggle",
+          "default": true,
+          "label": {
+            "fr": "Garder les zones noires",
+            "en": "Keep black areas"
+          },
+          "hint": {
+            "fr": "L’IA a tendance à éclaircir les zones très sombres (ciel de nuit, ombres, fond noir) ou à y inventer des détails. Activé, Mia remet le noir de ta vidéo partout où elle était noire.",
+            "en": "The AI tends to brighten very dark areas (night sky, shadows, black background) or invent detail there. On, Mia puts your video’s black back wherever it was black."
+          }
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "3d-to-real"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "modes": [
+        "preview",
+        "final"
+      ],
+      "engine": {
+        "executor": "real",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "preview": {
+          "fr": "≈ 2 min",
+          "en": "≈ 2 min"
+        },
+        "final": {
+          "fr": "≈ 9 min par tranche de 4 s",
+          "en": "≈ 9 min per 4 s chunk"
+        }
+      }
+    },
+    {
+      "id": "guided",
+      "category": "generate",
+      "icon": "guided",
+      "width": 336,
+      "label": {
+        "fr": "Vidéo guidée",
+        "en": "Guided video"
+      },
+      "desc": {
+        "fr": "Crée une nouvelle vidéo qui suit les formes et le mouvement d’une vidéo guide (sa profondeur ou ses contours). Un masque peut laisser une zone libre.",
+        "en": "Creates a new video that follows the shapes and motion of a guide video (its depth or its outlines). A mask can leave one area free."
+      },
+      "inputs": [
+        {
+          "id": "guide",
+          "type": "video",
+          "required": true,
+          "label": {
+            "fr": "Vidéo guide",
+            "en": "Guide video"
+          },
+          "hint": {
+            "fr": "Mia en tire elle-même la profondeur ou les contours. Une sortie du bloc Profondeur marche aussi.",
+            "en": "Mia extracts the depth or outlines itself. An output of the Depth block works too."
+          }
+        },
+        {
+          "id": "look",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Image de départ",
+            "en": "Start image"
+          },
+          "hint": {
+            "fr": "Donne le look : la 1re image, retouchée comme tu veux le résultat.",
+            "en": "Sets the look: the first frame, retouched the way you want the result."
+          }
+        },
+        {
+          "id": "mask",
+          "type": "media",
+          "required": false,
+          "label": {
+            "fr": "Zone libre",
+            "en": "Free area"
+          },
+          "hint": {
+            "fr": "Masque : blanc = l’IA invente librement, noir = elle suit le guide.",
+            "en": "Mask: white = the AI invents freely, black = it follows the guide."
+          }
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "required": true,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ce qu’on doit voir (en anglais)…",
+            "en": "What we should see…"
+          }
+        },
+        {
+          "id": "follow",
+          "kind": "seg",
+          "default": "depth",
+          "label": {
+            "fr": "Suivre",
+            "en": "Follow"
+          },
+          "options": [
+            {
+              "value": "depth",
+              "label": {
+                "fr": "Profondeur",
+                "en": "Depth"
+              }
+            },
+            {
+              "value": "edges",
+              "label": {
+                "fr": "Contours",
+                "en": "Outlines"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Profondeur : garde les volumes et la caméra. Contours : garde aussi les détails des formes.",
+            "en": "Depth: keeps volumes and camera. Outlines: also keeps the shapes’ details."
+          }
+        },
+        {
+          "id": "strength",
+          "kind": "slider",
+          "min": 0.3,
+          "max": 1.5,
+          "step": 0.05,
+          "default": 1,
+          "label": {
+            "fr": "Fidélité au guide",
+            "en": "Guide fidelity"
+          }
+        },
+        {
+          "id": "resolution",
+          "kind": "seg",
+          "default": "720",
+          "label": {
+            "fr": "Résolution",
+            "en": "Resolution"
+          },
+          "options": [
+            {
+              "value": "540",
+              "label": {
+                "fr": "540p",
+                "en": "540p"
+              }
+            },
+            {
+              "value": "720",
+              "label": {
+                "fr": "720p",
+                "en": "720p"
+              }
+            },
+            {
+              "value": "1080",
+              "label": {
+                "fr": "1080p",
+                "en": "1080p"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "guided-video"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "modes": [
+        "preview",
+        "final"
+      ],
+      "engine": {
+        "executor": "guided",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "preview": {
+          "fr": "≈ 2 min",
+          "en": "≈ 2 min"
+        },
+        "final": {
+          "fr": "≈ 8 min pour 4 s",
+          "en": "≈ 8 min per 4 s"
+        }
+      }
+    },
+    {
+      "id": "perform",
+      "category": "generate",
+      "icon": "perform",
+      "width": 336,
+      "label": {
+        "fr": "Animer un personnage",
+        "en": "Animate a character"
+      },
+      "desc": {
+        "fr": "Ton personnage (une seule image) rejoue le mouvement d’une vidéo, avec le même visage du début à la fin.",
+        "en": "Your character (a single image) replays the motion of a video, keeping the same face throughout."
+      },
+      "inputs": [
+        {
+          "id": "character",
+          "type": "image",
+          "required": true,
+          "label": {
+            "fr": "Personnage",
+            "en": "Character"
+          }
+        },
+        {
+          "id": "motion",
+          "type": "video",
+          "required": true,
+          "label": {
+            "fr": "Vidéo de mouvement",
+            "en": "Motion video"
+          },
+          "hint": {
+            "fr": "Toi filmé au téléphone, un mannequin 3D…",
+            "en": "You filmed on a phone, a 3D mannequin…"
+          }
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Description",
+            "en": "Description"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "label": {
+            "fr": "Description",
+            "en": "Description"
+          },
+          "placeholder": {
+            "fr": "Qui il est, le décor… (en anglais)",
+            "en": "Who they are, the setting…"
+          }
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "character-performance"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "modes": [
+        "preview",
+        "final"
+      ],
+      "engine": {
+        "executor": "perform",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "preview": {
+          "fr": "≈ 4 min",
+          "en": "≈ 4 min"
+        },
+        "final": {
+          "fr": "≈ 14 min pour 5 s",
+          "en": "≈ 14 min per 5 s"
+        }
+      }
+    },
+    {
+      "id": "edit",
+      "category": "generate",
+      "icon": "brush",
+      "width": 336,
+      "label": {
+        "fr": "Retoucher une image",
+        "en": "Edit an image"
+      },
+      "desc": {
+        "fr": "Modifie une image selon ta consigne (matières, lumière, ambiance) en gardant le cadrage.",
+        "en": "Changes an image following your prompt (materials, light, mood) while keeping the framing."
+      },
+      "inputs": [
+        {
+          "id": "image",
+          "type": "image",
+          "required": true,
+          "label": {
+            "fr": "Image",
+            "en": "Image"
+          }
+        },
+        {
+          "id": "ref",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Référence",
+            "en": "Reference"
+          }
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "type": "image",
+          "label": {
+            "fr": "Image",
+            "en": "Image"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "required": true,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ex. : make the walls weathered concrete, warm sunset light",
+            "en": "E.g. make the walls weathered concrete, warm sunset light"
+          }
+        },
+        {
+          "id": "speed",
+          "kind": "seg",
+          "default": "fast",
+          "label": {
+            "fr": "Vitesse",
+            "en": "Speed"
+          },
+          "options": [
+            {
+              "value": "fast",
+              "label": {
+                "fr": "Rapide",
+                "en": "Fast"
+              }
+            },
+            {
+              "value": "quality",
+              "label": {
+                "fr": "Qualité",
+                "en": "Quality"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "image-edit"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "edit",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "fr": "≈ 15 s (rapide) · ≈ 3 min (qualité)",
+        "en": "≈ 15 s (fast) · ≈ 3 min (quality)"
+      }
+    },
+    {
+      "id": "upscale",
+      "category": "generate",
+      "icon": "upscale",
+      "width": 336,
+      "label": {
+        "fr": "Agrandir",
+        "en": "Upscale"
+      },
+      "desc": {
+        "fr": "Augmente la résolution d’une image ou d’une vidéo en recréant le détail fin, sans changer le mouvement.",
+        "en": "Raises the resolution of an image or video by recreating fine detail, without changing motion."
+      },
+      "inputs": [
+        {
+          "id": "media",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Image ou vidéo",
+            "en": "Image or video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "out",
+          "type": "follow:media",
+          "label": {
+            "fr": "Agrandi",
+            "en": "Upscaled"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "target",
+          "kind": "seg",
+          "default": "1440",
+          "label": {
+            "fr": "Taille",
+            "en": "Size"
+          },
+          "options": [
+            {
+              "value": "1440",
+              "label": {
+                "fr": "1440p",
+                "en": "1440p"
+              }
+            },
+            {
+              "value": "2160",
+              "label": {
+                "fr": "4K",
+                "en": "4K"
+              }
+            }
+          ]
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "upscale"
+          ],
+          "default": "auto",
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "upscale",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "fr": "≈ 6 s par image de vidéo",
+        "en": "≈ 6 s per video frame"
+      }
+    },
+    {
+      "id": "depth",
+      "category": "analysis",
+      "icon": "depth",
+      "width": 336,
+      "label": {
+        "fr": "Profondeur",
+        "en": "Depth"
+      },
+      "desc": {
+        "fr": "Calcule la distance de chaque point à la caméra (clair = proche), sans scintillement.",
+        "en": "Computes how far each point is from the camera (bright = near), without flicker."
+      },
+      "inputs": [
+        {
+          "id": "media",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Image ou vidéo",
+            "en": "Image or video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "depth",
+          "type": "follow:media",
+          "label": {
+            "fr": "Profondeur",
+            "en": "Depth"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "detail",
+          "kind": "seg",
+          "default": "fast",
+          "label": {
+            "fr": "Finesse",
+            "en": "Detail"
+          },
+          "options": [
+            {
+              "value": "fast",
+              "label": {
+                "fr": "Rapide",
+                "en": "Fast"
+              }
+            },
+            {
+              "value": "fine",
+              "label": {
+                "fr": "Fine",
+                "en": "Fine"
+              }
+            }
+          ]
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "depth"
+          ],
+          "default": "auto",
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        },
+        {
+          "id": "invert",
+          "kind": "toggle",
+          "default": false,
+          "advanced": true,
+          "label": {
+            "fr": "Inverser (clair = loin)",
+            "en": "Invert (bright = far)"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "depth",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "fr": "≈ 30 s pour 5 s de vidéo",
+        "en": "≈ 30 s per 5 s of video"
+      }
+    },
+    {
+      "id": "cutout",
+      "category": "analysis",
+      "icon": "cutout",
+      "width": 336,
+      "label": {
+        "fr": "Détourer",
+        "en": "Cut out"
+      },
+      "desc": {
+        "fr": "Sépare automatiquement le sujet principal (personne, objet) du fond.",
+        "en": "Automatically separates the main subject (person, object) from the background."
+      },
+      "inputs": [
+        {
+          "id": "media",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Image ou vidéo",
+            "en": "Image or video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "mask",
+          "type": "follow:media",
+          "label": {
+            "fr": "Masque",
+            "en": "Mask"
+          }
+        },
+        {
+          "id": "cut",
+          "type": "follow:media",
+          "label": {
+            "fr": "Détouré",
+            "en": "Cut out"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "background",
+          "kind": "seg",
+          "default": "black",
+          "label": {
+            "fr": "Fond",
+            "en": "Background"
+          },
+          "options": [
+            {
+              "value": "black",
+              "label": {
+                "fr": "Noir",
+                "en": "Black"
+              }
+            },
+            {
+              "value": "green",
+              "label": {
+                "fr": "Vert",
+                "en": "Green"
+              }
+            },
+            {
+              "value": "alpha",
+              "label": {
+                "fr": "Transparent",
+                "en": "Transparent"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Transparent : PNG pour une image, WebM pour une vidéo.",
+            "en": "Transparent: PNG for an image, WebM for a video."
+          }
+        },
+        {
+          "id": "feather",
+          "kind": "slider",
+          "min": 0,
+          "max": 20,
+          "step": 1,
+          "default": 1,
+          "unit": "px",
+          "label": {
+            "fr": "Adoucir le bord",
+            "en": "Soften edge"
+          }
+        },
+        {
+          "id": "grow",
+          "kind": "slider",
+          "min": -10,
+          "max": 10,
+          "step": 1,
+          "default": 0,
+          "unit": "px",
+          "advanced": true,
+          "label": {
+            "fr": "Élargir / rétrécir",
+            "en": "Grow / shrink"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "cutout"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "cutout",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "fr": "≈ 0,1 s par image",
+        "en": "≈ 0.1 s per frame"
+      }
+    },
+    {
+      "id": "compare",
+      "category": "tools",
+      "icon": "compare",
+      "width": 456,
+      "label": {
+        "fr": "Comparer A/B",
+        "en": "Compare A/B"
+      },
+      "desc": {
+        "fr": "Montre deux images ou vidéos l’une contre l’autre, lues en même temps.",
+        "en": "Shows two images or videos against each other, played in sync."
+      },
+      "inputs": [
+        {
+          "id": "a",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "A",
+            "en": "A"
+          }
+        },
+        {
+          "id": "b",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "B",
+            "en": "B"
+          }
+        }
+      ],
+      "outputs": [],
+      "params": [
+        {
+          "id": "mode",
+          "kind": "seg",
+          "default": "slider",
+          "label": {
+            "fr": "Affichage",
+            "en": "View"
+          },
+          "options": [
+            {
+              "value": "slider",
+              "label": {
+                "fr": "Volet",
+                "en": "Wipe"
+              }
+            },
+            {
+              "value": "side",
+              "label": {
+                "fr": "Côte à côte",
+                "en": "Side by side"
+              }
+            },
+            {
+              "value": "diff",
+              "label": {
+                "fr": "Différence",
+                "en": "Difference"
+              }
+            }
+          ]
+        }
+      ],
+      "engine": null
+    },
+    {
+      "id": "frame",
+      "category": "tools",
+      "icon": "frame",
+      "width": 336,
+      "label": {
+        "fr": "Extraire une image",
+        "en": "Grab a frame"
+      },
+      "desc": {
+        "fr": "Prend une image précise d’une vidéo, pour la retoucher ou s’en servir de départ.",
+        "en": "Takes one exact frame from a video, to retouch it or start from it."
+      },
+      "inputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "required": true,
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "type": "image",
+          "label": {
+            "fr": "Image",
+            "en": "Image"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "at",
+          "kind": "frame",
+          "of": "video",
+          "default": 0,
+          "label": {
+            "fr": "Image n°",
+            "en": "Frame #"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "frame",
+        "gpu": "none"
+      },
+      "estimate": {
+        "fr": "instantané",
+        "en": "instant"
+      }
+    },
+    {
+      "id": "trim",
+      "category": "tools",
+      "icon": "trim",
+      "width": 336,
+      "label": {
+        "fr": "Couper",
+        "en": "Trim"
+      },
+      "desc": {
+        "fr": "Garde seulement un passage de la vidéo.",
+        "en": "Keeps only one part of the video."
+      },
+      "inputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "required": true,
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "start",
+          "kind": "frame",
+          "of": "video",
+          "default": 0,
+          "label": {
+            "fr": "Début",
+            "en": "Start"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "frame",
+          "of": "video",
+          "default": -1,
+          "label": {
+            "fr": "Fin",
+            "en": "End"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "trim",
+        "gpu": "light"
+      },
+      "estimate": {
+        "fr": "quelques secondes",
+        "en": "a few seconds"
+      }
+    },
+    {
+      "id": "resize",
+      "category": "tools",
+      "icon": "resize",
+      "width": 288,
+      "label": {
+        "fr": "Redimensionner",
+        "en": "Resize"
+      },
+      "desc": {
+        "fr": "Change la taille ou le cadrage d’une image ou d’une vidéo.",
+        "en": "Changes the size or framing of an image or video."
+      },
+      "inputs": [
+        {
+          "id": "media",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Image ou vidéo",
+            "en": "Image or video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "out",
+          "type": "follow:media",
+          "label": {
+            "fr": "Résultat",
+            "en": "Result"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "size",
+          "kind": "select",
+          "default": "1920x1080",
+          "label": {
+            "fr": "Taille",
+            "en": "Size"
+          },
+          "options": [
+            {
+              "value": "1920x1080",
+              "label": {
+                "fr": "1920 × 1080 (horizontal)",
+                "en": "1920 × 1080 (landscape)"
+              }
+            },
+            {
+              "value": "1080x1920",
+              "label": {
+                "fr": "1080 × 1920 (vertical)",
+                "en": "1080 × 1920 (portrait)"
+              }
+            },
+            {
+              "value": "1280x720",
+              "label": {
+                "fr": "1280 × 720",
+                "en": "1280 × 720"
+              }
+            },
+            {
+              "value": "720x1280",
+              "label": {
+                "fr": "720 × 1280",
+                "en": "720 × 1280"
+              }
+            },
+            {
+              "value": "x2",
+              "label": {
+                "fr": "Deux fois plus grand",
+                "en": "Twice as large"
+              }
+            },
+            {
+              "value": "x0.5",
+              "label": {
+                "fr": "Deux fois plus petit",
+                "en": "Half size"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fit",
+          "kind": "seg",
+          "default": "contain",
+          "label": {
+            "fr": "Cadrage",
+            "en": "Fit"
+          },
+          "options": [
+            {
+              "value": "contain",
+              "label": {
+                "fr": "Ajuster",
+                "en": "Fit"
+              }
+            },
+            {
+              "value": "cover",
+              "label": {
+                "fr": "Remplir",
+                "en": "Fill"
+              }
+            }
+          ]
+        }
+      ],
+      "engine": {
+        "executor": "resize",
+        "gpu": "light"
+      },
+      "estimate": {
+        "fr": "quelques secondes",
+        "en": "a few seconds"
+      }
+    },
+    {
+      "id": "composite",
+      "category": "tools",
+      "icon": "layers",
+      "width": 336,
+      "label": {
+        "fr": "Superposer",
+        "en": "Composite"
+      },
+      "desc": {
+        "fr": "Pose un calque (un personnage détouré, par exemple) sur un fond, à travers un masque.",
+        "en": "Places a layer (a cut-out character, say) over a background, through a mask."
+      },
+      "inputs": [
+        {
+          "id": "bg",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Fond",
+            "en": "Background"
+          }
+        },
+        {
+          "id": "fg",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Calque",
+            "en": "Layer"
+          }
+        },
+        {
+          "id": "mask",
+          "type": "media",
+          "required": false,
+          "label": {
+            "fr": "Masque",
+            "en": "Mask"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "out",
+          "type": "follow:bg",
+          "label": {
+            "fr": "Résultat",
+            "en": "Result"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "feather",
+          "kind": "slider",
+          "min": 0,
+          "max": 20,
+          "step": 1,
+          "default": 2,
+          "unit": "px",
+          "label": {
+            "fr": "Adoucir le bord",
+            "en": "Soften edge"
+          }
+        },
+        {
+          "id": "match",
+          "kind": "toggle",
+          "default": false,
+          "label": {
+            "fr": "Accorder les couleurs au fond",
+            "en": "Match colours to background"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "composite",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "fr": "quelques secondes",
+        "en": "a few seconds"
+      }
+    },
+    {
+      "id": "sequence",
+      "category": "tools",
+      "icon": "sequence",
+      "width": 288,
+      "label": {
+        "fr": "Assembler",
+        "en": "Join clips"
+      },
+      "desc": {
+        "fr": "Met plusieurs vidéos bout à bout, dans l’ordre des fils.",
+        "en": "Puts several videos end to end, in wire order."
+      },
+      "inputs": [
+        {
+          "id": "clips",
+          "type": "video",
+          "required": true,
+          "multi": true,
+          "label": {
+            "fr": "Vidéos",
+            "en": "Videos"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "transition",
+          "kind": "seg",
+          "default": "cut",
+          "label": {
+            "fr": "Raccord",
+            "en": "Transition"
+          },
+          "options": [
+            {
+              "value": "cut",
+              "label": {
+                "fr": "Coupe franche",
+                "en": "Hard cut"
+              }
+            },
+            {
+              "value": "black",
+              "label": {
+                "fr": "Passage au noir",
+                "en": "Dip to black"
+              }
+            }
+          ]
+        }
+      ],
+      "engine": {
+        "executor": "sequence",
+        "gpu": "light"
+      },
+      "estimate": {
+        "fr": "quelques secondes",
+        "en": "a few seconds"
+      }
+    },
+    {
+      "id": "sound",
+      "category": "tools",
+      "icon": "audio",
+      "width": 312,
+      "label": {
+        "fr": "Son",
+        "en": "Sound"
+      },
+      "desc": {
+        "fr": "Ajoute une musique, une voix ou un bruitage (fichier audio) à une vidéo : mélangé au son d’origine ou à sa place.",
+        "en": "Adds music, a voice or a sound effect (audio file) to a video: mixed with the original sound or instead of it."
+      },
+      "inputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "required": true,
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        },
+        {
+          "id": "audio",
+          "type": "audio",
+          "required": true,
+          "label": {
+            "fr": "Son",
+            "en": "Sound"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "mode",
+          "kind": "seg",
+          "default": "mix",
+          "label": {
+            "fr": "Son d’origine",
+            "en": "Original sound"
+          },
+          "options": [
+            {
+              "value": "mix",
+              "label": {
+                "fr": "Garder",
+                "en": "Keep"
+              }
+            },
+            {
+              "value": "replace",
+              "label": {
+                "fr": "Remplacer",
+                "en": "Replace"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Garder : le son ajouté se mélange à celui de la vidéo. Remplacer : seul le son ajouté reste.",
+            "en": "Keep: the added sound is mixed with the video’s. Replace: only the added sound remains."
+          }
+        },
+        {
+          "id": "volume",
+          "kind": "slider",
+          "min": 0,
+          "max": 200,
+          "step": 5,
+          "default": 100,
+          "unit": "%",
+          "label": {
+            "fr": "Volume",
+            "en": "Volume"
+          }
+        },
+        {
+          "id": "origVolume",
+          "kind": "slider",
+          "min": 0,
+          "max": 200,
+          "step": 5,
+          "default": 100,
+          "unit": "%",
+          "label": {
+            "fr": "Volume d’origine",
+            "en": "Original volume"
+          },
+          "showIf": {
+            "param": "mode",
+            "eq": "mix"
+          }
+        },
+        {
+          "id": "fadeIn",
+          "kind": "slider",
+          "min": 0,
+          "max": 5,
+          "step": 0.1,
+          "default": 0,
+          "unit": "s",
+          "label": {
+            "fr": "Fondu d’entrée",
+            "en": "Fade in"
+          }
+        },
+        {
+          "id": "fadeOut",
+          "kind": "slider",
+          "min": 0,
+          "max": 5,
+          "step": 0.1,
+          "default": 0.5,
+          "unit": "s",
+          "label": {
+            "fr": "Fondu de sortie",
+            "en": "Fade out"
+          }
+        },
+        {
+          "id": "loop",
+          "kind": "toggle",
+          "default": false,
+          "label": {
+            "fr": "Boucler",
+            "en": "Loop"
+          },
+          "hint": {
+            "fr": "Répète le son jusqu’à la fin de la vidéo s’il est plus court (ambiance, bourdonnement).",
+            "en": "Repeats the sound until the video ends if it is shorter (ambience, hum)."
+          }
+        },
+        {
+          "id": "fit",
+          "kind": "toggle",
+          "default": true,
+          "label": {
+            "fr": "Couper à la fin de la vidéo",
+            "en": "Cut at the end of the video"
+          },
+          "hint": {
+            "fr": "Sinon, la dernière image reste à l’écran jusqu’à la fin du son.",
+            "en": "Otherwise the last frame stays on screen until the sound ends."
+          }
+        },
+        {
+          "id": "start",
+          "kind": "frame",
+          "of": "video",
+          "default": 0,
+          "advanced": true,
+          "label": {
+            "fr": "Départ",
+            "en": "Starts at"
+          },
+          "hint": {
+            "fr": "Image de la vidéo où le son ajouté commence (0 = dès le début).",
+            "en": "Frame of the video where the added sound starts (0 = from the start)."
+          }
+        },
+        {
+          "id": "level",
+          "kind": "toggle",
+          "default": true,
+          "advanced": true,
+          "label": {
+            "fr": "Égaliser les niveaux",
+            "en": "Even out levels"
+          },
+          "hint": {
+            "fr": "Ramène le son ajouté et celui de la vidéo au même niveau d’écoute (RMS −20 dB, comme le montage du film) avant les volumes. Décoché : chaque fichier garde son niveau.",
+            "en": "Brings the added sound and the video’s to the same listening level (RMS −20 dB, like the film edit) before the volumes. Unticked: each file keeps its own level."
+          }
+        }
+      ],
+      "engine": {
+        "executor": "sound",
+        "gpu": "light"
+      },
+      "estimate": {
+        "fr": "quelques secondes",
+        "en": "a few seconds"
+      },
+      "keywords": {
+        "fr": "audio musique bruitage voix ambiance mixage",
+        "en": "audio music sound effect voice ambience mix"
+      }
+    },
+    {
+      "id": "finish",
+      "category": "tools",
+      "icon": "finish",
+      "width": 312,
+      "label": {
+        "fr": "Finition",
+        "en": "Finish"
+      },
+      "desc": {
+        "fr": "Étalonnage des couleurs par LUT (un look de film ou ton fichier .cube), grain et vignettage, sur le GPU, son gardé.",
+        "en": "Colour grading with a LUT (a film look or your own .cube), grain and vignette, on the GPU, sound kept."
+      },
+      "inputs": [
+        {
+          "id": "media",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Image ou vidéo",
+            "en": "Image or video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "out",
+          "type": "follow:media",
+          "label": {
+            "fr": "Résultat",
+            "en": "Result"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "look",
+          "kind": "select",
+          "default": "etalo-doux",
+          "label": {
+            "fr": "Étalonnage",
+            "en": "Grade"
+          },
+          "options": [
+            {
+              "value": "none",
+              "label": {
+                "fr": "Aucun",
+                "en": "None"
+              }
+            },
+            {
+              "value": "etalo",
+              "label": {
+                "fr": "Etalo",
+                "en": "Etalo"
+              },
+              "hint": {
+                "fr": "Étalonnage sombre, mat, ambré. Seulement si son fichier est dans le dossier du moteur.",
+                "en": "Dark, matte, amber grade. Only when its file is in the engine folder."
+              }
+            },
+            {
+              "value": "etalo-doux",
+              "label": {
+                "fr": "Etalo doux",
+                "en": "Etalo soft"
+              },
+              "hint": {
+                "fr": "Etalo en plus tendre : noirs moins appuyés, contraste et couleurs adoucis.",
+                "en": "Etalo, gentler: lighter blacks, softer contrast and colours."
+              }
+            },
+            {
+              "value": "etalo-nuit",
+              "label": {
+                "fr": "Etalo nuit",
+                "en": "Etalo night"
+              },
+              "hint": {
+                "fr": "Etalo de nuit : plus sombre et plus froid, ombres profondes, peau gardée.",
+                "en": "Etalo at night: darker and cooler, deep shadows, skin kept."
+              }
+            },
+            {
+              "value": "pellicule-chaude",
+              "label": {
+                "fr": "Pellicule chaude",
+                "en": "Warm film"
+              },
+              "hint": {
+                "fr": "Négatif chaud façon Kodak : tons dorés, rouges pleins, noirs bruns.",
+                "en": "Warm Kodak-like negative: golden tones, rich reds, brown blacks."
+              }
+            },
+            {
+              "value": "pellicule-froide",
+              "label": {
+                "fr": "Pellicule froide",
+                "en": "Cool film"
+              },
+              "hint": {
+                "fr": "Négatif froid façon Fuji : ombres vertes, blancs neutres, couleurs retenues.",
+                "en": "Cool Fuji-like negative: green shadows, neutral whites, restrained colours."
+              }
+            },
+            {
+              "value": "sans-blanchiment",
+              "label": {
+                "fr": "Sans blanchiment",
+                "en": "Bleach bypass"
+              },
+              "hint": {
+                "fr": "Traitement sans blanchiment : couleurs éteintes, contraste dur, reflets argentés.",
+                "en": "Bleach bypass: muted colours, hard contrast, silvery highlights."
+              }
+            },
+            {
+              "value": "crepuscule",
+              "label": {
+                "fr": "Crépuscule",
+                "en": "Dusk"
+              },
+              "hint": {
+                "fr": "Fin de jour : hautes lumières ambrées, ombres bleu-vert, sans excès.",
+                "en": "End of day: amber highlights, teal shadows, kept subtle."
+              }
+            },
+            {
+              "value": "nb-argentique",
+              "label": {
+                "fr": "Noir et blanc argentique",
+                "en": "Silver black & white"
+              },
+              "hint": {
+                "fr": "Noir et blanc de pellicule : gris riches, noirs mats, une pointe de chaleur.",
+                "en": "Film black and white: rich greys, matte blacks, a hint of warmth."
+              },
+              "short": {
+                "fr": "N&B argentique",
+                "en": "Silver B&W"
+              }
+            },
+            {
+              "value": "file",
+              "label": {
+                "fr": "Autre LUT (fichier)",
+                "en": "Another LUT (file)"
+              },
+              "hint": {
+                "fr": "N’importe quel fichier .cube de ton PC.",
+                "en": "Any .cube file from your PC."
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Etalo : étalonnage sombre, mat, ambré, décliné en doux et nuit. Les autres looks sont de la même famille, effet film (pellicule chaude ou froide, sans blanchiment, crépuscule, noir et blanc) : le bloc « Essayer des looks » les montre tous sur ton image. Autre LUT : n’importe quel .cube.",
+            "en": "Etalo: a dark, matte, amber grade, also in soft and night versions. The other looks are the same film family (warm or cool film, bleach bypass, dusk, black and white): the “Try looks” block shows them all on your image. Another LUT: any .cube."
+          }
+        },
+        {
+          "id": "lutFile",
+          "kind": "file",
+          "accept": [
+            "cube"
+          ],
+          "default": "",
+          "label": {
+            "fr": "Fichier LUT",
+            "en": "LUT file"
+          },
+          "placeholder": {
+            "fr": "Choisir un .cube…",
+            "en": "Pick a .cube…"
+          },
+          "showIf": {
+            "param": "look",
+            "eq": "file"
+          }
+        },
+        {
+          "id": "lutStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 150,
+          "step": 5,
+          "default": 100,
+          "unit": "%",
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          },
+          "showIf": {
+            "param": "look",
+            "notIn": [
+              "none"
+            ]
+          }
+        },
+        {
+          "id": "grain",
+          "kind": "slider",
+          "min": 0,
+          "max": 6,
+          "step": 0.1,
+          "default": 2,
+          "label": {
+            "fr": "Grain",
+            "en": "Grain"
+          },
+          "hint": {
+            "fr": "2 = grain fin conseillé. 0 = sans grain.",
+            "en": "2 = recommended fine grain. 0 = no grain."
+          }
+        },
+        {
+          "id": "vignette",
+          "kind": "slider",
+          "min": 0,
+          "max": 30,
+          "step": 1,
+          "default": 6,
+          "unit": "%",
+          "label": {
+            "fr": "Vignettage",
+            "en": "Vignette"
+          },
+          "hint": {
+            "fr": "Assombrit doucement les coins. 6 % = réglage conseillé.",
+            "en": "Gently darkens the corners. 6 % = recommended setting."
+          }
+        },
+        {
+          "id": "warm",
+          "kind": "toggle",
+          "default": false,
+          "advanced": true,
+          "label": {
+            "fr": "Garder les rouges",
+            "en": "Keep the reds"
+          },
+          "hint": {
+            "fr": "Les rouges et oranges saturés (fauteuils, lèvres, mèche) gardent leur teinte sous la LUT.",
+            "en": "Saturated reds and oranges (seats, lips, hair) keep their hue under the LUT."
+          },
+          "showIf": {
+            "param": "look",
+            "notIn": [
+              "none"
+            ]
+          }
+        },
+        {
+          "id": "film",
+          "kind": "toggle",
+          "default": false,
+          "advanced": true,
+          "label": {
+            "fr": "Optique de cinéma",
+            "en": "Film optics"
+          },
+          "hint": {
+            "fr": "Courbe douce des hautes lumières, léger halo autour des lumières fortes, voile et franges colorées : un rendu de caméra de cinéma.",
+            "en": "Soft highlight roll-off, a light halo around bright lights, veil and colour fringes: a cinema camera finish."
+          }
+        }
+      ],
+      "engine": {
+        "executor": "finish",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "fr": "quelques secondes par plan",
+        "en": "a few seconds per shot"
+      },
+      "keywords": {
+        "fr": "LUT look couleur étalonnage grain vignettage cinéma",
+        "en": "LUT look colour color grading grade grain vignette film"
+      }
+    },
+    {
+      "id": "looks",
+      "category": "tools",
+      "icon": "looks",
+      "width": 336,
+      "label": {
+        "fr": "Essayer des looks",
+        "en": "Try looks"
+      },
+      "desc": {
+        "fr": "Montre une image de ta vidéo avec chaque look de la Finition (LUT, étalonnage des couleurs), côte à côte ; choisis-le ensuite dans Finition › Étalonnage.",
+        "en": "Shows one frame of your video with every Finish look (LUT, colour grading), side by side; then pick it in Finish › Grade."
+      },
+      "inputs": [
+        {
+          "id": "media",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Image ou vidéo",
+            "en": "Image or video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "type": "image",
+          "label": {
+            "fr": "Looks",
+            "en": "Looks"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "at",
+          "kind": "frame",
+          "of": "media",
+          "default": 0,
+          "label": {
+            "fr": "Image n°",
+            "en": "Frame #"
+          },
+          "hint": {
+            "fr": "L’image de la vidéo à essayer (une image fixe est prise telle quelle).",
+            "en": "The video frame to try (a still image is used as is)."
+          }
+        }
+      ],
+      "engine": {
+        "executor": "looks",
+        "gpu": "light"
+      },
+      "estimate": {
+        "fr": "quelques secondes",
+        "en": "a few seconds"
+      },
+      "keywords": {
+        "fr": "LUT look couleur étalonnage comparer",
+        "en": "LUT look colour color grading grade compare"
+      }
+    },
+    {
+      "id": "export",
+      "category": "tools",
+      "icon": "export",
+      "width": 288,
+      "label": {
+        "fr": "Exporter",
+        "en": "Export"
+      },
+      "desc": {
+        "fr": "Enregistre le résultat dans le dossier « À regarder » du projet, au bon format.",
+        "en": "Saves the result into the project's “To review” folder, in the right format."
+      },
+      "inputs": [
+        {
+          "id": "media",
+          "type": "media",
+          "required": true,
+          "label": {
+            "fr": "Image ou vidéo",
+            "en": "Image or video"
+          }
+        }
+      ],
+      "outputs": [],
+      "params": [
+        {
+          "id": "format",
+          "kind": "select",
+          "default": "mp4",
+          "label": {
+            "fr": "Format",
+            "en": "Format"
+          },
+          "options": [
+            {
+              "value": "mp4",
+              "label": {
+                "fr": "MP4 haute qualité",
+                "en": "High-quality MP4"
+              }
+            },
+            {
+              "value": "phone",
+              "label": {
+                "fr": "MP4 téléphone (< 30 Mo)",
+                "en": "Phone MP4 (< 30 MB)"
+              }
+            },
+            {
+              "value": "png",
+              "label": {
+                "fr": "PNG (suite d’images pour une vidéo)",
+                "en": "PNG (image sequence for a video)"
+              },
+              "short": {
+                "fr": "PNG (suite d’images)",
+                "en": "PNG (image sequence)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "default": "",
+          "label": {
+            "fr": "Nom du fichier",
+            "en": "File name"
+          },
+          "placeholder": {
+            "fr": "Automatique",
+            "en": "Automatic"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "export",
+        "gpu": "light"
+      },
+      "estimate": {
+        "fr": "quelques secondes",
+        "en": "a few seconds"
+      }
+    }
+  ]
+}

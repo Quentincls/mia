@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <!-- Mia, « Le fil » : un M d'un seul trait dont la vallée est un câble de la planche
+       (bézier à tangentes horizontales aux ports, y = 70, et au creux, y = 166).
+       Couleur = currentColor : à insérer dans le DOM (ou en masque CSS), pas en <img>. -->
+  <path d="M50 202V70C108 70 82 166 128 166S148 70 206 70V202"
+        stroke="currentColor" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

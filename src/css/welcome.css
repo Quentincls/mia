@@ -1,0 +1,185 @@
+/* ── Assistant de premier lancement (welcome.js, SPEC §21.3) ────────────
+   Une page pleine sous la barre de titre (qui reste à sa place : fenêtre, onglets) : le noir de l'app, une
+   colonne de 600 px, une étape à la fois. Filets de 1 px, étiquettes en mono MAJ, une seule couleur d'accent :
+   la barre de 2 px pendant l'installation du moteur. Aucun halo, aucun dégradé (da.md). Ajoutée par welcome.js.
+   Durées et courbes : la table de tokens.css (SPEC §20.2) — en mouvement réduit elles valent 1 ms. */
+
+#welcome {
+  position: fixed; inset: var(--tb-h) 0 0 0; z-index: 290;   /* sous la bibliothèque (300), les modales et les toasts */
+  background: var(--bg);
+  animation: wel-in var(--dur-enter) var(--ease-out);
+}
+#welcome.out { animation: wel-out var(--dur-exit) var(--ease-in) forwards; pointer-events: none; }
+/* la place de la barre de défilement est gardée (comme l'accueil) : la colonne centrée ne saute pas de côté
+   quand un choix ouvert fait défiler la page */
+.wel-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.wel-col { width: min(600px, calc(100% - 48px)); margin: clamp(20px, 8vh, 96px) auto 56px; }
+.wel-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── progression : 2 px tout en haut, seulement pendant l'installation ── */
+.wel-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; overflow: hidden; z-index: 2; pointer-events: none; opacity: 0; transition: opacity var(--dur-cam) var(--ease); }
+.wel-bar.on { opacity: 1; }
+.wel-bar i { position: absolute; inset: 0; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform var(--dur-rise) linear; }
+.wel-bar.indet i { width: 30%; transition: none; animation: wel-indet var(--dur-loop) linear infinite; }
+
+/* ── étapes : 1 MOTEUR — 2 MODÈLES — 3 C'EST PRÊT ────────────────────── */
+.wel-steps {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 0; margin: 0 0 30px; padding: 0; list-style: none;
+  font-family: var(--font-kicker); font-size: var(--fs-kicker); font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--txt-3);
+}
+.wel-steps li { display: flex; align-items: center; gap: 8px; transition: color var(--dur); }
+.wel-steps li + li::before { content: ''; width: 28px; height: 1px; margin: 0 12px 0 4px; background: var(--line-2); }
+.wel-step-n {
+  width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px var(--line-strong); font-size: 10px; letter-spacing: 0;
+  transition: background var(--dur), color var(--dur), box-shadow var(--dur);
+}
+.wel-steps li.on { color: var(--txt); }
+.wel-steps li.on .wel-step-n { background: var(--seg-on); color: var(--seg-on-txt); box-shadow: none; }
+.wel-steps li.past { color: var(--txt-2); }
+.wel-steps li.past .wel-step-n { color: var(--txt-2); box-shadow: inset 0 0 0 1px var(--line-2); }
+/* une étape passée sans être faite : un tiret, pointillé — pas une coche */
+.wel-steps li.skip { color: var(--txt-3); }
+.wel-steps li.skip .wel-step-n { color: var(--txt-3); box-shadow: none; outline: 1px dashed var(--line-2); outline-offset: -1px; }
+
+/* ── la page d'une étape : elle n'entre qu'en changeant d'étape ──────── */
+.wel-card.enter { animation: wel-page var(--dur-card) var(--ease-out); }
+.wel-mark { color: var(--txt); margin: 0 0 18px -2px; display: flex; }
+.wel-title { margin: 0; font-family: var(--font-display); font-size: var(--fs-display); font-weight: 620; letter-spacing: -.02em; color: var(--txt); }
+.wel-lead { margin: 8px 0 26px; max-width: 54ch; font-size: var(--fs-body); line-height: 1.55; color: var(--txt-2); }
+.wel-res.wel-foreign { margin: -12px 0 22px; max-width: 60ch; }
+
+/* ── page 1 : deux chemins, un seul ouvert à la fois ─────────────────── */
+.wel-choices { display: flex; flex-direction: column; gap: 10px; }
+.wel-choice {
+  display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px 14px 14px; text-align: left;
+  border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line-2);
+  transition: background var(--dur), border-color var(--dur);
+}
+.wel-choice:hover { background: var(--surface-2); border-color: var(--line-strong); }
+.wel-choice:active { transform: translateY(0.5px); }
+.wel-choice:focus-visible { outline: 1.5px solid var(--accent); outline-offset: 2px; }
+.wel-choice.on { background: var(--surface-2); border-color: var(--line-strong); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.wel-choice[disabled] { opacity: .5; pointer-events: none; }
+.wel-choice-ico {
+  width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: 0 0 auto;
+  background: var(--surface-3); color: var(--txt-2); transition: color var(--dur);
+}
+.wel-choice.on .wel-choice-ico, .wel-choice:hover .wel-choice-ico { color: var(--txt); }
+.wel-choice-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.wel-choice-title { font-size: 14px; font-weight: 600; color: var(--txt); }
+.wel-choice-desc { font-size: 12px; line-height: 1.45; color: var(--txt-3); }
+/* le rond d'un choix exclusif : vide, puis plein (blanc sur noir), sans couleur */
+.wel-choice-dot { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto; box-shadow: inset 0 0 0 1.5px var(--line-strong); transition: box-shadow var(--dur-enter) var(--ease-out); }
+.wel-choice.on .wel-choice-dot { box-shadow: inset 0 0 0 5px var(--txt); }
+
+.wel-panel {
+  margin-top: -10px; padding: 14px 16px 16px; background: var(--surface-2);
+  border: 1px solid var(--line-strong); border-top-color: var(--line); border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+.wel-panel.enter { animation: wel-fade var(--dur-enter) var(--ease-out); }
+.wel-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wel-label { display: block; margin-bottom: 6px; font-size: 12px; color: var(--txt-2); }
+.wel-field { flex: 1 1 auto; min-width: 0; }
+.wel-space { min-height: 16px; margin-top: 7px; font-size: 11.5px; line-height: 1.45; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.wel-space.short { color: var(--danger); }
+.wel-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+.wel-res { display: flex; align-items: flex-start; gap: 7px; margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--txt-2); overflow-wrap: anywhere; }
+.wel-res-ico { display: grid; place-items: center; margin-top: 2px; flex: 0 0 auto; color: var(--txt-3); }
+.wel-res.is-ok { color: var(--txt); }
+.wel-res.is-ok .wel-res-ico { color: var(--txt); }
+.wel-res.is-wait .wel-res-ico { animation: wel-spin var(--dur-loop) linear infinite; }
+/* un échec (installation arrêtée, dossier refusé…) se lit comme une alerte, pas comme une information */
+.wel-res.is-warn, .wel-res.is-warn .wel-res-ico { color: var(--danger); }
+.wel-running { min-height: 32px; gap: 10px; }
+.wel-run-txt { font-size: 12.5px; color: var(--txt); }
+.wel-run-step, .wel-run-pct, .wel-run-time { font-family: var(--font-mono); font-size: 11.5px; color: var(--txt-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wel-run-time { color: var(--txt-3); }
+.wel-run-step:empty, .wel-run-pct:empty { display: none; }
+
+/* le déroulé lisible : une ligne par étape du script (faite ✓, en cours •, arrêtée ×) */
+.wel-stlist { margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.wel-stlist li { display: grid; grid-template-columns: 14px 36px minmax(0, 1fr); align-items: baseline; gap: 6px; font-size: 12px; line-height: 1.5; color: var(--txt-3); }
+.wel-stlist li.is-now { color: var(--txt); }
+.wel-stlist li.is-stop { color: var(--txt); }
+.wel-st-ico { display: grid; place-items: center; align-self: center; color: var(--txt-3); }
+.wel-stlist li.is-now .wel-st-ico::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--txt); }
+.wel-stlist li.is-stop .wel-st-ico { color: var(--danger); }
+.wel-st-n { font-family: var(--font-mono); font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--txt-3); }
+.wel-st-label { min-width: 0; overflow-wrap: anywhere; }
+.wel-details { display: flex; margin: 8px 0 0 -8px; }
+/* le journal brut du script, replié sous « Détails » : lisible, sélectionnable, qui suit la fin */
+.wel-log {
+  margin: 6px 0 0; height: 188px; overflow: auto; padding: 10px 12px; border-radius: var(--r-sm);
+  background: var(--bg); border: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.6; color: var(--txt-2);
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; cursor: text;
+}
+.wel-log:empty { display: none; }
+.wel-log:focus-visible { outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
+
+.wel-foot { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wel-foot-gap { flex: 1 1 auto; }
+.wel-foot .btn-ghost:first-child { margin-left: -12px; }
+
+/* ── page 2 : les usages à installer ─────────────────────────────────── */
+.wel-caps { padding: 2px 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); }
+.wel-cap {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; align-items: center; gap: 16px; min-height: 54px;
+  border-bottom: 1px solid var(--line);
+}
+.wel-cap:last-child { border-bottom: 0; }
+.wel-cap:not(.ready) { cursor: pointer; }
+.wel-cap-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* le nom reste lisible, coché ou non : décoché n'est pas « indisponible » */
+.wel-cap-name { font-size: 13px; font-weight: 550; color: var(--txt); }
+/* deux lignes au plus : « fichiers en commun avec « Profondeur » » ne doit pas être ce qui est coupé */
+.wel-cap-desc {
+  font-size: 11.5px; line-height: 1.4; color: var(--txt-3);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.wel-size { text-align: right; font-family: var(--font-mono); font-size: 11.5px; color: var(--txt-3); font-variant-numeric: tabular-nums; white-space: nowrap; transition: color var(--dur); }
+.wel-cap.on .wel-size { color: var(--txt); }
+.wel-chip {
+  justify-self: end; font-family: var(--font-kicker); font-size: 9.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: var(--r-chip); border: 1px solid var(--line-2); color: var(--txt-2);
+}
+.wel-cap .tgl { justify-self: end; }
+.wel-sum { display: flex; flex-wrap: wrap; gap: 4px 12px; min-height: 18px; margin: 12px 2px 0; font-size: 12px; color: var(--txt-2); font-variant-numeric: tabular-nums; }
+.wel-sum-free { color: var(--txt-3); }
+.wel-sum-free.short { color: var(--danger); }
+/* la note de la licence (tokenNote de library.css), à pleine largeur ici */
+.wel-tok.lib-tok { margin: 12px 0 0; padding: 10px 12px 11px; font-size: 12px; }
+.wel-wait { padding: 18px 0; font-size: 12.5px; color: var(--txt-3); }
+
+/* ── page 3 : c'est prêt — une coche qui se trace, une fois (seulement si tout arrive vraiment) ── */
+.wel-done { display: flex; margin: 0 0 14px -3px; color: var(--txt); }
+.wel-done path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: wel-check var(--dur-check) var(--dur) var(--ease-out) forwards; }
+.wel-lines p { margin: 10px 0 0; max-width: 56ch; font-size: var(--fs-body); line-height: 1.55; color: var(--txt-2); overflow-wrap: anywhere; }
+.wel-lines p:first-child { margin-top: 12px; }
+.wel-lines .wel-tok p { margin: 0; max-width: none; font-size: inherit; line-height: inherit; color: inherit; }
+.wel-lines .wel-tok .lib-tok-lead { color: var(--txt); }
+.wel-lines .wel-tok .lib-tok-keep { margin-top: 8px; color: var(--txt-3); }
+.wel-lines .wel-tok .lib-tok-cli { margin-top: 2px; color: var(--txt-3); }
+.wel-lines .wel-tok .lib-tok-msg { margin-top: 6px; color: var(--txt); }
+.wel-lines .wel-tok .lib-tok-msg.err { color: var(--danger); }
+
+@keyframes wel-in { from { opacity: 0; } }
+@keyframes wel-out { to { opacity: 0; } }
+@keyframes wel-page { from { opacity: 0; transform: translateY(8px); } }
+@keyframes wel-fade { from { opacity: 0; } }
+@keyframes wel-indet { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@keyframes wel-check { to { stroke-dashoffset: 0; } }
+@keyframes wel-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 620px) {
+  .wel-steps li + li::before { width: 14px; margin: 0 8px 0 2px; }
+  .wel-running { flex-wrap: wrap; }
+}
+
+/* mouvement réduit : les durées de tokens.css passent à 1 ms ; restent les boucles, coupées ici */
+@media (prefers-reduced-motion: reduce) {
+  .wel-bar.indet i { animation: none; width: 100%; opacity: .5; }
+  .wel-res.is-wait .wel-res-ico { animation: none; }
+}

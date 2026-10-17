@@ -1,0 +1,20 @@
+# Line endings: normalised to LF in the repository, whatever core.autocrlf says
+* text=auto
+
+# Windows scripts keep CRLF in every checkout
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Mia.vbs is UTF-16 with a byte order mark: stored byte for byte, never converted
+*.vbs -text
+
+# LUTs are text, but a 33³ table is a million numbers: no line diff
+*.cube text -diff
+
+# Binaries
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.icns binary

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20" height="20" fill="none">
+  <!-- Marque de la barre de titre (20 px, --txt-2 ; --txt au survol de l'onglet Accueil) : le logo « Le fil ».
+       Trait de 28/256 ≈ 2,2 px à 20 px, la même écriture que la marque de Slate. -->
+  <path d="M50 202V70C108 70 82 166 128 166S148 70 206 70V202"
+        stroke="currentColor" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

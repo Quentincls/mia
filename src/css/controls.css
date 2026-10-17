@@ -1,0 +1,177 @@
+/* ── controls ───────────────────────────────────────────────────────────
+   Every control Mia shows is drawn here: nothing native ever opens (no
+   <select> list, no Windows range or checkbox). Sizes follow da.md §4.2:
+   26 px rows in a block, r 7, --surface-3 on a --line border; values in
+   tabular mono. The accent is not used: "on" states invert, like Surface. */
+
+.is-disabled { opacity: .4; pointer-events: none; }
+
+/* ── buttons: sizes on top of .btn (app.css) ── */
+.btn.sm { height: 28px; padding: 0 11px; font-size: 12.5px; border-radius: 8px; gap: 6px; }
+.btn.xs { height: 26px; padding: 0 9px; font-size: 12px; border-radius: 7px; gap: 6px; }
+.btn.icon-only { padding: 0; width: 34px; }
+.btn.sm.icon-only { width: 28px; }
+.btn.xs.icon-only { width: 26px; }
+
+/* ── segmented control, Surface style ───────────────────────────────────
+   A dark track, a light pill that slides under the chosen option. */
+.seg {
+  position: relative; display: inline-flex; align-items: stretch; flex: 0 0 auto; min-width: 0;
+  padding: 2px; border-radius: 10px;
+  background: var(--seg-track); border: 1px solid var(--line);
+  isolation: isolate;
+}
+.seg-pill {
+  position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 0; width: 0;
+  border-radius: 8px; background: var(--seg-on);
+  transition: transform var(--dur-enter) var(--ease-out), width var(--dur-enter) var(--ease-out);
+  pointer-events: none;
+}
+.seg.no-anim .seg-pill { transition: none; }
+.seg-opt {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 24px; padding: 0 11px; border-radius: 8px;
+  font-size: 12px; font-weight: 550; white-space: nowrap;
+  color: var(--txt-2); transition: color var(--dur-enter) var(--ease-out);
+}
+.seg-opt:hover { color: var(--txt); }
+.seg-opt.on { color: var(--seg-on-txt); }
+.seg-opt svg { display: block; }
+.seg-opt:focus-visible { outline-offset: -1px; }
+.seg.sm { border-radius: 8px; }
+.seg.sm .seg-pill { border-radius: 6px; }
+.seg.sm .seg-opt { height: 20px; padding: 0 8px; font-size: 11.5px; border-radius: 6px; }
+.seg.full { display: flex; }
+.seg.full .seg-opt { flex: 1 1 0; }
+.seg-txt { min-width: 0; }
+/* trop large pour sa place (segmented.adapt) : pleine largeur, options à parts égales mais jamais plus
+   étroites que leur texte ; puis libellés sur deux lignes ; en dernier recours, une liste déroulante */
+.seg.fill { display: flex; width: 100%; }
+.seg.fill > .seg-opt { flex: 1 1 0; min-width: min-content; }
+.seg.fill.wrap > .seg-opt { height: auto; min-height: 24px; padding-top: 3px; padding-bottom: 3px; white-space: normal; text-align: center; line-height: 1.2; }
+.seg.sm.fill.wrap > .seg-opt { min-height: 20px; padding-top: 2px; padding-bottom: 2px; }
+.seg.fill.wrap .seg-txt { text-wrap: balance; }
+.seg:not(.as-menu) > .seg-dd { display: none; }
+.seg.as-menu { padding: 0; border: 0; background: none; }
+.seg.as-menu > .seg-opt, .seg.as-menu > .seg-pill { display: none; }
+/* mesure des largeurs voulues (une ligne, puis mots seuls), le temps d'une lecture synchrone */
+.seg.seg-measure { display: inline-flex !important; width: max-content !important; padding: 2px !important; border: 1px solid !important; }
+.seg.seg-measure > .seg-opt { display: inline-flex !important; flex: none !important; white-space: nowrap !important; }
+.seg.seg-measure > .seg-dd { display: none !important; }
+.seg.seg-measure.min { width: min-content !important; }
+.seg.seg-measure.min > .seg-opt { white-space: normal !important; }
+
+/* ── dropdown (button; its list is a menu, see ui/menu.js) ── */
+.dd {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
+  height: 26px; padding: 0 6px 0 9px; border-radius: 7px;
+  font-size: 12px; color: var(--txt); text-align: left;
+  background: var(--surface-3); border: 1px solid var(--line);
+  transition: background var(--dur), border-color var(--dur);
+}
+.dd:hover { background: var(--surface-hi); border-color: var(--line-2); }
+.dd.open { border-color: var(--line-strong); background: var(--surface-hi); }
+.dd-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-label.ph { color: var(--txt-3); }
+.dd-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--txt-3); flex: 0 0 auto; }
+.dd-chev { flex: 0 0 auto; opacity: .55; display: grid; place-items: center; transition: transform var(--dur-exit) var(--ease-out); }
+.dd.open .dd-chev { transform: rotate(180deg); }
+.dd-chev svg { display: block; }
+.dd.md { height: 32px; padding: 0 9px 0 12px; font-size: 12.5px; border-radius: 9px; }
+.dd.block { display: flex; width: 100%; }
+
+/* ── slider: 3 px track, 12 px thumb ── */
+.sld { display: flex; align-items: center; gap: 10px; height: 26px; flex: 1 1 140px; min-width: 120px; --p: 0; }
+.sld-track { position: relative; flex: 1 1 auto; height: 18px; cursor: pointer; touch-action: none; }
+.sld-rail, .sld-fill {
+  position: absolute; top: 50%; height: 3px; margin-top: -1.5px; border-radius: 3px;
+}
+.sld-rail { left: 0; right: 0; background: var(--line-2); }
+.sld-fill { left: 0; width: calc(6px + var(--p) * (100% - 12px)); background: var(--txt-3); transition: background var(--dur); }
+.sld-thumb {
+  position: absolute; top: 50%; left: calc(6px + var(--p) * (100% - 12px));
+  width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+  background: var(--txt); box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+  transition: transform var(--dur-pop) var(--ease-out);
+}
+.sld:hover .sld-fill, .sld.drag .sld-fill { background: var(--txt-2); }
+.sld:hover .sld-thumb { transform: scale(1.12); }
+/* pris en main : le pouce grossit nettement (12 → 15 px), sans halo */
+.sld.drag .sld-thumb { transform: scale(1.25); }
+.sld-track:focus-visible { outline: none; }
+body.kbd .sld-track:focus-visible .sld-thumb { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); }
+.sld-val {
+  min-width: 44px; height: 22px; padding: 0 2px; border-radius: 5px;
+  font-family: var(--font-mono); font-size: var(--fs-num); font-variant-numeric: tabular-nums;
+  color: var(--txt-2); text-align: right; line-height: 22px; cursor: text;
+  transition: color var(--dur), background var(--dur);
+}
+.sld-val:hover { color: var(--txt); }
+.sld-val input {
+  width: 100%; height: 22px; padding: 0 4px; border-radius: 5px; border: 1px solid var(--accent-line);
+  background: var(--surface-3); color: var(--txt); text-align: right; user-select: text;
+  font: inherit;
+}
+.sld-val input:focus-visible { outline: none; }
+
+/* ── toggle ── */
+.tgl {
+  position: relative; width: 30px; height: 18px; flex: 0 0 auto; border-radius: 999px;
+  background: var(--surface-hi); border: 1px solid var(--line-2);
+  transition: background var(--dur-exit) var(--ease), border-color var(--dur-exit) var(--ease);
+}
+.tgl::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--txt-2); transition: transform var(--dur-enter) var(--ease-out), background var(--dur-exit) var(--ease);
+}
+/* appui : la pastille s'étire d'un rien vers où elle va (comme un vrai interrupteur) */
+.tgl:active::after { transform: scaleX(1.18); transform-origin: left center; }
+.tgl.on:active::after { transform: translateX(12px) scaleX(1.18); transform-origin: right center; }
+.tgl:hover::after { background: var(--txt); }
+.tgl.on { background: var(--seg-on); border-color: transparent; }
+.tgl.on::after { transform: translateX(12px); background: var(--seg-on-txt); }
+
+/* ── text field ── */
+.tf {
+  display: block; width: 100%; height: 26px; padding: 0 9px; border-radius: 7px;
+  background: var(--surface-3); border: 1px solid var(--line); color: var(--txt);
+  font-size: 12.5px; user-select: text; transition: border-color var(--dur);
+}
+.tf:hover { border-color: var(--line-2); }
+.tf:focus, .tf:focus-visible { border-color: var(--accent-line); outline: none; }
+/* le champ qui prend le focus s'éclaire à peine (filet + fond), en 140 ms */
+.tf { transition: border-color var(--dur), background var(--dur); }
+.tf:focus { background: var(--surface-hi); }
+.tf::placeholder { color: var(--txt-3); }
+textarea.tf { height: auto; padding: 6px 9px; line-height: 1.45; resize: none; overflow-y: hidden; }
+textarea.tf.scroll { overflow-y: auto; }
+.tf.md { height: 32px; font-size: 13px; border-radius: 9px; padding: 0 11px; }
+textarea.tf.md { height: auto; padding: 8px 11px; }
+.tf.mono { font-family: var(--font-mono); font-size: 11.5px; }
+
+/* ── number field: type, arrow keys, or drag sideways ── */
+.nf {
+  position: relative; display: inline-flex; align-items: center; flex: 0 0 auto;
+  height: 26px; width: 76px; border-radius: 7px;
+  background: var(--surface-3); border: 1px solid var(--line);
+  transition: border-color var(--dur);
+}
+.nf:hover { border-color: var(--line-2); }
+.nf:focus-within { border-color: var(--accent-line); }
+.nf input {
+  width: 100%; height: 100%; min-width: 0; background: none; border: 0; padding: 0 19px 0 8px;
+  font-family: var(--font-mono); font-size: var(--fs-num); font-variant-numeric: tabular-nums;
+  color: var(--txt); text-align: right; cursor: ew-resize;
+}
+.nf input:focus { cursor: text; user-select: text; }
+.nf input:focus-visible { outline: none; }
+.nf-unit { position: absolute; left: 8px; font-family: var(--font-mono); font-size: 10.5px; color: var(--txt-3); pointer-events: none; }
+.nf-steps {
+  position: absolute; right: 2px; top: 2px; bottom: 2px; width: 14px;
+  display: flex; flex-direction: column; opacity: 0; transition: opacity var(--dur);
+}
+.nf:hover .nf-steps, .nf:focus-within .nf-steps { opacity: 1; }
+.nf-step { flex: 1 1 0; display: grid; place-items: center; color: var(--txt-3); border-radius: 3px; }
+.nf-step:hover { color: var(--txt); background: var(--wash-2); }
+.nf-step svg { display: block; }
+.nf.scrub, .nf.scrub input { cursor: ew-resize; }

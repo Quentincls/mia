@@ -1,0 +1,165 @@
+Mia
+Copyright 2026 Quentin Colus
+
+Mia's code is licensed under the Apache License, Version 2.0 (see LICENSE).
+A few data files are not: these ComfyUI graphs, in electron/engine/workflows/,
+were derived from published examples and keep the licence of their source.
+
+  ltx_i2v.api.json, ltx_t2v.api.json
+      LTX-2.x Community License Agreement and LTX-2 Community License Agreement
+  ltx_layout_single.api.json
+      LTX-2.x Community License Agreement
+  minimax_i2v.api.json, minimax_r2v.api.json, qwen_edit_2511.api.json,
+  wan_animate2.api.json
+      MIT License
+  seedvr2_native.api.json
+      GNU General Public License, version 3 (GPL-3.0)
+
+Each is a separate data file, aggregated with Mia and read at run time: it
+does not change the licence of Mia's code, and Apache-2.0 does not apply to it.
+Details below; full licence texts in docs/licenses/.
+
+------------------------------------------------------------------------------
+Code of the author's own tools included in this repository
+------------------------------------------------------------------------------
+
+python/vendor/tool/
+  Frozen copies of a few modules from the author's personal AI video toolbox
+  (GPU LUT grading, grain, vignette, film optics), dated in each file header.
+  Same author, same licence (Apache-2.0).
+
+luts/*.cube
+  Seven film looks made by the author for Mia, derived from his own colour grade.
+  Same licence (Apache-2.0).
+
+------------------------------------------------------------------------------
+ComfyUI graphs (electron/engine/workflows/*.api.json)
+------------------------------------------------------------------------------
+
+These files are ComfyUI graphs in API format: lists of nodes and their settings.
+The engine reads them node by node, so they carry no comment. Their
+modification notice is electron/engine/workflows/NOTICE.md: for each derived
+graph it gives the exact source, its licence and every change made for Mia.
+electron/engine/workflows/index.json names, in French, the nodes the executors
+set at run time.
+
+Written by the author (Apache-2.0):
+  depth_vda.api.json and seedvr2_node.api.json, written for Mia from the
+  inputs of the custom nodes they drive (ComfyUI-Video-Depth-Anything and
+  ComfyUI-SeedVR2_VideoUpscaler).
+
+Derived from example workflows published by Lightricks for LTX-2.5:
+  ltx_t2v.api.json            from "LTX-2.5_T2V_I2V_Single_Stage_Distilled.json"
+                              (text-to-video path), in Lightricks/ComfyUI-LTXVideo
+                              (https://github.com/Lightricks/ComfyUI-LTXVideo),
+                              example_workflows/2.5/
+  ltx_i2v.api.json            from the same example (image-to-video path),
+                              rewritten with new node ids
+  ltx_layout_single.api.json  from "LTX-2.5_ICLoRA_Layout_To_Render_Two_Stage_
+                              Distilled.json" (first stage only), in the
+                              Hugging Face repository
+                              Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render
+                              (https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render)
+  These three files are modified Complementary Materials of LTX-2.x, hence
+  Derivatives of LTX-2.x. They are distributed under the LTX-2.x Community
+  License Agreement of August 11, 2026 (complete copy in
+  docs/licenses/LTX-2.x-Community-License.txt), not under Apache-2.0. Its
+  use-based restrictions (Section 4 and Attachment A, which incorporates
+  Lightricks' Acceptable Use Policy) apply to these files, to their use and to
+  their outputs, and are part of the terms under which they are distributed.
+  ltx_t2v.api.json and ltx_i2v.api.json come from ComfyUI-LTXVideo, whose
+  LICENSE file is the LTX-2 Community License Agreement of January 5, 2026
+  (complete copy in docs/licenses/LTX-2-Community-License.txt): they are
+  distributed under both agreements, whose terms add up.
+  Changed for Mia: int8 weights, prompt enhancer and cloud text-encoder branch
+  removed, second stage removed (layout), euler sampler, frames saved as PNG
+  and sound as FLAC; every change is listed in electron/engine/workflows/NOTICE.md.
+
+Derived from Comfy-Org/workflow_templates
+(https://github.com/Comfy-Org/workflow_templates), MIT License,
+Copyright (c) 2023-present Comfy Org (full text in
+docs/licenses/Comfy-Org-workflow_templates-MIT.txt):
+  minimax_i2v.api.json     from the template "video_minimax_h3_i2v"
+  minimax_r2v.api.json     from the template "video_minimax_h3_r2v"
+  qwen_edit_2511.api.json  from the template "image_qwen_image_edit_2511_int8"
+  wan_animate2.api.json    from the template "video_wan_animate2" (its default
+                           Chinese negative prompt for Wan is kept)
+
+Derived from a blueprint shipped with ComfyUI
+(https://github.com/comfyanonymous/ComfyUI), GNU General Public License,
+version 3 (full text in docs/licenses/GPL-3.0.txt):
+  seedvr2_native.api.json  from "blueprints/Upscale Video (SeedVR2 3B Int8).json",
+                           with temporal tiling turned on; modified for Mia on
+                           October 17, 2026. This file stays under GPL-3.0.
+
+------------------------------------------------------------------------------
+Runtime and build dependencies (not copied into this repository)
+------------------------------------------------------------------------------
+
+Electron (https://www.electronjs.org/), MIT License.
+  The application runtime. Installable builds bundle Electron and its own
+  LICENSE and LICENSES.chromium.html files.
+
+electron-builder (https://www.electron.build/), MIT License.
+  Used only to build the installer and the portable zip.
+
+------------------------------------------------------------------------------
+What the engine setup script installs on the user's machine
+------------------------------------------------------------------------------
+
+engine-setup/install-engine.ps1 downloads and installs, into a folder chosen by
+the user, software that keeps its own licence and is not redistributed by Mia.
+Mia talks to ComfyUI over HTTP on 127.0.0.1 and runs its own Python worker in
+the same environment. Versions are pinned in engine-setup/versions.txt,
+engine-setup/custom_nodes.txt and engine-setup/constraints.txt.
+
+uv (https://github.com/astral-sh/uv), MIT OR Apache-2.0.
+  The Python installer and package manager; its release archive is downloaded
+  from GitHub.
+CPython (https://www.python.org/), PSF License Agreement (SPDX: Python-2.0).
+  Python 3.13, installed by uv from Astral's python-build-standalone builds
+  (https://github.com/astral-sh/python-build-standalone), which also contain
+  libraries under their own licences.
+ComfyUI (https://github.com/comfyanonymous/ComfyUI), GPL-3.0.
+ComfyUI-LTXVideo (https://github.com/Lightricks/ComfyUI-LTXVideo),
+  LTX-2 Community License Agreement.
+ComfyUI-Video-Depth-Anything
+  (https://github.com/yuvraj108c/ComfyUI-Video-Depth-Anything), Apache-2.0.
+ComfyUI-SeedVR2_VideoUpscaler
+  (https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler), Apache-2.0.
+PyTorch (https://pytorch.org/), BSD-3-Clause.
+PyAV (https://github.com/PyAV-Org/PyAV), BSD-3-Clause.
+imageio-ffmpeg (https://github.com/imageio/imageio-ffmpeg), BSD-2-Clause,
+  which provides an FFmpeg binary (https://ffmpeg.org/) under LGPL/GPL.
+The other Python packages listed in engine-setup/requirements-mia.txt, each
+  under its own licence.
+
+------------------------------------------------------------------------------
+Test data
+------------------------------------------------------------------------------
+
+tools/fixtures/comfy_object_info.json is test data only and is not packaged with
+Mia. It is a dump of ComfyUI's /object_info: node names, inputs and tooltips
+from ComfyUI (GPL-3.0) and from the custom nodes ComfyUI-LTXVideo (LTX-2
+Community License), ComfyUI-SeedVR2_VideoUpscaler and
+ComfyUI-Video-Depth-Anything (Apache-2.0), each under its own licence; personal
+model and input file lists were removed.
+
+------------------------------------------------------------------------------
+Model weights
+------------------------------------------------------------------------------
+
+Mia does not ship any model weights. Models are downloaded by the user, from
+their original publishers, through Mia's model library or by hand, and remain
+under their own licences (LTX-2.x Community License for LTX-2.5, LTX-2
+Community License for the LTX-2.3 IC-LoRAs, Apache-2.0, MIT, and others; see
+README.md, section "Models"). Mia shows each model's licence flag: MiniMax
+H3 is offered with an "R&D only" flag; models whose licence is non-commercial or
+excludes the European Union are recognised but never offered in a block.
+
+------------------------------------------------------------------------------
+Fonts
+------------------------------------------------------------------------------
+
+The interface uses Segoe UI Variable and Cascadia Mono as installed with
+Windows. No font file is distributed with Mia.

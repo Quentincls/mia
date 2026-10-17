@@ -1,0 +1,62 @@
+# Dependencies and builds
+node_modules/
+/release/
+/dist/
+
+# Internal work folders: agents' scratch, test instances, design studies and notes
+# (personal paths and machine details; the public summary is docs/ARCHITECTURE.md)
+/_dev/
+/_plan/
+/HANDOFF.md
+
+# The tool that rebuilds the looks reads the author's private grade and frames;
+# the contact sheet is a duplicate of assets/looks.jpg
+/luts/_fabrique/
+/luts/_planche.jpg
+
+
+# User data and test instances (Mia keeps them in %APPDATA%\Mia, never here)
+/ud/
+/userdata/
+/data/
+bridge.json
+prefs.json
+prefs.*.json
+loras.json
+timings.json
+models-cache.json
+comfy-client.json
+comfy-object-info.json
+engine-runs.json
+
+# Boards and their media, should a projects folder end up inside the repo
+/Projets/
+/Mia Projets/
+A_regarder/
+
+# Downloads in progress, logs, Python caches
+*.part
+*.log
+/engine-setup/logs/
+__pycache__/
+*.py[cod]
+
+# Model weights never belong in git
+*.safetensors
+*.ckpt
+*.gguf
+*.pth
+*.pt
+
+# Secrets
+.env
+.env.*
+*.token
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,102 @@
+{
+  "id": "unreal-to-real",
+  "icon": "real",
+  "label": {
+    "fr": "Rendre photoréaliste un rendu Unreal",
+    "en": "Make an Unreal render photoreal"
+  },
+  "desc": {
+    "fr": "Ton rendu « Lumière seule », sa 1re image retouchée pour le look, et Mia repeint toute la vidéo.",
+    "en": "Your Lighting Only render, its first frame retouched for the look, and Mia repaints the whole video."
+  },
+  "nodes": [
+    {
+      "key": "src",
+      "type": "import",
+      "x": 0,
+      "y": 0,
+      "placeholder": {
+        "kind": "video",
+        "fr": "Rendu « Lumière seule »",
+        "en": "Lighting Only render"
+      }
+    },
+    {
+      "key": "frame",
+      "type": "frame",
+      "x": 432,
+      "y": -620
+    },
+    {
+      "key": "edit",
+      "type": "edit",
+      "x": 864,
+      "y": -620
+    },
+    {
+      "key": "real",
+      "type": "real",
+      "x": 1296,
+      "y": 0
+    },
+    {
+      "key": "cmp",
+      "type": "compare",
+      "x": 1728,
+      "y": -620
+    },
+    {
+      "key": "exp",
+      "type": "export",
+      "x": 1728,
+      "y": 0,
+      "params": {
+        "format": "phone"
+      }
+    }
+  ],
+  "edges": [
+    [
+      "src",
+      "out",
+      "frame",
+      "video"
+    ],
+    [
+      "frame",
+      "image",
+      "edit",
+      "image"
+    ],
+    [
+      "src",
+      "out",
+      "real",
+      "video"
+    ],
+    [
+      "edit",
+      "image",
+      "real",
+      "look"
+    ],
+    [
+      "src",
+      "out",
+      "cmp",
+      "a"
+    ],
+    [
+      "real",
+      "video",
+      "cmp",
+      "b"
+    ],
+    [
+      "real",
+      "video",
+      "exp",
+      "media"
+    ]
+  ]
+}

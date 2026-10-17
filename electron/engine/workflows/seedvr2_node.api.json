@@ -1,0 +1,84 @@
+{
+ "1": {
+  "class_type": "LoadVideo",
+  "inputs": {
+   "file": "mia/placeholder_video.mp4"
+  }
+ },
+ "2": {
+  "class_type": "GetVideoComponents",
+  "inputs": {
+   "video": [
+    "1",
+    0
+   ]
+  }
+ },
+ "3": {
+  "class_type": "SeedVR2LoadDiTModel",
+  "inputs": {
+   "model": "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+   "device": "cuda:0",
+   "blocks_to_swap": 0,
+   "swap_io_components": false,
+   "offload_device": "none",
+   "cache_model": false,
+   "attention_mode": "sdpa"
+  }
+ },
+ "4": {
+  "class_type": "SeedVR2LoadVAEModel",
+  "inputs": {
+   "model": "ema_vae_fp16.safetensors",
+   "device": "cuda:0",
+   "encode_tiled": true,
+   "encode_tile_size": 1024,
+   "encode_tile_overlap": 128,
+   "decode_tiled": true,
+   "decode_tile_size": 1024,
+   "decode_tile_overlap": 128,
+   "tile_debug": "false",
+   "offload_device": "none",
+   "cache_model": false
+  }
+ },
+ "5": {
+  "class_type": "SeedVR2VideoUpscaler",
+  "inputs": {
+   "image": [
+    "2",
+    0
+   ],
+   "dit": [
+    "3",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "seed": 42,
+   "resolution": 1440,
+   "max_resolution": 0,
+   "batch_size": 21,
+   "uniform_batch_size": false,
+   "color_correction": "lab",
+   "temporal_overlap": 4,
+   "prepend_frames": 4,
+   "input_noise_scale": 0.1,
+   "latent_noise_scale": 0,
+   "offload_device": "cpu",
+   "enable_debug": false
+  }
+ },
+ "9990": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "mia/upscale/frame",
+   "images": [
+    "5",
+    0
+   ]
+  }
+ }
+}

@@ -1,0 +1,86 @@
+{
+  "id": "character-performance",
+  "icon": "perform",
+  "label": {
+    "fr": "Faire jouer mon personnage",
+    "en": "Make my character perform"
+  },
+  "desc": {
+    "fr": "Une image de ton personnage et une vidéo de toi : il rejoue ton mouvement.",
+    "en": "One image of your character and a video of you: it replays your motion."
+  },
+  "nodes": [
+    {
+      "key": "who",
+      "type": "import",
+      "x": 0,
+      "y": 0,
+      "placeholder": {
+        "kind": "image",
+        "fr": "Image du personnage",
+        "en": "Character image"
+      }
+    },
+    {
+      "key": "mov",
+      "type": "import",
+      "x": 0,
+      "y": 420,
+      "placeholder": {
+        "kind": "video",
+        "fr": "Vidéo de mouvement",
+        "en": "Motion video"
+      }
+    },
+    {
+      "key": "perf",
+      "type": "perform",
+      "x": 432,
+      "y": 180
+    },
+    {
+      "key": "cmp",
+      "type": "compare",
+      "x": 864,
+      "y": 180
+    },
+    {
+      "key": "exp",
+      "type": "export",
+      "x": 1416,
+      "y": 180
+    }
+  ],
+  "edges": [
+    [
+      "who",
+      "out",
+      "perf",
+      "character"
+    ],
+    [
+      "mov",
+      "out",
+      "perf",
+      "motion"
+    ],
+    [
+      "mov",
+      "out",
+      "cmp",
+      "a"
+    ],
+    [
+      "perf",
+      "video",
+      "cmp",
+      "b"
+    ],
+    [
+      "perf",
+      "video",
+      "exp",
+      "media"
+    ]
+  ]
+}

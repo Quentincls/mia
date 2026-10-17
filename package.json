@@ -1,0 +1,100 @@
+{
+  "name": "mia",
+  "productName": "Mia",
+  "version": "0.5.1",
+  "private": true,
+  "description": "Mia — planche nodale pour l'IA locale",
+  "main": "electron/main.js",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Quentin Colus",
+    "url": "https://github.com/Quentincls"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "version:show": "node electron/version.js",
+    "test:migrations": "node tools/test-migrations.js",
+    "predist": "node tools/check-package.js",
+    "dist": "electron-builder --win --x64",
+    "predist:zip": "node tools/check-package.js",
+    "dist:zip": "electron-builder --win zip --x64",
+    "predist:dir": "node tools/check-package.js",
+    "dist:dir": "electron-builder --win --dir --x64",
+    "check:package": "node tools/check-package.js"
+  },
+  "devDependencies": {
+    "electron": "38.8.6",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "io.github.quentincls.mia",
+    "productName": "Mia",
+    "copyright": "Copyright © 2026 Quentin Colus",
+    "electronDist": "node_modules/electron/dist",
+    "asar": false,
+    "npmRebuild": false,
+    "afterPack": "tools/check-package.js",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "package.json",
+      "CHANGELOG.md",
+      "LICENSE",
+      "NOTICE",
+      "Mia.vbs",
+      "electron/**/*",
+      "src/**/*",
+      "python/**/*",
+      "luts/**/*",
+      "mcp/**/*",
+      "engine-setup/**/*",
+      "docs/**/*",
+      "skills/**/*",
+      "!**/__pycache__{,/**/*}",
+      "!**/*.{pyc,pyo,log,part}",
+      "!luts/_fabrique{,/**/*}",
+      "!luts/_planche.jpg",
+      "!engine-setup/logs{,/**/*}"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "src/assets/mia-app.ico",
+      "executableName": "Mia",
+      "artifactName": "Mia-${version}-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mia",
+      "installerIcon": "src/assets/mia-app.ico",
+      "uninstallerIcon": "src/assets/mia-app.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "installerLanguages": [
+        "fr_FR",
+        "en_US"
+      ],
+      "language": "1036",
+      "artifactName": "Mia-${version}-installation.${ext}"
+    }
+  }
+}

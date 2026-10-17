@@ -1,0 +1,192 @@
+{
+  "about": "Graphes ComfyUI (format API) de Mia, réglés pour une carte de 24 Go (int8/nvfp4, Gemma int8, pas d’améliorateur de prompt, pas de bloc cloud, euler, sorties PNG/FLAC encodées une seule fois par Mia). Huit d’entre eux sont tirés d’exemples publiés (Lightricks, Comfy-Org, ComfyUI) et gardent la licence de leur source : source exacte, licence et liste complète des modifications de chaque graphe dans NOTICE.md (ce dossier) ; depth_vda et seedvr2_node sont écrits pour Mia (Apache-2.0). Vérifier avec node tools/validate-workflows.js. minimax_r2v est écrit à la main d’après le gabarit officiel (voir plus bas). Le bloc « Vidéo guidée » n’a pas de fichier : guided.js transforme ltx_layout_single (LTX + IC-LoRA Union-Control) ou minimax_i2v (MiniMax + Fun ControlNet).",
+  "workflows": {
+    "depth_vda": {
+      "executor": "depth",
+      "source": "graphe de l’auteur, adapté d’un de ses essais (Video Depth Anything Small), Apache-2.0",
+      "nodes": {
+        "1": "LoadVideo (remplacé par LoadImage pour une image)",
+        "3": "modèle VDA Small",
+        "4": "input_size / max_res",
+        "9990": "PNG de profondeur"
+      }
+    },
+    "qwen_edit_2511": {
+      "executor": "edit",
+      "source": "gabarit Comfy-Org image_qwen_image_edit_2511_int8 (workflow_templates, licence MIT), mêmes identifiants de nœuds",
+      "changes": [
+        "170:160 FluxKontextImageScale -> ImageScale (taille de travail ~1,6 MP, multiples de 16)",
+        "170:168 = true par défaut (Lightning 4 pas)"
+      ],
+      "nodes": {
+        "41": "image",
+        "42": "référence (ajoutée par l'executor)",
+        "195": "PNG",
+        "170:151": "consigne",
+        "170:149": "négatif",
+        "170:169": "graine",
+        "170:168": "rapide / qualité"
+      }
+    },
+    "ltx_i2v": {
+      "executor": "i2v",
+      "source": "exemple Lightricks LTX-2.5_T2V_I2V_Single_Stage_Distilled.json (ComfyUI-LTXVideo, example_workflows/2.5), voie image vers vidéo, une passe, réécrit avec de nouveaux identifiants ; licences LTX-2.x et LTX-2 (voir NOTICE.md)",
+      "changes": [
+        "euler au lieu d'euler_ancestral",
+        "ImageScale (couvrir, centré) avant LTXVPreprocess",
+        "SaveVideo -> SaveImage 9990 + SaveAudioAdvanced 9991"
+      ],
+      "nodes": {
+        "1": "UNET",
+        "5": "consigne",
+        "6": "négatif",
+        "7": "cadence",
+        "8": "image de début",
+        "10": "taille / nombre d'images",
+        "14": "graine",
+        "40": "LoRA personnage (ajoutée)",
+        "41": "IC-LoRA Ingredients (ajouté avec une fiche)",
+        "30-33": "image de fin (guide à -1, ajoutée par l'executor)",
+        "34-37": "fiche de référence (ajoutée) : LoadImage, ResizeAndPadImage, RepeatImageBatch, LTXAddVideoICLoRAGuide à 0"
+      }
+    },
+    "minimax_i2v": {
+      "executor": "i2v (moteur MiniMax H3)",
+      "source": "gabarit Comfy-Org video_minimax_h3_i2v (workflow_templates, licence MIT), réécrit avec de nouveaux identifiants, première et dernière image",
+      "changes": [
+        "ImageScale avant first_frame / last_frame",
+        "SaveVideo -> SaveImage 9990 + SaveAudioAdvanced 9991"
+      ],
+      "nodes": {
+        "1": "UNET MiniMax",
+        "6": "image de début",
+        "8": "consigne, taille, longueur 17k+5",
+        "9": "graine",
+        "7/19": "image de fin (ajoutée)"
+      },
+      "requires": "ComfyUI lancé avec config\\extra_minimax.yaml"
+    },
+    "ltx_t2v": {
+      "executor": "t2v",
+      "source": "exemple Lightricks LTX-2.5_T2V_I2V_Single_Stage_Distilled.json (ComfyUI-LTXVideo, example_workflows/2.5), voie texte vers vidéo, une passe ; licences LTX-2.x et LTX-2 (voir NOTICE.md)",
+      "changes": [
+        "UNET bf16 -> int8, Gemma bf16 -> int8",
+        "améliorateur de prompt retiré (gemma4_e2b absent)",
+        "branche Gemma API (cloud) retirée",
+        "branche image de départ retirée (plus d'image factice)",
+        "euler",
+        "SaveVideo -> SaveImage 9990 + SaveAudioAdvanced 9991"
+      ],
+      "nodes": {
+        "5508": "consigne",
+        "5509": "négatif",
+        "5511": "cadence",
+        "5512": "durée (s)",
+        "5514:3059": "taille",
+        "5516:4832": "graine"
+      }
+    },
+    "ltx_layout_single": {
+      "executor": "real",
+      "source": "exemple Lightricks LTX-2.5_ICLoRA_Layout_To_Render_Two_Stage_Distilled.json (Hugging Face Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render), étape 1 seule, euler ; licence LTX-2.x (voir NOTICE.md)",
+      "changes": [
+        "5548:5026 court-circuité (taille native)",
+        "décodage depuis 5516:5000 sortie 2, tuiles 768/192",
+        "9034:* (étape 2) retirés",
+        "branche Gemma API (cloud) retirée",
+        "euler",
+        "SaveVideo -> SaveImage 9990"
+      ],
+      "nodes": {
+        "5001": "vidéo guide (8k+1 images, multiples de 32)",
+        "5508": "consigne",
+        "5509": "négatif",
+        "9009": "image de look (RoPE -1)",
+        "9710": "LoRA personnage (ajoutée)",
+        "5004:5602": "UNET",
+        "5516:4832": "graine",
+        "9800/980a": "clé de raccord à l'image 0 (fenêtres suivantes, ajoutée)"
+      }
+    },
+    "wan_animate2": {
+      "executor": "perform",
+      "source": "gabarit Comfy-Org video_wan_animate2 (workflow_templates, licence MIT), mêmes identifiants de nœuds (pose_end_percent 1)",
+      "changes": [
+        "pose_end_percent 0 -> 1.0",
+        "WanAnimate2Cache gpu / default",
+        "720x1280",
+        "vidéo de comparaison (292, 291:*) retirée",
+        "SaveVideo -> SaveImage 9990 (son remis par Mia depuis la vidéo de mouvement)"
+      ],
+      "nodes": {
+        "189": "personnage",
+        "240": "vidéo de mouvement (16 i/s, 4n+1)",
+        "672:600": "taille",
+        "672:582": "description",
+        "672:585": "action",
+        "672:578": "UNET",
+        "672:597": "graine"
+      }
+    },
+    "seedvr2_native": {
+      "executor": "upscale (modèles int8 de diffusion_models)",
+      "source": "blueprint de ComfyUI blueprints/Upscale Video (SeedVR2 3B Int8).json (licence GPL-3.0, voir NOTICE.md), découpage temporel activé",
+      "nodes": {
+        "1": "LoadVideo (LoadImage pour une image)",
+        "3": "petit côté cible",
+        "8": "UNET SeedVR2",
+        "9990": "PNG"
+      }
+    },
+    "seedvr2_node": {
+      "executor": "upscale (modèle fp8 du dossier SEEDVR2)",
+      "source": "graphe de l’auteur, adapté d’un de ses essais (réglages de l’outil SeedVR2 en ligne de commande, rejoués dans ComfyUI), Apache-2.0",
+      "nodes": {
+        "3": "modèle DiT (seulement un fichier listé par /models/seedvr2)",
+        "5": "résolution, lot, chevauchement, images ajoutées en tête",
+        "9990": "PNG"
+      }
+    },
+    "minimax_r2v": {
+      "executor": "ref2v",
+      "source": "gabarit Comfy-Org video_minimax_h3_r2v (workflow_templates, licence MIT), réécrit à la main",
+      "changes": [
+        "VAE vidéo fp16 (celle du portable) au lieu d’int8",
+        "LoRA turbo 4 pas activé (interrupteur du gabarit à true)",
+        "ResolutionSelector / ComfyMathExpression remplacés par des valeurs calculées par Mia (multiples de 32, 17k+5)",
+        "CreateVideo/SaveVideo -> SaveImage 9990 + SaveAudioAdvanced 9991"
+      ],
+      "nodes": {
+        "1": "UNET ref2va",
+        "2": "LoRA turbo 4 pas",
+        "8": "consigne (<Picture N>, <Video N>), taille, longueur, ref_image_size",
+        "9": "graine",
+        "20-28": "images de référence (ref_images.ref_image_0…8)",
+        "30-35": "vidéos de référence + leur son (ajoutées)"
+      },
+      "requires": "minimax_h3_ref2va_pruned_int8_convrot.safetensors + minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors"
+    },
+    "guided (ltx_layout_single)": {
+      "executor": "guided (LTX)",
+      "source": "LTX IC-LoRA Union-Control appliqué à ltx_layout_single",
+      "changes": [
+        "5004:5606 -> IC-LoRA Union-Control, force = « Fidélité au guide »",
+        "9002:9042 (look en RoPE -1) court-circuité, 9009 retiré",
+        "9002:5012 -> LTXAddVideoICLoRAGuideAdvanced (+ masque d’attention 9701-9703, blanc du masque Mia = libre)",
+        "contours : ImageScaleBy 0,5 + Canny (9730-9731)",
+        "clé à l’image 0 : 9800/9801 (image de départ, puis raccord des tranches)"
+      ]
+    },
+    "guided (minimax_i2v)": {
+      "executor": "guided (MiniMax H3)",
+      "source": "MiniMax H3 + Fun ControlNet appliqué à minimax_i2v",
+      "changes": [
+        "20/21 vidéo de contrôle 24 i/s",
+        "22 ModelPatchLoader Fun ControlNet Union 2.0",
+        "23 MiniMaxH3FunControlNetApply (force = fidélité)",
+        "contours : 24-26 ImageScaleBy 0,5 + Canny + ImageScale",
+        "sans image de départ : 6 et 18 retirés"
+      ]
+    }
+  }
+}
