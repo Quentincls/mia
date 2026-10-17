@@ -38,7 +38,7 @@
 //   --json   : le rapport complet en JSON sur la sortie standard (le déroulé passe sur stderr).
 //   --video  : une vidéo verticale pour les blocs Média ; sans lui, une vidéo de 2 s est fabriquée avec
 //              le ffmpeg de Mia (processeur, quelques dixièmes de seconde) dans --out.
-//   --image  : l'image paysage des blocs Média (par défaut assets/looks.jpg du dépôt).
+//   --image  : l'image paysage des blocs Média (par défaut assets/banner.png du dépôt).
 //   --vues   : garde aussi la fenêtre entière de chaque état mesuré de l'accueil et de la planche (vues/).
 //   --no-shots : sans captures (plus rapide).
 //
@@ -78,7 +78,7 @@ const pad2 = (n) => String(n).padStart(2, '0');
 const now = new Date();
 const STAMP = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}-${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
 const OUT = path.join(path.resolve(opt('--out', path.join(ROOT, '_dev', 'check-overflow'))), STAMP);
-const IMAGE = path.resolve(opt('--image', path.join(ROOT, 'assets', 'looks.jpg')));
+const IMAGE = path.resolve(opt('--image', path.join(ROOT, 'assets', 'banner.png')));
 let VIDEO = opt('--video', null);
 const log = (...a) => (JSON_OUT ? console.error : console.log)(...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
