@@ -152,3 +152,42 @@ fermeture). `POST http://127.0.0.1:<port>/call`, en-tête `Authorization: Bearer
 `{"method":"add_block","params":{…},"client":"Claude"}` → `{ok, result}` / `{ok:false, error}`. Méthode = nom
 de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…). Ou lancer
 `node <Mia>\mcp\mia-mcp.js` comme client stdio. Mode d'emploi : `mcp/README.md` de Mia.
+
+## Bloc Modèle : un bloc par modèle, sur le PC ou en ligne (depuis le 24/10)
+- `mia_add_block {type:"gen", params:{model:"fam:minimax"}}` pose un bloc au nom du modèle (« MiniMax H3 »).
+  Familles du PC : `fam:ltx`, `fam:minimax`, `fam:wan`, `fam:qwen` (ou l'id d'une variante de l'inventaire) ;
+  en ligne (Higgsfield, **payant**) : `hf:seedance-2-5`, `hf:kling-3-0`, `hf:minimax-h3`… — `mia_catalog {type:"gen"}`
+  les donne toutes (`choices` : ce qu'elles font, leurs entrées et maximums, leurs réglages `hf.*`).
+- Ses entrées sont celles de la famille ; **ce qui est branché décide de ce qu'il fait** : rien → vidéo depuis le
+  texte ; `start` (+ `end`) → animer une image ; `refs` / `refVideos` / `refAudios` → références (citées « Image 1 »,
+  « Vidéo 2 » dans la consigne) ; `guide` → vidéo guidée ; `video` (rendu 3D) → photoréaliste ; `character` +
+  `motion` → faire jouer un personnage ; une `video` dans MiniMax → la prolonger. Deux façons qui vont aussi
+  bien : `params.workflow` choisit (`mia_get_board` → `model.otherWays`).
+- **Lis `mia_catalog {type:"gen"}` une fois** : `params[model].choices[].ways` donne, pour chaque modèle, chaque façon
+  de faire avec `needs` (à brancher), `needsOneOf`, `takes` (entrées et combien), `settings` (ses réglages) et
+  `trial` (« à essayer »). `howItWorks` résume la règle. Les réglages hors de la façon choisie sont ignorés.
+- **Relie en nommant le port** (`mia_connect … to:{node, port:"keys"}`) : c'est le port qui décide. Toutes les
+  entrées du modèle se branchent, même celles que l'interface range derrière « + Ajouter » (le fil les montre).
+  Une entrée multiple numérote ses fils dans l'ordre vertical des blocs sources (le plus haut = 1).
+- **Vérifie avec `mia_get_board`** : chaque bloc Modèle a `model` = {family, does, workflow, otherWays, connect
+  (ce qui manque), ignored (branché mais pas pris), trial}. `does` doit être ce que tu voulais avant de lancer.
+- Ce que savent les modèles du PC (entrées du bloc Modèle) :
+  - **LTX 2.5** : `start` (+ `end`, + `keys` jusqu'à 4 images-clés réparties à intervalles égaux entre début et
+    fin) → animer ; rien → depuis le texte ; `guide` → guidée ; `video` (rendu 3D) → photoréaliste. Réglage
+    `enhance` (« Enrichir la consigne » : Gemma réécrit la consigne, la version réécrite est dans les notes).
+    Images-clés : **même cadrage que l'image de début** (cadrée autrement, le plan coupe vers elle).
+  - **MiniMax H3** (15 s, 24 i/s, `resolution` jusqu'à `768`) : `refs` (9 images) / `refVideos` (3) /
+    `refAudios` (3 sons) → références, citées « Image 1 », « Vidéo 2 », « Son 1 » (les sons comptés à part) ;
+    `start`/`end`/`keys` + `audio` (un son à suivre : la vidéo se cale dessus) → animer ; `keys` ou `audio` sans
+    image → depuis le texte ; `guide` → guidée ; `video` → **prolonger** (le résultat est la vidéo entière, rallongée
+    de `duration` secondes).
+  - **Wan Animate 2** : `character` + `motion` ; réglages `motionFidelity` (fidélité au mouvement) et `likeness`
+    (ressemblance), 0 à 2, 1 = normal.
+  - **Qwen Image Edit** : `image` + `ref` (jusqu'à 2 images d'appui) ; la consigne les cite « image 2 », « image 3 »
+    (l'image à retoucher est l'image 1).
+- **« À essayer » (`trial`)** : images-clés de LTX, son à suivre, sons de référence, 768p, consigne enrichie n'ont
+  pas encore été validés à l'œil au labo (prolonger et images-clés de MiniMax : validés le 24/10). Utilise-les quand on te le demande, dis-le, et fais juger
+  le résultat à l'œil (côte à côte avec la source).
+- Un modèle en ligne ne se lance **que si l'utilisateur l'a demandé** (crédits) ; son compte se relie dans Réglages →
+  Comptes en ligne (jamais par l'assistant : la clé ne passe pas par toi). L'aperçu en ligne coûte moins
+  (plus petite résolution, durée la plus courte).

@@ -29,6 +29,9 @@ import { tip } from './tooltip.js';
 import {
   typeOf, types as allTypes, defaults, compatible, recipe as recipeById, recipes as allRecipes
 } from '../catalog.js';
+import { nodeInputs, nodeOutputs, isModelBlock, blockWorkflow } from '../nodes/ports.js';
+import { familyOf, localKeyOf } from '../nodes/route.js';
+import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
 
 register({
   fr: {
@@ -79,6 +82,7 @@ register({
     'presence.err.badNumber': '« {label} » ({key}) : un nombre est attendu.',
     'presence.err.badBool': '« {label} » ({key}) : true ou false.',
     'presence.err.badModel': '« {label} » ({key}) : « {value} » introuvable ou indisponible. Choix : {list}.',
+    'presence.online': 'en ligne, payant',
     'presence.err.noRecipe': 'Recette inconnue : « {q} ». Recettes : {list}.',
     'presence.err.notRunnable': 'Le bloc « {block} » ne se calcule pas (il n’a pas de bouton Lancer).',
     'presence.err.badMode': 'Mode « {mode} » inconnu pour ce bloc. Modes : {list}.',
@@ -144,6 +148,7 @@ register({
     'presence.err.badNumber': '“{label}” ({key}): a number is expected.',
     'presence.err.badBool': '“{label}” ({key}): true or false.',
     'presence.err.badModel': '“{label}” ({key}): “{value}” not found or unavailable. Choices: {list}.',
+    'presence.online': 'online, paid',
     'presence.err.noRecipe': 'Unknown recipe: “{q}”. Recipes: {list}.',
     'presence.err.notRunnable': 'Block “{block}” does not compute (it has no Run button).',
     'presence.err.badMode': 'Unknown mode “{mode}” for this block. Modes: {list}.',
@@ -985,15 +990,21 @@ function describeNode(e, n, R) {
   if (n.collapsed) o.collapsed = true;
   if (def) {
     const ins = e.inputsOf(n.id) || {};
-    o.inputs = (def.inputs || []).map((i) => {
+    // bloc Modèle (SPEC §23) : les entrées de son modèle (rangées ou non), et ce qu'il fait avec ce qui est branché
+    const model = isModelBlock(n);
+    const conn = Object.keys(ins).filter((k) => ins[k] && ins[k].length);
+    o.inputs = (model ? nodeInputs(n, conn, { all: true }) : (def.inputs || [])).map((i) => {
       const p = { port: i.id, type: i.type, label: tl(i.label) };
       if (i.required) p.required = true;
       if (i.multi) { p.multi = true; if (i.max) p.max = i.max; }
+      if (i.unused) p.ignored = true;
+      if (i.trial) p.trial = true;
       p.from = (ins[i.id] || []).map((s) => ({ node: s.node, port: s.port }));
       return p;
     });
-    o.outputs = (def.outputs || []).map((p) => ({ port: p.id, type: e.portType(n.id, p.id, 'out') || p.type, label: tl(p.label) }));
-    o.params = { ...defaults(n.type), ...(n.params || {}) };
+    o.outputs = (model ? nodeOutputs(n) : (def.outputs || [])).map((p) => ({ port: p.id, type: e.portType(n.id, p.id, 'out') || p.type, label: tl(p.label) }));
+    if (model) o.model = modelInfo(n, conn);
+    o.params = shownParams(n, { ...defaults(n.type), ...(n.params || {}) });
   }
   if (n.type === 'import') o.media = mediaOf(n);
   if (def?.engine) {
@@ -1005,6 +1016,35 @@ function describeNode(e, n, R) {
     o.versions = (safe(() => R.list?.(n.id)) || []).length;
   }
   return o;
+}
+
+/**
+ * Réglages montrés à un assistant : tous pour un bloc ordinaire ; pour un bloc Modèle, ceux de son modèle seulement
+ * (les façons de faire de sa famille, ses réglages en ligne hf.*), plus model et workflow.
+ */
+function shownParams(n, params) {
+  if (!isModelBlock(n)) return params;
+  const r = safe(() => blockWorkflow(n, []));
+  if (!r) return params;
+  const keep = new Set(['model', 'workflow', 'prompt']);
+  for (const wf of r.fam.def.workflows || []) for (const p of wf.params || []) keep.add(typeof p === 'string' ? p : p.id);
+  return Object.fromEntries(Object.entries(params).filter(([k]) => keep.has(k) || k.startsWith('hf.')));
+}
+
+/** Bloc Modèle : sa famille, ce qu'il fait avec ses fils, les autres façons possibles, ce qui manque ou est ignoré. */
+function modelInfo(n, conn) {
+  const r = safe(() => blockWorkflow(n, conn));
+  if (!r) return { family: null, problem: 'unknown model: set params.model (mia_catalog → types[gen] params.model.choices)' };
+  const ports = r.workflow.ports || {};
+  const info = { family: r.fam.def.name, where: r.fam.provider === 'local' ? 'local' : 'online (paid)', does: tl(r.workflow.label || {}),
+    workflow: r.workflow.id };
+  const others = (r.ties || []).filter((w) => w.id !== r.workflow.id);
+  if (others.length) info.otherWays = others.map((w) => ({ workflow: w.id, does: tl(w.label || {}) }));
+  if (r.blocked) info.connect = r.missing;
+  if (r.unused?.length) info.ignored = r.unused;
+  const trial = conn.filter((id) => ports[id]?.trial);
+  if (r.workflow.trial || trial.length) info.trial = r.workflow.trial ? 'the whole way' : trial;
+  return info;
 }
 
 function mediaOf(n) {
@@ -1027,6 +1067,24 @@ function safe(fn) { try { return fn(); } catch { return null; } }
 
 function modelChoices(pd) {
   const inv = state.inventory;
+  // bloc Modèle (SPEC §23) : une famille du PC (« fam:minimax », « minimax », « MiniMax H3 »), une variante précise
+  // de l'inventaire, ou une famille en ligne (« hf:seedance-2-5 », « Seedance 2.5 »)
+  if (pd.gen) {
+    const list = [];
+    const fams = localCatalog().families || {};
+    for (const [key, def] of Object.entries(fams)) {
+      if (!Array.isArray(def.workflows) || !def.workflows.length) continue;
+      list.push({ value: `fam:${key}`, label: def.name, names: [`fam:${key}`, key, def.name] });
+      for (const m of inv?.models || []) {
+        if (m.status !== 'ready' || m.hidden || m.license === 'forbidden' || localKeyOf(m, fams) !== key) continue;
+        list.push({ value: m.id, label: tl(m.label) || m.file, names: [m.id, m.file, m.label?.fr, m.label?.en].filter(Boolean) });
+      }
+    }
+    for (const def of cloudCatalog().families || []) {
+      list.push({ value: def.key, label: `${def.name} (${t('presence.online')})`, names: [def.key, def.key.slice(3), def.name] });
+    }
+    return { list, known: true };
+  }
   const caps = pd.caps || [];
   const isLora = caps.includes('lora');
   const list = [];
@@ -1095,10 +1153,20 @@ function coerce(pd, v, block) {
   }
 }
 
-function checkParams(def, params, block) {
+function checkParams(def, params, block, node = null) {
   const errs = [];
   const out = {};
-  const known = def.params || [];
+  let known = def.params || [];
+  // bloc Modèle en ligne : ses réglages « hf.* » sont ceux du schéma de sa famille (cloud-higgsfield.json)
+  if (def.ports === 'model') {
+    const value = params?.model ?? node?.params?.model ?? (def.params || []).find((p) => p.id === 'model')?.default;
+    const fam = familyOf(value, localCatalog(), cloudCatalog(), state.inventory);
+    if (fam && fam.provider !== 'local') {
+      const extra = [];
+      for (const wf of fam.def.workflows || []) for (const p of wf.params || []) if (!extra.some((q) => q.id === p.id)) extra.push(p);
+      known = [...known, ...extra];
+    }
+  }
   for (const [k, v] of Object.entries(params || {})) {
     const pd = known.find((p) => p.id === k);
     if (!pd) {
@@ -1308,9 +1376,10 @@ const METHODS = {
     const node = e.getNode(id);
     return {
       nodeId: id, type: def.id, block: tl(def.label), x: node.x, y: node.y,
-      inputs: (def.inputs || []).map((i) => ({ port: i.id, type: i.type, label: tl(i.label), ...(i.required ? { required: true } : {}), ...(i.multi ? { multi: true, max: i.max || null } : {}) })),
-      outputs: (def.outputs || []).map((o) => ({ port: o.id, type: e.portType(id, o.id, 'out') || o.type, label: tl(o.label) })),
-      params: { ...defaults(def.id), ...(node.params || {}) },
+      // un bloc Modèle n'a que les entrées de son modèle (SPEC §23), rangées ou non
+      inputs: nodeInputs(node, [], { all: true }).map((i) => ({ port: i.id, type: i.type, label: tl(i.label), ...(i.required ? { required: true } : {}), ...(i.multi ? { multi: true, max: i.max || null } : {}) })),
+      outputs: nodeOutputs(node).map((o) => ({ port: o.id, type: e.portType(id, o.id, 'out') || o.type, label: tl(o.label) })),
+      params: shownParams(node, { ...defaults(def.id), ...(node.params || {}) }),
       notes: hiddenNotes(def, params)
     };
   },
@@ -1320,8 +1389,8 @@ const METHODS = {
     const from = endOf(p.from), to = endOf(p.to);
     const A = nodeOf(e, from.node), B = nodeOf(e, to.node);
     if (A.id === B.id) fail('selfWire');
-    const dA = typeOf(A.type), dB = typeOf(B.type);
-    const outs = dA?.outputs || [], ins = dB?.inputs || [];
+    // entrées et sorties telles que le bloc les montre (un bloc Modèle : celles de son modèle, SPEC §23)
+    const outs = nodeOutputs(A), ins = nodeInputs(B, [], { all: true });
     const a = blockName(A), b = blockName(B);
     if (!outs.length) fail('noOutputs', { block: a });
     if (!ins.length) fail('noInputs', { block: b });
@@ -1380,7 +1449,7 @@ const METHODS = {
     const e = await board(p, { write: true });
     const n = nodeOf(e, p.nodeId);
     const def = typeOf(n.type);
-    const clean = checkParams(def || { params: [] }, p.params || {}, blockName(n));
+    const clean = checkParams(def || { params: [] }, p.params || {}, blockName(n), n);
     if (!Object.keys(clean).length) return { nodeId: n.id, params: { ...defaults(n.type), ...(n.params || {}) } };
     await ensureVisible(e, boxOf(e, n));
     const controls = safe(() => e.slotEls(n.id)?.controls) || '.nb-foot';

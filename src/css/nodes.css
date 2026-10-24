@@ -406,6 +406,85 @@ body {
 .mp-foot:hover { color: var(--txt); background: var(--wash); }
 .mp-foot svg { width: 12px; height: 12px; }
 
+/* ── carte de modèle (tête d'un bloc de génération, SPEC §22) ────────── */
+.np-row.np-lead { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 2px 0 6px; }
+.np-row.np-lead > .np-note { padding: 0 2px; }
+/* pastille du fabricant : monogramme mono, jamais de couleur de marque */
+.mp-mark {
+  flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--line-2); color: var(--txt-2);
+  font: 600 9.5px/1 var(--nb-mono); letter-spacing: .02em;
+}
+.mp-mark.lg { width: 28px; height: 28px; border-radius: 7px; font-size: 10.5px; }
+.mp-mark.sm { width: 20px; height: 20px; border-radius: 5px; font-size: 8.5px; margin-top: -1px; }
+.mp-trigger.mp-card { height: auto; min-height: 44px; padding: 7px 8px 7px 8px; gap: 9px; border-radius: 9px; }
+.mp-card-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mp-card-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
+/* le nom du modèle passe sur deux lignes dans un bloc étroit plutôt que d'être coupé */
+.mp-card .mp-text {
+  flex: 0 1 auto; font-size: 13px; font-weight: 600; line-height: 1.25; color: var(--txt);
+  white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+.mp-card.muted .mp-text { color: var(--txt-3); }
+.mp-auto, .mp-chips {
+  font: 500 9px/1 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; color: var(--txt-3); white-space: nowrap;
+}
+.mp-auto { flex: none; padding: 3px 4px 2px; border-radius: 4px; border: 1px solid var(--line-2); }
+.mp-auto[hidden], .mp-chips[hidden] { display: none; }
+/* bloc étroit : les puces passent à la ligne plutôt que d'être coupées */
+.mp-chips { min-width: 0; white-space: normal; line-height: 1.35; overflow-wrap: anywhere; }
+
+/* ── panneau Local | Cloud ──────────────────────────────────────────── */
+.mp-pop.mp-panel { max-height: min(580px, 80vh); }
+.mp-head { flex: none; display: flex; flex-direction: column; gap: 7px; padding: 8px 8px 7px; border-bottom: 1px solid var(--line); }
+.mp-search {
+  display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 9px; border-radius: 8px;
+  background: var(--surface-3); border: 1px solid var(--line); cursor: text;
+  transition: border-color var(--nb-dur) var(--nb-ease);
+}
+.mp-search:focus-within { border-color: var(--line-strong); }
+.mp-search-ico { display: grid; color: var(--txt-3); }
+.mp-search-ico svg { width: 14px; height: 14px; }
+.mp-search-in { flex: 1 1 auto; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--txt); font-size: 12.5px; }
+.mp-search-in::placeholder { color: var(--txt-3); }
+.mp-tabs .seg { width: 100%; }
+.mp-autorow { display: flex; align-items: center; gap: 12px; padding: 7px 9px 10px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
+.mp-autorow .mp-main { gap: 3px; }
+.mp-family { padding: 4px 0 2px; }
+.mp-family + .mp-family, .mp-group + .mp-family, .mp-family + .mp-group { border-top: 1px solid var(--line); margin-top: 4px; }
+.mp-famhead { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 7px 9px 3px; }
+.mp-famname { flex: 0 1 auto; min-width: 0; font-size: 12.5px; font-weight: 650; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-maker {
+  flex: 0 100 auto; min-width: 0; font: 500 9px/1 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mp-famhead .mp-badge { margin-left: auto; flex: none; }
+/* « à quoi ça sert » : sous le nom de la famille, aligné sur lui */
+.mp-famdesc { padding: 1px 9px 5px 41px; font-size: 11px; line-height: 1.4; color: var(--txt-2); }
+.mp-family .mp-var { padding-left: 19px; }
+.mp-var .mp-side { flex-direction: row; align-items: center; gap: 4px; padding-top: 0; align-self: center; }
+.mp-pin {
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; color: var(--txt-3);
+  opacity: 0; transition: opacity var(--nb-dur) var(--nb-ease), background var(--nb-dur) var(--nb-ease);
+}
+.mp-pin svg { width: 13px; height: 13px; }
+.mp-row:hover .mp-pin, .mp-row.focus .mp-pin, .mp-pin.on { opacity: 1; }
+.mp-pin.on { color: var(--txt-2); }
+.mp-row[data-value]:hover .mp-pin, .mp-row.focus .mp-pin { color: #fff; }
+.mp-pin:hover { background: rgba(255, 255, 255, .16); }
+.mp-row.pinned { align-items: center; }
+/* « Pas pour ce bloc » : les modèles du PC qui ne savent pas faire ce bloc, et où ils servent */
+.mp-group.mp-group-other { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 11px; }
+.mp-other-sub { padding: 0 9px 4px; font-size: 11px; line-height: 1.4; color: var(--txt-3); }
+.mp-row.mp-other { align-items: center; }
+.mp-row.mp-other.greyed { opacity: .72; }
+.mp-cloud { margin: 6px 4px 4px; padding: 3px 0 11px; border: 1px dashed var(--line-2); border-radius: 10px; }
+.mp-cloud-foot { padding: 4px 9px 0 41px; }
+.mp-cloud-btn {
+  height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line-2);
+  font-size: 12px; color: var(--txt-3); cursor: default;
+}
+
 /* ── pied du bloc : estimation + lancer ─────────────────────────────── */
 .nb-foot {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -745,3 +824,24 @@ body {
   .nb-layer, .nb-badge, .media-ctl.pl { transition: none; }
   #viewer.vw.in, #inspector.insp.enter, .mp-pop, .pl-play.pl-morph svg, .pl-count.pl-tick, .pl-speed.pl-pop { animation: none; }
 }
+
+/* ── bloc Modèle (SPEC §23) ──────────────────────────────────────────── */
+/* ses réglages se refont quand le modèle ou les fils changent : l'enveloppe ne compte pas dans la mise en page */
+.np-gen { display: contents; }
+/* « Ce que fait le bloc » : le nom de la façon de faire, ou le choix quand deux vont aussi bien */
+.np-row.np-wfrow .np-wf { display: flex; align-items: center; min-width: 0; width: 100%; }
+.np-row.np-wfrow .np-wf > .seg { width: 100%; min-width: 0; }
+.np-wf-name { min-width: 0; font-size: 12px; font-weight: 600; line-height: 1.3; color: var(--txt); overflow-wrap: anywhere; }
+.np-wf-name[hidden] { display: none; }
+.np-wf-trial { flex: none; margin-left: 8px; }
+.np-wf-trial[hidden] { display: none; }
+.np-row.np-wfrow.blocked .np-wf-name { color: var(--txt-3); }
+/* panneau des familles : variantes sous leur famille, l'aide de MiniMax, le bandeau du compte en ligne */
+.mp-row.mp-indent { padding-left: 37px; }
+.mp-famdesc.mp-hint { color: var(--txt-3); padding-top: 2px; }
+.mp-cloudbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 4px 6px; padding: 9px 10px;
+  border-radius: 9px; border: 1px dashed var(--line-2); font-size: 11.5px; line-height: 1.4; color: var(--txt-2);
+}
+.mp-cloud-btn.on { flex: none; color: var(--txt); cursor: pointer; transition: background var(--nb-dur) var(--nb-ease); }
+.mp-cloud-btn.on:hover { background: var(--wash); }

@@ -172,23 +172,24 @@
       "engine": null
     },
     {
-      "id": "i2v",
+      "id": "gen",
       "category": "generate",
-      "icon": "animate",
+      "icon": "model",
       "width": 336,
       "label": {
-        "fr": "Animer une image",
-        "en": "Animate an image"
+        "fr": "Modèle",
+        "en": "Model"
       },
       "desc": {
-        "fr": "Transforme une image en courte vidéo. Une image de fin dit où la scène doit arriver.",
-        "en": "Turns an image into a short video. An end image tells where the shot must land."
+        "fr": "Un bloc par modèle (LTX, MiniMax, Seedance, Kling…) : ses entrées et ses réglages suivent ce qu’il sait faire, et ce que tu branches décide de ce qu’il fait.",
+        "en": "One block per model (LTX, MiniMax, Seedance, Kling…): its inputs and settings follow what it can do, and what you connect decides what it does."
       },
+      "ports": "model",
       "inputs": [
         {
           "id": "start",
           "type": "image",
-          "required": true,
+          "required": false,
           "label": {
             "fr": "Image de début",
             "en": "Start image"
@@ -208,6 +209,17 @@
           }
         },
         {
+          "id": "keys",
+          "type": "image",
+          "required": false,
+          "multi": true,
+          "max": 4,
+          "label": {
+            "fr": "Images-clés",
+            "en": "Keyframes"
+          }
+        },
+        {
           "id": "sheet",
           "type": "image",
           "required": false,
@@ -218,6 +230,122 @@
           "hint": {
             "fr": "Une image qui montre ton personnage ou tes objets (plusieurs vues sur une même image). LTX s’en inspire sur tout le plan. Ignorée avec MiniMax.",
             "en": "One image showing your character or objects (several views on one image). LTX follows it through the shot. Ignored with MiniMax."
+          }
+        },
+        {
+          "id": "refs",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Images de référence",
+            "en": "Reference images"
+          },
+          "multi": true,
+          "max": 50
+        },
+        {
+          "id": "refVideos",
+          "type": "video",
+          "required": false,
+          "label": {
+            "fr": "Vidéos de référence",
+            "en": "Reference videos"
+          },
+          "multi": true,
+          "max": 10
+        },
+        {
+          "id": "refAudios",
+          "type": "audio",
+          "required": false,
+          "label": {
+            "fr": "Sons de référence",
+            "en": "Reference sounds"
+          },
+          "multi": true,
+          "max": 10
+        },
+        {
+          "id": "video",
+          "type": "video",
+          "required": false,
+          "label": {
+            "fr": "Vidéo source",
+            "en": "Source video"
+          }
+        },
+        {
+          "id": "guide",
+          "type": "video",
+          "required": false,
+          "label": {
+            "fr": "Vidéo guide",
+            "en": "Guide video"
+          }
+        },
+        {
+          "id": "look",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Image de look",
+            "en": "Look image"
+          }
+        },
+        {
+          "id": "mask",
+          "type": "media",
+          "required": false,
+          "label": {
+            "fr": "Zone libre",
+            "en": "Free area"
+          }
+        },
+        {
+          "id": "character",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Personnage",
+            "en": "Character"
+          }
+        },
+        {
+          "id": "motion",
+          "type": "video",
+          "required": false,
+          "label": {
+            "fr": "Vidéo de mouvement",
+            "en": "Motion video"
+          }
+        },
+        {
+          "id": "image",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Image à retoucher",
+            "en": "Image to edit"
+          }
+        },
+        {
+          "id": "ref",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Images d’appui",
+            "en": "Helper images"
+          },
+          "multi": true,
+          "max": 2
+        },
+        {
+          "id": "audio",
+          "type": "audio",
+          "required": false,
+          "label": {
+            "fr": "Son",
+            "en": "Sound"
           }
         },
         {
@@ -232,15 +360,40 @@
       ],
       "outputs": [
         {
-          "id": "video",
-          "type": "video",
+          "id": "out",
+          "type": "model",
           "label": {
-            "fr": "Vidéo",
-            "en": "Video"
+            "fr": "Résultat",
+            "en": "Result"
           }
         }
       ],
       "params": [
+        {
+          "id": "model",
+          "kind": "model",
+          "gen": true,
+          "default": "fam:ltx",
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          },
+          "caps": [
+            "image-to-video",
+            "text-to-video",
+            "3d-to-real",
+            "guided-video",
+            "reference-to-video",
+            "character-performance",
+            "image-edit"
+          ],
+          "limits": [
+            "seconds",
+            "resolutions",
+            "fps",
+            "audio"
+          ]
+        },
         {
           "id": "prompt",
           "kind": "prompt",
@@ -256,17 +409,28 @@
           }
         },
         {
+          "id": "negative",
+          "kind": "prompt",
+          "default": "text, watermark, cuts",
+          "advanced": true,
+          "label": {
+            "fr": "À éviter",
+            "en": "Avoid"
+          }
+        },
+        {
           "id": "duration",
           "kind": "slider",
           "min": 2,
-          "max": 10,
+          "max": 15,
           "step": 1,
           "default": 5,
           "unit": "s",
           "label": {
             "fr": "Durée",
             "en": "Duration"
-          }
+          },
+          "limit": "seconds"
         },
         {
           "id": "format",
@@ -356,6 +520,13 @@
               }
             },
             {
+              "value": "768",
+              "label": {
+                "fr": "768p",
+                "en": "768p"
+              }
+            },
+            {
               "value": "1080",
               "label": {
                 "fr": "1080p",
@@ -366,7 +537,483 @@
           "hint": {
             "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
             "en": "Previews stay low resolution; the resolution applies to the final render."
+          },
+          "limit": "resolutions"
+        },
+        {
+          "id": "fps",
+          "kind": "select",
+          "default": 24,
+          "advanced": true,
+          "label": {
+            "fr": "Cadence",
+            "en": "Frame rate"
+          },
+          "options": [
+            {
+              "value": 24,
+              "label": {
+                "fr": "24 i/s",
+                "en": "24 fps"
+              }
+            },
+            {
+              "value": 25,
+              "label": {
+                "fr": "25 i/s",
+                "en": "25 fps"
+              }
+            },
+            {
+              "value": 30,
+              "label": {
+                "fr": "30 i/s",
+                "en": "30 fps"
+              }
+            }
+          ],
+          "limit": "fps"
+        },
+        {
+          "id": "follow",
+          "kind": "seg",
+          "default": "depth",
+          "label": {
+            "fr": "Suivre",
+            "en": "Follow"
+          },
+          "options": [
+            {
+              "value": "depth",
+              "label": {
+                "fr": "Profondeur",
+                "en": "Depth"
+              }
+            },
+            {
+              "value": "edges",
+              "label": {
+                "fr": "Contours",
+                "en": "Outlines"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Profondeur : garde les volumes et la caméra. Contours : garde aussi les détails des formes.",
+            "en": "Depth: keeps volumes and camera. Outlines: also keeps the shapes’ details."
           }
+        },
+        {
+          "id": "strength",
+          "kind": "slider",
+          "min": 0.3,
+          "max": 1.5,
+          "step": 0.05,
+          "default": 1,
+          "label": {
+            "fr": "Fidélité au guide",
+            "en": "Guide fidelity"
+          }
+        },
+        {
+          "id": "keepBlacks",
+          "kind": "toggle",
+          "default": true,
+          "label": {
+            "fr": "Garder les zones noires",
+            "en": "Keep black areas"
+          },
+          "hint": {
+            "fr": "L’IA a tendance à éclaircir les zones très sombres (ciel de nuit, ombres, fond noir) ou à y inventer des détails. Activé, Mia remet le noir de ta vidéo partout où elle était noire.",
+            "en": "The AI tends to brighten very dark areas (night sky, shadows, black background) or invent detail there. On, Mia puts your video’s black back wherever it was black."
+          }
+        },
+        {
+          "id": "fidelity",
+          "kind": "seg",
+          "default": "match",
+          "advanced": true,
+          "label": {
+            "fr": "Fidélité des références",
+            "en": "Reference fidelity"
+          },
+          "options": [
+            {
+              "value": "match",
+              "label": {
+                "fr": "Normale",
+                "en": "Normal"
+              }
+            },
+            {
+              "value": "max",
+              "label": {
+                "fr": "Maximale (plus lent)",
+                "en": "Maximum (slower)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "speed",
+          "kind": "seg",
+          "default": "fast",
+          "label": {
+            "fr": "Vitesse",
+            "en": "Speed"
+          },
+          "options": [
+            {
+              "value": "fast",
+              "label": {
+                "fr": "Rapide",
+                "en": "Fast"
+              }
+            },
+            {
+              "value": "quality",
+              "label": {
+                "fr": "Qualité",
+                "en": "Quality"
+              }
+            }
+          ]
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "motionFidelity",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "advanced": true,
+          "label": {
+            "fr": "Fidélité au mouvement",
+            "en": "Motion fidelity"
+          },
+          "hint": {
+            "fr": "1 = normal. Moins : le personnage bouge plus librement. Plus : il colle au geste de la vidéo.",
+            "en": "1 = normal. Lower: the character moves more freely. Higher: it sticks to the video’s gesture."
+          }
+        },
+        {
+          "id": "likeness",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "advanced": true,
+          "label": {
+            "fr": "Ressemblance au personnage",
+            "en": "Character likeness"
+          },
+          "hint": {
+            "fr": "1 = normal. Moins : la consigne peut changer son allure. Plus : il reste fidèle à son image.",
+            "en": "1 = normal. Lower: the prompt may change how it looks. Higher: it stays true to its picture."
+          }
+        },
+        {
+          "id": "enhance",
+          "kind": "toggle",
+          "default": false,
+          "advanced": true,
+          "label": {
+            "fr": "Enrichir la consigne",
+            "en": "Enrich the prompt"
+          },
+          "hint": {
+            "fr": "Gemma réécrit ta consigne en anglais détaillé avant le calcul ; la version réécrite est dans les notes du résultat. À essayer.",
+            "en": "Gemma rewrites your prompt as detailed English before the run; the rewritten version is in the result’s notes. To try."
+          }
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        },
+        {
+          "id": "workflow",
+          "kind": "workflow",
+          "default": "",
+          "advanced": false,
+          "label": {
+            "fr": "Ce que fait le bloc",
+            "en": "What the block does"
+          },
+          "hint": {
+            "fr": "Mia le déduit de ce que tu branches : une image de début, il l’anime ; des références, il les mélange ; une vidéo guide, il la suit ; rien, il part du texte. Quand deux façons vont aussi bien, tu choisis ici.",
+            "en": "Mia works it out from what you connect: a start image, it animates it; references, it mixes them; a guide video, it follows it; nothing, it starts from the text. When two ways fit as well, you choose here."
+          }
+        }
+      ],
+      "modes": [
+        "preview",
+        "final"
+      ],
+      "engine": {
+        "executor": "gen",
+        "gpu": "auto"
+      },
+      "estimate": {
+        "preview": {
+          "fr": "≈ 1 min",
+          "en": "≈ 1 min"
+        },
+        "final": {
+          "fr": "selon le modèle",
+          "en": "depends on the model"
+        }
+      }
+    },
+    {
+      "id": "i2v",
+      "category": "generate",
+      "icon": "animate",
+      "width": 336,
+      "label": {
+        "fr": "Animer une image",
+        "en": "Animate an image"
+      },
+      "desc": {
+        "fr": "Transforme une image en courte vidéo. Une image de fin dit où la scène doit arriver.",
+        "en": "Turns an image into a short video. An end image tells where the shot must land."
+      },
+      "inputs": [
+        {
+          "id": "start",
+          "type": "image",
+          "required": true,
+          "label": {
+            "fr": "Image de début",
+            "en": "Start image"
+          }
+        },
+        {
+          "id": "end",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Image de fin",
+            "en": "End image"
+          },
+          "hint": {
+            "fr": "Conseillée : le texte seul ne place pas l’action.",
+            "en": "Recommended: text alone does not place the action."
+          }
+        },
+        {
+          "id": "sheet",
+          "type": "image",
+          "required": false,
+          "label": {
+            "fr": "Fiche de référence",
+            "en": "Reference sheet"
+          },
+          "hint": {
+            "fr": "Une image qui montre ton personnage ou tes objets (plusieurs vues sur une même image). LTX s’en inspire sur tout le plan. Ignorée avec MiniMax.",
+            "en": "One image showing your character or objects (several views on one image). LTX follows it through the shot. Ignored with MiniMax."
+          }
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": {
+            "fr": "Vidéo",
+            "en": "Video"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ce qui se passe, la caméra, la lumière… (en anglais)",
+            "en": "What happens, camera, light…"
+          }
+        },
+        {
+          "id": "duration",
+          "kind": "slider",
+          "min": 2,
+          "max": 15,
+          "step": 1,
+          "default": 5,
+          "unit": "s",
+          "label": {
+            "fr": "Durée",
+            "en": "Duration"
+          },
+          "limit": "seconds"
+        },
+        {
+          "id": "format",
+          "kind": "select",
+          "default": "auto",
+          "label": {
+            "fr": "Format",
+            "en": "Format"
+          },
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "fr": "Comme l’image de début",
+                "en": "Same as the start image"
+              }
+            },
+            {
+              "value": "16:9",
+              "label": {
+                "fr": "16:9 · horizontal",
+                "en": "16:9 · landscape"
+              }
+            },
+            {
+              "value": "9:16",
+              "label": {
+                "fr": "9:16 · vertical",
+                "en": "9:16 · portrait"
+              }
+            },
+            {
+              "value": "1:1",
+              "label": {
+                "fr": "1:1 · carré",
+                "en": "1:1 · square"
+              }
+            },
+            {
+              "value": "4:3",
+              "label": {
+                "fr": "4:3",
+                "en": "4:3"
+              }
+            },
+            {
+              "value": "3:4",
+              "label": {
+                "fr": "3:4",
+                "en": "3:4"
+              }
+            },
+            {
+              "value": "21:9",
+              "label": {
+                "fr": "21:9 · cinéma",
+                "en": "21:9 · cinema"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Si le format diffère de l’image, elle est recadrée au centre.",
+            "en": "If the format differs from the image, it is cropped to the centre."
+          }
+        },
+        {
+          "id": "resolution",
+          "kind": "seg",
+          "default": "720",
+          "label": {
+            "fr": "Résolution",
+            "en": "Resolution"
+          },
+          "options": [
+            {
+              "value": "540",
+              "label": {
+                "fr": "540p",
+                "en": "540p"
+              }
+            },
+            {
+              "value": "720",
+              "label": {
+                "fr": "720p",
+                "en": "720p"
+              }
+            },
+            {
+              "value": "768",
+              "label": {
+                "fr": "768p",
+                "en": "768p"
+              }
+            },
+            {
+              "value": "1080",
+              "label": {
+                "fr": "1080p",
+                "en": "1080p"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
+            "en": "Previews stay low resolution; the resolution applies to the final render."
+          },
+          "limit": "resolutions"
         },
         {
           "id": "lora",
@@ -416,7 +1063,13 @@
           "label": {
             "fr": "Modèle",
             "en": "Model"
-          }
+          },
+          "limits": [
+            "seconds",
+            "resolutions",
+            "fps",
+            "audio"
+          ]
         },
         {
           "id": "fps",
@@ -449,7 +1102,8 @@
                 "en": "30 fps"
               }
             }
-          ]
+          ],
+          "limit": "fps"
         },
         {
           "id": "seed",
@@ -542,7 +1196,8 @@
           "label": {
             "fr": "Durée",
             "en": "Duration"
-          }
+          },
+          "limit": "seconds"
         },
         {
           "id": "format",
@@ -631,7 +1286,8 @@
           "hint": {
             "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
             "en": "Previews stay low resolution; the resolution applies to the final render."
-          }
+          },
+          "limit": "resolutions"
         },
         {
           "id": "lora",
@@ -682,7 +1338,12 @@
           "label": {
             "fr": "Modèle",
             "en": "Model"
-          }
+          },
+          "limits": [
+            "seconds",
+            "resolutions",
+            "audio"
+          ]
         },
         {
           "id": "negative",
@@ -769,6 +1430,21 @@
           }
         },
         {
+          "id": "refAudios",
+          "type": "audio",
+          "required": false,
+          "multi": true,
+          "max": 3,
+          "label": {
+            "fr": "Sons de référence",
+            "en": "Reference sounds"
+          },
+          "hint": {
+            "fr": "Jusqu’à 3, 15 s au plus : une voix, une musique, un bruitage. Cités « Son 1 »…",
+            "en": "Up to 3, 15 s at most: a voice, music, a sound effect. Named “Sound 1”…"
+          }
+        },
+        {
           "id": "prompt",
           "type": "text",
           "required": false,
@@ -812,14 +1488,15 @@
           "id": "duration",
           "kind": "slider",
           "min": 2,
-          "max": 10,
+          "max": 15,
           "step": 1,
           "default": 5,
           "unit": "s",
           "label": {
             "fr": "Durée",
             "en": "Duration"
-          }
+          },
+          "limit": "seconds"
         },
         {
           "id": "format",
@@ -896,8 +1573,16 @@
                 "fr": "720p",
                 "en": "720p"
               }
+            },
+            {
+              "value": "768",
+              "label": {
+                "fr": "768p",
+                "en": "768p"
+              }
             }
-          ]
+          ],
+          "limit": "resolutions"
         },
         {
           "id": "fidelity",
@@ -936,7 +1621,12 @@
           "label": {
             "fr": "Modèle",
             "en": "Model"
-          }
+          },
+          "limits": [
+            "seconds",
+            "resolutions",
+            "audio"
+          ]
         },
         {
           "id": "seed",
@@ -1291,13 +1981,21 @@
               }
             },
             {
+              "value": "768",
+              "label": {
+                "fr": "768p",
+                "en": "768p"
+              }
+            },
+            {
               "value": "1080",
               "label": {
                 "fr": "1080p",
                 "en": "1080p"
               }
             }
-          ]
+          ],
+          "limit": "resolutions"
         },
         {
           "id": "lora",
@@ -1348,7 +2046,10 @@
           "label": {
             "fr": "Modèle",
             "en": "Model"
-          }
+          },
+          "limits": [
+            "resolutions"
+          ]
         },
         {
           "id": "seed",
@@ -1503,6 +2204,40 @@
           }
         },
         {
+          "id": "motionFidelity",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "advanced": true,
+          "label": {
+            "fr": "Fidélité au mouvement",
+            "en": "Motion fidelity"
+          },
+          "hint": {
+            "fr": "1 = normal. Moins : le personnage bouge plus librement. Plus : il colle au geste de la vidéo.",
+            "en": "1 = normal. Lower: the character moves more freely. Higher: it sticks to the video’s gesture."
+          }
+        },
+        {
+          "id": "likeness",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "advanced": true,
+          "label": {
+            "fr": "Ressemblance au personnage",
+            "en": "Character likeness"
+          },
+          "hint": {
+            "fr": "1 = normal. Moins : la consigne peut changer son allure. Plus : il reste fidèle à son image.",
+            "en": "1 = normal. Lower: the prompt may change how it looks. Higher: it stays true to its picture."
+          }
+        },
+        {
           "id": "seed",
           "kind": "seed",
           "default": 42,
@@ -1559,9 +2294,15 @@
           "id": "ref",
           "type": "image",
           "required": false,
+          "multi": true,
+          "max": 2,
           "label": {
-            "fr": "Référence",
-            "en": "Reference"
+            "fr": "Images d’appui",
+            "en": "Helper images"
+          },
+          "hint": {
+            "fr": "Jusqu’à 2 : une tenue, un objet, un style à reprendre. Cite-les « image 2 », « image 3 » (l’image à retoucher est l’image 1).",
+            "en": "Up to 2: an outfit, an object, a style to take up. Name them “image 2”, “image 3” (the image to edit is image 1)."
           }
         },
         {

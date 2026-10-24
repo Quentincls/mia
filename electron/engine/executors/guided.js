@@ -32,7 +32,6 @@ const PREVIEW_FRAMES = 49;
 const PREVIEW_SHORT = 544;
 const MM_MAX_S = 15;
 const MM_PREVIEW_S = 3;
-const MM_MAX_PIXELS = 704 * 1248;
 const CANNY = { low_threshold: 0.4, high_threshold: 0.8 };   // ComfyUI's / the official LTX canny template's
 const GUIDE_PASSTHROUGH = { 0: 'positive', 1: 'negative', 2: 'latent' };
 
@@ -254,10 +253,10 @@ function mmPlan(x, meta) {
   const cap = preview ? MM_PREVIEW_S : MM_MAX_S;
   const seconds = Math.min(srcS, cap);
   const frames = E.minimaxLength(seconds, true);
-  const short = Math.min(704, E.shortSide(x, { preview, previewCap: 448 }));
+  const mmc = E.minimaxCanvas(x, { preview, previewCap: 448 });
   const ratio = meta.w > 0 && meta.h > 0 ? meta.w / meta.h : 16 / 9;
-  const { w, h } = E.videoSize({ ratio, short, exact: false, maxPixels: MM_MAX_PIXELS });
-  return { preview, frames, w, h, cut: !preview && srcS > MM_MAX_S + 0.05, srcFps: fps };
+  const { w, h } = E.videoSize({ ratio, short: mmc.short, exact: false, maxPixels: mmc.maxPixels });
+  return { preview, frames, w, h, cut: !preview && srcS > MM_MAX_S + 0.05, srcFps: fps, native: mmc.native };
 }
 
 async function runMinimax(x, c) {
@@ -314,6 +313,7 @@ async function runMinimax(x, c) {
   await E.framesToVideo(x, shots, dst, { fps: 24, audio: sound ? sound.abs : null, range: [0.93, 1], msg: E.t('encoding') });
   notes.unshift(E.t(TXT.mmSize, { w, h, frames: shots.length, s: E.dec(shots.length / 24) }));
   if (pl.cut) notes.push(E.t(TXT.mmCut, { s: MM_MAX_S }));
+  if (pl.native) notes.push(E.t('minimax768'));
   return {
     outputs: { video: { abs: dst, kind: 'video', meta: { w, h, fps: 24, frames: shots.length } } },
     model: E.labelOf(c.m, E.t(TXT.minimax)),

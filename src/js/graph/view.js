@@ -15,6 +15,10 @@ import { icon } from '../icons.js';
 import { fmtClock } from '../util.js';
 import { typeOf, typeLabel, inputDefs, outputDefs } from '../catalog.js';
 import { ms, reduced, play, replayClass } from '../ui/motion.js';
+import { tip } from '../ui/tooltip.js';
+import { nodeInputs, nodeOutputs, isModelBlock, portsSignature, modelBlockTitle, hiddenInputs } from '../nodes/ports.js';
+import { openAddInput } from '../nodes/addinput.js';
+import { portTip } from '../nodes/porthelp.js';
 
 const BORDER = 1;          // filet de la carte (unités monde)
 const HEAD_H = 36;         // --node-head-h
@@ -39,6 +43,7 @@ export const displayTitle = (node) => node.title
     (node.data?.role && tl(node.data.role))
     || (node.data?.placeholder && tl(node.data.placeholder))
     || node.data?.name))
+  || (isModelBlock(node) && modelBlockTitle(node))       // bloc Modèle : le nom de sa famille (SPEC §23)
   || typeLabel(node.type) || node.type;
 
 /** Le titre « par défaut » (sans nom donné par Quentin) : revenir à lui = effacer le titre. */
@@ -80,6 +85,8 @@ export class NodeView {
     this.glyphEl.innerHTML = glyph(this.type?.icon || 'g-unknown', 14);
     this.thumb = h('span', 'n-thumb');
     this.titleEl = h('span', 'n-title');
+    // un titre coupé par « … » (carte étroite, nom long) se lit en entier au survol
+    tip(this.titleEl, () => (!this.renaming && this.titleEl.scrollWidth > this.titleEl.clientWidth + 1 ? this.titleEl.textContent : ''));
     this.staleEl = h('span', 'n-stale');
     this.staleEl.dataset.tip = t('graph.stale');
     this.stateEl = h('span', 'n-state');
@@ -139,8 +146,18 @@ export class NodeView {
 
   // ── ports ──
 
+  /** Entrées reliées de ce bloc (un bloc Modèle garde, grisées, celles que son modèle ne prend pas). */
+  _connected() {
+    const out = [];
+    for (const e of this.ed.doc.edges) if (e.to.node === this.id && !out.includes(e.to.port)) out.push(e.to.port);
+    return out;
+  }
+
   _buildPorts(node) {
-    const ins = inputDefs(node.type), outs = outputDefs(node.type);
+    const connected = this._connected();
+    const opts = this._portOpts();
+    const ins = nodeInputs(node, connected, opts), outs = nodeOutputs(node);
+    this._portsSig = portsSignature(node, connected, opts);
     this.portsEl.replaceChildren();
     this.ports.in.clear();
     this.ports.out.clear();
@@ -149,6 +166,21 @@ export class NodeView {
       const row = h('div', 'n-row');
       if (ins[i]) row.append(this._port(ins[i], 'in'));
       if (outs[i]) row.append(this._port(outs[i], 'out'));
+      this.portsEl.append(row);
+    }
+    // bloc Modèle : « + Ajouter » une entrée que le modèle sait prendre (le reste du temps, elles restent rangées)
+    if (isModelBlock(node) && !this.reveal?.length && hiddenInputs(node, connected).length) {
+      const add = h('button', 'n-add', { type: 'button' });
+      add.innerHTML = `${glyph('plus', 13)}<span>${t('graph.port.add')}</span>`;
+      add.dataset.tip = t('graph.port.addTip');
+      add.addEventListener('pointerdown', (e) => e.stopPropagation());
+      add.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.ed.readonly) return;
+        openAddInput(this.ed.doc.node(this.id), add, hiddenInputs(this.ed.doc.node(this.id), this._connected()), (id) => this._showPort(id, true));
+      });
+      const row = h('div', 'n-row n-addrow');
+      row.append(add);
       this.portsEl.append(row);
     }
     this.el.classList.toggle('no-ports', rows === 0);
@@ -161,13 +193,57 @@ export class NodeView {
     p.dataset.port = def.id;
     p.dataset.dir = dir;
     if (def.multi) p.dataset.multi = '';
+    if (def.unused) p.classList.add('unused');
+    if (def.peek) p.classList.add('peek');
     const dot = h('i', 'dot');
     const lbl = h('span', 'lbl');
     lbl.textContent = tl(def.label);
-    if (def.hint) lbl.dataset.tip = tl(def.hint);
+    // au survol : ce qu'est l'entrée, à quoi elle sert, et ce que le modèle du bloc en fait (porthelp.js)
+    tip(p, () => {
+      const node = this.ed.doc.node(this.id);
+      const r = portTip(node, def, dir, p.dataset.t || def.type);
+      if (r && def.unused) r.body = t('graph.port.unused');
+      return r;
+    });
     p.append(dot, lbl);
+    if (def.removable) {
+      // une entrée ajoutée avec « + » et restée vide : × pour la ranger
+      const x = h('button', 'n-unshow', { type: 'button' });
+      x.innerHTML = glyph('close', 11);
+      x.dataset.tip = t('graph.port.remove');
+      x.addEventListener('pointerdown', (e) => e.stopPropagation());
+      x.addEventListener('click', (e) => { e.stopPropagation(); this._showPort(def.id, false); });
+      p.append(x);
+    }
     this.ports[dir].set(def.id, { el: p, dot, lbl, def });
     return p;
+  }
+
+  /** Montre (« + Ajouter ») ou range (×) une entrée d'un bloc Modèle : node.data.shown, annulable. */
+  _showPort(id, on) {
+    const node = this.ed.doc.node(this.id);
+    if (!node || this.ed.readonly) return;
+    const cur = Array.isArray(node.data?.shown) ? node.data.shown : [];
+    const next = on ? [...new Set([...cur, id])] : cur.filter((x) => x !== id);
+    this.ed.api.updateNode(this.id, { data: { shown: next } });
+  }
+
+  _portOpts() { return { extra: this.reveal || [] }; }
+
+  /**
+   * Pendant qu'on tire un fil : les entrées rangées qui peuvent le recevoir (`ids`) se montrent, le temps du geste ;
+   * `null` les range. Renvoie true si les pastilles ont bougé (l'appelant retrace les fils).
+   */
+  setReveal(ids) {
+    const next = ids?.length ? [...ids] : null;
+    if ((this.reveal || []).join() === (next || []).join()) return false;
+    this.reveal = next;
+    const node = this.ed.doc.node(this.id);
+    if (!node || !isModelBlock(node)) return false;
+    this._buildPorts(node);
+    this.refreshPorts();
+    this.measure();
+    return true;
   }
 
   /** Types concrets et état relié/libre des pastilles (après tout changement de fils). */
@@ -238,7 +314,7 @@ export class NodeView {
     if (v != null) return v;
     const node = this.ed.doc.node(this.id);
     if (node?.collapsed) return BORDER + HEAD_H / 2;
-    const list = dir === 'out' ? outputDefs(node?.type) : inputDefs(node?.type);
+    const list = dir === 'out' ? nodeOutputs(node) : nodeInputs(node, this._connected());
     const i = Math.max(0, list.findIndex((p) => p.id === portId));
     return BORDER + HEAD_H + (this.preview.childNodes.length ? 200 : 6) + i * 28 + 14;
   }
@@ -265,6 +341,12 @@ export class NodeView {
       if (!first) this._fold(!!node.collapsed);
     }
     el.classList.toggle('bypass', !!node.bypass);
+    // bloc Modèle : un autre modèle, d'autres entrées (SPEC §23) — les rangées sont refaites, les fils suivent
+    if (!first && isModelBlock(node) && portsSignature(node, this._connected(), this._portOpts()) !== this._portsSig) {
+      this._buildPorts(node);
+      this.refreshPorts();
+      relayout = true;
+    }
     if (first) this.refreshPorts();
     if (node.collapsed) this._thumb(node);
     return relayout && !first;
@@ -743,7 +825,8 @@ export function estimateHeight(node, type) {
     const known = typeHeights.get(`${type.id}|${w}`);
     if (known) return known;
   }
-  const rows = Math.max(type?.inputs?.length || 0, type?.outputs?.length || 0);
+  const rows = isModelBlock(node) ? Math.max(nodeInputs(node).length + (hiddenInputs(node).length ? 1 : 0), 1)
+    : Math.max(type?.inputs?.length || 0, type?.outputs?.length || 0);
   let hgt = HEAD_H + 2 + (rows ? rows * 28 + 12 : 0);
   const inner = Math.max(40, w - 16);
   if (type?.id === 'import') {

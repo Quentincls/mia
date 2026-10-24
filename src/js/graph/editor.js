@@ -23,6 +23,7 @@ import { History } from './history.js';
 import { Camera, SmoothZoom, easeCam } from './camera.js';
 import { WireLayer } from './wires.js';
 import { Views, estimateHeight, displayTitle, setText } from './view.js';
+import { nodeInputs, nodeOutputs, nodePortDef } from '../nodes/ports.js';
 import { freeOffset, settleColumns, layered, GAP } from './layout.js';
 import { paintSections, ellipsize, adopt as adoptSections, boxAround, toneKey, titlePx, titleLift } from './sections.js';
 import { attachInteract } from './interact.js';
@@ -147,6 +148,11 @@ register({
     'graph.toast.kindMismatch': 'Ce bloc attendait plutôt {kind}.',
     'graph.toast.incompatible': 'Ces deux ports ne vont pas ensemble : {a} → {b}.',
     'graph.toast.cycle': 'Ce fil ferait une boucle.',
+    'graph.toast.notForModel': 'Ce modèle ne prend pas « {port} » : choisis-en un autre dans le bloc pour la brancher.',
+    'graph.port.unused': 'Le modèle choisi ne prend pas cette entrée : elle est ignorée. Débranche-la ou choisis un autre modèle.',
+    'graph.port.add': 'Ajouter',
+    'graph.port.addTip': 'Montrer une autre entrée que ce modèle sait prendre',
+    'graph.port.remove': 'Ranger cette entrée',
     'graph.toast.copied.one': 'Bloc copié',
     'graph.toast.copied.other': '{n} blocs copiés',
     'graph.toast.pathCopied': 'Chemin copié',
@@ -284,6 +290,11 @@ register({
     'graph.toast.kindMismatch': 'This block was rather expecting {kind}.',
     'graph.toast.incompatible': 'These two ports do not fit together: {a} → {b}.',
     'graph.toast.cycle': 'This wire would make a loop.',
+    'graph.toast.notForModel': 'This model does not take “{port}”: choose another one in the block to connect it.',
+    'graph.port.unused': 'The chosen model does not take this input: it is ignored. Disconnect it or choose another model.',
+    'graph.port.add': 'Add',
+    'graph.port.addTip': 'Show another input this model can take',
+    'graph.port.remove': 'Put this input away',
     'graph.toast.copied.one': 'Block copied',
     'graph.toast.copied.other': '{n} blocks copied',
     'graph.toast.pathCopied': 'Path copied',
@@ -532,6 +543,10 @@ function wireBus() {
     }
   });
   on('prefs:changed', (p) => applyPrefs(p?.prefs || state.prefs || {}));
+  // bloc Modèle (SPEC §23) : ses entrées dépendent des catalogues de modèles, lus un peu après le premier dessin
+  const refreshModelBlocks = () => { if (!ed.project) return; ed.views.sync({ changed: new Set() }); ed.wires.sync(); requestDraw(); };
+  on('profiles:ready', refreshModelBlocks);
+  on('models:updated', refreshModelBlocks);
   on('theme:changed', () => { ed.grid2d.bust(); ed.minimap.bust(); requestDraw(); });
   on('palette:open', (p) => afterLoad(() => ed.palette.open(p || {})));
   // sur l'accueil, D crée d'abord le projet puis appelle insertRecipe : on n'agit
@@ -893,8 +908,12 @@ function removeNodes(ids) {
 function connectProblem(a, ap, b, bp) {
   const A = ed.doc.node(a), B = ed.doc.node(b);
   if (!A || !B || a === b) return 'invalid';
-  const outDef = portDef(A.type, ap, 'out'), inDef = portDef(B.type, bp, 'in');
+  const outDef = nodePortDef(A, ap, 'out'), inDef = nodePortDef(B, bp, 'in');
   if (!outDef || !inDef) return 'invalid';
+  // bloc Modèle (SPEC §23) : une entrée que son modèle ne prend pas garde ses fils, n'en reçoit pas de neuf
+  if (inDef.unused && !ed.doc.edges.some((e) => e.from.node === a && e.from.port === ap && e.to.node === b && e.to.port === bp)) {
+    return t('graph.toast.notForModel', { port: tl(inDef.label) });
+  }
   const outT = portType(a, ap, 'out');
   if (!compatible(outT, inDef.type)) {
     return t('graph.toast.incompatible', { a: kindLabel(outT), b: kindLabel(inDef.type) });
@@ -923,8 +942,9 @@ function resolveConnect(a, ap, b, bp) {
   const A = ed.doc.node(a), B = ed.doc.node(b);
   if (!A || !B) return { ok: false, error: t('graph.err.noNode') };
   if (a === b) return { ok: false, error: t('graph.err.self') };
-  const outs = ap ? [portDef(A.type, ap, 'out')].filter(Boolean) : outputDefs(A.type);
-  const ins = bp ? [portDef(B.type, bp, 'in')].filter(Boolean) : inputDefs(B.type);
+  const outs = ap ? [nodePortDef(A, ap, 'out')].filter(Boolean) : nodeOutputs(A);
+  // bloc Modèle : aussi ses entrées rangées derrière « + Ajouter » (relier en montre une)
+  const ins = bp ? [nodePortDef(B, bp, 'in')].filter(Boolean) : nodeInputs(B, [], { all: true });
   if (!outs.length) return { ok: false, error: t(ap ? 'graph.err.noOutPort' : 'graph.err.noOutputs', { port: ap || '' }) };
   if (!ins.length) return { ok: false, error: t(bp ? 'graph.err.noInPort' : 'graph.err.noInputs', { port: bp || '' }) };
   let firstWhy = null;
@@ -954,7 +974,7 @@ function connect(a, ap, b, bp, { quiet = true } = {}) {
   }
   const same = ed.doc.edges.find((e) => e.from.node === a && e.from.port === ap && e.to.node === b && e.to.port === bp);
   if (same) return same.id;
-  const inDef = portDef(ed.doc.node(b).type, bp, 'in');
+  const inDef = nodePortDef(ed.doc.node(b), bp, 'in');
   const changed = new Set([b, ...ed.doc.downstream(b)]);
   const edge = mutate('connect', () => {
     // une entrée simple n'a qu'un fil : le nouveau remplace l'ancien
@@ -978,7 +998,7 @@ function disconnect(edgeId) {
 function portType(nodeId, portId, dir, depth = 0) {
   const node = ed?.doc.node(nodeId);
   if (!node) return null;
-  const def = portDef(node.type, portId, dir);
+  const def = nodePortDef(node, portId, dir);
   if (!def) return null;
   if (dir !== 'out') return def.type;
   const rule = outRule(def.type);
@@ -1012,7 +1032,7 @@ function inputsOf(nodeId) {
   const node = ed?.doc.node(nodeId);
   if (!node) return {};
   const out = {};
-  for (const def of inputDefs(node.type)) out[def.id] = [];
+  for (const def of nodeInputs(node, [], { all: true })) out[def.id] = [];
   for (const e of ed.doc.edges) {
     if (e.to.node !== nodeId) continue;
     (out[e.to.port] ||= []).push({ node: e.from.node, port: e.from.port });
@@ -1899,7 +1919,7 @@ function arrange(ids, { animate = true, fitAfter = false } = {}) {
   if (!list.length) return Promise.resolve(false);
   const set = new Set(list);
   const boxes = list.map((id) => ({ id, ...nodeBox(id) }));
-  const portIndex = (e) => Math.max(0, inputDefs(ed.doc.node(e.to.node).type).findIndex((p) => p.id === e.to.port));
+  const portIndex = (e) => Math.max(0, nodeInputs(ed.doc.node(e.to.node), [e.to.port]).findIndex((p) => p.id === e.to.port));
   const edges = ed.doc.edges.filter((e) => set.has(e.from.node) && set.has(e.to.node))
     .map((e) => ({ from: e.from.node, to: e.to.node, port: portIndex(e) }));
   const pos = layered(boxes, edges);
@@ -2110,7 +2130,7 @@ function internals() {
       const s = ed.sel, from = e.from.node, to = e.to.node;
       const A = ed.doc.node(from), B = ed.doc.node(to);
       const outT = portType(from, e.from.port, 'out');
-      const inDef = B ? portDef(B.type, e.to.port, 'in') : null;
+      const inDef = B ? nodePortDef(B, e.to.port, 'in') : null;
       return {
         hot: s.nodes.has(from) || s.nodes.has(to) || ed.hover === from || ed.hover === to || ed.hoverEdge === e.id,
         sel: s.edge === e.id,

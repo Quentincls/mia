@@ -71,7 +71,7 @@ Recette prête : `unreal-to-real`. Chaîne : Média (rendu) → Extraire une ima
 
 ## 2. Animer une image avec LTX + LoRA (`i2v`)
 Recette : `animate-image`. Média → `start` (requis) ; Média → `end` (conseillé) ; Consigne → `prompt`.
-- `duration` 2-10 s (5), `format` (`auto` = comme l'image, `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9`),
+- `duration` 2-15 s (5 ; LTX 10 s au plus, MiniMax H3 15 s : le moteur ramène à la limite du modèle), `format` (`auto` = comme l'image, `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9`),
   `resolution` `540`/`720`/`1080` (côté court, rendu final seulement), avancé `fps` 24/25/30, `seed`.
 - `lora` = un personnage ou un lieu de l'utilisateur (par exemple `mon_perso`, déclencheur « mnprs woman ») ; le
   mot déclencheur est ajouté en tête de la consigne. Le LoRA aide l'identité **quand le visage est grand** ; il ne
@@ -99,7 +99,10 @@ Entrées : `guide` (vidéo, requis : blockout, rendu, ou sortie d'un bloc Profon
 - `refs` : jusqu'à **9 images** (requis), `refVideos` : jusqu'à **3 vidéos** de 2 à 15 s (mouvement, ambiance,
   voix). Numérotées dans l'ordre des fils = ordre vertical des blocs sources.
 - `prompt` (requis) cite « Image 1 », « Vidéo 2 »… (Mia traduit pour le modèle). `format`, `resolution`
-  `540`/`720` (720p max), avancé `fidelity` `match`/`max`. 24 i/s. Aperçu ≈ 2 min ; final ≈ 6 min pour 5 s.
+  `540`/`720`/`768` (768 = la taille native de MiniMax, à essayer : mémoire), avancé `fidelity` `match`/`max`.
+  24 i/s. Aperçu ≈ 2 min ; final ≈ 6 min pour 5 s.
+- `refAudios` : jusqu'à **3 sons** (voix, musique, bruitage ; 15 s au plus), cités « Son 1 »… (à essayer). Le son
+  d'une vidéo de référence est déjà pris avec elle.
 - Licence du modèle : R&D seulement (comme MiniMax H3 dans Animer une image).
 
 ## 5. Animer un personnage (`perform`, Wan Animate 2)
@@ -112,6 +115,8 @@ Recette : `character-performance`. `character` (une image, requis) + `motion` (v
   d'images dans Mia). Aperçu 480p, 3 premières secondes (~4 min) ; final 720×1280, ~14 min par 5 s, 30 s au plus.
 - Limites : fond inventé et lumière de face → recomposer (Détourer sur SON image + Superposer) ou demander le
   contre-jour ; sortie ~720p. LoRA : seulement un LoRA Wan (un LoRA LTX est refusé).
+- Avancé : `motionFidelity` (Fidélité au mouvement, 0-2, 1 = normal : plus haut = colle au geste) et `likeness`
+  (Ressemblance au personnage, 0-2 : plus bas = la consigne peut changer son allure).
 
 ## 6. Finition et looks
 1. **Essayer des looks** (`looks`, léger, quelques secondes) : une image (`at` = n° d'image) passée par chaque
@@ -148,6 +153,22 @@ vidéo, sinon la dernière image tient) ; avancé `start` (image de départ), `l
   visages (lisse à 1080, durcit à 1440).
 - **Redimensionner** (`resize`) : jamais de changement de cadence (pas d'images répétées).
 - **Comparer A/B** (`compare`, `mode` `slider`/`side`/`diff`) : systématique, source en A.
+
+## 10. Nouveautés du bloc Modèle (24/10 ; « à essayer » sauf prolonger et images-clés MiniMax, validés)
+Toutes passent par un bloc Modèle (`type:"gen"`, voir mia-piloter) ; le moteur les note dans le résultat.
+- **Images-clés** (`keys`, LTX et MiniMax, jusqu'à 4) : des images par où le plan passe entre le début et la fin,
+  réparties à intervalles égaux dans l'ordre vertical des fils. Pour tenir une action longue sans dériver.
+  **Même cadrage que l'image de début** : essai GPU du 24/10 (MiniMax), une image-clé cadrée autrement fait couper
+  le plan vers elle ; au même cadrage, le plan reste continu et passe par la pose (≈ 6 min pour 5 s).
+- **Son à suivre** (`audio`, MiniMax) : une voix ou une musique sur laquelle la vidéo se cale (lèvres, rythme).
+- **Prolonger une vidéo** (`video` dans MiniMax) : reprend les ~1,6 s de fin (et leur son) et continue le plan de
+  `duration` secondes ; le résultat est la vidéo entière. La consigne dit ce qui se passe ensuite. Essai GPU du
+  24/10 : raccord invisible, son continu (≈ 9 min pour 3 s + 4 s).
+- **LTX « Deux passes »** : caché dans Mia depuis l'essai GPU du 24/10 (en 1080p, **moins net** qu'une passe et
+  visage moins fidèle, pour le même temps). Une passe reste la bonne réponse pour un 1080p net.
+- **LTX « Enrichir la consigne »** (`enhance`) : Gemma réécrit la consigne en anglais détaillé (dans les notes).
+- **Qwen Image Edit** : jusqu'à 2 images d'appui (`ref`), citées « image 2 », « image 3 ».
+- **MiniMax 768p** : la taille native (1344 × 768) au lieu de 704 px ; si la mémoire manque, revenir en 720p.
 
 ## Durées indicatives (GPU portable de 24 Go, un calcul lourd à la fois)
 Retoucher une image ≈ 15 s (rapide) / ≈ 3 min (qualité) · Animer une image : aperçu ≈ 1 min, final 5-9 min ·

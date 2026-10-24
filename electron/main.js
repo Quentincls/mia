@@ -932,7 +932,8 @@ async function boot() {
   // the scanner first: it fills ctx.models for the engine; the assistant bridge (SPEC §13) last,
   // it drives the other two. Each one may fail alone: Mia still opens.
   // the model installer (SPEC §21.4) reads ctx.models: after the scanner
-  for (const name of ['scanner', 'installer', 'engine', 'bridge']) {
+  // the online accounts (SPEC §23.3) before the engine: its cloud executor reads ctx.cloud
+  for (const name of ['scanner', 'installer', 'cloud', 'engine', 'bridge']) {
     if (skip.has(name)) moduleErrors.set(name, new Error('skipped (MIA_SKIP_MODULES)'));
     else registerModule(name);
   }

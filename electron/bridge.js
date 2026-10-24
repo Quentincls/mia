@@ -555,6 +555,62 @@ class Bridge {
       return out;
     };
 
+    // how to drive a Model block, for assistants (mia_catalog → types[gen].howItWorks)
+    const MODEL_BLOCK_HOWTO = [
+      'One block per model. Set params.model to a family from params[model].choices: fam:ltx, fam:minimax, fam:wan, fam:qwen (this PC) or hf:<family> (online at Higgsfield, paid: run it only when the user asked).',
+      'What you WIRE decides what it does (choices[].ways): each way lists needs (must be wired), needsOneOf, takes (inputs and how many) and settings. Nothing wired → from text; a start image → animate it; references → mix them; a guide video → guided; a 3D render → photoreal; a character + a motion video → make it act; a video into MiniMax → extend it.',
+      'Wire with mia_connect giving the input port id: every input the family takes can be wired, even those the UI keeps behind « + Ajouter » (wiring shows them). An input the chosen way does not take is ignored with a note. When two ways fit equally, params.workflow picks one (mia_get_board → model.otherWays).',
+      'Several images into one multi input are numbered by the vertical order of their source blocks (top first). Name them in the prompt: MiniMax references « Image 1 », « Vidéo 2 », « Son 1 » (Son = the reference sounds input, counted on their own); Qwen edit: the image to edit is « image 1 », helper images « image 2 », « image 3 ». Keyframes (keys) are spread evenly between the first and the last frame, in that order.',
+      'Inputs or ways marked trial are new and not yet checked by the user at the lab: use them when asked, and tell the user to judge the result by eye. Settings of a way not in the list are ignored.',
+      'Prompts: English works best for LTX and MiniMax. Preview first (low resolution, short), then final.',
+    ].join(' ');
+
+    // Model block (SPEC §23): its « model » is a family — of this PC (fam:ltx…, or one model id of the inventory) or
+    // online at Higgsfield (hf:seedance-2-5…, paid, run only when the user asks) — with what it does and the inputs
+    // it shows (up to how many); an online family also lists its own settings (hf.*), set like any other.
+    const modelFamilies = () => {
+      const route = require('./engine/route');
+      const R = route.rules();
+      const { local, cloud } = route.catalogs();
+      const out = [];
+      const portsOf = (fam) => Object.fromEntries(Object.entries(R.portsOfFamily(fam)).map(([k, v]) => [k, v.multi ? `${v.max} max` : '1']));
+      // each way of working: what it does, what must be wired, what it takes (how many; « trial » = not yet checked
+      // at the lab: say so to the user), its settings — the assistant wires exactly what the way it wants needs
+      const waysOf = (def) => (def.workflows || []).map((wf) => {
+        const ports = R.portsOfWorkflow(wf);
+        const w = { workflow: wf.id, does: L(wf.label), needs: wf.required || [] };
+        if (Array.isArray(wf.oneOf) && wf.oneOf.length) w.needsOneOf = wf.oneOf;
+        w.takes = Object.fromEntries(Object.entries(ports).map(([k, v]) => [k, `${v.multi ? `${v.max} max` : '1'}${v.trial ? ' (trial)' : ''}`]));
+        w.settings = (wf.params || []).map((p) => (typeof p === 'string' ? p : p.id));
+        if (wf.promptRequired) w.promptRequired = true;
+        if (wf.trial) w.trial = true;
+        return w;
+      });
+      for (const [key, def] of Object.entries(local.families || {})) {
+        if (!Array.isArray(def.workflows) || !def.workflows.length) continue;
+        const fam = R.familyOf(`fam:${key}`, local, cloud, inv);
+        const installed = !!(inv && (inv.models || []).some((m) => usable(m) && !m.hidden && R.localKeyOf(m, local.families) === key));
+        out.push({ value: `fam:${key}`, label: def.name, where: 'local', installed, about: L(def.desc), does: def.workflows.map((w) => L(w.label)),
+          inputs: portsOf(fam), ways: waysOf(def), ...(def.limits ? { limits: { seconds: def.limits.seconds, fps: def.limits.fps, resolutions: def.limits.resolutions } } : {}) });
+      }
+      for (const def of cloud.families || []) {
+        const fam = { provider: def.provider, key: def.key, def };
+        const settings = [];
+        for (const wf of def.workflows || []) {
+          for (const p of wf.params || []) {
+            if (settings.some((s) => s.id === p.id)) continue;
+            const s = { id: p.id, kind: p.kind, label: L(p.label), default: p.default };
+            if (Array.isArray(p.options)) s.options = p.options.map((x) => x.value);
+            if (p.kind === 'slider') Object.assign(s, { min: p.min, max: p.max });
+            settings.push(s);
+          }
+        }
+        out.push({ value: def.key, label: def.name, maker: def.maker, where: 'online (Higgsfield, paid)', kind: def.kind,
+          does: (def.workflows || []).map((w) => L(w.label)), inputs: portsOf(fam), ways: waysOf(def), settings });
+      }
+      return out;
+    };
+
     // looks of the Finish block whose .cube is not on this PC (« Etalo » lives in the engine folder): not offered
     let missingLooks = new Set();
     try {
@@ -580,7 +636,7 @@ class Bridge {
             .map((x) => ({ value: x.value, label: L(x.label), ...(x.hint ? { hint: L(x.hint) } : {}) }));
         }
         if (p.kind === 'slider') Object.assign(o, { min: p.min, max: p.max, step: p.step, unit: p.unit || '' });
-        if (p.kind === 'model') o.choices = modelChoices(p.caps || [], !!p.allowNone);
+        if (p.kind === 'model') o.choices = p.gen ? modelFamilies() : modelChoices(p.caps || [], !!p.allowNone);
         if (p.kind === 'frame') o.of = p.of || null;
         return o;
       });
@@ -602,7 +658,9 @@ class Bridge {
           return o;
         }),
         outputs: (t.outputs || []).map((o) => ({ port: o.id, type: o.type, label: L(o.label) })),
-        params
+        params,
+        // SPEC §23: the Model block shows only the inputs of its family, and what is connected picks what it does
+        ...(t.ports === 'model' ? { howItWorks: MODEL_BLOCK_HOWTO } : {})
       });
     }
 

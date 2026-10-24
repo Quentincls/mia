@@ -76,6 +76,19 @@ register({
     'set.pickFailed': 'Impossible d’ouvrir le sélecteur de dossier',
     'set.openFailed': 'Impossible d’ouvrir ce dossier : {why}',
     'set.bridge': 'Pilotage par un assistant',
+    'set.secCloud': 'Comptes en ligne',
+    'set.hf': 'Higgsfield',
+    'set.hfHint': 'Les modèles en ligne (Seedance, Kling, MiniMax 2K…) calculent chez Higgsfield : ta carte graphique reste libre, mais chaque calcul coûte des crédits. Crée une clé sur console.higgsfield.ai, puis colle-la ici (ID:SECRET). Elle reste chiffrée sur ce PC et Mia ne la montre plus.',
+    'set.hfLinked': 'Relié · clé …{tail}',
+    'set.hfOff': 'Pas relié',
+    'set.hfPlaceholder': 'ID:SECRET',
+    'set.hfLink': 'Relier',
+    'set.hfCheck': 'Vérifier',
+    'set.hfUnlink': 'Délier',
+    'set.hfChecking': 'Vérification auprès de Higgsfield…',
+    'set.hfOk': 'Compte relié : les modèles en ligne sont prêts.',
+    'set.hfStillOk': 'La clé est toujours acceptée.',
+    'set.hfGone': 'Compte délié : la clé est effacée de ce PC.',
     'set.bridgeOn': 'Actif · port {port}',
     'set.bridgeOnNoPort': 'Actif',
     'set.bridgeOff': 'Inactif',
@@ -163,6 +176,19 @@ register({
     'set.pickFailed': 'Could not open the folder picker',
     'set.openFailed': 'Could not open this folder: {why}',
     'set.bridge': 'Driven by an assistant',
+    'set.secCloud': 'Online accounts',
+    'set.hf': 'Higgsfield',
+    'set.hfHint': 'Online models (Seedance, Kling, MiniMax 2K…) run at Higgsfield: your graphics card stays free, but each job costs credits. Create a key on console.higgsfield.ai, then paste it here (ID:SECRET). It stays encrypted on this PC and Mia never shows it again.',
+    'set.hfLinked': 'Linked · key …{tail}',
+    'set.hfOff': 'Not linked',
+    'set.hfPlaceholder': 'ID:SECRET',
+    'set.hfLink': 'Link',
+    'set.hfCheck': 'Check',
+    'set.hfUnlink': 'Unlink',
+    'set.hfChecking': 'Checking with Higgsfield…',
+    'set.hfOk': 'Account linked: online models are ready.',
+    'set.hfStillOk': 'The key is still accepted.',
+    'set.hfGone': 'Account unlinked: the key is erased from this PC.',
     'set.bridgeOn': 'On · port {port}',
     'set.bridgeOnNoPort': 'On',
     'set.bridgeOff': 'Off',
@@ -323,8 +349,8 @@ export function mountSettingsButton(host = $('#tb-actions')) {
 // ── the dialog ────────────────────────────────────────────────────────
 let current = null;
 
-export function openSettings() {
-  if (current) return current;
+export function openSettings(opts = {}) {
+  if (current) { if (opts.section === 'cloud') current.box?.querySelector?.('.set-cloud')?.scrollIntoView({ block: 'center' }); return current; }
   const p = state.prefs;
   const timers = [];
 
@@ -547,6 +573,62 @@ export function openSettings() {
   }
   paintAssist(null);
 
+  // ── online accounts (SPEC §23.3): the key goes in once, encrypted by the main process, never shown again ──
+  const hfState = el('span', { class: 'set-state' }, '…');
+  const hfMsg = el('div', { class: 'set-hint set-hf-msg', hidden: true });
+  const hfField = textField({ value: '', placeholder: t('set.hfPlaceholder'), mono: true });
+  hfField.type = 'password';
+  hfField.autocomplete = 'off';
+  const hfLink = button({ label: t('set.hfLink'), size: 'sm', onClick: () => linkHf() });
+  const hfCheck = button({ label: t('set.hfCheck'), size: 'sm', onClick: () => checkHf() });
+  const hfUnlink = button({ label: t('set.hfUnlink'), size: 'sm', kind: 'ghost', onClick: () => unlinkHf() });
+  const hfForm = el('div', { class: 'set-hf-form' }, hfField, hfLink);
+  const hfLinkedCtl = el('div', { class: 'set-hf-form' }, hfCheck, hfUnlink);
+  const say = (text, bad = false) => { hfMsg.hidden = !text; hfMsg.textContent = text || ''; hfMsg.classList.toggle('bad', !!bad); };
+  function paintHf(s) {
+    const linked = !!(s && s.linked);
+    hfState.classList.toggle('on', linked);
+    hfState.textContent = linked ? t('set.hfLinked', { tail: s.keyTail || '' }) : t('set.hfOff');
+    hfForm.hidden = linked;
+    hfLinkedCtl.hidden = !linked;
+  }
+  async function refreshHf() {
+    let s = null;
+    try { s = await window.mia?.cloud?.status?.(); } catch { s = null; }
+    paintHf(s);
+  }
+  async function linkHf() {
+    const key = hfField.value.trim();
+    if (!key) { hfField.focus(); return; }
+    say(t('set.hfChecking'));
+    let r = null;
+    try { r = await window.mia?.cloud?.setKey?.(key); } catch (e) { r = { ok: false, error: e?.message || '?' }; }
+    if (r && r.ok) {
+      hfField.setValue('');
+      say(t('set.hfOk'));
+      paintHf(r.status);
+      emit('cloud:changed', r.status);
+    } else say(r?.error || '?', true);
+  }
+  async function checkHf() {
+    say(t('set.hfChecking'));
+    let r = null;
+    try { r = await window.mia?.cloud?.check?.(); } catch (e) { r = { ok: false, error: e?.message || '?' }; }
+    say(r && r.ok ? t('set.hfStillOk') : (r?.error || '?'), !(r && r.ok));
+  }
+  async function unlinkHf() {
+    let r = null;
+    try { r = await window.mia?.cloud?.removeKey?.(); } catch { r = null; }
+    say(t('set.hfGone'));
+    paintHf(r?.status || null);
+    emit('cloud:changed', r?.status || null);
+  }
+  hfField.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); linkHf(); } });
+  refreshHf();
+  const hfRow = el('div', { class: 'set-cloud' },
+    rowEl(t('set.hf'), t('set.hfHint'), hfState),
+    el('div', { class: 'set-hf' }, hfForm, hfLinkedCtl, hfMsg));
+
   const bridgeState = el('span', { class: 'set-state' }, t('set.bridgeChecking'));
   const bridgeHint = el('div', { class: 'set-hint' });
   async function pollBridge() {
@@ -611,6 +693,9 @@ export function openSettings() {
       engineRow,
       rowEl(t('set.comfy'), t('set.comfyHint'), comfyCtl),
 
+      section('set.secCloud'),
+      hfRow,
+
       section('set.secAssist'),
       rowEl(t('set.bridge'), bridgeHint, bridgeState),
       assist,
@@ -628,6 +713,8 @@ export function openSettings() {
   closeBtn.addEventListener('click', () => handle.close());
   $('#tb-settings')?.classList.add('on');
   current = handle;
+  // ouvert depuis le choix d'un modèle en ligne : droit sur le compte Higgsfield
+  if (opts.section === 'cloud') requestAnimationFrame(() => { hfRow.scrollIntoView({ block: 'center' }); hfField.focus(); });
 
   // the app info arrives once; fill in what was missing when it does
   if (!state.info) {
@@ -911,5 +998,7 @@ async function announceNewVersion() {
 
 // once the window is ready (the board or the home is on screen), not in the middle of the start
 on('app:ready', () => { setTimeout(() => { announceNewVersion().catch((err) => console.error('[settings] news', err)); }, 1200); });
+// le choix d'un modèle en ligne sans compte relié ouvre les Réglages sur « Comptes en ligne » (SPEC §23.3)
+on('settings:open', (p) => openSettings(p || {}));
 
 export default { mountSettingsButton, openSettings, setPrefs, applyTheme, openNews };

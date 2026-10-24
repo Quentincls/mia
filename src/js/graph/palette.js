@@ -14,12 +14,18 @@ import {
   types, categories, recipes, typeLabel, typeDesc, compatible, modelCaps,
   inputDefs, outputDefs, outRule, typeOf
 } from '../catalog.js';
+import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
+import { familyOf, localKeyOf, portsOfFamily } from '../nodes/route.js';
+import { familyWords } from '../nodes/familypicker.js';
 
 register({
   fr: {
-    'pal.search': 'Chercher un bloc ou une recette…',
+    'pal.search': 'Chercher un modèle, un bloc ou une recette…',
     'pal.all': 'Tout',
     'pal.recipes': 'Recettes',
+    'pal.models': 'Modèles',
+    'pal.cloud': 'En ligne',
+    'pal.online': 'En ligne',
     'pal.from': 'Se branche sur',
     'pal.empty': 'Aucun bloc ne correspond.',
     'pal.emptyFrom': 'Aucun bloc ne peut se brancher ici.',
@@ -45,9 +51,12 @@ register({
     'pal.escKey': 'Échap'
   },
   en: {
-    'pal.search': 'Search a block or a recipe…',
+    'pal.search': 'Search a model, a block or a recipe…',
     'pal.all': 'All',
     'pal.recipes': 'Recipes',
+    'pal.models': 'Models',
+    'pal.cloud': 'Online',
+    'pal.online': 'Online',
     'pal.from': 'Plugs into',
     'pal.empty': 'No block matches.',
     'pal.emptyFrom': 'No block can plug in here.',
@@ -209,6 +218,8 @@ export function createPalette(ed) {
   function entries() {
     const out = [];
     const from = st.from;
+    // SPEC §23 : choisir d'abord un modèle — il pose un bloc Modèle réglé sur lui (le PC, puis en ligne)
+    out.push(...modelEntries(from));
     if (!from) {
       for (const r of recipes()) {
         out.push({
@@ -219,6 +230,7 @@ export function createPalette(ed) {
       }
     }
     for (const ty of types()) {
+      if (ty.ports === 'model') continue;          // le bloc Modèle se pose par son modèle (section Modèles)
       let link = null;
       if (from) {
         link = linkFor(ty, from);
@@ -240,8 +252,47 @@ export function createPalette(ed) {
    * du catalogue, phrase, id. La recherche ne compare que des débuts de mots :
    * « lut » trouve « LUT », jamais le milieu de « résolution ».
    */
+  /** Les familles de modèles : celles du PC (catégorie « Modèles »), puis en ligne (« En ligne »). */
+  function modelEntries(from) {
+    const out = [];
+    const fams = localCatalog().families || {};
+    const inv = state.inventory;
+    const push = (value, def, cat, meta, metaCls) => {
+      const fam = familyOf(value, localCatalog(), cloudCatalog(), inv);
+      const link = from ? linkForFamily(fam, from) : null;
+      if (from && !link) return;
+      const desc = tl(def.desc || {});
+      out.push({
+        kind: 'model', id: value, value, cat, mark: def.mark || String(def.maker || def.name).slice(0, 2).toUpperCase(),
+        name: def.name, desc, meta: from ? tl(link.def.label) : meta, metaCls: from ? 'port' : metaCls, link,
+        src: { label: { fr: def.name, en: def.name }, desc: def.desc, keywords: { fr: `${def.maker || ''} ${familyWords(def).join(' ')}`, en: def.maker || '' } },
+      });
+    };
+    for (const [key, def] of Object.entries(fams)) {
+      if (!Array.isArray(def.workflows) || !def.workflows.length) continue;
+      const installed = (inv?.models || []).some((m) => m.status === 'ready' && !m.hidden && localKeyOf(m, fams) === key);
+      push(`fam:${key}`, def, 'models', installed ? familyWords(def).join(' · ') : t('pal.notInstalled'), installed ? '' : 'missing');
+    }
+    for (const def of cloudCatalog().families || []) {
+      push(def.key, def, 'cloud', [t('pal.online'), ...familyWords(def)].join(' · '), 'online');
+    }
+    return out;
+  }
+
+  /** L'entrée (ou la sortie) d'un bloc Modèle de cette famille qui prendra le fil lâché. */
+  function linkForFamily(fam, from) {
+    if (!fam) return null;
+    if (from.dir === 'out') {
+      const ports = portsOfFamily(fam);
+      const def = inputDefs('gen').find((p) => ports[p.id] && p.type !== 'text' && compatible(from.type, p.type));
+      return def ? { def, dir: 'in' } : null;
+    }
+    const kind = fam.def.kind || 'video';
+    return compatible(kind, from.type) ? { def: { ...outputDefs('gen')[0], type: kind }, dir: 'out' } : null;
+  }
+
   function indexEntry(e) {
-    const src = e.kind === 'recipe' ? e.recipe : typeOf(e.id);
+    const src = e.kind === 'recipe' ? e.recipe : e.kind === 'model' ? e.src : typeOf(e.id);
     const both = (v) => (v && typeof v === 'object' ? [v.fr, v.en] : [v]).filter(Boolean).join(' ');
     e.wName = words(e.name);
     e.wOther = words(both(src?.label));
@@ -354,10 +405,14 @@ export function createPalette(ed) {
     const all = entries();
     const catDefs = categories().filter((c) => all.some((e) => e.cat === c.id));
     const hasRecipes = all.some((e) => e.cat === 'recipes');
+    const hasModels = all.some((e) => e.cat === 'models');
+    const hasCloud = all.some((e) => e.cat === 'cloud');
 
     // colonne des catégories
     const catBtn = (id, label) => `<button type="button" class="pal-cat${st.cat === id ? ' on' : ''}" data-cat="${esc(id)}">${esc(label)}</button>`;
     cats.innerHTML = catBtn('all', t('pal.all'))
+      + (hasModels ? catBtn('models', t('pal.models')) : '')
+      + (hasCloud ? catBtn('cloud', t('pal.cloud')) : '')
       + (hasRecipes ? catBtn('recipes', t('pal.recipes')) : '')
       + catDefs.map((c) => catBtn(c.id, tl(c.label))).join('');
 
@@ -371,11 +426,15 @@ export function createPalette(ed) {
       sections = [{ title: null, items: hits.map((x) => x.e) }];
     } else if (st.cat === 'all') {
       sections = [];
+      // les modèles du PC d'abord ; ceux en ligne ont leur catégorie (ils sont nombreux) et la recherche
+      if (hasModels) sections.push({ title: t('pal.models'), items: all.filter((e) => e.cat === 'models') });
+      if (st.from && hasCloud) sections.push({ title: t('pal.cloud'), items: all.filter((e) => e.cat === 'cloud') });
       if (hasRecipes) sections.push({ title: t('pal.recipes'), items: all.filter((e) => e.cat === 'recipes') });
       for (const c of catDefs) sections.push({ title: tl(c.label), items: all.filter((e) => e.cat === c.id) });
     } else {
-      const c = st.cat === 'recipes' ? { label: null } : categories().find((x) => x.id === st.cat);
-      sections = [{ title: c?.label ? tl(c.label) : t('pal.recipes'), items: all.filter((e) => e.cat === st.cat) }];
+      const special = { recipes: t('pal.recipes'), models: t('pal.models'), cloud: t('pal.cloud') };
+      const c = special[st.cat] ? null : categories().find((x) => x.id === st.cat);
+      sections = [{ title: c?.label ? tl(c.label) : special[st.cat], items: all.filter((e) => e.cat === st.cat) }];
     }
 
     st.items = [];
@@ -389,7 +448,8 @@ export function createPalette(ed) {
         // nom et méta (modèle, ou port qui recevra le fil) sur la 1re ligne ; la description prend toute la
         // largeur dessous, sur 2 lignes au plus (demande de Quentin : lire la phrase, pas « … » au bout de 40 signes)
         html += `<button type="button" class="pal-item${e.kind === 'recipe' ? ' recipe' : ''}" data-i="${i}" role="option">`
-          + `<span class="pal-glyph">${icon(e.icon, 16) || icon('g-unknown', 16)}</span>`
+          + (e.kind === 'model' ? `<span class="pal-glyph pal-mark">${esc(e.mark)}</span>`
+            : `<span class="pal-glyph">${icon(e.icon, 16) || icon('g-unknown', 16)}</span>`)
           + '<span class="pal-text"><span class="pal-head">'
           + `<span class="pal-name">${esc(e.name)}</span>`
           + (e.meta ? `<span class="pal-meta ${e.metaCls || ''}"${e.metaTip ? ` data-tip="${esc(e.metaTip)}"` : ''}>${esc(e.meta)}</span>` : '')
@@ -512,7 +572,8 @@ export function createPalette(ed) {
     const { at, from } = st;
     close();
     if (item.kind === 'recipe') { ed.insertRecipe(item.recipe, at); return; }
-    const ty = typeOf(item.id);
+    const typeId = item.kind === 'model' ? 'gen' : item.id;      // un modèle pose un bloc Modèle réglé sur lui
+    const ty = typeOf(typeId);
     const w = ty?.width || 288;
     let pos = null;
     if (at) {
@@ -531,7 +592,7 @@ export function createPalette(ed) {
     ed.history.begin('add');
     try {
       // le bloc naît du point de pose (double-clic, fil lâché) : origine de son arrivée
-      const id = ed.addNode(item.id, pos, { data, origin: at });
+      const id = ed.addNode(typeId, pos, { data, origin: at, ...(item.kind === 'model' ? { params: { model: item.value } } : {}) });
       if (id && from && item.link) {
         // le port du nouveau bloc tombe exactement là où le fil a été lâché
         if (at) {

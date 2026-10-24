@@ -28,6 +28,7 @@ import { mountParams, autoGrow } from './params.js';
 import { mountVersions } from './versions.js';
 import { mountCompare } from './compare.js';
 import { modelProblem } from './modelpicker.js';
+import { blockWorkflow, isModelBlock } from './ports.js';
 import './viewer.js';      // écoute viewer:open
 import './inspector.js';   // écoute inspector:open
 
@@ -245,6 +246,13 @@ function estimateText(type, mode) {
 
 /** Entrées obligatoires non branchées → libellés. */
 function missingInputs(ctx) {
+  // bloc Modèle (SPEC §23) : ce que demande la façon de faire choisie d'après les fils (rien n'est obligatoire en soi)
+  if (isModelBlock(ctx.node)) {
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const r = blockWorkflow(ctx.node, conn);
+    if (!r || !r.blocked) return [];
+    return r.missing.map((id) => tl((ctx.type.inputs || []).find((i) => i.id === id)?.label || { fr: id }));
+  }
   return (ctx.type.inputs || []).filter((i) => i.required && !ctx.connected(i.id)).map((i) => tl(i.label));
 }
 
@@ -713,6 +721,8 @@ function computeBody(ctx) {
   /** Conseil d'une entrée facultative non branchée (« image de fin conseillée »). */
   let hintSig = null;
   function renderHint() {
+    // bloc Modèle : sa ligne « Ce que fait le bloc » dit déjà quoi brancher
+    if (isModelBlock(ctx.node)) { hint.hidden = true; hintSig = null; return; }
     const opt = (type.inputs || []).find((i) => !i.required && i.hint && i.type !== 'text' && !i.multi && !ctx.connected(i.id));
     hint.hidden = !opt;
     if (opt && opt.id !== hintSig) {

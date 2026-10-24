@@ -34,6 +34,10 @@ const TXT = {
     fr: 'The character performs exactly the motion of the driving video, natural facial expressions and lip movements, real footage.',
     en: 'The character performs exactly the motion of the driving video, natural facial expressions and lip movements, real footage.',
   },
+  strengths: {
+    fr: 'Fidélité au mouvement {pose}, ressemblance au personnage {face} (1 = normal).',
+    en: 'Motion fidelity {pose}, character likeness {face} (1 = normal).',
+  },
   fps: {
     fr: 'Vidéo à 16 i/s, la cadence de Wan (le lissage RIFE n’est pas encore installé en local).',
     en: 'Video at 16 fps, Wan’s frame rate (RIFE smoothing is not installed locally yet).',
@@ -63,6 +67,12 @@ function characterText(prompt) {
   if (!prompt) return E.t(TXT.character);
   if (/character description\s*:/i.test(prompt)) return prompt;
   return `Character Description: ${prompt}\n${E.t(TXT.background)}`;
+}
+
+/** A strength slider (0 to 2, 1 = the model's trained behaviour), clamped and rounded to 0.05. */
+function strengthOf(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(Math.min(2, Math.max(0, n)) * 20) / 20 : 1;
 }
 
 async function run(x) {
@@ -104,6 +114,11 @@ async function run(x) {
       P.set(g, '672:591', 'steps', 10);
     }
     P.set(g, '672:597', 'noise_seed', E.seedOf(x));
+    // « Fidélité au mouvement » = pose_strength, « Ressemblance au personnage » = reference_image_strength (1 = trained)
+    const pose = strengthOf(x.params.motionFidelity);
+    const face = strengthOf(x.params.likeness);
+    P.setInputs(g, '672:587', { pose_strength: pose, reference_image_strength: face });
+    if (pose !== 1 || face !== 1) notes.push(E.t(TXT.strengths, { pose: E.dec(pose, 2), face: E.dec(face, 2) }));
     if (lora) E.addLora(g, '672:579', lora, '9710');   // after the lightx2v (or distilled) model chain
     P.set(g, '9990', 'filename_prefix', E.prefix(x, '', 'frame'));
 

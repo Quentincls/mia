@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "_doc": "Profils des familles de modèles (SPEC §22) : nom, fabricant, monogramme, phrase « à quoi ça sert » (FR/EN), variantes et limites. Même forme pour le local et, plus tard, le cloud. Lu par l'interface (src/js/nodes/profiles.js) et par le moteur (electron/engine/patch.js limits). Les limites locales sont celles vérifiées au labo ; un « à essayer » ne s'ouvre qu'après un essai GPU validé à l'œil.",
+  "families": {
+    "ltx": {
+      "provider": "local",
+      "name": "LTX 2.5",
+      "maker": "Lightricks",
+      "mark": "LT",
+      "match": { "baseKey": "ltx", "family": "ltx" },
+      "desc": {
+        "fr": "Le plus polyvalent : anime une image, part d’un texte, suit un guide ou rend une scène 3D photoréaliste. Fait aussi le son, et accepte tes personnages (LoRA).",
+        "en": "The most versatile: animates an image, starts from text, follows a guide or turns a 3D scene photoreal. Makes sound too, and takes your characters (LoRA)."
+      },
+      "variants": [
+        { "match": "nvfp4|rtx ?50", "tag": { "fr": "Rapide", "en": "Fast" },
+          "desc": { "fr": "Même résultat, plus rapide sur les cartes RTX 50.", "en": "Same result, faster on RTX 50 cards." } },
+        { "match": ".*", "tag": { "fr": "Standard", "en": "Standard" },
+          "desc": { "fr": "Le choix sûr, qualité maximale.", "en": "The safe pick, best quality." } }
+      ],
+      "limits": { "seconds": [2, 10], "fps": [24, 25, 30], "resolutions": ["540", "720", "1080"], "audio": true,
+        "inputs": ["start", "end", "keys", "sheet", "prompt", "guide", "look", "mask", "video"] },
+      "kind": "video",
+      "main": ["start"],
+      "workflows": [
+        { "id": "real", "executor": "real", "cap": "3d-to-real", "as": "real",
+          "label": { "fr": "Rendre photoréaliste un rendu 3D", "en": "Make a 3D render photoreal" },
+          "ports": { "video": {}, "look": {} }, "required": ["video"],
+          "params": ["prompt", "keepBlacks", "lora", "loraStrength", "seed"] },
+        { "id": "guided", "executor": "guided", "cap": "guided-video", "as": "guided",
+          "label": { "fr": "Vidéo guidée", "en": "Guided video" },
+          "ports": { "guide": {}, "look": {}, "mask": {} }, "required": ["guide"],
+          "params": ["prompt", "follow", "strength", "resolution", "lora", "loraStrength", "seed"] },
+        { "id": "i2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v",
+          "label": { "fr": "Animer une image", "en": "Animate an image" },
+          "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4, "trial": true }, "sheet": {} }, "required": ["start"],
+          "params": ["prompt", "duration", "format", "resolution", "fps", "lora", "loraStrength", "enhance", "seed"] },
+        { "id": "t2v", "executor": "t2v", "cap": "text-to-video", "as": "t2v", "promptRequired": true,
+          "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
+          "ports": {}, "required": [],
+          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "negative", "enhance", "seed"] }
+      ]
+    },
+    "minimax": {
+      "provider": "local",
+      "name": "MiniMax H3",
+      "maker": "MiniMax",
+      "mark": "MM",
+      "match": { "baseKey": "minimax", "family": "minimax" },
+      "desc": {
+        "fr": "Mouvements naturels et visages expressifs. Va jusqu’à 15 s et fait le son. Travaille en 24 i/s, jusqu’à 768p (à essayer au-delà de 720p).",
+        "en": "Natural motion and expressive faces. Goes up to 15 s and makes sound. Works at 24 fps, up to 768p (above 720p: to try)."
+      },
+      "variants": [
+        { "match": "ref2v|r[ée]f[ée]rences?", "tag": { "fr": "Références", "en": "References" },
+          "desc": { "fr": "Mélange jusqu’à 9 images, 3 vidéos et 3 sons que tu cites dans la consigne (« Image 1 », « Vidéo 2 », « Son 1 »).", "en": "Mixes up to 9 images, 3 videos and 3 sounds that you name in the prompt (“Image 1”, “Video 2”, “Sound 1”)." } },
+        { "match": ".*", "tag": { "fr": "Images-clés", "en": "Keyframes" },
+          "desc": { "fr": "Anime une image de début, et rejoint une image de fin si tu en donnes une.", "en": "Animates a start image, and reaches an end image if you give one." } }
+      ],
+      "limits": { "seconds": [2, 15], "fps": [24], "resolutions": ["540", "720", "768"], "audio": true,
+        "inputs": ["start", "end", "keys", "prompt", "refs", "refVideos", "refAudios", "video", "audio", "guide", "look", "mask"] },
+      "kind": "video",
+      "main": ["refs"],
+      "workflows": [
+        { "id": "refs", "executor": "ref2v", "cap": "reference-to-video", "as": "ref2v",
+          "label": { "fr": "Vidéo à partir de références", "en": "Video from references" },
+          "ports": { "refs": { "multi": true, "max": 9 }, "refVideos": { "multi": true, "max": 3 },
+            "refAudios": { "multi": true, "max": 3, "trial": true } }, "required": [],
+          "oneOf": [["refs", "refVideos"]],
+          "params": ["prompt", "duration", "format", "resolution", "fidelity", "seed"] },
+        { "id": "guided", "executor": "guided", "cap": "guided-video", "as": "guided",
+          "label": { "fr": "Vidéo guidée", "en": "Guided video" },
+          "ports": { "guide": {}, "look": {}, "mask": {} }, "required": ["guide"],
+          "params": ["prompt", "follow", "strength", "resolution", "seed"] },
+        { "id": "i2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v",
+          "label": { "fr": "Animer une image", "en": "Animate an image" },
+          "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4 }, "audio": { "trial": true } },
+          "required": ["start"],
+          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] },
+        { "id": "extend", "executor": "i2v", "cap": "image-to-video", "as": "i2v", "promptRequired": true,
+          "label": { "fr": "Prolonger une vidéo", "en": "Extend a video" },
+          "ports": { "video": {} }, "required": ["video"],
+          "params": ["prompt", "duration", "resolution", "lora", "loraStrength", "seed"] },
+        { "id": "t2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v", "promptRequired": true,
+          "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
+          "ports": { "keys": { "multi": true, "max": 4 }, "audio": { "trial": true } }, "required": [],
+          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] }
+      ]
+    },
+    "wan": {
+      "provider": "local",
+      "name": "Wan Animate 2",
+      "maker": "Alibaba · Wan",
+      "mark": "WA",
+      "match": { "baseKey": "wan", "family": "wan" },
+      "desc": {
+        "fr": "Fait jouer ton personnage : il reprend les gestes, le visage et les mains d’une vidéo (toi ou un acteur).",
+        "en": "Makes your character act: it copies the gestures, face and hands from a video (you or an actor)."
+      },
+      "variants": [],
+      "limits": { "inputs": ["character", "motion", "prompt"] },
+      "kind": "video",
+      "main": ["character", "motion"],
+      "workflows": [
+        { "id": "perform", "executor": "perform", "cap": "character-performance", "as": "perform",
+          "label": { "fr": "Faire jouer un personnage", "en": "Make a character act" },
+          "ports": { "character": {}, "motion": {} }, "required": ["character", "motion"],
+          "params": ["prompt", "lora", "loraStrength", "motionFidelity", "likeness", "seed"] }
+      ]
+    },
+    "qwen": {
+      "provider": "local",
+      "name": "Qwen Image Edit",
+      "maker": "Alibaba · Qwen",
+      "mark": "QW",
+      "match": { "baseKey": "qwen", "family": "qwen" },
+      "desc": {
+        "fr": "Retouche une image en lui disant quoi changer : enlever, ajouter, changer une tenue ou une lumière. Peut s’aider d’une image de référence.",
+        "en": "Edits an image when you tell it what to change: remove, add, swap an outfit or a light. Can use a reference image."
+      },
+      "variants": [],
+      "limits": { "inputs": ["image", "ref", "prompt"] },
+      "kind": "image",
+      "main": ["image"],
+      "workflows": [
+        { "id": "edit", "executor": "edit", "cap": "image-edit", "as": "edit", "promptRequired": true,
+          "label": { "fr": "Retoucher une image", "en": "Edit an image" },
+          "ports": { "image": {}, "ref": { "multi": true, "max": 2 } }, "required": ["image"],
+          "params": ["prompt", "speed", "lora", "loraStrength", "seed"] }
+      ]
+    },
+    "seedvr2": {
+      "provider": "local",
+      "name": "SeedVR2",
+      "maker": "ByteDance",
+      "mark": "SV",
+      "match": { "baseKey": "seedvr2", "family": "seedvr" },
+      "desc": {
+        "fr": "Agrandit une image ou une vidéo en recréant les détails (peau, tissus, matières).",
+        "en": "Enlarges an image or a video by recreating the details (skin, fabric, materials)."
+      },
+      "variants": [
+        { "match": "3b|rapide|fast", "tag": { "fr": "Rapide", "en": "Fast" },
+          "desc": { "fr": "Deux fois plus rapide, un peu moins fin.", "en": "Twice as fast, a little less fine." } },
+        { "match": ".*", "tag": { "fr": "Qualité", "en": "Quality" },
+          "desc": { "fr": "Plus fin, plus lent.", "en": "Finer, slower." } }
+      ],
+      "limits": {}
+    },
+    "vda": {
+      "provider": "local",
+      "name": "Video Depth Anything",
+      "maker": "ByteDance",
+      "mark": "VD",
+      "match": { "family": "video depth" },
+      "desc": {
+        "fr": "Calcule la profondeur de chaque image : clair = près, sombre = loin. Sert de guide à la Vidéo guidée.",
+        "en": "Works out the depth of each frame: light = near, dark = far. Used as a guide by Guided video."
+      },
+      "variants": [],
+      "limits": {}
+    },
+    "birefnet": {
+      "provider": "local",
+      "name": "BiRefNet",
+      "maker": "Nankai University",
+      "mark": "BR",
+      "match": { "family": "birefnet" },
+      "desc": {
+        "fr": "Détoure le sujet principal, cheveux compris.",
+        "en": "Cuts out the main subject, hair included."
+      },
+      "variants": [],
+      "limits": {}
+    }
+  },
+  "makers": {
+    "Higgsfield": "HF", "Kling": "KL", "Bytedance": "BD", "ByteDance": "BD", "Google": "G", "Black Forest Labs": "BF",
+    "xAI": "xA", "MiniMax": "MM", "Hailuo": "MM", "Wan": "WA", "OpenAI": "OA", "Lightricks": "LT", "Happy Horse": "HH",
+    "Alibaba · Wan": "WA", "Alibaba · Qwen": "QW", "Nankai University": "BR"
+  },
+  "cloud": {
+    "higgsfield": {
+      "name": "Higgsfield",
+      "mark": "HF",
+      "desc": {
+        "fr": "Les modèles en ligne (Kling, Seedance, Veo, MiniMax…) arriveront ici. Ils calculent sur les serveurs de Higgsfield : ta carte graphique reste libre, mais chaque vidéo coûte des crédits. Il faudra relier ton compte dans les Réglages.",
+        "en": "Online models (Kling, Seedance, Veo, MiniMax…) will come here. They run on Higgsfield’s servers: your graphics card stays free, but each video costs credits. You will link your account in Settings."
+      }
+    }
+  }
+}

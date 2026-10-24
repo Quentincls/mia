@@ -158,6 +158,17 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 
 Les erreurs reviennent en français clair (« Le bloc « Profondeur » n'a pas d'entrée « image ». Entrées : media… »).
 
+### Le bloc Modèle (un bloc par modèle)
+Quand tu demandes un modèle par son nom (« fais-le avec MiniMax », « essaie Seedance »), l'assistant pose un bloc
+Modèle (`type: "gen"`, `params.model` = `fam:ltx`, `fam:minimax`, `fam:wan`, `fam:qwen`, ou `hf:…` en ligne,
+payant, seulement si tu l'as demandé). Il sait, par `mia_catalog`, ce que chaque modèle fait selon ce qu'on lui
+branche (`ways` : ce qu'il faut brancher, combien, quels réglages, ce qui est « à essayer ») et relie en nommant
+l'entrée (`start`, `keys`, `refs`, `refAudios`, `video`, `audio`…), même celles que l'écran range derrière
+« + Ajouter ». `mia_get_board` lui dit ensuite ce que fait chaque bloc Modèle (`model.does`), ce qui manque et ce
+qui est ignoré. Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p, consigne
+enrichie) sont signalées comme telles : juge le résultat à l'œil. Prolonger une vidéo et les images-clés de MiniMax
+sont validés (essais du 24/10).
+
 ## Sécurité
 
 - Le pont n'écoute que `127.0.0.1` ; sans le jeton, tout est refusé ; une page web ne peut pas l'appeler.

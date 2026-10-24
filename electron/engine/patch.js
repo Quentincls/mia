@@ -171,6 +171,11 @@ const MSG = {
     cancelled: 'Calcul annulé.',
     preparingVideo: 'Préparation de la vidéo…',
     uploading: 'Envoi des fichiers au moteur…',
+    minimax768: '768p : la plus grande taille de MiniMax H3, encore à l’essai sur ce PC. Si le calcul manque de mémoire, reviens en 720p.',
+    twoPass: 'Deux passes (à essayer) : plan calculé en {w1} × {h1}, puis agrandi ×2 et affiné par LTX.',
+    twoPassSheet: 'Deux passes : pas avec une fiche de référence, calcul en une passe.',
+    enhanced: 'Consigne enrichie par Gemma (à essayer) : « {text} »',
+    enhancedNone: 'Consigne enrichie par Gemma (à essayer).',
     sending: 'Envoi au moteur…',
     computing: 'Calcul en cours…',
     encoding: 'Encodage de la vidéo…',
@@ -194,6 +199,11 @@ const MSG = {
     cancelled: 'Run cancelled.',
     preparingVideo: 'Preparing the video…',
     uploading: 'Sending files to the engine…',
+    minimax768: '768p: MiniMax H3’s largest size, still being tried on this PC. If the run runs out of memory, go back to 720p.',
+    twoPass: 'Two passes (to try): shot made at {w1} × {h1}, then enlarged ×2 and refined by LTX.',
+    twoPassSheet: 'Two passes: not with a reference sheet, made in one pass.',
+    enhanced: 'Prompt enriched by Gemma (to try): “{text}”',
+    enhancedNone: 'Prompt enriched by Gemma (to try).',
     sending: 'Sending to the engine…',
     computing: 'Computing…',
     encoding: 'Encoding the video…',
@@ -344,6 +354,47 @@ function minimaxLength(seconds, floor = false, minK = 3) {
   return 17 * Math.max(minK, floor ? Math.floor(k) : Math.round(k)) + 5;
 }
 
+// ---------------------------------------------------------------- LTX extras (Model block, « à essayer »)
+
+const LTX_UPSCALER = 'ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors';
+const LTX_STAGE2_SIGMAS = '0.909375, 0.725, 0.421875, 0.0';   // the official distilled second stage
+
+/**
+ * « Enrichir la consigne »: Gemma (the LTX text encoder) rewrites the prompt as a detailed English shot description
+ * before it is encoded — the lab's ltx_t2v_single TextGenerateLTX2Prompt settings. `prompt` = text or a link,
+ * `encode` = the CLIPTextEncode node to feed, `image` = the start image link (I2V wording). Returns the id of the
+ * PreviewAny node whose text the run reads back (enhancedText).
+ */
+function ltxEnhance(g, { clip, prompt, encode, image = null, seed = 0, id = '9800' }) {
+  const show = String(Number(id) + 1);
+  addNode(g, 'TextGenerateLTX2Prompt', { clip, prompt, max_length: 600, sampling_mode: 'on',
+    'sampling_mode.temperature': 0.01, 'sampling_mode.top_k': 0, 'sampling_mode.top_p': 1, 'sampling_mode.min_p': 0,
+    'sampling_mode.repetition_penalty': 1.15, 'sampling_mode.seed': seed % 2 ** 32, 'sampling_mode.presence_penalty': 0,
+    thinking: false, use_default_template: true, mtp: 'auto', ...(image ? { image } : {}) }, id);
+  set(g, encode, 'text', [id, 0]);
+  addNode(g, 'PreviewAny', { source: [id, 0] }, show);
+  return show;
+}
+
+/** The rewritten prompt a run's PreviewAny shows (or ''). */
+function enhancedText(res, id) {
+  const o = res && res.outputs && res.outputs[id];
+  const v = o && (Array.isArray(o.text) ? o.text[0] : o.text);
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+/**
+ * MiniMax H3 frame budget for the block's resolution. Up to 720p: Mia's usual 704 px short side (704×1248 area).
+ * « 768p » (asked exactly, final renders only): the model's native canvas, 768 px short side within 768×1344 —
+ * the lab's largest, still « à essayer » on the laptop (GPU memory). → { short, maxPixels, native, capped }
+ */
+function minimaxCanvas(x, { preview = false, previewCap = 448 } = {}) {
+  const asked = shortSide(x, { preview, previewCap });
+  const native = !preview && Number(x.params.resolution) === 768;
+  const top = native ? 768 : 704;
+  return { short: Math.min(asked, top), maxPixels: native ? 768 * 1344 : 704 * 1248, native, capped: asked > 768 };
+}
+
 // ---------------------------------------------------------------- LoRA (SPEC §12)
 
 /** Base family key of a model or LoRA entry: 'ltx' | 'wan' | 'qwen' | 'minimax' | 'flux' | 'sdxl' | null. */
@@ -365,6 +416,34 @@ const FAMILY_LABEL = {
   ltx: 'LTX 2.5', wan: 'Wan', qwen: 'Qwen Image', minimax: 'MiniMax H3', flux: 'Flux', sdxl: 'Stable Diffusion XL',
 };
 const familyLabel = (k) => FAMILY_LABEL[k] || String(k || '?');
+
+// ---------------------------------------------------------------- model limits (SPEC §22)
+
+let FAMILIES = null;
+/** Family profiles of src/catalog/model-families.json (read once; {} when unreadable). */
+function families() {
+  if (!FAMILIES) {
+    try { FAMILIES = require('../../src/catalog/model-families.json').families || {}; } catch { FAMILIES = {}; }
+  }
+  return FAMILIES;
+}
+/**
+ * Limits of a model's family — { seconds:[min,max], fps, resolutions, audio, inputs } — the same the block shows
+ * (src/js/nodes/profiles.js). `fallbackKey` names the family when no model is resolved (the executor's default).
+ */
+function familyLimits(m, fallbackKey = null) {
+  const key = familyKey(m) || fallbackKey;
+  if (!key) return {};
+  for (const f of Object.values(families())) {
+    if (String((f.match && f.match.baseKey) || '').toLowerCase() === key) return f.limits || {};
+  }
+  return {};
+}
+/** Longest shot a family is trusted with (seconds), or `def`. */
+const maxSeconds = (m, fallbackKey, def = 20) => {
+  const s = familyLimits(m, fallbackKey).seconds;
+  return Array.isArray(s) && s.length === 2 ? s[1] : def;
+};
 
 /**
  * Trigger word of a LoRA entry, as the inventory gives it: the user's own registry (loras.json), their
@@ -886,8 +965,9 @@ const notes = (list) => list.filter(Boolean).join('\n') || undefined;
 const exec = {
   setLang, begin, t, abortError, checkAbort,
   snap, even, ltxFrames, ceil8k1, int, seedOf, ltxMinutes, FORMAT_RATIOS, formatRatio, videoSize, shortSide,
-  input, promptOf, model, modelFile, labelOf, isMinimax, minimaxLength,
-  familyKey, familyLabel, loraTrigger, withTrigger, listedName, lora, loraPrompt, addLora, requireModels,
+  input, promptOf, model, modelFile, labelOf, isMinimax, minimaxLength, minimaxCanvas,
+  LTX_UPSCALER, LTX_STAGE2_SIGMAS, ltxEnhance, enhancedText,
+  familyKey, familyLabel, familyLimits, maxSeconds, loraTrigger, withTrigger, listedName, lora, loraPrompt, addLora, requireModels,
   engine, ranged, tmp, cleanup, upload, annotated, prefix, release, wrap, sweepEngineTemps, submit, files, filesOrThrow, metaOf,
   hasNvenc, codecArgs, ffmpeg, encode, framesInput, framesToVideo, stillTo, prepVideo, notes, dec,
 };

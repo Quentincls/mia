@@ -55,7 +55,9 @@ const TYPE_IDS = TYPES.map((t) => t.id);
 const TYPE_LINES = TYPES.map((t) => {
   const ins = (t.inputs || []).map((i) => `${i.id}:${i.type}${i.multi ? `×${i.max || 'n'}` : ''}${i.required ? '!' : ''}`).join(' ');
   const outs = (t.outputs || []).map((o) => `${o.id}:${o.type}`).join(' ');
-  return `- ${t.id} « ${t.label && t.label.fr} » — ${t.desc && t.desc.en ? t.desc.en : ''} [in: ${ins || '—'} | out: ${outs || '—'}]${t.modes ? ' (modes: preview, final)' : ''}${t.engine ? '' : ' (no computation)'}`;
+  // the Model block's inputs are those of its model (mia_catalog → its params.model.choices[].ways)
+  const insText = t.ports === 'model' ? `depends on params.model, up to: ${ins}` : ins;
+  return `- ${t.id} « ${t.label && t.label.fr} » — ${t.desc && t.desc.en ? t.desc.en : ''} [in: ${insText || '—'} | out: ${outs || '—'}]${t.modes ? ' (modes: preview, final)' : ''}${t.engine ? '' : ' (no computation)'}`;
 }).join('\n');
 const RECIPES = readRecipes();
 const RECIPE_LINE = RECIPES.map((r) => `${r.id} « ${r.fr} »`).join(', ');
@@ -69,7 +71,9 @@ const INSTRUCTIONS = [
   'Typical flow: mia_status → mia_list_projects (the user\'s projects and their boards) → mia_catalog (once; it lists every block type, its ports, settings with allowed values, installed models and LoRAs) → a new board: mia_create_project {folder:"<project>", name:"<board>"} (the project is created when it does not exist yet), or an existing board: mia_open_project {name:"<project> / <board>"} → mia_import_media with ABSOLUTE Windows paths → mia_add_block with near=<the block that feeds it> → mia_connect → mia_set_params with values taken from the catalog → mia_run (generation blocks: mode "preview" first, then "final" once it looks right) → mia_wait → mia_get_output / mia_snapshot to look at the result → mia_say to tell the user what you did.',
   'Organising work: one project per film or subject, one board per shot or idea inside it (project « Mon film » → boards « Plan 01 », « Plan 02 »…); inside one board, mia_add_section frames related blocks. When the user names a project, put the new boards in it (folder). Never move, rename or empty the user\'s boards unless asked.',
   'Heavy GPU jobs go through the same queue and GPU lock as the user\'s own clicks (one at a time); a job may wait for the GPU. Never delete blocks you did not create unless asked.',
-  'Ports: image→image|media, video→video|media, text→text, audio→audio (import a wav/mp3/m4a/flac with mia_import_media, wire it into the Son block). Settings marked "overriddenByInput" are replaced by a wired text block (Consigne).'
+  'Ports: image→image|media, video→video|media, text→text, audio→audio (import a wav/mp3/m4a/flac with mia_import_media, wire it into the Son block, or into a Model block\'s sound inputs: MiniMax reference sounds, a sound to follow). Settings marked "overriddenByInput" are replaced by a wired text block (Consigne).',
+  'MODEL BLOCK (type "gen", « Modèle »): when the user names a model (LTX, MiniMax, Wan, Qwen, Seedance, Kling…), add ONE gen block with params.model = its family (mia_catalog → types[gen].params[model].choices: fam:ltx, fam:minimax, fam:wan, fam:qwen, or hf:… online). Its inputs are its model\'s; what you wire picks what it does (choices[].ways: needs, takes, settings) — read types[gen].howItWorks once. mia_get_board shows each Model block\'s model.does, model.connect (what is missing), model.ignored and model.trial. The task blocks (i2v « Animer une image », ref2v…) and recipes still exist and stay fine for their one job.',
+  'Local model abilities (this PC): LTX 2.5 — from text, animate a start image (+ end image, + up to 4 keyframes in between), guided video, 3D render → photoreal; option « Enrichir la consigne » (enhance: Gemma rewrites the prompt). MiniMax H3 — from text, animate (start/end, keyframes, a sound to follow), references (up to 9 images, 3 videos, 3 sounds, named « Image n », « Vidéo n », « Son n » in the prompt), guided video, extend a video (the result is the whole video made longer), up to 15 s, 768p. Wan Animate 2 — a character + a motion video (settings motionFidelity, likeness). Qwen Image Edit — edit an image with up to 2 helper images. Keyframes: keep the start image\'s framing, a keyframe framed differently makes the shot cut. Features marked trial are new: tell the user to judge them by eye.'
 ].join('\n');
 
 const nodeRef = {
@@ -156,12 +160,12 @@ const TOOLS = [
   },
   {
     name: 'mia_get_board', method: 'get_board', annotations: { title: 'Mia: read the board', ...RO },
-    description: 'The open board (id, name, its project): every block (id, type, name in Mia\'s language, title, position/size, all settings, inputs with what is wired into them, outputs with their concrete type, computation state, whether its result is out of date, and its current result with ABSOLUTE file paths), the wires and the sections. Use it to find ids and check your work.',
+    description: 'The open board (id, name, its project): every block (id, type, name in Mia\'s language, title, position/size, all settings, inputs with what is wired into them, outputs with their concrete type, computation state, whether its result is out of date, and its current result with ABSOLUTE file paths), the wires and the sections. A Model block also has model {family, does, workflow, otherWays, connect (inputs still needed), ignored (wired but unused), trial}. Use it to find ids and check your work.',
     inputSchema: { type: 'object', properties: { boardId: boardIdProp('Optional: open this board (p_…) first'), projectId: projectIdAlias }, additionalProperties: false }
   },
   {
     name: 'mia_add_block', method: 'add_block', annotations: { title: 'Mia: add a block', ...EDIT },
-    description: 'Place a new block on the board (it fades in; the cursor shows where). Placement: to the right of "near" (use the block that will feed it), or at "at", or else beside your last block — never on top of another block. "params" are checked against the catalog (allowed values, ranges, model ids or names). Returns the new block id and its ports. Use mia_import_media, not this, to bring files in.',
+    description: 'Place a new block on the board (it fades in; the cursor shows where). Placement: to the right of "near" (use the block that will feed it), or at "at", or else beside your last block — never on top of another block. "params" are checked against the catalog (allowed values, ranges, model ids or names). Returns the new block id and its ports. Use mia_import_media, not this, to bring files in. A model by name (MiniMax, LTX, Seedance…) = type "gen" with params.model (e.g. {"model":"fam:minimax"}): its ports are then those of the model.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -177,7 +181,7 @@ const TOOLS = [
   },
   {
     name: 'mia_connect', method: 'connect', annotations: { title: 'Mia: wire two blocks', ...EDIT },
-    description: 'Wire an output of one block into an input of another (the cursor draws it). Ports may be omitted: the first compatible output/input is picked (a required empty input first). A single input that is already wired is replaced. Errors list the compatible ports.',
+    description: 'Wire an output of one block into an input of another (the cursor draws it). Ports may be omitted: the first compatible output/input is picked (a required empty input first) — on a Model block, name the input port (start, end, keys, refs, refVideos, refAudios, video, audio, guide…): the port chooses what the block does. Every input of a Model block\'s model can be wired, even one the UI keeps behind « + Ajouter ». A single input that is already wired is replaced; a multi input adds the wire (numbered by the vertical order of the sources). Errors list the compatible ports.',
     inputSchema: { type: 'object', properties: { from: nodeRef, to: nodeRef }, required: ['from', 'to'], additionalProperties: false }
   },
   {

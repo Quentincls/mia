@@ -10,6 +10,119 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## Prochaine version — en cours (pas encore publiée)
+
+### En bref
+- **Un bloc par modèle** : « + Bloc » montre d’abord les **Modèles** (LTX, MiniMax, Wan, Qwen) et ceux **En ligne**
+  (Seedance, Kling, MiniMax 2K…). Le bloc posé porte le nom du modèle, n’a que les entrées que ce modèle sait prendre
+  (jusqu’à 30 images de référence pour Seedance 2.5) et fait ce que demandent les fils : une image de début, il
+  l’anime ; des références, il les mélange ; rien, il part du texte.
+- **Les modèles en ligne de Higgsfield** : colle ta clé dans Réglages → Comptes en ligne (gardée chiffrée sur ce
+  PC) ; les calculs se font chez eux, ta carte graphique reste libre, chaque calcul coûte des crédits et ne part
+  qu’à ton clic. L’aperçu prend la plus petite résolution et la durée la plus courte.
+- MiniMax H3 sait maintenant partir d’un texte seul, sans image.
+- **Des infobulles qui expliquent** : au survol d’une entrée d’un bloc (image de début, références, vidéo guide…),
+  ce que c’est, à quoi ça sert, et ce que le modèle choisi en fait ; au survol du modèle, où il calcule et ce qu’il sait faire.
+- **Le modèle en évidence** : dans chaque bloc de génération, le modèle est la première chose qu’on voit (sa
+  pastille, son nom, ce qu’il sait faire : « 15 S · 720P · SON »). Un clic ouvre un panneau avec recherche, onglets
+  **Local** et **Cloud**, « Choisir pour moi », épingles, et une phrase simple qui dit à quoi sert chaque modèle.
+- **Les réglages suivent le modèle** : avec MiniMax H3, la durée monte à 15 s et la cadence (toujours 24 i/s)
+  disparaît ; LTX reste à 10 s au plus. Une note dit quand une entrée branchée ne sert pas au modèle choisi.
+- Les noms longs des cartes de l’accueil passent sur deux lignes ; un titre de bloc coupé se lit en entier au survol.
+- **« + Ajouter »** : un bloc Modèle s’ouvre presque vide (la consigne et l’entrée principale) ; le reste de ce que
+  sait prendre le modèle se range derrière « + Ajouter », avec une phrase simple pour chaque entrée. Quand tu tires
+  un fil vers le bloc, les entrées qui peuvent le recevoir apparaissent le temps du geste ; une entrée ajoutée et
+  restée vide se range d’un clic sur ×.
+- **Tout ce que savent les modèles du PC**, dans le bloc Modèle (les nouveautés portent « À essayer » tant qu’elles
+  n’ont pas été jugées à l’œil) :
+  - **Images-clés** (LTX, MiniMax) : jusqu’à 4 images par où le plan passe, entre le début et la fin (au même
+    cadrage que l’image de début, sinon le plan coupe vers elle) ;
+  - **MiniMax** : **prolonger une vidéo** (le résultat est la vidéo entière, rallongée ; raccord invisible à
+    l’essai), un **son à suivre** (la vidéo se cale sur une voix ou une musique), jusqu’à 3 **sons de référence**
+    (« Son 1 »…), et **768p** ;
+  - **LTX** : **enrichir la consigne** (Gemma réécrit ta consigne en anglais détaillé) ;
+  - **Wan Animate 2** : « Fidélité au mouvement » et « Ressemblance au personnage » ;
+  - **Qwen Image Edit** : deux images d’appui au lieu d’une (« image 2 », « image 3 »).
+- **Les assistants (Claude, Codex) connaissent tout cela** : chaque modèle, ce qu’il faut lui brancher pour chaque
+  façon de faire, ses réglages, ce qui est à essayer ; et, sur la planche, ce que fait chaque bloc Modèle.
+
+### In short
+- **One block per model**: “+ Block” first shows the **Models** (LTX, MiniMax, Wan, Qwen) and the **Online** ones
+  (Seedance, Kling, MiniMax 2K…). The block is named after its model, only has the inputs that model takes (up to 30
+  reference images for Seedance 2.5) and does what its wires ask: a start image, it animates it; references, it
+  mixes them; nothing, it starts from the text.
+- **Higgsfield’s online models**: paste your key in Settings → Online accounts (kept encrypted on this PC); jobs run
+  on their servers, your graphics card stays free, each job costs credits and only leaves on your click. The preview
+  uses the smallest resolution and the shortest length.
+- MiniMax H3 can now start from text alone, without an image.
+- **Tooltips that explain**: hover an input of a block (start image, references, guide video…) to see what it is,
+  what it is for and what the chosen model does with it; hover the model to see where it runs and what it can do.
+- **The model up front**: in every generation block, the model is the first thing you see (its badge, its name,
+  what it can do: “15 S · 720P · SOUND”). One click opens a panel with search, **Local** and **Cloud** tabs,
+  “Pick for me”, pins, and a plain sentence on what each model is for.
+- **Settings follow the model**: with MiniMax H3 the length goes up to 15 s and the frame rate (always 24 fps)
+  goes away; LTX stays at 10 s at most. A note says when a connected input is not used by the chosen model.
+- Long names on home cards wrap onto two lines; a cut block title shows in full on hover.
+- **“+ Add”**: a Model block opens almost empty (the prompt and its main input); everything else its model can take
+  waits behind “+ Add”, with a plain sentence for each input. While you drag a wire to the block, the inputs that
+  can take it show up for the gesture; an input you added and left empty goes away with ×.
+- **Everything this PC’s models can do**, in the Model block (new features say “To try” until judged by eye):
+  keyframes (LTX, MiniMax, up to 4 between start and end, same framing as the start image); MiniMax: extend a video
+  (the result is the whole video, longer), a sound to follow, up to 3 reference sounds, 768p; LTX: enrich the prompt
+  (Gemma rewrites it); Wan Animate 2: motion fidelity and character likeness; Qwen Image Edit: two helper images.
+- **Assistants (Claude, Codex) know all of it**: each model, what to wire for each way of working, its settings,
+  what is to try; and, on the board, what each Model block does.
+
+### Ajouté
+- **Bloc Modèle** (`gen`, SPEC §23) : entrées et réglages selon la famille de son modèle, façon de faire choisie
+  d’après les fils (règle unique `src/js/nodes/route.js`, lue aussi par le moteur), ligne « Ce que fait le bloc »,
+  entrées reliées hors du modèle barrées et ignorées ; panneau des familles Local | Cloud ; section Modèles et
+  catégorie En ligne dans « + Bloc ».
+- **En ligne (Higgsfield)** : `electron/cloud.js` (clé chiffrée par Windows, IPC `cloud:*`), exécuteur
+  `executors/cloud.js` (envoi des fichiers, demande, suivi, téléchargement, erreurs en clair, annulation en file),
+  catalogue `src/catalog/cloud-higgsfield.json` (35 familles, 71 façons de faire) relevé par
+  `tools/build-cloud-catalog.mjs` ; Réglages → Comptes en ligne ; `tools/hf-check.mjs` vérifie une clé sans rien
+  dépenser.
+- Profils de modèles `src/catalog/model-families.json` (SPEC §22) : nom, fabricant, monogramme, phrase « à quoi ça
+  sert » en français et en anglais, variantes (LTX Standard / Rapide, MiniMax Images-clés / Références, SeedVR2
+  Rapide / Qualité) et limites (durée, cadence, définitions, entrées comprises).
+- Panneau de choix du modèle : onglets Local | Cloud (Cloud = Higgsfield, annoncé, pas encore relié), recherche,
+  « Choisir pour moi » (= Auto), modèles épinglés (`prefs.pinnedModels`).
+
+- **« + Ajouter »** (`src/js/nodes/addinput.js`) : entrées montrées = consigne, entrée principale (`main` du
+  profil), ce qui est relié, ce qui manque à la façon de faire retenue et ce que l’utilisateur a ajouté
+  (`node.data.shown`) ; geste de fil : `NodeView.setReveal`.
+- Entrées et façons de faire **« à essayer »** (`trial` dans `model-families.json`) : badge dans le menu « + »,
+  l’infobulle et la ligne « Ce que fait le bloc », note dans le résultat.
+- MiniMax : `refAudios` (3 sons, `ref_audios` du nœud, « Son n » décalé après les sons des vidéos), `keys` et
+  `audio` (`MiniMaxH3AddGuide`), façon de faire « Prolonger une vidéo » (39 dernières images ancrées à l’image 0,
+  vidéo d’origine + suite), 768p (`minimaxCanvas`, toile native 768 × 1344).
+- LTX : `keys` (`LTXVAddGuide` aux images réparties), `twoPass` (`LTXVLatentUpsampler` ×2 + 3 pas distillés ;
+  caché, hors catalogue : moins net qu’une passe à l’essai GPU du 24/10), `enhance` (`TextGenerateLTX2Prompt` sur le Gemma de LTX, texte relu par `PreviewAny`).
+- Wan : `motionFidelity` / `likeness` → `pose_strength` / `reference_image_strength`. Qwen : `ref` multiple (2).
+- Pont des assistants : `choices[].ways` (needs, needsOneOf, takes, settings, trial), `howItWorks` détaillé,
+  `mia_get_board` → `model` {family, does, workflow, otherWays, connect, ignored, trial} et réglages du seul
+  modèle ; descriptions et instructions du serveur MCP ; guides mia-piloter et mia-recettes-video.
+
+### Changé
+- Le modèle n’est plus jamais rangé sous « Avancé » dans un bloc de génération.
+- À égalité, la façon de faire dont les exigences sont remplies passe devant celle qui n’exige rien (des références
+  et une image-clé → « Vidéo à partir de références ») ; deux façons aux mêmes exigences restent proposées au choix.
+- « Vidéo à partir de références » accepte des vidéos de référence sans image.
+- Qwen : l’entrée « Référence » devient « Images d’appui » (jusqu’à 2).
+- **Animer une image** et **Vidéo à partir de références** : jusqu’à 15 s avec MiniMax H3 (sa limite vérifiée au
+  labo) ; le moteur ramène toute durée à la limite du modèle et le note dans le résultat.
+- Le texte reçu d’une Consigne branchée (« Vient de … ») se lit en entier au survol quand il dépasse trois lignes.
+
+### Pour les développeurs
+- Ports par bloc : `src/js/nodes/ports.js` (`nodeInputs`, `nodeOutputs`, `nodePortDef`) remplace la lecture directe
+  du catalogue dans l’éditeur, le geste de fil et le pont des assistants (les autres blocs lisent la même chose
+  qu’avant). Moteur : `planGen` (index.js), `executors/gen.js` (renvoie vers i2v, t2v, ref2v, guided, real, perform,
+  edit ou cloud), `gpu: "auto"`, empreinte avec le workflow et les réglages `hf.*`. Tests : `tools/test-cloud.js`.
+- Réglage `limit` ("seconds" | "fps" | "resolutions") et liste `limits` sur le réglage de modèle (puces de la
+  carte) dans `nodes.json` ; évaluation dans `src/js/nodes/profiles.js` et `params.js`, bornes moteur par
+  `patch.js` (`familyLimits`, `maxSeconds`).
+
 ## 0.5.1 — 17/10/2026
 
 ### En bref

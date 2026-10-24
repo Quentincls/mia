@@ -2106,7 +2106,8 @@ function homeRow(i, cap) {
     }
   }
   const nameEl = el('span', { class: 'hm-name' }, name || '—');
-  if (ttl) tip(nameEl, ttl);
+  // la phrase du manque, sinon le nom entier quand la rangée l'a coupé (la liste de tous ses LoRA)
+  tip(nameEl, () => ttl || (nameEl.scrollWidth > nameEl.clientWidth + 1 ? name : ''));
   const row = el('button', { class: ['hm-row', 'hm-' + stateCls], type: 'button', dataset: path ? { path } : {} },
     el('span', { class: 'hm-cap' }, capLabel(cap)),
     // le nom prend la place libre ; la famille (mono gris) le suit seulement si elle dit autre chose que le nom

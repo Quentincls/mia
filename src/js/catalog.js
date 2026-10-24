@@ -61,7 +61,8 @@ export const catalogReady = () => loaded;
 
 // fetch() refuse parfois le schéma file:// selon la configuration d'Electron ;
 // XMLHttpRequest, lui, passe toujours pour une page servie depuis le disque.
-async function readJSON(url) {
+// (Exportée : les profils de modèles, nodes/profiles.js, se lisent de la même façon.)
+export async function readJSON(url) {
   try {
     const r = await fetch(url, { cache: 'no-cache' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -170,6 +171,8 @@ registerIcons({
   note: '<path d="M14.2 4H6.4A2.4 2.4 0 0 0 4 6.4v11.2A2.4 2.4 0 0 0 6.4 20h11.2a2.4 2.4 0 0 0 2.4-2.4V9.8z"/><path d="M14.2 4v3.9a1.9 1.9 0 0 0 1.9 1.9H20"/><path d="M8 13.4h8M8 16.6h5"/>',
   // un cadre et le triangle de lecture
   animate: '<rect x="3.4" y="5" width="17.2" height="14" rx="2.4"/><path d="M10.3 9.4v5.2l4.4-2.6z"/>',
+  // bloc Modèle (SPEC §23) : une carte de modèle — un cadre, trois lignes de réglages, la pastille en tête
+  model: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.2"/><rect x="6.6" y="6.6" width="4" height="4" rx="1"/><path d="M13.2 8.6h4.2M6.6 14h10.8M6.6 17h7.4"/>',
   // pellicule
   film: '<rect x="4.2" y="3.6" width="15.6" height="16.8" rx="2"/><path d="M8.2 3.8v16.4M15.8 3.8v16.4M4.4 8.4h3.8M4.4 12h3.8M4.4 15.6h3.8M15.8 8.4h3.8M15.8 12h3.8M15.8 15.6h3.8"/>',
   // un appareil photo : « comme filmé »

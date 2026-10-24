@@ -21,6 +21,7 @@ import { recipes, compatible, portDef, inputDefs, outputDefs, computes, typeOf }
 import { wirePathScreen } from './wires.js';
 import { GRID, NODE_MIN_W, NODE_MAX_W } from './doc.js';
 import { defaultTitle } from './view.js';
+import { nodeInputs, nodeOutputs, nodePortDef, hiddenInputs, isModelBlock } from '../nodes/ports.js';
 import { ms, easeFn } from '../ui/motion.js';
 import {
   TONE_MENU, toneKey, toneColor, hitSection, CURSORS, resizeBox, membersOf, sectionAt, adopt,
@@ -448,7 +449,7 @@ export function attachInteract(ed) {
     let port, dir;
     if (dotEl.classList.contains('n-cdot')) {
       dir = dotEl.classList.contains('in') ? 'in' : 'out';
-      port = (dir === 'in' ? inputDefs(node.type) : outputDefs(node.type))[0]?.id;
+      port = (dir === 'in' ? nodeInputs(node) : nodeOutputs(node))[0]?.id;
     } else {
       const pe = dotEl.closest('.n-port');
       port = pe.dataset.port;
@@ -475,17 +476,29 @@ export function attachInteract(ed) {
 
     const want = origin.dir === 'out' ? 'in' : 'out';
     const outType = origin.dir === 'out' ? ed.portType(origin.node, origin.port, 'out') : null;
-    const inDef0 = origin.dir === 'in' ? portDef(ed.doc.node(origin.node).type, origin.port, 'in') : null;
+    const inDef0 = origin.dir === 'in' ? nodePortDef(ed.doc.node(origin.node), origin.port, 'in') : null;
     const inType = inDef0?.type || null;
     // pas de boucle : on écarte l'amont (ou l'aval) du bloc d'origine
     const banned = origin.dir === 'out'
       ? new Set([origin.node, ...ed.doc.upstream(origin.node)])
       : new Set([origin.node, ...ed.doc.downstream(origin.node)]);
+    // bloc Modèle : ses entrées rangées qui peuvent recevoir ce fil se montrent le temps du geste (« + Ajouter »)
+    const revealed = [];
+    if (want === 'in') {
+      for (const v of ed.views.nodes.values()) {
+        const n = banned.has(v.id) ? null : ed.doc.node(v.id);
+        if (!n || n.collapsed || !isModelBlock(n)) continue;
+        const ids = hiddenInputs(n, v._connected()).filter((d) => compatible(outType, d.type)).map((d) => d.id);
+        if (ids.length && v.setReveal(ids)) revealed.push(v.id);
+      }
+      if (revealed.length) ed.wires.sync();
+    }
     const cands = [];
     for (const v of ed.views.nodes.values()) {
       let any = false;
       if (!banned.has(v.id)) {
         for (const [pid, prt] of v.ports[want]) {
+          if (prt.def.unused) continue;            // bloc Modèle : entrée que son modèle ne prend pas (SPEC §23)
           const ok = want === 'in'
             ? compatible(outType, prt.def.type)
             : compatible(ed.portType(v.id, pid, 'out'), inType);
@@ -510,7 +523,7 @@ export function attachInteract(ed) {
     preview.dataset.t = type || 'media';
     previewEnd.dataset.t = type || 'media';
     const w0 = cam.toWorld(p.x, p.y);
-    begin('connect', e, p, { origin, want, cands, detached, target: null, endW: w0, shown: w0, tween: null, type, inType, outType });
+    begin('connect', e, p, { origin, want, cands, detached, revealed, target: null, endW: w0, shown: w0, tween: null, type, inType, outType });
     ed.connecting = g;
     drawPreview();
   }
@@ -590,6 +603,11 @@ export function attachInteract(ed) {
     ed.connecting = null;
     clearConnectClasses();
     hidePreview();
+    // les entrées montrées le temps du geste se rangent (celle qui vient de recevoir le fil reste : elle est reliée)
+    if (cur.revealed?.length) {
+      for (const id of cur.revealed) ed.views.get(id)?.setReveal(null);
+      ed.wires.sync();
+    }
     const { origin, detached, target } = cur;
     if (cancelled || (!cur.moved && detached)) {
       if (detached) {
