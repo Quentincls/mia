@@ -4,7 +4,7 @@
 // - The key (« ID:SECRET », made in console.higgsfield.ai) is pasted by Quentin in Settings → Online accounts.
 //   It is checked (a free call), then kept ENCRYPTED with Electron's safeStorage (Windows DPAPI, tied to his
 //   Windows account) in %APPDATA%\Mia\data\cloud.json. It is never written in clear, never logged, never sent to
-//   the window again (the window only learns « linked, since…, key …f54f »), never sent anywhere but Higgsfield.
+//   the window again (the window only learns « linked, since…, key …abcd »), never sent anywhere but Higgsfield.
 // - Only the cloud executor uses it, when Quentin clicks Run on an online Model block: nothing leaves the PC
 //   otherwise (no catalog download, no telemetry).
 // - Hosts: api.higgsfield.ai (calls), the presigned storage URL Higgsfield gives for each upload (PUT of the

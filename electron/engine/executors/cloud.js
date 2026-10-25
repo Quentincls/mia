@@ -156,7 +156,12 @@ async function run(x) {
   x.progress(0.16, E.t(TXT.submitting));
   const endpoint = endpointOf(x);
   const body = bodyOf(x, urls, preview);
-  x.log(`Higgsfield : POST /${endpoint} ${JSON.stringify({ ...body, prompt: body.prompt ? `${String(body.prompt).slice(0, 60)}…` : undefined })}`);
+  // the run log keeps the settings, never the addresses of the uploaded files (public links to the user's media)
+  const isUrl = (v) => typeof v === 'string' && /^https?:/i.test(v);
+  const logged = Object.fromEntries(Object.entries(body).map(([k, v]) => [k,
+    k === 'prompt' && v ? `${String(v).slice(0, 60)}…`
+      : isUrl(v) ? '<url>' : Array.isArray(v) && v.some(isUrl) ? `<${v.length} url>` : v]));
+  x.log(`Higgsfield : POST /${endpoint} ${JSON.stringify(logged)}`);
   const sub = await svc.call('POST', endpoint, body, { signal: x.signal, headers: { 'Idempotency-Key': x.runId } });
   x.log(`Higgsfield : demande ${sub.request_id}`);
 

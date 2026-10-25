@@ -39,7 +39,7 @@ def set_lang(lang):
 
 
 def tr(fr, en):
-    """Chaîne dans la langue de l'interface ; le français d'abord (Quentin ne lit pas l'anglais)."""
+    """Chaîne dans la langue de l'interface ; le français d'abord (langue principale de l'interface)."""
     return en if _LANG == "en" else fr
 
 

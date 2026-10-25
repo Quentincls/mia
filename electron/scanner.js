@@ -1314,7 +1314,7 @@ function applyLoras(models, ctx) {
     m.loraKind = m.genre === 'character' || m.genre === 'place' ? 'identity' : 'style';
     if (entry && entry.name) m.label = { fr: entry.name, en: entry.name };
     else if (!m.identity) { const nm = R.loraNameFromFile(m.file); m.label = { fr: nm, en: nm }; }
-    // Étape d'entraînement : son numéro, qu'il y ait un personnage reconnu ou non — sinon « Pianiste »
+    // Étape d'entraînement : son numéro, qu'il y ait un personnage reconnu ou non — sinon « Mara »
     // s'afficherait trois fois sans qu'on puisse les distinguer (la bibliothèque les range aussi d'après lui).
     if (origin === 'training') {
       const step = (String(m.file || '').match(/(?:^|[_\-. ])0*(\d{3,6})\.(?:safetensors|sft|ckpt|pt|pth|bin)$/i) || [])[1];

@@ -1,7 +1,7 @@
 'use strict';
 // Video from text ("Vidéo depuis un texte"): LTX-2.5 single-stage distilled, text only, run locally in int8.
 // Graph = the lab's ltx_t2v_single.api.json made local (int8 + Gemma int8, no prompt enhancer, no cloud Gemma
-// branch, no dummy start image, euler) — trailer_secondepart/scripts/vague_t2v.py did the same on the pod.
+// branch, no dummy start image, euler), as the lab's own text-to-video script does.
 // Size = the block's format (16:9, 9:16, 1:1, 4:3, 3:4, 21:9) at its resolution (short side 540 / 720 / 1080),
 // generated on LTX's 32-px grid and cropped back to the exact size (1088 → 1080, as the lab does).
 // Character / place LoRA (SPEC §12): LoraLoaderModelOnly after the UNET, trigger word put first in the prompt.
