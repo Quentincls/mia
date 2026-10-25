@@ -29,7 +29,7 @@ import { tip } from './tooltip.js';
 import {
   typeOf, types as allTypes, defaults, compatible, recipe as recipeById, recipes as allRecipes
 } from '../catalog.js';
-import { nodeInputs, nodeOutputs, isModelBlock, blockWorkflow } from '../nodes/ports.js';
+import { nodeInputs, nodeOutputs, isModelBlock, blockWorkflow, startPoints, mainPorts, blockFamily } from '../nodes/ports.js';
 import { familyOf, localKeyOf } from '../nodes/route.js';
 import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
 
@@ -1041,7 +1041,12 @@ function modelInfo(n, conn) {
   const others = (r.ties || []).filter((w) => w.id !== r.workflow.id);
   if (others.length) info.otherWays = others.map((w) => ({ workflow: w.id, does: tl(w.label || {}) }));
   if (r.blocked) info.connect = r.missing;
+  const uses = conn.filter((id) => id !== 'prompt' && ports[id] && !(r.unused || []).includes(id));
+  if (uses.length) info.uses = uses;
   if (r.unused?.length) info.ignored = r.unused;
+  // rien de branché : ce dont il peut partir (la ligne « Partir de : » de l'écran), port par port
+  const starts = safe(() => startPoints({ ...n, data: { ...(n.data || {}), shown: [] } }, conn)) || [];
+  if (starts.length) info.startFrom = starts.map((s) => ({ port: s.id, label: tl(s.label), for: s.what.map((w) => tl(w)) }));
   const trial = conn.filter((id) => ports[id]?.trial);
   if (r.workflow.trial || trial.length) info.trial = r.workflow.trial ? 'the whole way' : trial;
   return info;
@@ -1398,9 +1403,11 @@ const METHODS = {
     if (to.port && !ins.some((i) => i.id === to.port)) fail('noInPort', { block: b, port: to.port, list: portLabelList(ins) });
 
     const wired = e.inputsOf(B.id) || {};
+    // bloc Modèle : l'entrée principale de son modèle d'abord (MiniMax : les références), comme un fil lâché sur le corps
+    const main = isModelBlock(B) ? (safe(() => mainPorts(blockFamily(B))) || []) : [];
     const rank = (i) => {
       const n = (wired[i.id] || []).length;
-      if (!n) return i.required ? 0 : 1;
+      if (!n) return i.required ? 0 : main.includes(i.id) ? 0.5 : 1;
       if (i.multi && (!i.max || n < i.max)) return 2;
       return 3;
     };

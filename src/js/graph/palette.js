@@ -22,6 +22,7 @@ import { familyWords } from '../nodes/familypicker.js';
 register({
   fr: {
     'pal.search': 'Chercher un modèle, un bloc ou une recette…',
+    'pal.searchShort': 'Chercher…',
     'pal.all': 'Tout',
     'pal.recipes': 'Recettes',
     'pal.models': 'Modèles',
@@ -53,6 +54,7 @@ register({
   },
   en: {
     'pal.search': 'Search a model, a block or a recipe…',
+    'pal.searchShort': 'Search…',
     'pal.all': 'All',
     'pal.recipes': 'Recipes',
     'pal.models': 'Models',
@@ -173,6 +175,7 @@ export function createPalette(ed) {
     st = { at, from, cat: category || 'all', items: [], active: 0, prevFocus: document.activeElement };
     if (from) st.cat = 'all';
     input.value = '';
+    input.placeholder = t(from ? 'pal.searchShort' : 'pal.search');
     mouseArmed = false;
     if (from) {
       chip.hidden = false;

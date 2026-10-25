@@ -29,8 +29,11 @@ concerne que les développeurs.
 - **Les réglages suivent le modèle** : avec MiniMax H3, la durée monte à 15 s et la cadence (toujours 24 i/s)
   disparaît ; LTX reste à 10 s au plus. Une note dit quand une entrée branchée ne sert pas au modèle choisi.
 - Les noms longs des cartes de l’accueil passent sur deux lignes ; un titre de bloc coupé se lit en entier au survol.
-- **« + Ajouter »** : un bloc Modèle s’ouvre presque vide (la consigne et l’entrée principale) ; le reste de ce que
-  sait prendre le modèle se range derrière « + Ajouter », avec une phrase simple pour chaque entrée. Quand tu tires
+- **« Partir de : » et « + Ajouter »** : un bloc Modèle vide n’impose plus d’entrée. LTX, MiniMax et les modèles en
+  ligne montrent la consigne et une ligne « Partir de : Image de début · Rendu 3D · Vidéo guide · Fiche
+  personnage » : un clic fait apparaître l’entrée, sinon le bloc part du texte. Wan et Qwen, qui ne font qu’une
+  chose, montrent leurs entrées. Le reste de ce que sait prendre le modèle se range derrière « + Ajouter », avec une
+  phrase simple pour chaque entrée. Quand tu tires
   un fil vers le bloc, les entrées qui peuvent le recevoir apparaissent le temps du geste ; une entrée ajoutée et
   restée vide se range d’un clic sur ×.
 - **Tout ce que savent les modèles du PC**, dans le bloc Modèle (les nouveautés portent « À essayer » tant qu’elles
@@ -72,8 +75,10 @@ concerne que les développeurs.
 - **Settings follow the model**: with MiniMax H3 the length goes up to 15 s and the frame rate (always 24 fps)
   goes away; LTX stays at 10 s at most. A note says when a connected input is not used by the chosen model.
 - Long names on home cards wrap onto two lines; a cut block title shows in full on hover.
-- **“+ Add”**: a Model block opens almost empty (the prompt and its main input); everything else its model can take
-  waits behind “+ Add”, with a plain sentence for each input. While you drag a wire to the block, the inputs that
+- **“Start from:” and “+ Add”**: an empty Model block no longer imposes an input. LTX, MiniMax and the online models
+  show the prompt and a line “Start from: Start image · 3D render · Guide video · Character sheet”: one click shows
+  that input, otherwise the block starts from the text. Wan and Qwen, which do one thing, show their inputs.
+  Everything else its model can take waits behind “+ Add”, with a plain sentence for each input. While you drag a wire to the block, the inputs that
   can take it show up for the gesture; an input you added and left empty goes away with ×.
 - **Everything this PC’s models can do**, in the Model block (new features say “To try” until judged by eye):
   keyframes (LTX, MiniMax, up to 4 between start and end, same framing as the start image); MiniMax: extend a video
@@ -142,8 +147,18 @@ concerne que les développeurs.
 
 ### Corrigé
 - La croix qui coupe un fil ne coupait pas : l’effet « enfoncé » faisait perdre la croix au navigateur.
+- Les blocs restaient flous après un zoom avant : la planche est redessinée nette une fois le zoom posé.
+- Higgsfield : une image en ligne avec une image de référence (Soul…) était refusée (« URL input should be a string
+  ») ; chaque champ reçoit maintenant une adresse seule ou une liste, selon ce qu’il attend.
+- Bloc Modèle en ligne : « Ce que fait le bloc » dit « Image depuis un texte + Images de référence » quand les
+  références branchées servent ; le puits du résultat n’annonce plus « ≈ 1 min » pour un calcul en ligne.
+- La recherche de « + Bloc » ouverte depuis un fil n’est plus coupée (« Chercher… »).
 
 ### Pour les développeurs
+- Points de départ : `startPoints` (`src/js/nodes/ports.js`, 1re exigence de chaque façon de faire, ou son entrée de
+  tête) ; une famille à plusieurs façons de faire ne montre plus d’entrée principale d’office ; pont des assistants :
+  `model.startFrom`, `model.uses`, un fil sans port va à l’entrée principale. Cloud : `uploadsOf`/`bodyOf`
+  suivent `multi` du catalogue (`tools/test-cloud.js` vérifie les 94 champs).
 - Ports par bloc : `src/js/nodes/ports.js` (`nodeInputs`, `nodeOutputs`, `nodePortDef`) remplace la lecture directe
   du catalogue dans l’éditeur, le geste de fil et le pont des assistants (les autres blocs lisent la même chose
   qu’avant). Moteur : `planGen` (index.js), `executors/gen.js` (renvoie vers i2v, t2v, ref2v, guided, real, perform,

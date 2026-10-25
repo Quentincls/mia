@@ -150,6 +150,41 @@ async function main() {
   await cloudExec.run(t.x);
   ok(S.lastBody.resolution === '480p' && S.lastBody.duration === 4, 'aperçu : plus petite résolution, durée la plus courte', JSON.stringify(S.lastBody));
 
+  // Bug du premier vrai calcul (25/10, SOUL) : « URL input should be a string or URL ». Le bloc Modèle garde ses
+  // références en liste ; chaque champ en ligne doit pourtant recevoir UNE adresse ou une LISTE selon son propre
+  // format. On vérifie toutes les façons de faire du catalogue, avec deux fichiers branchés sur chaque entrée.
+  console.log('Format des adresses envoyées (toutes les familles en ligne)');
+  {
+    const { cloud } = route.catalogs();
+    let checked = 0;
+    const wrong = [];
+    for (const fam of cloud.families || []) {
+      for (const wf of fam.workflows || []) {
+        const inputs = {};
+        for (const p of Object.keys(wf.ports || {})) if (p !== 'prompt') inputs[p] = [{ abs: img, kind: 'image' }, { abs: img, kind: 'image' }];
+        const x = { gen: { ports: wf.ports, params: wf.params }, inputs, params: { prompt: 'p' } };
+        const items = cloudExec._uploadsOf(x);
+        const urls = {};
+        for (const it of items) {
+          const u = `https://cdn.test/${it.port}/${it.i ?? 0}.png`;
+          if (it.multi) (urls[it.port] = urls[it.port] || []).push(u); else urls[it.port] = u;
+        }
+        const body = cloudExec._bodyOf(x, urls, false);
+        for (const [p, d] of Object.entries(wf.ports || {})) {
+          if (p === 'prompt' || !d.field) continue;
+          checked++;
+          const v = body[d.field];
+          const okShape = d.multi ? Array.isArray(v) && v.length === 2 : typeof v === 'string';
+          if (!okShape) wrong.push(`${fam.name} · ${wf.id} · ${d.field} = ${JSON.stringify(v)}`);
+        }
+      }
+    }
+    ok(!wrong.length && checked > 80, `${checked} champs : une adresse ou une liste, comme chaque champ l’attend`, wrong.slice(0, 5).join(' | '));
+  }
+  t = xFor(svc, 'hf:soul', { refs: [{ abs: img, kind: 'image' }] }, {});
+  await cloudExec.run(t.x);
+  ok(typeof S.lastBody.image_reference_url === 'string', 'SOUL : l’image de référence part en une seule adresse', JSON.stringify(S.lastBody));
+
   console.log('Erreurs');
   S.submitMode = '403';
   t = xFor(svc, 'hf:minimax-h3', {}, {});

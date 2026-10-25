@@ -521,7 +521,7 @@ export function attachInteract(ed) {
           // entrée montrée le temps du geste en dernier (audit 25/10, LIVE-2)
           const n = ed.doc.node(v.id);
           const rank = want === 'in' && isModelBlock(n)
-            ? (prt.def.peek ? 2 : mainPorts(blockFamily(n)).includes(pid) ? 0 : 1) : 1;
+            ? (mainPorts(blockFamily(n)).includes(pid) ? 0 : prt.def.peek ? 2 : 1) : 1;
           cands.push({ node: v.id, port: pid, el: prt.el, free: want === 'out' || count === 0 || roomy, rank });
         }
       }

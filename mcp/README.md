@@ -164,8 +164,9 @@ Modèle (`type: "gen"`, `params.model` = `fam:ltx`, `fam:minimax`, `fam:wan`, `f
 payant, seulement si tu l'as demandé). Il sait, par `mia_catalog`, ce que chaque modèle fait selon ce qu'on lui
 branche (`ways` : ce qu'il faut brancher, combien, quels réglages, ce qui est « à essayer ») et relie en nommant
 l'entrée (`start`, `keys`, `refs`, `refAudios`, `video`, `audio`…), même celles que l'écran range derrière
-« + Ajouter ». `mia_get_board` lui dit ensuite ce que fait chaque bloc Modèle (`model.does`), ce qui manque et ce
-qui est ignoré. Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p, consigne
+« Partir de » ou « + Ajouter ». `mia_get_board` lui dit ensuite ce que fait chaque bloc Modèle (`model.does`), de
+quoi il se sert (`model.uses`), ce qui manque et ce qui est ignoré ; sur un bloc encore vide, `model.startFrom`
+donne les points de départ de la ligne « Partir de : » (entrée et ce qu'elle ferait). Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p, consigne
 enrichie) sont signalées comme telles : juge le résultat à l'œil. Prolonger une vidéo et les images-clés de MiniMax
 sont validés (essais du 24/10).
 

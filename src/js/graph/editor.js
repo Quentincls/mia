@@ -151,6 +151,8 @@ register({
     'graph.toast.notForModel': 'Ce modèle ne prend pas « {port} » : choisis-en un autre dans le bloc pour la brancher.',
     'graph.port.unused': 'Le modèle choisi ne prend pas cette entrée : elle est ignorée. Débranche-la ou choisis un autre modèle.',
     'graph.port.add': 'Ajouter',
+    'graph.port.startFrom': 'Partir de :',
+    'graph.port.startTip': 'Pour : {what}. Sinon, le bloc part de la consigne.',
     'graph.port.addTip': 'Montrer une autre entrée que ce modèle sait prendre',
     'graph.port.remove': 'Ranger cette entrée',
     'graph.toast.copied.one': 'Bloc copié',
@@ -293,6 +295,8 @@ register({
     'graph.toast.notForModel': 'This model does not take “{port}”: choose another one in the block to connect it.',
     'graph.port.unused': 'The chosen model does not take this input: it is ignored. Disconnect it or choose another model.',
     'graph.port.add': 'Add',
+    'graph.port.startFrom': 'Start from:',
+    'graph.port.startTip': 'For: {what}. Otherwise, the block starts from the prompt.',
     'graph.port.addTip': 'Show another input this model can take',
     'graph.port.remove': 'Put this input away',
     'graph.toast.copied.one': 'Block copied',
@@ -1259,6 +1263,15 @@ function settle() {
   if (ed.smooth.active || ed.cam.animating) { settleT = setTimeout(settle, 60); return; }
   ed.world.classList.remove('moving');
   applyZ();
+  // Texte net à la nouvelle échelle (Quentin, 25/10 : « quand je zoome, les blocs sont flous ») : une couche marquée
+  // will-change garde l'échelle à laquelle elle a été peinte, Chromium ne la repeint pas après un zoom. On la rend
+  // le temps d'une image (repeinte nette dans la page), puis on la reprend : repeinte à l'échelle actuelle. Deux
+  // repeintures seulement quand le zoom a changé, jamais pendant le geste ni pour un simple déplacement.
+  if (ed.rasterZ !== ed.cam.z) {
+    ed.rasterZ = ed.cam.z;
+    ed.world.style.willChange = 'auto';
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (ed) ed.world.style.willChange = ''; }));
+  }
   updateZoomLabel();
   const lod = ed.lod;
   setLod(ed.cam.z);

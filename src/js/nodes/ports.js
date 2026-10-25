@@ -10,7 +10,7 @@
 
 import { typeOf, typeLabel, inputDefs, outputDefs, portDef } from '../catalog.js';
 import { state } from '../state.js';
-import { familyOf, portsOfFamily, chooseWorkflow } from './route.js';
+import { familyOf, portsOfFamily, chooseWorkflow, needsOf } from './route.js';
 import { localCatalog, cloudCatalog } from './profiles.js';
 
 /** Le bloc a-t-il des ports qui suivent son modèle ? */
@@ -50,7 +50,9 @@ export function nodeInputs(node, connected = [], { all = false, extra = [] } = {
   if (!isModelBlock(node)) return inputDefs(node.type);
   const fam = blockFamily(node);
   const ports = fam ? portsOfFamily(fam) : { prompt: { max: 1, multi: false } };
-  const main = new Set(mainPorts(fam));
+  // une famille qui sait faire plusieurs choses n'impose aucune entrée (« points de départ ») ; une famille à une
+  // seule façon de faire (Wan : personnage + mouvement) montre ce qu'elle demande
+  const main = new Set(isMultiWay(fam) ? [] : mainPorts(fam));
   const shown = new Set(Array.isArray(node.data?.shown) ? node.data.shown : []);
   // ce qui manque à la façon de faire retenue se montre toujours (on ne demande jamais de brancher une entrée cachée)
   const plan = fam ? chooseWorkflow(fam, connected, node.params?.workflow || null) : null;
@@ -76,6 +78,40 @@ export function nodeInputs(node, connected = [], { all = false, extra = [] } = {
     });
   // les entrées montrées le temps d'un fil vont tout en bas : rien ne bouge sous le pointeur (audit 25/10, LIVE-1)
   return [...list.filter((d) => !d.peek), ...list.filter((d) => d.peek)];
+}
+
+/** La famille sait-elle faire plusieurs choses (plusieurs façons de faire) ? */
+const isMultiWay = (fam) => ((fam?.def?.workflows) || []).length > 1;
+
+// ordre des points de départ : ce qu'on fait le plus souvent d'abord
+const START_ORDER = ['start', 'refs', 'refVideos', 'image', 'character', 'video', 'guide', 'sheet', 'motion', 'end', 'keys', 'audio'];
+// ce dont une façon de faire sans exigence peut partir (pas les images-clés ni le son d'un « depuis un texte »)
+const LEADS = START_ORDER.slice(0, START_ORDER.indexOf('motion'));
+
+/**
+ * Points de départ d'un bloc Modèle vide (rien de relié hors Consigne, rien d'ajouté) : la 1re entrée qu'exige chaque
+ * façon de faire de sa famille → [{ id, label, what: [libellés des façons de faire] }]. Vide sinon.
+ */
+export function startPoints(node, connected = []) {
+  if (!isModelBlock(node)) return [];
+  const fam = blockFamily(node);
+  if (!isMultiWay(fam)) return [];
+  if (connected.some((id) => id !== 'prompt')) return [];
+  if (Array.isArray(node.data?.shown) && node.data.shown.length) return [];
+  const labels = portLabels(fam);
+  const byId = new Map();
+  for (const wf of fam.def.workflows) {
+    const id = needsOf(wf)[0] || LEADS.find((p) => (wf.ports || {})[p]);
+    if (!id) continue;
+    const d = inputDefs(node.type).find((x) => x.id === id);
+    if (!d) continue;
+    const cur = byId.get(id) || { id, label: labels[id] || d.label, what: [] };
+    cur.what.push(wf.label || {});
+    byId.set(id, cur);
+  }
+  const main = mainPorts(fam);
+  const rank = (id) => { const m = main.indexOf(id); if (m >= 0) return m - 100; const i = START_ORDER.indexOf(id); return i < 0 ? 99 : i; };
+  return [...byId.values()].sort((a, b) => rank(a.id) - rank(b.id));
 }
 
 /** Libellés propres à une famille (« Rendu 3D » pour la vidéo de LTX…), pris dans les ports de ses façons de faire. */
@@ -128,8 +164,9 @@ export function portsSignature(node, connected = [], opts = {}) {
   if (!isModelBlock(node)) return '';
   const i = nodeInputs(node, connected, opts).map((p) => `${p.id}${p.multi ? `*${p.max}` : ''}${p.unused ? '!' : ''}${p.removable ? '-' : ''}${p.peek ? '~' : ''}`).join(',');
   const more = !opts.extra?.length && hiddenInputs(node, connected).length ? '+' : '';
+  const st = opts.extra?.length ? '' : startPoints(node, connected).map((s) => `${s.id}=${s.label?.fr || ''}`).join(',');
   const o = nodeOutputs(node).map((p) => `${p.id}:${p.type}`).join(',');
-  return `${i}|${o}|${more}`;
+  return `${i}|${o}|${more}|${st}`;
 }
 
 /** Titre par défaut d'un bloc Modèle : le nom de sa famille (« MiniMax H3 », « Seedance 2.5 »). */

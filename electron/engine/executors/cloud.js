@@ -81,7 +81,25 @@ function valueOf(p, x, preview) {
   return v;
 }
 
-/** The request body: prompt, uploaded inputs at their field, settings. */
+/**
+ * The files to upload, in order. Whether a port gets ONE url or a LIST is the online field's own shape (catalog
+ * `multi`), never how Mia holds the wires: the Model block's « Images de référence » always comes as a list, but
+ * SOUL's image_reference_url is a single url (Quentin's first real run, 25/10: « URL input should be a string »).
+ */
+function uploadsOf(x) {
+  const g = x.gen;
+  const items = [];
+  for (const [port, v] of Object.entries(x.inputs || {})) {
+    const def = (g.ports || {})[port];
+    if (port === 'prompt' || !def) continue;
+    const list = (Array.isArray(v) ? v : [v]).filter((it) => it && it.abs);
+    // a single field takes the first file only (the planner already notes « … au plus » past the maximum)
+    (def.multi ? list : list.slice(0, 1)).forEach((it, i) => items.push({ port, it, i: list.length > 1 ? i : null, multi: !!def.multi }));
+  }
+  return items;
+}
+
+/** The request body: prompt, uploaded inputs at their field (a list or one url, as the field wants), settings. */
 function bodyOf(x, urls, preview) {
   const g = x.gen;
   const body = {};
@@ -90,7 +108,9 @@ function bodyOf(x, urls, preview) {
   if (ports.prompt && prompt) body.prompt = prompt;
   for (const [port, url] of Object.entries(urls)) {
     const def = ports[port];
-    if (def && def.field) body[def.field] = url;
+    if (!def || !def.field) continue;
+    if (def.multi) body[def.field] = Array.isArray(url) ? url : [url];
+    else body[def.field] = Array.isArray(url) ? url[0] : url;
   }
   for (const p of g.params || []) {
     if (!p.field) continue;                                     // hf.tier picks the endpoint, it is no field
@@ -117,13 +137,8 @@ async function run(x) {
   const notes = [];
   if (preview) notes.push(E.t(TXT.preview));
 
-  // 1. inputs → presigned uploads (one URL per file; a multi input becomes a list in its order)
-  const items = [];
-  for (const [port, v] of Object.entries(x.inputs || {})) {
-    if (port === 'prompt' || !(g.ports || {})[port]) continue;
-    const list = Array.isArray(v) ? v : [v];
-    list.forEach((it, i) => { if (it && it.abs) items.push({ port, it, i: Array.isArray(v) ? i : null, multi: Array.isArray(v) || !!g.ports[port].multi }); });
-  }
+  // 1. inputs → presigned uploads (one URL per file; a list only where the online field takes a list)
+  const items = uploadsOf(x);
   const urls = {};
   let n = 0;
   for (const { port, it, i, multi } of items) {
@@ -210,4 +225,4 @@ function estimate(x) {
 }
 
 // not E.wrap: that tidies ComfyUI's temporary files, and an online job never touches ComfyUI
-module.exports = { run, estimate, _bodyOf: bodyOf, _endpointOf: endpointOf };
+module.exports = { run, estimate, _bodyOf: bodyOf, _endpointOf: endpointOf, _uploadsOf: uploadsOf };

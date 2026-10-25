@@ -103,8 +103,9 @@
 
 /* Couche composée en permanence : la promouvoir au début de chaque geste et la
    rendre à la fin coûtait deux repeintures complètes (≈ 40 ms chacune, mesuré).
-   Chromium re-rastérise quand même le texte net à la nouvelle échelle dès que
-   le zoom s’arrête (vérifié de 0,4 à 1,8). */
+   Mais Chromium ne la repeint pas à la nouvelle échelle après un zoom (texte flou
+   chez Quentin, 25/10) : editor.js settle() la rend une image quand le zoom a
+   changé, puis la reprend, ce qui la repeint nette. */
 #world { will-change: transform; }
 #stage.tool-section, #stage.tool-section * { cursor: crosshair !important; }
 #groups { position: absolute; left: 0; top: 0; z-index: 0; }
@@ -1010,3 +1011,14 @@
 .n-port.ignored .dot { opacity: .55; }
 .connecting .n-port.peek.target .lbl { color: var(--txt); }
 .lod-2 .n-add, .lod-2 .n-unshow { visibility: hidden; }
+/* « Partir de : … » d'un bloc Modèle vide : des boutons discrets, sur plusieurs lignes si besoin */
+.n-row.n-startrow { height: auto; min-height: var(--node-row-h); flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 4px 12px 4px 12px; }
+.n-start-lbl { font-size: 11.5px; color: var(--txt-3); margin-right: 2px; }
+.n-start {
+  height: 22px; padding: 0 8px; border-radius: var(--r-xs); border: 1px solid var(--line-2);
+  font-size: 11.5px; color: var(--txt-2); white-space: nowrap;
+  transition: color var(--dur-pop) var(--ease-out), background-color var(--dur-pop) var(--ease-out), border-color var(--dur-pop) var(--ease-out);
+}
+.n-start-more { width: 22px; padding: 0; display: inline-grid; place-items: center; }
+.n-start:hover, .n-start:focus-visible { color: var(--txt); background: var(--wash); border-color: var(--line-strong); }
+.lod-2 .n-startrow { visibility: hidden; }

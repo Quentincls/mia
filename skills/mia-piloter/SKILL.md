@@ -166,13 +166,19 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
 - **Lis `mia_catalog {type:"gen"}` une fois** : `params[model].choices[].ways` donne, pour chaque modèle, chaque façon
   de faire avec `needs` (à brancher), `needsOneOf`, `takes` (entrées et combien), `settings` (ses réglages) et
   `trial` (« à essayer »). `howItWorks` résume la règle. Les réglages hors de la façon choisie sont ignorés.
+- **À l'écran, un bloc Modèle vide n'impose rien** (depuis le 25/10) : LTX, MiniMax et la plupart des modèles en
+  ligne montrent la Consigne et une ligne « Partir de : » (un bouton par point de départ : image de début,
+  références, rendu 3D, vidéo guide, fiche…). Wan et Qwen, qui ne font qu'une chose, montrent leurs entrées. Tu ne
+  cliques pas ces boutons : tu relies le port.
 - **Relie en nommant le port** (`mia_connect … to:{node, port:"keys"}`) : c'est le port qui décide. Toutes les
-  entrées du modèle se branchent, même celles que l'interface range derrière « + Ajouter » (le fil les montre).
+  entrées du modèle se branchent, même celles que l'interface range derrière « Partir de » ou « + Ajouter » (le fil
+  les montre). Sans port, le fil va à l'entrée principale (MiniMax : `refs` ; LTX : `start`).
   Une entrée multiple numérote ses fils dans l'ordre vertical des blocs sources (le plus haut = 1).
 - **Une entrée seule qui a besoin d'une autre bloque le bloc** (image de fin, images-clés ou fiche sans image de début
   sur LTX…) : il affiche « Il manque pour « … » : … » et ne part plus du texte en silence. Branche ce qui manque.
-- **Vérifie avec `mia_get_board`** : chaque bloc Modèle a `model` = {family, does, workflow, otherWays, connect
-  (ce qui manque), ignored (branché mais pas pris), trial}. `does` doit être ce que tu voulais avant de lancer.
+- **Vérifie avec `mia_get_board`** : chaque bloc Modèle a `model` = {family, does, workflow, otherWays, uses (ce
+  qu'il prend de ce qui est branché), connect (ce qui manque), ignored (branché mais pas pris), trial, startFrom (bloc
+  vide : ses points de départ, port et ce qu'il ferait)}. `does` doit être ce que tu voulais avant de lancer.
 - Ce que savent les modèles du PC (entrées du bloc Modèle) :
   - **LTX 2.5** : `start` (+ `end`, + `keys` jusqu'à 4 images-clés réparties à intervalles égaux entre début et
     fin, + `sheet`) → animer ; rien → depuis le texte ; `guide` (+ `start`, qui sert de look) → guidée ; `video`

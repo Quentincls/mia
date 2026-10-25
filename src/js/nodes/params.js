@@ -387,7 +387,11 @@ export function mountParams(host, opts) {
     function paint() {
       if (!wfInfo) { value.textContent = '—'; return; }
       const { workflow, ties, missing, unused, blocked, trialPorts = [], connected = [] } = wfInfo;
-      value.textContent = tl(workflow.label || {});
+      // une façon de faire qui n'exige rien (« … depuis un texte ») mais se sert de ce qui est branché le dit :
+      // « Image depuis un texte + Images de référence » (SOUL, 25/10), pas seulement « depuis un texte »
+      const extra = !blocked && !(workflow.required || []).length && !(workflow.oneOf || []).length
+        ? connected.filter((id) => (workflow.ports || {})[id] && !(unused || []).includes(id)) : [];
+      value.textContent = extra.length ? `${tl(workflow.label || {})} + ${words(extra)}` : tl(workflow.label || {});
       trial.hidden = !(workflow.trial || trialPorts.length) || !!blocked;
       row.classList.toggle('blocked', !!blocked);
       box.querySelector('.seg')?.remove();

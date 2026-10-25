@@ -16,7 +16,7 @@ import { fmtClock } from '../util.js';
 import { typeOf, typeLabel, inputDefs, outputDefs } from '../catalog.js';
 import { ms, reduced, play, replayClass } from '../ui/motion.js';
 import { tip } from '../ui/tooltip.js';
-import { nodeInputs, nodeOutputs, isModelBlock, portsSignature, modelBlockTitle, hiddenInputs, blockWorkflow } from '../nodes/ports.js';
+import { nodeInputs, nodeOutputs, isModelBlock, portsSignature, modelBlockTitle, hiddenInputs, blockWorkflow, startPoints } from '../nodes/ports.js';
 import { openAddInput } from '../nodes/addinput.js';
 import { portTip } from '../nodes/porthelp.js';
 
@@ -168,25 +168,50 @@ export class NodeView {
       if (outs[i]) row.append(this._port(outs[i], 'out'));
       this.portsEl.append(row);
     }
+    // bloc Modèle vide : « Partir de : Image de début · Rendu 3D · Vidéo guide · Fiche personnage » — rien d'imposé
+    const starts = isModelBlock(node) && !this.reveal?.length ? startPoints(node, connected) : [];
+    if (starts.length) {
+      const row = h('div', 'n-row n-startrow');
+      const lbl = h('span', 'n-start-lbl');
+      lbl.textContent = t('graph.port.startFrom');
+      row.append(lbl);
+      for (const sp of starts) {
+        const b = h('button', 'n-start', { type: 'button' });
+        b.textContent = tl(sp.label);
+        b.dataset.tip = t('graph.port.startTip', { what: sp.what.map((w) => tl(w)).join(' · ') });
+        b.addEventListener('pointerdown', (e) => e.stopPropagation());
+        b.addEventListener('click', (e) => { e.stopPropagation(); if (!this.ed.readonly) this._showPort(sp.id, true); });
+        row.append(b);
+      }
+      // les entrées d'appoint (images-clés, son à suivre…) restent à un « + » près
+      if (hiddenInputs(node, connected).some((d) => !starts.some((s) => s.id === d.id))) row.append(this._addButton('n-start n-start-more', 12));
+      this.portsEl.append(row);
+    }
     // bloc Modèle : « + Ajouter » une entrée que le modèle sait prendre (le reste du temps, elles restent rangées)
-    if (isModelBlock(node) && !this.reveal?.length && hiddenInputs(node, connected).length) {
-      const add = h('button', 'n-add', { type: 'button' });
-      add.innerHTML = `${glyph('plus', 13)}<span>${t('graph.port.add')}</span>`;
-      add.dataset.tip = t('graph.port.addTip');
-      add.addEventListener('pointerdown', (e) => e.stopPropagation());
-      add.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (this.ed.readonly) return;
-        openAddInput(this.ed.doc.node(this.id), add, hiddenInputs(this.ed.doc.node(this.id), this._connected()), (id) => this._showPort(id, true),
-          (value) => this.ed.api.setParam(this.id, 'model', value));
-      });
+    else if (isModelBlock(node) && !this.reveal?.length && hiddenInputs(node, connected).length) {
       const row = h('div', 'n-row n-addrow');
-      row.append(add);
+      row.append(this._addButton('n-add', 13, t('graph.port.add')));
       this.portsEl.append(row);
     }
     this.el.classList.toggle('no-ports', rows === 0);
     this.el.classList.toggle('no-in', !ins.length);
     this.el.classList.toggle('no-out', !outs.length);
+  }
+
+  /** Bouton « + » (« Ajouter ») : le menu des entrées que le modèle sait prendre et qui ne sont pas montrées. */
+  _addButton(cls, size, text) {
+    const add = h('button', cls, { type: 'button' });
+    add.innerHTML = text ? `${glyph('plus', size)}<span>${text}</span>` : glyph('plus', size);
+    if (!text) add.setAttribute('aria-label', t('graph.port.add'));
+    add.dataset.tip = t('graph.port.addTip');
+    add.addEventListener('pointerdown', (e) => e.stopPropagation());
+    add.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.ed.readonly) return;
+      openAddInput(this.ed.doc.node(this.id), add, hiddenInputs(this.ed.doc.node(this.id), this._connected()), (id) => this._showPort(id, true),
+        (value) => this.ed.api.setParam(this.id, 'model', value));
+    });
+    return add;
   }
 
   _port(def, dir) {

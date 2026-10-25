@@ -248,6 +248,19 @@ function estimateText(type, mode) {
   return first ? tl(first) : '';
 }
 
+/**
+ * Bloc Modèle : le type de bloc de la façon de faire retenue (ses modes, son estimation) ; en ligne, sans estimation
+ * en minutes (un calcul en ligne coûte des crédits, sa durée dépend de leur file). Autres blocs : leur propre type.
+ */
+function targetTypeOf(ctx) {
+  if (!isModelBlock(ctx.node)) return ctx.type;
+  const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+  const r = blockWorkflow(ctx.node, conn);
+  if (!r) return ctx.type;
+  if (r.fam.provider !== 'local') return { ...ctx.type, estimate: null };
+  return typeOf(r.workflow.as) || ctx.type;
+}
+
 /** Entrées obligatoires non branchées → libellés. */
 function missingInputs(ctx) {
   // bloc Modèle (SPEC §23) : ce que demande la façon de faire choisie d'après les fils (rien n'est obligatoire en soi)
@@ -372,14 +385,7 @@ function mountFooter(ctx, host) {
   for (const x of [actions, install]) { x.addEventListener('pointerdown', stop); x.addEventListener('dblclick', stop); }
   // bloc Modèle : estimation et boutons de la façon de faire retenue (Qwen : un seul « Lancer », Wan : ses vraies
   // durées), jamais « ≈ 1 min » pour un modèle en ligne, qui coûte des crédits (audit 25/10, UX-12)
-  const targetType = () => {
-    if (!isModelBlock(ctx.node)) return ctx.type;
-    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
-    const r = blockWorkflow(ctx.node, conn);
-    if (!r) return ctx.type;
-    if (r.fam.provider !== 'local') return { ...ctx.type, estimate: null };
-    return typeOf(r.workflow.as) || ctx.type;
-  };
+  const targetType = () => targetTypeOf(ctx);
   let ttype = targetType();
   let modes = ttype.modes || null;
   let shape = null;          // 'active' | 'idle' | 'blocked|<raison>'
@@ -666,7 +672,8 @@ function computeBody(ctx) {
     if (empty.length) return { title: t('node.notComputed'), sub: t('node.fillFirst', { list: empty.join(', ') }), ratio };
     const gone = goneSource(ctx);
     if (gone) return { title: t('node.src.missing', { name: gone.name }), sub: t('node.src.missingSub', { block: gone.block }), icon: 'warn', ratio };
-    return { title: t('node.notComputed'), sub: estimateText(type, type.modes ? 'preview' : null), ratio };
+    const tt = targetTypeOf(ctx);
+    return { title: t('node.notComputed'), sub: estimateText(tt, tt.modes ? 'preview' : null), ratio };
   }
 
   function renderWell(st = runs.state(ctx.id), problem = modelProblem(type, ctx.node)) {
