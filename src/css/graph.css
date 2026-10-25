@@ -740,7 +740,7 @@
 }
 .pal-body { display: flex; height: min(400px, 56vh); border-top: 1px solid var(--line); }
 .pal-cats {
-  flex: none; width: 136px; padding: 8px;
+  flex: none; width: 156px; padding: 8px;
   display: flex; flex-direction: column; gap: 1px;
   border-right: 1px solid var(--line);
   overflow: auto;
@@ -752,6 +752,12 @@
 }
 .pal-cat:hover { color: var(--txt); background: var(--wash); }
 .pal-cat.on { color: var(--txt); background: var(--wash-2); }
+/* « FABRIQUER », « PRÉPARER », « RETRAVAILLER » : petits titres des groupes d'onglets */
+.pal-catgroup {
+  flex: none; padding: 12px 10px 5px;
+  font-family: var(--font-kicker); font-size: 10px; font-weight: 500; line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--txt-3);
+}
 .pal-list { position: relative; flex: 1; min-width: 0; overflow: auto; padding: 4px 8px 10px; scroll-padding: 8px; }
 /* la surbrillance de la ligne active : un seul élément qui glisse de ligne en ligne */
 .pal-hl {

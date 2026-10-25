@@ -246,7 +246,8 @@ export const modelName = (m) => (m ? tl(m.label || { fr: m.file || m.id }) : '')
 
 // ── familles (filtrage des LoRA) ─────────────────────────────────────
 
-const FAMILY_LABEL = { ltx: 'LTX', wan: 'Wan', qwen: 'Qwen', minimax: 'MiniMax', flux: 'Flux', sdxl: 'SDXL', sd15: 'SD 1.5', hunyuan: 'Hunyuan' };
+const FAMILY_LABEL = { ltx: 'LTX', wan: 'Wan', qwen: 'Qwen', minimax: 'MiniMax', flux: 'Flux', sdxl: 'SDXL', sd15: 'SD 1.5', hunyuan: 'Hunyuan',
+  flux2: 'FLUX.2', flux2klein9b: 'FLUX.2 Klein 9B', flux2klein4b: 'FLUX.2 Klein 4B', qwen21: 'Qwen-Image 2.1' };
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /** Clé de famille de base d'un modèle (« ltx », « wan »…) : baseKey du scanner, sinon déduite. */
@@ -254,12 +255,16 @@ export function baseKeyOf(m) {
   if (!m) return null;
   if (m.baseKey) return m.baseKey;
   const f = fold(m.family || m.file || '');
+  // les versions qui n'acceptent pas les LoRA de leur aînée d'abord (Qwen-Image 2.1, FLUX.2 Klein 9B)
+  if (/qwen.?image.?2[._-]?1/.test(f)) return 'qwen21';
+  if (/klein.?(base.?)?9b/.test(f)) return 'flux2klein9b';
   for (const k of ['ltx', 'wan', 'qwen', 'minimax', 'flux', 'sdxl', 'hunyuan']) if (f.includes(k)) return k;
   return f.split(/[\s.\-_]/)[0] || null;
 }
 
-/** Famille visée par un LoRA. */
-export const loraKeyOf = (l) => l?.loraFor || baseKeyOf(l);
+/** Famille visée par un LoRA : celle que l'inventaire a lue dans le fichier, jamais devinée d'après son nom. */
+export const loraKeyOf = (l) => (l && (l.role === 'lora' || (l.caps || []).includes('lora'))
+  ? l.loraFor || (l.family ? baseKeyOf({ family: l.family }) : null) : baseKeyOf(l));
 
 /** « LTX », « Wan »… */
 export const familyLabel = (key) => FAMILY_LABEL[key] || (key ? key.charAt(0).toUpperCase() + key.slice(1) : '?');
@@ -354,7 +359,7 @@ export function modelPurpose(m) {
 // genre de résultat (vidéo, image retouchée…) qui manque au panneau doit y être, grisé, avec la raison.
 const OUTPUT_GROUPS = [
   ['image-to-video', 'text-to-video', '3d-to-real', 'guided-video', 'reference-to-video', 'character-performance'],
-  ['image-edit'], ['upscale'], ['depth'], ['cutout'],
+  ['image-edit', 'text-to-image'], ['upscale'], ['depth'], ['cutout'],
 ];
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 

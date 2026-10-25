@@ -397,15 +397,23 @@ function minimaxCanvas(x, { preview = false, previewCap = 448 } = {}) {
 
 // ---------------------------------------------------------------- LoRA (SPEC §12)
 
-/** Base family key of a model or LoRA entry: 'ltx' | 'wan' | 'qwen' | 'minimax' | 'flux' | 'sdxl' | null. */
+/**
+ * Base family key of a model or LoRA entry: 'ltx' | 'wan' | 'qwen' | 'qwen21' | 'minimax' | 'flux' | 'flux2klein9b' |
+ * 'sdxl' | null. A LoRA's is the one the scanner read in the file (never guessed from its name: « qwen » in a file
+ * name does not make a Qwen Image Edit LoRA).
+ */
 function familyKey(m) {
   if (!m) return null;
   if (m.loraFor) return String(m.loraFor).toLowerCase();
   if (m.baseKey) return String(m.baseKey).toLowerCase();
-  const s = `${m.family || ''} ${(m.comfy && m.comfy.name) || ''} ${m.file || ''}`;
+  // a LoRA: only the architecture read in the file (its family), never its file name
+  const isLora = m.role === 'lora' || (m.caps || []).includes('lora');
+  const s = isLora ? String(m.family || '') : `${m.family || ''} ${(m.comfy && m.comfy.name) || ''} ${m.file || ''}`;
   if (/minimax/i.test(s)) return 'minimax';
   if (/ltx/i.test(s)) return 'ltx';
+  if (/qwen.?image.?2[._-]?1/i.test(s)) return 'qwen21';
   if (/qwen/i.test(s)) return 'qwen';
+  if (/klein.?(base.?)?9b/i.test(s)) return 'flux2klein9b';
   if (/\bwan|wan[\d_ -]/i.test(s)) return 'wan';
   if (/flux/i.test(s)) return 'flux';
   if (/sdxl|stable.?diffusion|\bsd[\d_ ]/i.test(s)) return 'sdxl';
@@ -414,6 +422,7 @@ function familyKey(m) {
 
 const FAMILY_LABEL = {
   ltx: 'LTX 2.5', wan: 'Wan', qwen: 'Qwen Image', minimax: 'MiniMax H3', flux: 'Flux', sdxl: 'Stable Diffusion XL',
+  flux2: 'FLUX.2', flux2klein9b: 'FLUX.2 Klein 9B', flux2klein4b: 'FLUX.2 Klein 4B', qwen21: 'Qwen-Image 2.1',
 };
 const familyLabel = (k) => FAMILY_LABEL[k] || String(k || '?');
 

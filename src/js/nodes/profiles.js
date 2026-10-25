@@ -43,10 +43,13 @@ const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 
 /** Clé de famille d'une entrée d'inventaire (« ltx », « minimax »…), d'après le profil. */
 export function familyKeyOf(m) {
-  if (!m) return null;
+  if (!m || m.role === 'lora' || (m.caps || []).includes('lora')) return null;
   const fams = data.families;
   const base = fold(m.baseKey);
-  if (base) for (const [k, f] of Object.entries(fams)) if (fold(f.match?.baseKey) === base) return k;
+  if (base) {
+    for (const [k, f] of Object.entries(fams)) if (fold(f.match?.baseKey) === base) return k;
+    return null;                       // même règle que route.js localKeyOf : jamais devinée par le nom
+  }
   const hay = fold(`${m.family || ''} ${m.file || ''}`);
   for (const [k, f] of Object.entries(fams)) {
     const w = fold(f.match?.family);
@@ -103,9 +106,14 @@ export function cloudProviders() {
  * Renvoie null si rien ne s'applique, sinon { min?, max?, values? }.
  */
 export function boundsFor(param, m) {
+  return m ? limitBounds(param, limitsOf(m)) : null;
+}
+
+/** Même chose d'après des limites données (celles d'une famille quand son modèle n'est pas encore résolu). */
+export function limitBounds(param, limits) {
   const key = param?.limit;
-  if (!key || !m) return null;
-  const lim = limitsOf(m)[key];
+  if (!key || !limits) return null;
+  const lim = limits[key];
   if (!lim) return null;
   if (key === 'seconds' && Array.isArray(lim) && lim.length === 2) return { min: lim[0], max: lim[1] };
   if (Array.isArray(lim)) return { values: lim.map(String) };

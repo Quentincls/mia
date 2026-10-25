@@ -11,7 +11,7 @@ import { icon } from '../icons.js';
 import { state } from '../state.js';
 import { reduced } from '../ui/motion.js';
 import {
-  types, categories, recipes, typeLabel, typeDesc, compatible, modelCaps,
+  types, recipes, typeLabel, typeDesc, compatible, modelCaps,
   inputDefs, outputDefs, outRule, typeOf
 } from '../catalog.js';
 import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
@@ -19,11 +19,55 @@ import { familyOf, localKeyOf, portsOfFamily, chooseWorkflow } from '../nodes/ro
 import { mainPorts } from '../nodes/ports.js';
 import { familyWords } from '../nodes/familypicker.js';
 
+// Les onglets de « + Bloc », par ce qu'on fabrique (25/10) ; chaque bloc de tâche a le sien, un bloc nouveau suit sa
+// catégorie du catalogue en attendant
+const TABS = [
+  { id: 'video', group: 'make' }, { id: 'image', group: 'make' }, { id: 'sound', group: 'make' },
+  { id: 'files', group: 'start' }, { id: 'recipes', group: 'start' }, { id: 'notes', group: 'start' },
+  { id: 'edit', group: 'rework' }, { id: 'finish', group: 'rework' },
+];
+const TAB_OF_TYPE = {
+  import: 'files', text: 'files', note: 'notes',
+  i2v: 'video', t2v: 'video', ref2v: 'video', real: 'video', guided: 'video', perform: 'video',
+  edit: 'image', t2i: 'image', sound: 'sound',
+  trim: 'edit', sequence: 'edit', composite: 'edit', resize: 'edit', frame: 'edit', depth: 'edit', cutout: 'edit',
+  finish: 'finish', looks: 'finish', upscale: 'finish', compare: 'finish', export: 'finish',
+};
+const TAB_OF_CATEGORY = { source: 'files', generate: 'video', analysis: 'edit', tools: 'edit', board: 'notes' };
+const LEGACY_TAB = { models: 'video', cloud: 'video' };
+const tabOfType = (ty) => TAB_OF_TYPE[ty.id] || TAB_OF_CATEGORY[ty.category] || 'edit';
+// les mots d'un modèle tant qu'ils tiennent sur sa ligne (25 signes), puis « … » : jamais un mot coupé
+const fitWords = (ws, max = 25) => {
+  const out = [];
+  let n = 0;
+  for (const w of ws) {
+    const add = (out.length ? 3 : 0) + w.length;
+    if (out.length && n + add > max) return `${out.join(' · ')} …`;
+    out.push(w);
+    n += add;
+  }
+  return out.join(' · ');
+};
+
 register({
   fr: {
     'pal.search': 'Chercher un modèle, un bloc ou une recette…',
     'pal.searchShort': 'Chercher…',
     'pal.all': 'Tout',
+    'pal.group.make': 'Fabriquer',
+    'pal.group.start': 'Préparer',
+    'pal.group.rework': 'Retravailler',
+    'pal.tab.video': 'Vidéo',
+    'pal.tab.image': 'Image',
+    'pal.tab.sound': 'Son',
+    'pal.tab.files': 'Médias et consignes',
+    'pal.tab.recipes': 'Recettes',
+    'pal.tab.notes': 'Notes',
+    'pal.tab.edit': 'Montage',
+    'pal.tab.finish': 'Finition',
+    'pal.sec.pc': 'Sur ce PC',
+    'pal.sec.online': 'En ligne',
+    'pal.sec.blocks': 'Blocs',
     'pal.recipes': 'Recettes',
     'pal.models': 'Modèles',
     'pal.cloud': 'En ligne',
@@ -56,6 +100,20 @@ register({
     'pal.search': 'Search a model, a block or a recipe…',
     'pal.searchShort': 'Search…',
     'pal.all': 'All',
+    'pal.group.make': 'Make',
+    'pal.group.start': 'Prepare',
+    'pal.group.rework': 'Rework',
+    'pal.tab.video': 'Video',
+    'pal.tab.image': 'Image',
+    'pal.tab.sound': 'Sound',
+    'pal.tab.files': 'Media and prompts',
+    'pal.tab.recipes': 'Recipes',
+    'pal.tab.notes': 'Notes',
+    'pal.tab.edit': 'Editing',
+    'pal.tab.finish': 'Finishing',
+    'pal.sec.pc': 'On this PC',
+    'pal.sec.online': 'Online',
+    'pal.sec.blocks': 'Blocks',
     'pal.recipes': 'Recipes',
     'pal.models': 'Models',
     'pal.cloud': 'Online',
@@ -172,7 +230,7 @@ export function createPalette(ed) {
   function open({ at = null, from = null, category = null, origin = null } = {}) {
     if (!ed.project || ed.readonly) return;
     if (!built) build();
-    st = { at, from, cat: category || 'all', items: [], active: 0, prevFocus: document.activeElement };
+    st = { at, from, cat: LEGACY_TAB[category] || category || 'all', items: [], active: 0, prevFocus: document.activeElement };
     if (from) st.cat = 'all';
     input.value = '';
     input.placeholder = t(from ? 'pal.searchShort' : 'pal.search');
@@ -227,7 +285,7 @@ export function createPalette(ed) {
     if (!from) {
       for (const r of recipes()) {
         out.push({
-          kind: 'recipe', id: r.id, cat: 'recipes', icon: r.icon || 'recipe',
+          kind: 'recipe', id: r.id, cat: 'recipes', tab: 'recipes', where: 'block', icon: r.icon || 'recipe',
           name: tl(r.label), desc: tl(r.desc),
           meta: tn('pal.blocks', r.nodes.length, { n: r.nodes.length }), recipe: r
         });
@@ -242,7 +300,7 @@ export function createPalette(ed) {
       }
       const m = from ? { text: tl(link.def.label), cls: 'port' } : modelMeta(ty);
       out.push({
-        kind: 'type', id: ty.id, cat: ty.category, icon: ty.icon,
+        kind: 'type', id: ty.id, cat: ty.category, tab: tabOfType(ty), where: 'block', icon: ty.icon,
         name: typeLabel(ty), desc: typeDesc(ty), meta: m?.text || '', metaCls: m?.cls || '', metaTip: m?.tip || '', link
       });
     }
@@ -256,29 +314,34 @@ export function createPalette(ed) {
    * du catalogue, phrase, id. La recherche ne compare que des débuts de mots :
    * « lut » trouve « LUT », jamais le milieu de « résolution ».
    */
-  /** Les familles de modèles : celles du PC (catégorie « Modèles »), puis en ligne (« En ligne »). */
+  /** Les familles de modèles : celles du PC, puis en ligne, chacune dans l'onglet de ce qu'elle fait (Vidéo, Image…). */
   function modelEntries(from) {
     const out = [];
     const fams = localCatalog().families || {};
     const inv = state.inventory;
-    const push = (value, def, cat, meta, metaCls) => {
+    const push = (value, def, cat, words, metaCls) => {
+      // « TEXTE · ANIMER · FICHE · GUI… » était coupé : trois mots, la liste entière au survol
+      const meta = fitWords(words);
+      const metaTip = meta === words.join(' · ') ? '' : words.join(' · ');
       const fam = familyOf(value, localCatalog(), cloudCatalog(), inv);
       const link = from ? linkForFamily(fam, from) : null;
       if (from && !link) return;
       const desc = tl(def.desc || {});
       out.push({
-        kind: 'model', id: value, value, cat, mark: def.mark || String(def.maker || def.name).slice(0, 2).toUpperCase(),
-        name: def.name, desc, meta: from ? tl(link.def.label) : meta, metaCls: from ? 'port' : metaCls, link,
+        kind: 'model', id: value, value, cat, tab: def.kind === 'image' ? 'image' : def.kind === 'audio' ? 'sound' : 'video',
+        where: cat === 'models' ? 'pc' : 'online', mark: def.mark || String(def.maker || def.name).slice(0, 2).toUpperCase(),
+        name: def.name, desc, meta: from ? tl(link.def.label) : meta, metaCls: from ? 'port' : metaCls, metaTip: from ? '' : metaTip, link,
+        words: from ? null : words, online: cat === 'cloud',
         src: { label: { fr: def.name, en: def.name }, desc: def.desc, keywords: { fr: `${def.maker || ''} ${familyWords(def).join(' ')}`, en: def.maker || '' } },
       });
     };
     for (const [key, def] of Object.entries(fams)) {
       if (!Array.isArray(def.workflows) || !def.workflows.length) continue;
       const installed = (inv?.models || []).some((m) => m.status === 'ready' && !m.hidden && localKeyOf(m, fams) === key);
-      push(`fam:${key}`, def, 'models', installed ? familyWords(def).join(' · ') : t('pal.notInstalled'), installed ? '' : 'missing');
+      push(`fam:${key}`, def, 'models', installed ? familyWords(def) : [t('pal.notInstalled')], installed ? '' : 'missing');
     }
     for (const def of cloudCatalog().families || []) {
-      push(def.key, def, 'cloud', [t('pal.online'), ...familyWords(def)].join(' · '), 'online');
+      push(def.key, def, 'cloud', [t('pal.online'), ...familyWords(def)], 'online');
     }
     return out;
   }
@@ -413,18 +476,23 @@ export function createPalette(ed) {
   function render(resetActive) {
     const q = fold(input.value.trim());
     const all = entries();
-    const catDefs = categories().filter((c) => all.some((e) => e.cat === c.id));
-    const hasRecipes = all.some((e) => e.cat === 'recipes');
-    const hasModels = all.some((e) => e.cat === 'models');
-    const hasCloud = all.some((e) => e.cat === 'cloud');
+    const has = (tab) => all.some((e) => e.tab === tab);
+    if (st.cat !== 'all' && !has(st.cat)) st.cat = 'all';
 
-    // colonne des catégories
+    // colonne : Tout, puis Fabriquer (Vidéo, Image, Son), Préparer, Retravailler — les onglets vides sont tus
     const catBtn = (id, label) => `<button type="button" class="pal-cat${st.cat === id ? ' on' : ''}" data-cat="${esc(id)}">${esc(label)}</button>`;
-    cats.innerHTML = catBtn('all', t('pal.all'))
-      + (hasModels ? catBtn('models', t('pal.models')) : '')
-      + (hasCloud ? catBtn('cloud', t('pal.cloud')) : '')
-      + (hasRecipes ? catBtn('recipes', t('pal.recipes')) : '')
-      + catDefs.map((c) => catBtn(c.id, tl(c.label))).join('');
+    let nav = catBtn('all', t('pal.all'));
+    for (const g of ['make', 'start', 'rework']) {
+      const tabs = TABS.filter((x) => x.group === g && has(x.id));
+      if (tabs.length) nav += `<div class="pal-catgroup">${esc(t(`pal.group.${g}`))}</div>` + tabs.map((x) => catBtn(x.id, t(`pal.tab.${x.id}`))).join('');
+    }
+    cats.innerHTML = nav;
+    // un onglet : ses modèles du PC, ceux en ligne, puis ses blocs (et recettes)
+    const parts = (tab, online = true) => [
+      all.filter((e) => e.tab === tab && e.where === 'pc'),
+      online ? all.filter((e) => e.tab === tab && e.where === 'online') : [],
+      all.filter((e) => e.tab === tab && e.where === 'block'),
+    ];
 
     // liste
     let sections;
@@ -435,18 +503,19 @@ export function createPalette(ed) {
         : [];
       sections = [{ title: null, items: hits.map((x) => x.e) }];
     } else if (st.cat === 'all') {
-      sections = [];
-      // les modèles du PC d'abord ; ceux en ligne ont leur catégorie (ils sont nombreux) et la recherche
-      if (hasModels) sections.push({ title: t('pal.models'), items: all.filter((e) => e.cat === 'models') });
-      if (st.from && hasCloud) sections.push({ title: t('pal.cloud'), items: all.filter((e) => e.cat === 'cloud') });
-      if (hasRecipes) sections.push({ title: t('pal.recipes'), items: all.filter((e) => e.cat === 'recipes') });
-      for (const c of catDefs) sections.push({ title: tl(c.label), items: all.filter((e) => e.cat === c.id) });
+      // un onglet après l'autre ; les modèles en ligne (nombreux) restent dans leur onglet et la recherche, sauf quand
+      // un fil attend (il faut alors tout ce qui peut le prendre)
+      sections = TABS.map((x) => ({ title: t(`pal.tab.${x.id}`), items: parts(x.id, !!st.from).flat() }));
     } else {
-      const special = { recipes: t('pal.recipes'), models: t('pal.models'), cloud: t('pal.cloud') };
-      const c = special[st.cat] ? null : categories().find((x) => x.id === st.cat);
-      sections = [{ title: c?.label ? tl(c.label) : special[st.cat], items: all.filter((e) => e.cat === st.cat) }];
+      const [pc, web, blocks] = parts(st.cat);
+      sections = [pc, web, blocks].filter((l) => l.length).length > 1
+        ? [{ title: t('pal.sec.pc'), items: pc }, { title: t('pal.sec.online'), items: web }, { title: t('pal.sec.blocks'), items: blocks }]
+        : [{ title: t(`pal.tab.${st.cat}`), items: [...pc, ...web, ...blocks] }];
     }
 
+    // sous le titre « En ligne » d'un onglet, « En ligne · » devant chaque modèle ne dit plus rien
+    const inTab = !q && st.cat !== 'all';
+    const metaOf = (e) => (e.words && e.online && inTab ? fitWords(e.words.filter((w) => w !== t('pal.online'))) : e.meta);
     st.items = [];
     let html = '';
     for (const s of sections) {
@@ -462,7 +531,7 @@ export function createPalette(ed) {
             : `<span class="pal-glyph">${icon(e.icon, 16) || icon('g-unknown', 16)}</span>`)
           + '<span class="pal-text"><span class="pal-head">'
           + `<span class="pal-name">${esc(e.name)}</span>`
-          + (e.meta ? `<span class="pal-meta ${e.metaCls || ''}"${e.metaTip ? ` data-tip="${esc(e.metaTip)}"` : ''}>${esc(e.meta)}</span>` : '')
+          + (metaOf(e) ? `<span class="pal-meta ${e.metaCls || ''}"${e.metaTip ? ` data-tip="${esc(e.metaTip)}"` : ''}>${esc(metaOf(e))}</span>` : '')
           + `</span><span class="pal-desc">${esc(e.desc)}</span></span>`
           + '</button>';
       }

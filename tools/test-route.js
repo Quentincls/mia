@@ -44,6 +44,11 @@ const CASES = [
   ['fam:wan', ['character'], 'perform', { blocked: true, missing: ['motion'] }],
   ['fam:qwen', ['image', 'ref'], 'edit', {}],
   ['fam:qwen', ['ref'], 'edit', { blocked: true, missing: ['image'] }],
+  ['fam:klein', [], 't2i', { ties: [] }],
+  ['fam:klein', ['image'], 'edit', { unused: [] }],
+  ['fam:klein', ['ref'], 't2i', { unused: ['ref'] }],                            // Klein ne prend pas d'images d'appui
+  ['fam:qwen21', [], 't2i', { ties: [] }],
+  ['fam:qwen21', ['image'], 't2i', { unused: ['image'] }],                         // 2.1 : pas de retouche (Qwen Image Edit)
   ['hf:seedance-2-5', [], 'bytedance/seedance-2.5/text-to-video', { ties: [] }],
   ['hf:seedance-2-5', ['refs'], 'bytedance/seedance-2.5/reference-to-video', {}],
 ];

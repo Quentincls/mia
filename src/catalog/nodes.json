@@ -385,7 +385,8 @@
             "guided-video",
             "reference-to-video",
             "character-performance",
-            "image-edit"
+            "image-edit",
+            "text-to-image"
           ],
           "limits": [
             "seconds",
@@ -531,6 +532,27 @@
               "label": {
                 "fr": "1080p",
                 "en": "1080p"
+              }
+            },
+            {
+              "value": "1024",
+              "label": {
+                "fr": "1K",
+                "en": "1K"
+              }
+            },
+            {
+              "value": "1440",
+              "label": {
+                "fr": "1,5K",
+                "en": "1.5K"
+              }
+            },
+            {
+              "value": "2048",
+              "label": {
+                "fr": "2K",
+                "en": "2K"
               }
             }
           ],
@@ -2439,6 +2461,220 @@
       "estimate": {
         "fr": "≈ 15 s (rapide) · ≈ 3 min (qualité)",
         "en": "≈ 15 s (fast) · ≈ 3 min (quality)"
+      }
+    },
+    {
+      "id": "t2i",
+      "category": "generate",
+      "icon": "picture",
+      "width": 336,
+      "label": {
+        "fr": "Image depuis un texte",
+        "en": "Image from text"
+      },
+      "desc": {
+        "fr": "Crée une image depuis ta consigne (FLUX.2 Klein 9B ou Qwen-Image 2.1, sur ce PC).",
+        "en": "Creates an image from your prompt (FLUX.2 Klein 9B or Qwen-Image 2.1, on this PC)."
+      },
+      "inputs": [
+        {
+          "id": "prompt",
+          "type": "text",
+          "required": false,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "image",
+          "type": "image",
+          "label": {
+            "fr": "Image",
+            "en": "Image"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "prompt",
+          "kind": "prompt",
+          "port": "prompt",
+          "default": "",
+          "required": true,
+          "label": {
+            "fr": "Consigne",
+            "en": "Prompt"
+          },
+          "placeholder": {
+            "fr": "Ex. : a lighthouse on a cliff at dawn, film photo",
+            "en": "E.g. a lighthouse on a cliff at dawn, film photo"
+          }
+        },
+        {
+          "id": "format",
+          "kind": "select",
+          "default": "16:9",
+          "label": {
+            "fr": "Format",
+            "en": "Format"
+          },
+          "options": [
+            {
+              "value": "16:9",
+              "label": {
+                "fr": "16:9 · horizontal",
+                "en": "16:9 · landscape"
+              }
+            },
+            {
+              "value": "9:16",
+              "label": {
+                "fr": "9:16 · vertical",
+                "en": "9:16 · portrait"
+              }
+            },
+            {
+              "value": "1:1",
+              "label": {
+                "fr": "1:1 · carré",
+                "en": "1:1 · square"
+              }
+            },
+            {
+              "value": "4:3",
+              "label": {
+                "fr": "4:3",
+                "en": "4:3"
+              }
+            },
+            {
+              "value": "3:4",
+              "label": {
+                "fr": "3:4",
+                "en": "3:4"
+              }
+            },
+            {
+              "value": "21:9",
+              "label": {
+                "fr": "21:9 · cinéma",
+                "en": "21:9 · cinema"
+              }
+            }
+          ]
+        },
+        {
+          "id": "resolution",
+          "kind": "seg",
+          "default": "1024",
+          "label": {
+            "fr": "Taille",
+            "en": "Size"
+          },
+          "options": [
+            {
+              "value": "1024",
+              "label": {
+                "fr": "1K",
+                "en": "1K"
+              }
+            },
+            {
+              "value": "1440",
+              "label": {
+                "fr": "1,5K",
+                "en": "1.5K"
+              }
+            },
+            {
+              "value": "2048",
+              "label": {
+                "fr": "2K",
+                "en": "2K"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "1K ≈ 1 million de pixels (1024 × 1024 en carré). FLUX.2 Klein va jusqu’à 1,5K.",
+            "en": "1K ≈ 1 million pixels (1024 × 1024 square). FLUX.2 Klein goes up to 1.5K."
+          },
+          "limit": "resolutions"
+        },
+        {
+          "id": "lora",
+          "kind": "model",
+          "caps": [
+            "lora"
+          ],
+          "loraFor": "model",
+          "default": "none",
+          "allowNone": true,
+          "label": {
+            "fr": "Personnage ou lieu",
+            "en": "Character or place"
+          },
+          "hint": {
+            "fr": "Un LoRA à toi (personnage, lieu, style). Glisse un fichier LoRA sur Mia pour en ajouter.",
+            "en": "One of your LoRAs (character, place, style). Drop a LoRA file on Mia to add one."
+          }
+        },
+        {
+          "id": "loraStrength",
+          "kind": "slider",
+          "min": 0,
+          "max": 2,
+          "step": 0.05,
+          "default": 1,
+          "showIf": {
+            "param": "lora",
+            "notIn": [
+              "none",
+              null,
+              ""
+            ]
+          },
+          "label": {
+            "fr": "Force",
+            "en": "Strength"
+          }
+        },
+        {
+          "id": "model",
+          "kind": "model",
+          "caps": [
+            "text-to-image"
+          ],
+          "default": "auto",
+          "advanced": true,
+          "label": {
+            "fr": "Modèle",
+            "en": "Model"
+          },
+          "limits": [
+            "resolutions"
+          ]
+        },
+        {
+          "id": "seed",
+          "kind": "seed",
+          "default": 42,
+          "advanced": true,
+          "label": {
+            "fr": "Graine",
+            "en": "Seed"
+          }
+        }
+      ],
+      "engine": {
+        "executor": "t2i",
+        "gpu": "heavy"
+      },
+      "estimate": {
+        "fr": "≈ 30 s",
+        "en": "≈ 30 s"
       }
     },
     {

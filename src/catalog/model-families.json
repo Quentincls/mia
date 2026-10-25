@@ -147,6 +147,59 @@
           "params": ["prompt", "speed", "lora", "loraStrength", "seed"] }
       ]
     },
+    "klein": {
+      "provider": "local",
+      "name": "FLUX.2 Klein 9B",
+      "maker": "Black Forest Labs",
+      "mark": "BF",
+      "match": { "baseKey": "flux2klein9b", "family": "klein 9b" },
+      "desc": {
+        "fr": "Une image depuis ta consigne en quelques secondes ; branche une image, il la retouche en gardant son cadrage. Licence non commerciale : essais et projets perso.",
+        "en": "An image from your prompt in a few seconds; connect an image and it edits it, keeping its framing. Non-commercial license: trials and personal projects."
+      },
+      "emptyHint": {
+        "fr": "Rien de branché : FLUX.2 Klein part de ta consigne. Branche une image pour la retoucher.",
+        "en": "Nothing connected: FLUX.2 Klein starts from your prompt. Connect an image to edit it."
+      },
+      "variants": [],
+      "limits": { "inputs": ["image", "prompt"], "resolutions": ["1024", "1440"] },
+      "kind": "image",
+      "main": ["image"],
+      "workflows": [
+        { "id": "t2i", "executor": "t2i", "cap": "text-to-image", "as": "t2i", "promptRequired": true, "trial": true,
+          "label": { "fr": "Image depuis un texte", "en": "Image from text" },
+          "ports": {},
+          "paramOverrides": { "prompt": { "placeholder": { "fr": "Ce que montre l’image, la lumière, le style… (en anglais)", "en": "What the image shows, the light, the style… (in English)" } } },
+          "params": ["prompt", "format", "resolution", "lora", "loraStrength", "seed"] },
+        { "id": "edit", "executor": "t2i", "cap": "text-to-image", "as": "t2i", "promptRequired": true, "trial": true,
+          "label": { "fr": "Retoucher une image", "en": "Edit an image" },
+          "ports": { "image": { "label": { "fr": "Image de départ", "en": "Starting image" } } }, "required": ["image"],
+          "paramOverrides": { "prompt": { "placeholder": { "fr": "Ce qu’il faut changer dans l’image (en anglais)", "en": "What to change in the image (in English)" } } },
+          "params": ["prompt", "resolution", "lora", "loraStrength", "seed"] }
+      ]
+    },
+    "qwen21": {
+      "provider": "local",
+      "name": "Qwen-Image 2.1",
+      "maker": "Alibaba · Qwen",
+      "mark": "Q2",
+      "match": { "baseKey": "qwen21", "family": "qwen-image 2.1" },
+      "desc": {
+        "fr": "Une image depuis ta consigne, très fidèle aux textes écrits dans l’image (panneaux, titres) ; version Turbo, quelques secondes. Licence de recherche : essais et projets perso.",
+        "en": "An image from your prompt, very faithful to text written in the image (signs, titles); Turbo version, a few seconds. Research license: trials and personal projects."
+      },
+      "variants": [],
+      "limits": { "inputs": ["prompt"], "resolutions": ["1024", "1440", "2048"] },
+      "kind": "image",
+      "main": [],
+      "workflows": [
+        { "id": "t2i", "executor": "t2i", "cap": "text-to-image", "as": "t2i", "promptRequired": true, "trial": true,
+          "label": { "fr": "Image depuis un texte", "en": "Image from text" },
+          "ports": {},
+          "paramOverrides": { "prompt": { "placeholder": { "fr": "Ce que montre l’image, la lumière, le style… (en anglais)", "en": "What the image shows, the light, the style… (in English)" } } },
+          "params": ["prompt", "format", "resolution", "lora", "loraStrength", "seed"] }
+      ]
+    },
     "seedvr2": {
       "provider": "local",
       "name": "SeedVR2",

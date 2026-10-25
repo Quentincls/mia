@@ -53,6 +53,11 @@ async function run(x) {
   const fx = forTarget(x);
   const res = await exec.run(fx);
   if (res && fx._genNotes.length) res.notes = [...fx._genNotes, res.notes].filter(Boolean).join('\n');
+  // the Model block has one output, « out » (SPEC §23): the task executor names it « video » or « image »
+  if (res && res.outputs && !res.outputs.out) {
+    const first = Object.values(res.outputs).find(Boolean);
+    if (first) res.outputs = { out: first };
+  }
   return res;
 }
 

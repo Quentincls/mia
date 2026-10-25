@@ -29,6 +29,14 @@ concerne que les développeurs.
 - **Les réglages suivent le modèle** : avec MiniMax H3, la durée monte à 15 s et la cadence (toujours 24 i/s)
   disparaît ; LTX reste à 10 s au plus. Une note dit quand une entrée branchée ne sert pas au modèle choisi.
 - Les noms longs des cartes de l’accueil passent sur deux lignes ; un titre de bloc coupé se lit en entier au survol.
+- **Des images depuis un texte, sur ce PC** : deux nouveaux modèles dans le bloc Modèle (onglet Image) —
+  **FLUX.2 Klein 9B** (une image en quelques secondes ; branche une image, il la retouche en gardant son cadrage) et
+  **Qwen-Image 2.1 Turbo** (très fidèle aux textes écrits dans l’image, jusqu’à 2K). Tailles 1K, 1,5K, 2K. Licences
+  non commerciales : proposés « à essayer », pour des essais et des projets perso. Une LoRA n’est proposée que sur le
+  modèle pour lequel elle a été entraînée (Klein 9B ou Qwen-Image 2.1, jamais l’une sur l’autre, ni sur Qwen Image Edit).
+- **« + Bloc » rangé par ce que tu fabriques** : à gauche, Fabriquer (Vidéo, Image, Son), Préparer (Médias et
+  consignes, Recettes, Notes), Retravailler (Montage, Finition). Dans Vidéo et Image : les modèles « Sur ce PC », ceux
+  « En ligne », puis les blocs. Les modèles en ligne ne sont plus à part : chacun dans l’onglet de ce qu’il fait.
 - **« Partir de : » et « + Ajouter »** : un bloc Modèle vide n’impose plus d’entrée. LTX, MiniMax et les modèles en
   ligne montrent la consigne et une ligne « Partir de : Image de début · Rendu 3D · Vidéo guide · Fiche
   personnage » : un clic fait apparaître l’entrée, sinon le bloc part du texte. Wan et Qwen, qui ne font qu’une
@@ -75,6 +83,13 @@ concerne que les développeurs.
 - **Settings follow the model**: with MiniMax H3 the length goes up to 15 s and the frame rate (always 24 fps)
   goes away; LTX stays at 10 s at most. A note says when a connected input is not used by the chosen model.
 - Long names on home cards wrap onto two lines; a cut block title shows in full on hover.
+- **Images from text, on this PC**: two new models in the Model block (Image tab) — **FLUX.2 Klein 9B** (an image in a
+  few seconds; connect an image and it edits it, keeping its framing) and **Qwen-Image 2.1 Turbo** (very faithful to text
+  written in the image, up to 2K). Sizes 1K, 1.5K, 2K. Non-commercial licenses: offered “to try”, for trials and personal
+  projects. A LoRA is offered only on the model it was trained for (Klein 9B or Qwen-Image 2.1, never one on the other).
+- **“+ Block” sorted by what you make**: on the left, Make (Video, Image, Sound), Prepare (Media and prompts, Recipes,
+  Notes), Rework (Editing, Finishing). In Video and Image: the models “On this PC”, the “Online” ones, then the blocks.
+  Online models are no longer apart: each one sits in the tab of what it makes.
 - **“Start from:” and “+ Add”**: an empty Model block no longer imposes an input. LTX, MiniMax and the online models
   show the prompt and a line “Start from: Start image · 3D render · Guide video · Character sheet”: one click shows
   that input, otherwise the block starts from the text. Wan and Qwen, which do one thing, show their inputs.
@@ -154,6 +169,10 @@ concerne que les développeurs.
   l’entrée décrochée ne saute plus sous le pointeur ; « Ce que fait le bloc » suit chaque fil branché ou débranché ;
   Genjutsu (en ligne) montre ce qui lui manque ; Kling O3 propose ses références. Assistants : un fil sans entrée
   nommée va aux références de MiniMax tant qu’il y a de la place, un son à « Son à suivre ».
+- Le résultat d’un bloc Modèle du PC se branche enfin sur un autre bloc (Finition, Animer…) : il était rangé sous un
+  autre nom que la sortie « Résultat ». Les calculs déjà faits restent lisibles.
+- Une LoRA n’est plus devinée d’après le nom de son fichier : « qwen » dans le nom ne la faisait pas aller sur Qwen Image
+  Edit ; une LoRA FLUX.2 n’est plus prise pour une LoRA FLUX.1.
 - La croix qui coupe un fil ne coupait pas : l’effet « enfoncé » faisait perdre la croix au navigateur.
 - Les blocs restaient flous après un zoom avant : la planche est redessinée nette une fois le zoom posé.
 - Higgsfield : une image en ligne avec une image de référence (Soul…) était refusée (« URL input should be a string

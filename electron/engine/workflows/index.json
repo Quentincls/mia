@@ -187,6 +187,60 @@
         "contours : 24-26 ImageScaleBy 0,5 + Canny + ImageScale",
         "sans image de départ : 6 et 18 retirés"
       ]
+    },
+    "flux2_klein9b_t2i": {
+      "executor": "t2i",
+      "source": "gabarit Comfy-Org image_flux2_klein_text_to_image (workflow_templates, licence MIT), sous-graphe distillé à plat, fichiers 9B",
+      "changes": [
+        "1 UNETLoader : flux-2-klein-9b.safetensors (BFL, distillé, 4 étapes) au lieu du fichier 4B",
+        "2 CLIPLoader : qwen_3_4b -> qwen_3_8b_fp8mixed.safetensors (encodeur du 9B)",
+        "3 VAELoader : flux2-vae.safetensors au lieu de full_encoder_small_decoder",
+        "8 / 9 : largeur et hauteur posées par l’executor (format × résolution, multiples de 16)",
+        "10 graine : aléatoire -> 42 ; 4 consigne vidée"
+      ],
+      "nodes": {
+        "1": "modèle (LoRA après lui)",
+        "4": "consigne",
+        "8": "pas + taille",
+        "9": "image vide",
+        "10": "graine",
+        "13": "PNG"
+      }
+    },
+    "flux2_klein9b_edit": {
+      "executor": "t2i",
+      "source": "gabarit Comfy-Org image_flux2_klein_image_edit_9b_distilled (workflow_templates, licence MIT), sous-graphe à plat",
+      "changes": [
+        "1 UNETLoader : flux-2-klein-9b-fp8 -> flux-2-klein-9b.safetensors ; 3 VAELoader : full_encoder_small_decoder -> flux2-vae.safetensors",
+        "20 LoadImage : image de départ ; 21 ImageScaleToTotalPixels : nearest-exact / pas 1 -> lanczos / pas 16, mégapixels = résolution du bloc",
+        "10 graine : aléatoire -> 42 ; 4 consigne vidée"
+      ],
+      "nodes": {
+        "1": "modèle (LoRA après lui)",
+        "4": "consigne",
+        "10": "graine",
+        "13": "PNG",
+        "20": "image de départ",
+        "21": "taille (mégapixels)"
+      }
+    },
+    "qwen_image21_t2i": {
+      "executor": "t2i",
+      "source": "gabarit Comfy-Org image_qwen_image_2_1_t2i (workflow_templates, licence MIT), sous-graphe à plat sans l’améliorateur de consigne",
+      "changes": [
+        "459:451 UNETLoader : qwen_image_2.1_turbo_int8_convrot.safetensors (Turbo)",
+        "459:458 KSampler : 25 -> 8 étapes (Turbo, cfg 1), graine 42",
+        "459:456 : largeur et hauteur posées par l’executor (format × résolution, multiples de 32)",
+        "nœuds de l’améliorateur de consigne retirés (TextGenerate, CLIPLoader, ComfySwitchNode, PreviewAny)",
+        "ResolutionSelector retiré (la taille vient de Mia) ; 461 SaveImageAdvanced -> SaveImage"
+      ],
+      "nodes": {
+        "461": "PNG",
+        "459:451": "modèle (LoRA après lui)",
+        "459:452": "consigne",
+        "459:456": "image vide",
+        "459:458": "échantillonneur"
+      }
     }
   }
 }

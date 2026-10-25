@@ -106,6 +106,7 @@ register({
     'wel.cap.reference-to-video': 'Une vidéo avec le son, d’après tes images et vidéos de référence.',
     'wel.cap.character-performance': 'Ton personnage rejoue le mouvement d’une vidéo.',
     'wel.cap.image-edit': 'Change une image selon ta consigne.',
+    'wel.cap.text-to-image': 'Crée une image depuis ta consigne (licence non commerciale).',
     'wel.cap.upscale': 'Agrandit fidèlement une image ou une vidéo.',
     'wel.cap.depth': 'La profondeur de chaque image.',
     'wel.cap.cutout': 'Détoure le sujet, cheveux compris.',
@@ -188,6 +189,7 @@ register({
     'wel.cap.reference-to-video': 'A video with sound, from your reference images and videos.',
     'wel.cap.character-performance': 'Your character replays the motion of a video.',
     'wel.cap.image-edit': 'Changes an image following your prompt.',
+    'wel.cap.text-to-image': 'Creates an image from your prompt (non-commercial license).',
     'wel.cap.upscale': 'Faithfully upscales an image or a video.',
     'wel.cap.depth': 'The depth of every frame.',
     'wel.cap.cutout': 'Cuts out the subject, hair included.',
@@ -196,7 +198,7 @@ register({
 });
 
 const CAP_ORDER = ['image-to-video', 'text-to-video', '3d-to-real', 'guided-video', 'reference-to-video', 'character-performance',
-  'image-edit', 'upscale', 'depth', 'cutout'];
+  'image-edit', 'text-to-image', 'upscale', 'depth', 'cutout'];
 // cochés d'office — sauf un usage à licence tant qu'il n'y a pas de jeton (il ne partirait pas)
 const DEFAULT_CAPS = new Set(['image-to-video', 'depth', 'cutout']);
 const STEPS = ['engine', 'models', 'ready'];

@@ -56,7 +56,7 @@ const REF2V = require(path.join(ENGINE, 'executors', 'ref2v.js'));
 const PENDING = { diffusion_models: [REF2V.REF2VA], loras: [REF2V.TURBO4] };
 // LoRAs made up for the family / placement tests (« mia\… » = ComfyUI's Windows spelling of models\loras\mia\…)
 const TEST_LORAS = { loras: ['wan_style_test.safetensors', 'qwen_style_test.safetensors', 'minimax_style_test.safetensors',
-  'mia\\perso_test.safetensors'] };
+  'mia\\perso_test.safetensors', 'klein_style_test.safetensors', 'qwen21_style_test.safetensors'] };
 const merge = (...sets) => {
   const out = {};
   for (const s of sets) for (const [k, v] of Object.entries(s || {})) out[k] = [...(out[k] || []), ...v];
@@ -221,6 +221,11 @@ const INV = {
     label: { fr: 'Perso test', en: 'Test character' }, trigger: 'prs test', comfy: null, placed: null },
   wanLora: inv('wan_style_test.safetensors', 'loras', 'Wan 2.x', 'Style Wan', { role: 'lora', loraFor: 'wan', trigger: 'wnstyle' }),
   qwenLora: inv('qwen_style_test.safetensors', 'loras', 'Qwen-Image', 'Style Qwen', { role: 'lora', loraFor: 'qwen' }),
+  klein: inv('flux-2-klein-9b.safetensors', 'diffusion_models', 'FLUX.2', 'FLUX.2 Klein 9B', { baseKey: 'flux2klein9b', variant: 'Klein 9B' }),
+  qwen21: inv('qwen_image_2.1_turbo_int8_convrot.safetensors', 'diffusion_models', 'Qwen-Image 2.1', 'Qwen-Image 2.1', { baseKey: 'qwen21' }),
+  kleinLora: inv('klein_style_test.safetensors', 'loras', 'FLUX.2', 'Style Klein',
+    { role: 'lora', variant: 'Klein 9B', loraFor: 'flux2klein9b', trigger: 'qntncls style' }),
+  qwen21Lora: inv('qwen21_style_test.safetensors', 'loras', 'Qwen-Image 2.1', 'Style Qwen 2.1', { role: 'lora', loraFor: 'qwen21' }),
   mmLora: inv('minimax_style_test.safetensors', 'loras', 'MiniMax H3', 'Style MiniMax', { role: 'lora', loraFor: 'minimax' }),
   wan: inv('wan_animate_2_int8_convrot.safetensors', 'diffusion_models', 'Wan 2.x', 'Wan Animate 2'),
   sv7: inv('seedvr2_7b_int8_convrot.safetensors', 'diffusion_models', 'SeedVR2', 'SeedVR2 7B'),
@@ -258,6 +263,16 @@ const enriched = (gs) => Object.values(gs[gs.length - 1] || {}).some((n) => n.cl
   && Object.values(gs[gs.length - 1]).some((n) => n.class_type === 'CLIPTextEncode' && Array.isArray(n.inputs.text)
     && (gs[gs.length - 1][n.inputs.text[0]] || {}).class_type === 'TextGenerateLTX2Prompt');
 const wantSize = (size) => (gs) => (mmSize(gs) === size ? null : `taille ${mmSize(gs)} au lieu de ${size}`);
+// FLUX.2 Klein : la même taille sur l'image vide (9) et l'échelle de bruit (8)
+const kleinSize = (gs, size) => {
+  const a = gs[0]['9'] && gs[0]['9'].inputs, b = gs[0]['8'] && gs[0]['8'].inputs;
+  const got = a ? `${a.width}x${a.height}` : '?';
+  return got === size && b && b.width === a.width && b.height === a.height ? null : `taille ${got} (échelle ${b && b.width}x${b && b.height}) au lieu de ${size}`;
+};
+const hasLora = (gs, name) => (Object.values(gs[0]).some((n) => n.class_type === 'LoraLoaderModelOnly' && String(n.inputs.lora_name).includes(name))
+  ? null : `LoRA ${name} absent`);
+const promptStarts = (gs, id, key, start) => (String((gs[0][id] || { inputs: {} }).inputs[key] || '').startsWith(start)
+  ? null : `consigne sans « ${start} » en tête`);
 const r2vPrompt = (gs) => (Object.values(gs[0] || {}).find((n) => n.class_type === 'MiniMaxH3ReferenceToVideo') || { inputs: {} }).inputs;
 
 // executor × variant: inputs (media placeholders, arrays for multi inputs), params over the catalog defaults, mode,
@@ -269,6 +284,29 @@ const VARIANTS = {
     { name: 'vidéo · fine · inversée · 1re image ignorée', inputs: { media: { ...vid(1080, 1920, 97, 30), skipFirst: true } },
       params: { detail: 'fine', invert: true }, models: { model: INV.vda } },
     { name: 'image', inputs: { media: IMG_V }, models: { model: INV.vda } },
+  ],
+  // image depuis un texte (bloc Modèle FLUX.2 Klein 9B / Qwen-Image 2.1, 25/10) : à vide, avec les vrais graphes
+  t2i: [
+    { name: 'Klein · 16:9 1K', params: { prompt: 'a lighthouse at dawn', format: '16:9', resolution: '1024' },
+      models: { model: INV.klein }, expectGraph: (gs) => kleinSize(gs, '1360x768') },
+    { name: 'Klein · 9:16 1,5K + LoRA Klein (mot déclencheur)', params: { prompt: 'a portrait', format: '9:16', resolution: '1440' },
+      models: { model: INV.klein, lora: INV.kleinLora }, assume: TEST_LORAS,
+      expectGraph: (gs) => kleinSize(gs, '1088x1920') || hasLora(gs, 'klein_style_test') || promptStarts(gs, '4', 'text', 'qntncls style') },
+    { name: 'Klein · image de départ (référence)', inputs: { image: IMG_V }, params: { prompt: 'make it night', resolution: '1024' },
+      models: { model: INV.klein }, expectGraph: (gs) => (Object.values(gs[0]).filter((n) => n.class_type === 'ReferenceLatent').length === 2
+        && gs[0]['21'].inputs.megapixels === 1 ? null : 'chaîne de l’image de départ incomplète') },
+    { name: 'Klein · LoRA Qwen 2.1 refusée', params: { prompt: 'x' }, models: { model: INV.klein, lora: INV.qwen21Lora },
+      expectError: /fait pour Qwen-Image 2\.1, pas pour FLUX\.2 Klein 9B/ },
+    { name: 'Klein · LoRA Qwen Image Edit refusée', params: { prompt: 'x' }, models: { model: INV.klein, lora: INV.qwenLora },
+      expectError: /fait pour Qwen Image, pas pour FLUX\.2 Klein 9B/ },
+    { name: 'Qwen 2.1 · 2K carré, 8 étapes', params: { prompt: 'a neon sign that reads MIA', format: '1:1', resolution: '2048' },
+      models: { model: INV.qwen21 }, expectGraph: (gs) => (gs[0]['459:456'].inputs.width === 2048 && gs[0]['459:456'].inputs.height === 2048
+        && gs[0]['459:458'].inputs.steps === 8 ? null : `taille ${gs[0]['459:456'].inputs.width}x${gs[0]['459:456'].inputs.height}, ${gs[0]['459:458'].inputs.steps} étapes`) },
+    { name: 'Qwen 2.1 · LoRA Qwen 2.1', params: { prompt: 'a poster', format: '3:4' }, models: { model: INV.qwen21, lora: INV.qwen21Lora },
+      assume: TEST_LORAS, expectGraph: (gs) => hasLora(gs, 'qwen21_style_test') },
+    { name: 'Qwen 2.1 · LoRA Klein refusée', params: { prompt: 'x' }, models: { model: INV.qwen21, lora: INV.kleinLora },
+      expectError: /fait pour FLUX\.2 Klein 9B, pas pour Qwen-Image 2\.1/ },
+    { name: 'sans consigne → refus', params: { prompt: '' }, models: { model: INV.klein }, expectError: /consigne de l’image/ },
   ],
   edit: [
     { name: 'rapide', inputs: { image: IMG_V }, params: { prompt: 'make the walls weathered concrete' }, models: { model: INV.qwen } },

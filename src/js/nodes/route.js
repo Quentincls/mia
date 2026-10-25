@@ -34,10 +34,14 @@ export function familyOf(value, local, cloud, inventory) {
 
 /** Clé de famille locale d'une entrée d'inventaire (même règle que profiles.js familyKeyOf). */
 export function localKeyOf(m, fams) {
-  if (!m) return null;
+  if (!m || m.role === 'lora' || (m.caps || []).includes('lora')) return null;     // un LoRA n'est le modèle d'aucune famille
   const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const base = fold(m.baseKey);
-  if (base) for (const [k, f] of Object.entries(fams || {})) if (fold(f.match && f.match.baseKey) === base) return k;
+  if (base) {
+    for (const [k, f] of Object.entries(fams || {})) if (fold(f.match && f.match.baseKey) === base) return k;
+    // la base est connue et n'est celle d'aucune famille : pas de devinette par le nom (Qwen-Image 2.1 ≠ « qwen »)
+    return null;
+  }
   const hay = fold(`${m.family || ''} ${m.file || ''}`);
   for (const [k, f] of Object.entries(fams || {})) {
     const w = fold(f.match && f.match.family);

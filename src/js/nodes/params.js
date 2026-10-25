@@ -32,7 +32,7 @@ import { state } from '../state.js';
 import { tip } from '../ui/tooltip.js';
 import { segmented, dropdown, slider, toggle, textField, numberField } from '../ui/controls.js';
 import { modelPicker, isLoraParam, resolveModel, baseKeyOf, loraKeyOf, loraChoices, familyLabel } from './modelpicker.js';
-import { boundsFor, usesInput, familyName } from './profiles.js';
+import { boundsFor, limitBounds, usesInput, familyName } from './profiles.js';
 import { familyPicker } from './familypicker.js';
 import { blockWorkflow, portLabels } from './ports.js';
 import { localModelFor, needsOf, portsOfFamily } from './route.js';
@@ -65,7 +65,7 @@ strings({
   'node.file.wrongExt': 'Il faut un fichier {ext}.',
   'node.sound.noAudio': 'La vidéo n’a pas de son : seule la musique sera posée.',
   'node.limit.seconds': '{name} va jusqu’à {n} s : la vidéo fera {n} s.',
-  'node.limit.res': '{name} travaille jusqu’à {n}p.',
+  'node.limit.res': '{name} travaille jusqu’à {n}.',
   'node.limit.unused': '« {port} » n’est pas utilisée par {name}.',
   'node.wf.missing': 'Il manque pour « {what} » : {ports}.',
   'node.wf.unused': 'Ignoré pour « {what} » : {ports}.',
@@ -100,7 +100,7 @@ strings({
   'node.file.wrongExt': 'A {ext} file is needed.',
   'node.sound.noAudio': 'The video has no sound: only the music will be laid on it.',
   'node.limit.seconds': '{name} goes up to {n} s: the video will last {n} s.',
-  'node.limit.res': '{name} works up to {n}p.',
+  'node.limit.res': '{name} works up to {n}.',
   'node.limit.unused': '“{port}” is not used by {name}.',
   'node.wf.missing': 'Missing for “{what}”: {ports}.',
   'node.wf.unused': 'Ignored for “{what}”: {ports}.',
@@ -208,7 +208,9 @@ export function mountParams(host, opts) {
   /** Le réglage tel que le modèle choisi le permet : curseur borné, choix filtrés. */
   function effective(p) {
     if (!p.limit || !modelParam) return p;
-    const b = boundsFor(p, chosenModel());
+    const m = chosenModel();
+    // bloc Modèle sans modèle résolu (pas installé, inventaire pas encore lu) : les limites de sa famille, comme le moteur
+    const b = boundsFor(p, m) || (!m && type._wf ? limitBounds(p, type._wf.fam.def.limits) : null);
     if (!b) return p;
     if (b.values) {
       const opts = (p.options || []).filter((o) => b.values.includes(String(o.value)));
@@ -789,7 +791,13 @@ export function mountParams(host, opts) {
       const v = val(p);
       if (p.kind === 'slider' && e !== p && Number(v) > e.max) msg = t('node.limit.seconds', { name, n: e.max });
       else if ((p.kind === 'seg' || p.kind === 'select') && e !== p && p.limit === 'resolutions'
-        && !(e.options || []).some((o) => String(o.value) === String(v))) msg = t('node.limit.res', { name, n: fitValue(e, v) });
+        && !(e.options || []).some((o) => String(o.value) === String(v))
+        // seulement au-delà de ce que fait le modèle (un 720p de vidéo sur un modèle d'image passe en 1K sans rien dire)
+        && Number(v) > Math.max(...(e.options || []).map((o) => Number(o.value)))) {
+        const fv = fitValue(e, v);
+        const opt = (e.options || []).find((o) => String(o.value) === String(fv));
+        msg = t('node.limit.res', { name, n: opt ? tl(opt.label || {}) || fv : fv });
+      }
       let note = row.querySelector(':scope > .np-limit');
       if (msg && !note) {
         note = el('div', { class: 'np-note np-limit' });

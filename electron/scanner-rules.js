@@ -14,8 +14,8 @@
 // Révision locale des règles d'IDENTIFICATION : à incrémenter dès qu'un champ du cache de fichiers change de sens
 // (tout est alors relu de zéro). Le catalogue d'affichage a sa propre révision (CATALOG_REV) : la changer jette
 // seulement l'inventaire mis en cache, pas l'identification des fichiers (le démarrage reste rapide).
-const RULES_REV = 1;
-const CATALOG_REV = 3;   // 3 : textes neutres (licence MiniMax, mémoire vidéo, dossier du moteur), identités hors dépôt
+const RULES_REV = 2;   // 2 : FLUX.2 Klein 9B et Qwen-Image 2.1 (modèles et LoRA), 25/10/2026
+const CATALOG_REV = 4;   // 4 : FLUX.2 Klein 9B, Qwen-Image 2.1 (à l’essai) ; 3 : textes neutres (licence MiniMax, mémoire vidéo, dossier du moteur), identités hors dépôt
 
 // ---------------------------------------------------------------------------------------------
 // 1. Règles de classification (port de model_rules.json, ordre significatif : la 1re règle gagne)
@@ -31,8 +31,9 @@ const RULES = {
     {"id":"ltxv","family":"LTX-Video 0.9","role":"diffusion_model","task":"video","all":["transformer.blocks.#.attn1.to.k","transformer.blocks.#.attn2.to.k"],"any":["adaln.single.linear","caption.projection","patchify.proj"],"lora_all":["transformer.blocks.#.attn1.to.(k|q)","transformer.blocks.#.attn2.to.(k|q)"],"lora_none":["transformer.blocks.#.attn.add.k.proj","single.transformer.blocks","img.mlp","down.blocks","up.blocks"],"lora_probe":["transformer.blocks.#.attn1.to.q",1],"sizes":{"2048":"2B","4096":"13B/22B (LTX-2)"},"blocks":"transformer.blocks.#.attn1.to.q"},
     {"id":"hunyuan_video","family":"HunyuanVideo","role":"diffusion_model","task":"video","all":["double.blocks.#.img.attn.qkv","txt.in.individual.token.refiner"]},
     {"id":"wan","family":"Wan 2.x","role":"diffusion_model","task":"video","all":["blocks.#.self.attn.q","blocks.#.cross.attn.k","blocks.#.ffn"],"none":["single.blocks","double.blocks","adaln.modulation"],"probe":["patch.embedding",0],"lora_probe":["blocks.#.self.attn.q",1],"sizes":{"1536":"1.3B","3072":"5B","5120":"14B"},"blocks":"blocks.#.self.attn.q","flags":{"i2v":["cross.attn.k.img","img.emb"],"vace":["vace.blocks"],"animate":["pose.patch.embedding","face.adapter","motion.encoder"]}},
+    {"id":"qwen_image21","family":"Qwen-Image 2.1","role":"diffusion_model","task":"image","all":["txt.in.text.norm","transformer.blocks.#.img.mlp"],"none":["transformer.blocks.#.txt.mod"],"lora_any":["transformer.blocks.#.img.mlp.(gate.layer|gate.up|proj|out)"],"lora_none":["transformer.blocks.#.attn.add.(q|k|v).proj","transformer.blocks.#.attn.to.add.out","transformer.blocks.#.(img|txt).mod","transformer.blocks.#.txt.mlp","transformer.blocks.#.img.mlp.net","attn1","attn2"],"probe":["img.in",0],"lora_probe":["transformer.blocks.#.attn.to.q",1],"blocks":"transformer.blocks.#.attn.to.q"},
     {"id":"qwen_image","family":"Qwen-Image","role":"diffusion_model","task":"image","all":["transformer.blocks.#.img.mlp","transformer.blocks.#.txt.mod"],"lora_all":["transformer.blocks.#.attn.add.k.proj"],"lora_any":["img.mlp","img.mod","txt.mlp"],"probe":["img.in",0],"sizes":{"3072":"20B"},"blocks":"transformer.blocks.#.img.mlp","flags":{"edit_plus":["index.timestep.zero"]}},
-    {"id":"flux2","family":"FLUX.2","role":"diffusion_model","task":"image","any":["double.stream.modulation.img","single.stream.modulation"],"probe":["context.embedder",0],"sizes":{"3072":"Klein 4B","6144":"dev 32B"}},
+    {"id":"flux2","family":"FLUX.2","role":"diffusion_model","task":"image","any":["double.stream.modulation.img","single.stream.modulation"],"probe":["(context.embedder|txt.in)",0],"sizes":{"3072":"Klein 4B","4096":"Klein 9B","6144":"dev 32B"},"lora_any":["double.stream.modulation.(img|txt)","single.stream.modulation","single.transformer.blocks.#.attn.to.qkv.mlp.proj","double.blocks.#.(img|txt).attn.qkv","single.blocks.#.linear1"],"lora_none":["txt.in.individual.token.refiner","double.blocks.#.(img|txt).mod","single.blocks.#.modulation","single.transformer.blocks.#.(proj.mlp|norm.linear)"],"lora_sure":["double.stream.modulation.(img|txt)","single.stream.modulation","single.transformer.blocks.#.attn.to.qkv.mlp.proj"],"lora_mult":[["single.blocks.#.linear1",9],["double.blocks.#.(img|txt).mlp.0",6]],"lora_width":[4096,6144],"lora_probe":["(double.blocks.#.img.attn.qkv|double.blocks.#.txt.attn.qkv|single.blocks.#.linear1|transformer.blocks.#.attn.to.q|single.transformer.blocks.#.attn.to.qkv.mlp.proj)",1]},
     {"id":"flux1","family":"FLUX.1","role":"diffusion_model","task":"image","any":["double.blocks.#.img.attn.qkv","single.transformer.blocks.#.attn.to.k"],"lora_any":["double.blocks.#.img.attn.(qkv|proj)","single.transformer.blocks.#","single.blocks.#.linear1"],"flags":{"chroma":["distilled.guidance.layer"]}},
     {"id":"sd3","family":"Stable Diffusion 3.x","role":"diffusion_model","task":"image","all":["joint.blocks.#.context.block"]},
     {"id":"seedvr2","family":"SeedVR2","role":"diffusion_model","task":"video_upscale","any":["blocks.#.ada.vid","blocks.#.mlp.vid.proj.in","blocks.#.attn.proj.qkv.vid"],"probe":["vid.in.proj",0],"sizes":{"2560":"3B","3072":"7B"},"blocks":"blocks.#.ada.(vid|all)"},
@@ -55,7 +56,7 @@ const RULES = {
     {"id":"minimax_vae","family":"MiniMax H3","role":"vae","meta_any":["minimax_h3_video_vae","minimax_h3_audio_vae"]},
     {"id":"ltx_audio_vae","family":"LTX-2.x","role":"audio_vae","all":["^audio.vae","^vocoder"]},
     {"id":"ltx_vae","family":"LTX-2.x / LTX-Video","role":"vae","all":["per.channel.statistics"]},
-    {"id":"wan_vae","family":"Wan 2.x / Qwen-Image","role":"vae","all":["^encoder.downsamples","^decoder.upsamples"],"probe":["^conv2",0],"sizes":{"16":"Wan 2.1 / Qwen-Image (16 canaux)","48":"Wan 2.2 (48 canaux)"}},
+    {"id":"wan_vae","family":"Wan 2.x / Qwen-Image","role":"vae","all":["^encoder.downsamples","^decoder.upsamples"],"probe":["^conv2",0],"sizes":{"16":"Wan 2.1 / Qwen-Image (16 canaux)","48":"Wan 2.2 (48 canaux)","64":"Qwen-Image 2.1 (64 canaux)"}},
     {"id":"flux2_vae","family":"FLUX.2","role":"vae","all":["^bn.running.mean","^decoder"]},
     {"id":"kl_vae","family":"VAE (AutoencoderKL)","role":"vae","any":["^(first.stage.model.)?decoder.up.#.block","^decoder.up.blocks.#","^decoder.mid.block"],"none":["^model.diffusion.model","^unet"],"probe":["^(first.stage.model.)?decoder.conv.in",1],"sizes":{"4":"SD 1.5 / SDXL (4 canaux)","16":"16 canaux (Flux.1 / SD3 / video)"}},
     {"id":"ltx_latent_up","family":"LTX-2.x","role":"latent_upscaler","all":["^post.upsample.res.blocks","^upsampler"]},
@@ -82,6 +83,7 @@ const RULES = {
     ["ingredients",{"adapter":"IC-LoRA Ingredients"}],
     ["ripple",{"adapter":"Ripple (propagation 1re image)"}],
     ["lightning|lightx2v|distill|turbo|\\d+steps?|8step",{"speed":"acceleree (peu d'etapes)"}],
+    ["qwen.?image.?2[._-]?1|qwenimage21",{"family":"Qwen-Image 2.1"}],
     ["qwen.?image.?edit",{"family":"Qwen-Image","variant":"Edit"}],
     ["qwen_image_vae",{"family":"Qwen-Image"}],
     ["wan.?animate",{"family":"Wan 2.x","variant":"Animate"}],
@@ -95,6 +97,7 @@ const RULES = {
     ["llm2vec",{"family":"LLM2Vec (Llama 3)","role":"llm"}],
     ["trellis",{"family":"TRELLIS.2 (3D)","role":"3d"}],
     ["triposplat",{"family":"TripoSplat (3D)","role":"3d"}],
+    ["klein.?(base.?)?9b",{"family":"FLUX.2","variant":"Klein 9B"}],
     ["klein",{"family":"FLUX.2"}],
     ["marigold",{"family":"Marigold Normals","role":"normals"}],
     ["face_landmarker",{"family":"MediaPipe Face Landmarker","role":"face"}],
@@ -235,6 +238,12 @@ const FILES = {
   qwen: F('qwen_image_edit_2511_int8_convrot.safetensors', 'diffusion_models', 20.5),
   qwenTe: F('qwen_2.5_vl_7b_fp8_scaled.safetensors', 'text_encoders', 9.4),
   qwenVae: F('qwen_image_vae.safetensors', 'vae', 0.25),
+  klein9b: F('flux-2-klein-9b.safetensors', 'diffusion_models', 18.2),
+  klein9bTe: F('qwen_3_8b_fp8mixed.safetensors', 'text_encoders', 8.7),
+  flux2Vae: F('flux2-vae.safetensors', 'vae', 0.34),
+  qwen21: F('qwen_image_2.1_turbo_int8_convrot.safetensors', 'diffusion_models', 7.3),
+  qwen21Te: F('qwen3vl_8b_int8_convrot.safetensors', 'text_encoders', 9.4),
+  qwen21Vae: F('qwen_image_2.1_vae_bf16.safetensors', 'vae', 0.68),
   seedvr2: F('seedvr2_7b_int8_convrot.safetensors', 'diffusion_models', 8.3),
   seedvr2Vae: F('seedvr2_ema_vae_fp16.safetensors', 'vae', 0.5),
   vda: F('video_depth_anything_vits.pth', 'videodepthanything', 0.12),
@@ -284,6 +293,11 @@ const CAPS = [
     label: { fr: 'Retoucher une image', en: 'Edit an image' },
     missing: { fr: "Qwen Image Edit n’est pas installé.", en: 'Qwen Image Edit is not installed.' },
     files: [FILES.qwen] },
+  { id: 'text-to-image', group: 'image', prefer: ['flux2-klein9b', 'qwen-image21'], optional: true,
+    name: { fr: 'FLUX.2 Klein 9B', en: 'FLUX.2 Klein 9B' },
+    label: { fr: 'Image depuis un texte', en: 'Image from text' },
+    missing: { fr: 'Aucun modèle d’image depuis un texte n’est installé (FLUX.2 Klein 9B ou Qwen-Image 2.1).', en: 'No text-to-image model is installed (FLUX.2 Klein 9B or Qwen-Image 2.1).' },
+    files: [FILES.klein9b, FILES.klein9bTe, FILES.flux2Vae], download: true, sizeGB: 27 },
   { id: 'upscale', group: 'upscale', prefer: ['seedvr2-7b', 'seedvr2-3b'],
     name: { fr: 'SeedVR2', en: 'SeedVR2' },
     label: { fr: 'Agrandir', en: 'Upscale' },
@@ -321,6 +335,10 @@ const BASES = {
   hunyuan: { families: ['HunyuanVideo'], label: { fr: 'HunyuanVideo', en: 'HunyuanVideo' }, media: 'video' },
   flux: { families: ['FLUX.1'], label: { fr: 'FLUX.1', en: 'FLUX.1' }, media: 'image' },
   flux2: { families: ['FLUX.2'], label: { fr: 'FLUX.2', en: 'FLUX.2' }, media: 'image' },
+  // une variante d'une même architecture n'accepte que ses LoRA : Klein 9B (4096 de large) ≠ Klein 4B ≠ dev
+  flux2klein9b: { families: [], variants: [['FLUX.2', 'Klein 9B']], label: { fr: 'FLUX.2 Klein 9B', en: 'FLUX.2 Klein 9B' }, media: 'image' },
+  flux2klein4b: { families: [], variants: [['FLUX.2', 'Klein 4B']], label: { fr: 'FLUX.2 Klein 4B', en: 'FLUX.2 Klein 4B' }, media: 'image' },
+  qwen21: { families: ['Qwen-Image 2.1'], label: { fr: 'Qwen-Image 2.1', en: 'Qwen-Image 2.1' }, media: 'image' },
   sdxl: { families: ['SDXL'], label: { fr: 'SDXL', en: 'SDXL' }, media: 'image' },
   sd15: { families: ['Stable Diffusion 1.5'], label: { fr: 'Stable Diffusion 1.5', en: 'Stable Diffusion 1.5' }, media: 'image' },
   sd2: { families: ['Stable Diffusion 2.x'], label: { fr: 'Stable Diffusion 2', en: 'Stable Diffusion 2' }, media: 'image' },
@@ -328,7 +346,8 @@ const BASES = {
 };
 const MEDIA_WORD = { video: { fr: 'vidéo', en: 'video' }, image: { fr: 'image', en: 'image' } };
 const FAMILY_BASE = new Map(Object.entries(BASES).flatMap(([k, b]) => b.families.map((f) => [f, k])));
-const baseKeyOf = (family) => (family ? FAMILY_BASE.get(family) || null : null);
+const VARIANT_BASE = new Map(Object.entries(BASES).flatMap(([k, b]) => (b.variants || []).map(([f, v]) => [`${f}|${v}`, k])));
+const baseKeyOf = (family, variant = null) => (family ? VARIANT_BASE.get(`${family}|${variant}`) || FAMILY_BASE.get(family) || null : null);
 // « LTX 2.5 (vidéo) » : ce qu'affiche la modale « Ajouter un LoRA » et le détail d'un LoRA.
 function baseLabel(key, withMedia = true) {
   const b = BASES[key];
@@ -391,6 +410,10 @@ const LIC = {
     en: 'License excludes the European Union: never offered.' },
   own: { fr: 'Entraîné par toi.', en: 'Trained by you.' },
   unknown: { fr: 'Licence non vérifiée.', en: 'License not checked.' },
+  fluxnc: { fr: 'Licence non commerciale de Black Forest Labs : essais et projets perso, pas de projet payé.',
+    en: 'Black Forest Labs non-commercial license: trials and personal projects, no paid work.' },
+  qwenresearch: { fr: 'Licence de recherche Qwen : essais et projets perso, pas de projet payé.',
+    en: 'Qwen research license: trials and personal projects, no paid work.' },
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -419,10 +442,6 @@ const CATALOG = [
     label: { fr: 'HunyuanVideo', en: 'HunyuanVideo' },
     desc: { fr: 'Modèle vidéo exclu par sa licence.', en: 'Video model excluded by its license.' },
     caps: [], license: 'forbidden', licenseNote: LIC.noeu },
-  { key: 'qwen-image-21', when: { name: /qwen.?image.?2[._]?1/ },
-    label: { fr: 'Qwen-Image 2.1', en: 'Qwen-Image 2.1' },
-    desc: { fr: 'Version de recherche, exclue par sa licence.', en: 'Research release, excluded by its license.' },
-    caps: [], license: 'forbidden', licenseNote: LIC.nc },
   { key: 'matanyone', when: { family: 'MatAnyone' },
     label: { fr: 'MatAnyone', en: 'MatAnyone' },
     desc: { fr: 'Détourage fin et stable d’une vidéo (cheveux, contre-jour).', en: 'Fine, stable video matting (hair, backlight).' },
@@ -474,6 +493,28 @@ const CATALOG = [
       en: 'Changes an image following your prompt, without moving the framing.' },
     caps: ['image-edit'], needs: ['qwen-te', 'qwen-vae'], expect: FILES.qwen,
     license: 'ok', licenseNote: LIC.apache, vramGB: 21, speed: 2, quality: 2 },
+  // image depuis un texte (25/10) : licences non commerciales, proposées « à l'essai » avec leur avertissement
+  { key: 'flux2-klein9b-base', when: { family: 'FLUX.2', role: 'diffusion_model', name: /klein.?base|base.?9b|9b.?base/ },
+    label: { fr: 'FLUX.2 Klein 9B · base', en: 'FLUX.2 Klein 9B · base' },
+    desc: { fr: 'Version de base, pour entraîner des LoRA (une cinquantaine d’étapes) : Mia utilise la version distillée.',
+      en: 'Base version, for training LoRAs (about fifty steps): Mia uses the distilled version.' },
+    caps: [], unused: true, license: 'trial', licenseNote: LIC.fluxnc },
+  { key: 'flux2-klein9b', when: { family: 'FLUX.2', role: 'diffusion_model', name: /klein.?9b|9b.?klein/ },
+    label: { fr: 'FLUX.2 Klein 9B', en: 'FLUX.2 Klein 9B' },
+    desc: { fr: 'Une image depuis ta consigne, en quelques secondes ; suit aussi une image de départ.',
+      en: 'An image from your prompt in a few seconds; can also follow a starting image.' },
+    caps: ['text-to-image'], needs: ['flux2-klein9b-te', 'flux2-vae'], expect: FILES.klein9b,
+    license: 'trial', licenseNote: LIC.fluxnc, vramGB: 22, speed: 3, quality: 3 },
+  { key: 'qwen-image21', when: { family: 'Qwen-Image 2.1', role: 'diffusion_model', name: /turbo/ },
+    label: { fr: 'Qwen-Image 2.1', en: 'Qwen-Image 2.1' },
+    desc: { fr: 'Une image depuis ta consigne, fidèle aux textes écrits dans l’image.',
+      en: 'An image from your prompt, faithful to text written in the image.' },
+    caps: ['text-to-image'], needs: ['qwen21-te', 'qwen21-vae'], expect: FILES.qwen21,
+    license: 'trial', licenseNote: LIC.qwenresearch, vramGB: 17, speed: 3, quality: 3 },
+  { key: 'qwen-image21-full', when: { family: 'Qwen-Image 2.1', role: 'diffusion_model' },
+    label: { fr: 'Qwen-Image 2.1 · version complète', en: 'Qwen-Image 2.1 · full version' },
+    desc: { fr: 'Version sans accélération (40 étapes) : Mia utilise la version Turbo.', en: 'Version without speed-up (40 steps): Mia uses the Turbo version.' },
+    caps: [], unused: true, license: 'trial', licenseNote: LIC.qwenresearch },
 
   // --- agrandir ---
   { key: 'seedvr2-7b', when: { family: 'SeedVR2', role: 'diffusion_model', name: /^seedvr2_7b/ },
@@ -591,7 +632,16 @@ const CATALOG = [
     label: { fr: 'Encodeur de texte Wan', en: 'Wan text encoder' },
     desc: { fr: 'Lit ta consigne pour Wan Animate.', en: 'Reads your prompt for Wan Animate.' },
     license: 'ok', licenseNote: LIC.apache },
-  { key: 'minimax-te', when: { family: 'Qwen3-VL' }, ...PART('text_encoder'), expect: FILES.minimaxTe,
+  // le fichier int8 de Comfy-Org n'a que la partie texte : il est lu « Qwen3 », d'où les deux familles
+  { key: 'qwen21-te', when: { family: ['Qwen3-VL', 'Qwen3'], name: /qwen3.?vl.?8b/ }, ...PART('text_encoder'), expect: FILES.qwen21Te,
+    label: { fr: 'Encodeur de texte Qwen-Image 2.1', en: 'Qwen-Image 2.1 text encoder' },
+    desc: { fr: 'Lit ta consigne pour Qwen-Image 2.1 (Qwen3-VL 8B).', en: 'Reads your prompt for Qwen-Image 2.1 (Qwen3-VL 8B).' },
+    license: 'ok', licenseNote: LIC.apache },
+  { key: 'flux2-klein9b-te', when: { family: 'Qwen3', name: /qwen_?3_?8b/ }, ...PART('text_encoder'), expect: FILES.klein9bTe,
+    label: { fr: 'Encodeur de texte FLUX.2 Klein 9B', en: 'FLUX.2 Klein 9B text encoder' },
+    desc: { fr: 'Lit ta consigne pour FLUX.2 Klein 9B (Qwen3 8B).', en: 'Reads your prompt for FLUX.2 Klein 9B (Qwen3 8B).' },
+    license: 'ok', licenseNote: LIC.apache },
+  { key: 'minimax-te', when: { family: 'Qwen3-VL', name: /32b|minimax/ }, ...PART('text_encoder'), expect: FILES.minimaxTe,
     label: { fr: 'Encodeur de texte MiniMax', en: 'MiniMax text encoder' },
     desc: { fr: 'Lit ta consigne pour MiniMax H3 (Qwen3-VL 32B).', en: 'Reads your prompt for MiniMax H3 (Qwen3-VL 32B).' },
     license: 'rd', licenseNote: LIC.minimax },
@@ -633,6 +683,14 @@ const CATALOG = [
     label: { fr: 'Guidage MiniMax · version complète', en: 'MiniMax guidance · full version' },
     desc: { fr: 'Version non élaguée, plus lourde ; Mia utilise la version int8.', en: 'Unpruned, heavier version; Mia uses the int8 one.' },
     license: 'rd', licenseNote: LIC.minimax },
+  { key: 'qwen21-vae', when: { family: 'Qwen-Image 2.1', role: 'vae' }, ...PART('vae'), expect: FILES.qwen21Vae,
+    label: { fr: 'Décodeur Qwen-Image 2.1', en: 'Qwen-Image 2.1 decoder' },
+    desc: { fr: 'Transforme le calcul de Qwen-Image 2.1 en image.', en: "Turns Qwen-Image 2.1's computation into an image." },
+    license: 'trial', licenseNote: LIC.qwenresearch },
+  { key: 'flux2-vae', when: { family: 'FLUX.2', role: 'vae' }, ...PART('vae'), expect: FILES.flux2Vae,
+    label: { fr: 'Décodeur FLUX.2', en: 'FLUX.2 decoder' },
+    desc: { fr: 'Transforme le calcul de FLUX.2 en image.', en: "Turns FLUX.2's computation into an image." },
+    license: 'ok', licenseNote: LIC.apache },
   { key: 'qwen-vae', when: { family: 'Qwen-Image', role: 'vae' }, ...PART('vae'), expect: FILES.qwenVae,
     label: { fr: 'Décodeur Qwen', en: 'Qwen decoder' },
     desc: { fr: 'Transforme le calcul de Qwen en image.', en: "Turns Qwen's computation into an image." },

@@ -101,7 +101,7 @@ const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 function wordKey(wf) {
   const id = String(wf.id || '');
   const rules = [
-    [/^t2v$|text-to-video/, 'text'], [/^i2v$|image-to-video|first-last-frame/, 'image'],
+    [/^t2v$|^t2i$|text-to-video/, 'text'], [/^i2v$|image-to-video|first-last-frame/, 'image'],
     [/^refs$|reference-to-video|image-reference|custom-references/, 'refs'], [/^guided$/, 'guided'], [/^real$/, 'real'],
     [/^perform$|motion-control|motion-transfer/, 'act'], [/video-edit/, 'vedit'], [/^extend$|video-extend/, 'extend'], [/^sheet$/, 'sheet'],
     [/video-reference/, 'follow'], [/object-swap/, 'swap'], [/restyle/, 'restyle'], [/cinema-studio/, 'cinema'],

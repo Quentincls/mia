@@ -179,6 +179,8 @@ registerIcons({
   real: '<path d="M3.6 9a2.2 2.2 0 0 1 2.2-2.2h1.9l1.6-2.2h5.4l1.6 2.2h1.9A2.2 2.2 0 0 1 20.4 9v8.2a2.2 2.2 0 0 1-2.2 2.2H5.8a2.2 2.2 0 0 1-2.2-2.2z"/><circle cx="12" cy="13" r="3.4"/>',
   // un personnage en mouvement
   perform: '<circle cx="12" cy="5.2" r="2.1"/><path d="M6.2 10.2l5.8 1.4 5.8-1.4M12 11.6v4M12 15.6l-3.4 4.6M12 15.6l3.4 4.6"/>',
+  // image : un cadre, une montagne, un soleil (« Image depuis un texte »)
+  picture: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 16.5l4.8-4.8a1.6 1.6 0 0 1 2.3 0l5.9 5.9"/><path d="M14 15l1.7-1.7a1.6 1.6 0 0 1 2.3 0l2.5 2.5"/><circle cx="15.5" cy="9" r="1.5"/>',
   // pinceau
   brush: '<path d="M18.9 4.3a2.6 2.6 0 0 1 0 3.7l-6.6 6.6-3.7-3.7 6.6-6.6a2.6 2.6 0 0 1 3.7 0z"/><path d="M8.6 10.9c-2.4-.2-4.1 1.4-4.3 3.7-.2 2.1-.8 3.6-1.8 4.6 3.3.5 7.3-.3 8.5-2.7.4-.8.4-1.5.3-2.1"/>',
   // quatre coins tournés vers l'extérieur autour d'un petit cadre (da.md §4.11)

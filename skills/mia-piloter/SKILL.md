@@ -196,6 +196,11 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
     (ressemblance), 0 à 2, 1 = normal.
   - **Qwen Image Edit** : `image` + `ref` (jusqu'à 2 images d'appui) ; la consigne les cite « image 2 », « image 3 »
     (l'image à retoucher est l'image 1).
+  - **FLUX.2 Klein 9B** (`fam:klein`) : rien → une image depuis la consigne (`format`, `resolution` 1024 = 1K ou
+    1440 = 1,5K), en quelques secondes ; `image` → la retouche en gardant son cadrage. **Qwen-Image 2.1 Turbo**
+    (`fam:qwen21`) : une image depuis la consigne, très bon pour les textes écrits dans l'image (jusqu'à 2048 = 2K).
+    Licences non commerciales (essais, projets perso) : dis-le. Une LoRA n'est proposée que sur le modèle pour lequel
+    elle a été entraînée (une LoRA Klein 9B sur Klein, une LoRA Qwen-Image 2.1 sur Qwen 2.1, jamais l'une sur l'autre).
 - **« À essayer » (`trial`)** : images-clés de LTX, son à suivre, sons de référence, 768p n'ont
   pas encore été validés à l'œil au labo (prolonger et images-clés de MiniMax : validés le 24/10). Utilise-les quand on te le demande, dis-le, et fais juger
   le résultat à l'œil (côte à côte avec la source).

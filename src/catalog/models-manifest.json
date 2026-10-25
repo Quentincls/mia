@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-17",
+  "updated": "2026-10-25",
   "about": {
     "fr": "Ce que Mia sait installer, capacité par capacité : fichiers exacts, dépôt Hugging Face figé sur une version, taille, empreinte, licence. Mis à jour depuis setup/models.yaml du labo et les gabarits officiels de ComfyUI.",
     "en": "What Mia can install, capability by capability: exact files, Hugging Face repository pinned to a version, size, checksum, license. Built from the lab's setup/models.yaml and ComfyUI's official templates."
@@ -45,6 +45,22 @@
       "note": {
         "fr": "Usage commercial autorisé.",
         "en": "Commercial use allowed."
+      }
+    },
+    "flux-nc": {
+      "name": "FLUX Non-Commercial License",
+      "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9B/blob/main/LICENSE.md",
+      "note": {
+        "fr": "Non commercial : essais et projets perso, pas de projet payé. Il faut accepter la licence sur la page Hugging Face (compte gratuit).",
+        "en": "Non-commercial: trials and personal projects, no paid work. You must accept the license on the Hugging Face page (free account)."
+      }
+    },
+    "qwen-research": {
+      "name": "Qwen Research License",
+      "url": "https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE",
+      "note": {
+        "fr": "Licence de recherche : essais et projets perso, pas de projet payé.",
+        "en": "Research license: trials and personal projects, no paid work."
       }
     }
   },
@@ -587,6 +603,107 @@
       "gated": false,
       "license": "mit",
       "gitOid": "37c8ac58bec2f52dac34204978a7b61b69e3da76"
+    },
+    {
+      "key": "klein9b",
+      "model": "klein9b",
+      "label": {
+        "fr": "FLUX.2 Klein 9B",
+        "en": "FLUX.2 Klein 9B"
+      },
+      "repo": "black-forest-labs/FLUX.2-klein-9B",
+      "revision": "92196c8e11f7b6cf2b7493e037d8c5345c559216",
+      "path": "flux-2-klein-9b.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 18157185168,
+      "sizeGB": 18.16,
+      "gated": true,
+      "license": "flux-nc"
+    },
+    {
+      "key": "klein9b-te",
+      "model": "klein9b-te",
+      "label": {
+        "fr": "Encodeur de texte FLUX.2 Klein",
+        "en": "FLUX.2 Klein text encoder"
+      },
+      "repo": "Comfy-Org/Flux-2-Klein-9B",
+      "revision": "3f62d9d8ae1fec33c6e91453d5c712855b096b55",
+      "path": "split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors",
+      "dest": "text_encoders",
+      "bytes": 8664848742,
+      "sizeGB": 8.66,
+      "gated": false,
+      "license": "apache",
+      "sha256": "abad16806e0cbabc54e0325d6565847443fe396d5f0be38bb3cd3fe75a1201d6"
+    },
+    {
+      "key": "flux2-vae",
+      "model": "flux2-vae",
+      "label": {
+        "fr": "Décodeur FLUX.2",
+        "en": "FLUX.2 decoder"
+      },
+      "repo": "Comfy-Org/Flux-2-Klein-9B",
+      "revision": "3f62d9d8ae1fec33c6e91453d5c712855b096b55",
+      "path": "split_files/vae/flux2-vae.safetensors",
+      "dest": "vae",
+      "bytes": 336211292,
+      "sizeGB": 0.34,
+      "gated": false,
+      "license": "apache",
+      "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+    },
+    {
+      "key": "qwen21",
+      "model": "qwen21",
+      "label": {
+        "fr": "Qwen-Image 2.1 Turbo",
+        "en": "Qwen-Image 2.1 Turbo"
+      },
+      "repo": "Comfy-Org/Qwen-Image-2.1",
+      "revision": "0217efd1d9c9452e84f6448903d6e21bfa171ffd",
+      "path": "diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 7256787829,
+      "sizeGB": 7.26,
+      "gated": false,
+      "license": "qwen-research",
+      "sha256": "8144a0182964aa8403ad6dbc011db837304167d235161b9aabaa8532e967314c"
+    },
+    {
+      "key": "qwen21-te",
+      "model": "qwen21-te",
+      "label": {
+        "fr": "Encodeur de texte Qwen-Image 2.1",
+        "en": "Qwen-Image 2.1 text encoder"
+      },
+      "repo": "Comfy-Org/Qwen-Image-2.1",
+      "revision": "0217efd1d9c9452e84f6448903d6e21bfa171ffd",
+      "path": "text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+      "dest": "text_encoders",
+      "bytes": 9350798360,
+      "sizeGB": 9.35,
+      "gated": false,
+      "license": "apache",
+      "sha256": "8bfd0f6e12abf2d2d697ecc888e5e90b0d6741d6708f05799f53afa560452e8f"
+    },
+    {
+      "key": "qwen21-vae",
+      "model": "qwen21-vae",
+      "label": {
+        "fr": "Décodeur Qwen-Image 2.1",
+        "en": "Qwen-Image 2.1 decoder"
+      },
+      "repo": "Comfy-Org/Qwen-Image-2.1",
+      "revision": "0217efd1d9c9452e84f6448903d6e21bfa171ffd",
+      "path": "vae/qwen_image_2.1_vae_bf16.safetensors",
+      "dest": "vae",
+      "bytes": 675509688,
+      "sizeGB": 0.68,
+      "gated": false,
+      "license": "qwen-research",
+      "sha256": "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9"
     }
   ],
   "capabilities": {
@@ -779,6 +896,35 @@
         "birefnet-config",
         "birefnet-code",
         "birefnet-code-config"
+      ]
+    },
+    "text-to-image": {
+      "label": {
+        "fr": "Image depuis un texte",
+        "en": "Image from text"
+      },
+      "needs": [
+        "klein9b",
+        "klein9b-te",
+        "flux2-vae"
+      ],
+      "options": [
+        {
+          "id": "qwen21",
+          "label": {
+            "fr": "Qwen-Image 2.1",
+            "en": "Qwen-Image 2.1"
+          },
+          "desc": {
+            "fr": "Très fidèle aux textes écrits dans l’image (licence de recherche).",
+            "en": "Very faithful to text written in the image (research license)."
+          },
+          "keys": [
+            "qwen21",
+            "qwen21-te",
+            "qwen21-vae"
+          ]
+        }
       ]
     }
   }

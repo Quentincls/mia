@@ -169,6 +169,7 @@ function classifyKeys(keys, shapes, meta) {
     if (downs.length && shapes[downs[0][1]]) res.rank = shapes[downs[0][1]][0];
     for (const r of RULES.rules) {
       if ((r.role === 'diffusion_model' || r.role === 'controlnet') && ruleMatch(r, blob, metaKeys, true)) {
+        if (r.lora_sure && !r.lora_sure.some((g) => has(blob, g)) && !loraShapeOk(r, loraKeys, shapes)) continue;
         Object.assign(res, { rule: r.id, family: r.family, base_task: r.task ?? null });
         const lp = r.lora_probe;
         if (lp) {
@@ -206,6 +207,25 @@ function classifyKeys(keys, shapes, meta) {
   return res;
 }
 
+// FLUX.2 et FLUX.1 ont les mêmes noms de couches (double_blocks…img_attn.qkv, single_blocks…linear1) : seules les
+// formes les séparent. Sortie/entrée de single_blocks.linear1 = 9 (FLUX.2) contre 7 (FLUX.1) ; img_mlp.0 = 6 contre 4.
+// Sans ces couches : la largeur seule, si FLUX.1 ne peut pas l'avoir (4096 = Klein 9B, 6144 = dev).
+function loraShapeOk(r, loraKeys, shapes) {
+  const isA = (c) => /\.lora\.(a|down)(\.weight)?$/.test(c), isB = (c) => /\.lora\.(b|up)(\.weight)?$/.test(c);
+  for (const [g, mult] of r.lora_mult || []) {
+    const rx = globRx(g);
+    const a = loraKeys.find(([c]) => isA(c) && rx.test(c.replace(LORA_RX, '')));
+    if (!a) continue;
+    const stem = a[0].replace(LORA_RX, '');
+    const b = loraKeys.find(([c]) => isB(c) && c.replace(LORA_RX, '') === stem);
+    const sa = shapes[a[1]], sb = b && shapes[b[1]];
+    if (sa && sb && sa.length === 2 && sb.length === 2) return sb[0] === mult * sa[1];
+  }
+  const lp = r.lora_probe && globRx(r.lora_probe[0]);
+  const a = lp && loraKeys.find(([c, k]) => isA(c) && lp.test(c.replace(LORA_RX, '')) && shapes[k]);
+  return !!a && (r.lora_width || []).includes(shapes[a[1]][r.lora_probe[1]]);
+}
+
 // Indices par le nom, lus sur le chemin RELATIF à la racine (sinon tout KimodoStudio\ devient « Kimodo »).
 function applyNameHints(res, p, rel) {
   const low = (rel || p).toLowerCase().replace(/\\/g, '/');
@@ -217,8 +237,10 @@ function applyNameHints(res, p, rel) {
   if (Object.keys(hints).length) res.name_hints = hints;
   if (!res.family && hints.family) { res.family = hints.family; res.rule = res.rule || 'name'; }
   if ((!res.role || res.role === 'unknown') && hints.role) res.role = hints.role;
-  // Le VAE Qwen-Image a exactement l'architecture du VAE Wan 2.1 : seul le nom tranche.
-  if (res.rule === 'wan_vae' && base.includes('qwen')) res.family = 'Qwen-Image';
+  // Le VAE Qwen-Image a exactement l'architecture du VAE Wan 2.1 : seul le nom tranche (2.1 : 64 canaux, le sien).
+  if (res.rule === 'wan_vae' && base.includes('qwen')) res.family = /qwen.?image.?2[._-]?1/.test(base) || res.probe_value === 64 ? 'Qwen-Image 2.1' : 'Qwen-Image';
+  // FLUX.2 sans largeur lisible : le nom dit la variante (« …klein-9b… »)
+  if (res.family === 'FLUX.2' && !res.variant && hints.variant) res.variant = hints.variant;
   if (res.rule === 'kl_vae' && low.includes('seedvr')) res.family = 'SeedVR2';
   if (res.rule === 'ltxv' && (hints.family === 'LTX-2.x' || low.includes('ltx-2') || low.includes('ltx25'))) res.family = 'LTX-2.x';
   if (res.family === 'Wan 2.x' && low.includes('animate')) {
@@ -611,6 +633,29 @@ function loraMeta(meta) {
   return o;
 }
 
+// Modèle de base écrit par l'outil d'entraînement. Il comble une famille inconnue et précise la variante d'une même
+// architecture ; il ne contredit jamais une architecture lue dans les tenseurs (sauf FLUX.1 / FLUX.2, mêmes noms).
+const META_BASE = [
+  [/qwen[-_ .]?image[-_ .]?2[-_.]?1/, { family: 'Qwen-Image 2.1' }],
+  [/qwen[-_ .]?image/, { family: 'Qwen-Image' }],
+  [/klein[-_ .]?(base[-_ .]?)?9b|flux[-_ .]?2[-_ .]?klein[-_ .]?(base[-_ .]?)?9/, { family: 'FLUX.2', variant: 'Klein 9B' }],
+  [/klein[-_ .]?(base[-_ .]?)?4b|flux[-_ .]?2[-_ .]?klein[-_ .]?(base[-_ .]?)?4/, { family: 'FLUX.2', variant: 'Klein 4B' }],
+  [/flux[-_ .]?2/, { family: 'FLUX.2' }],
+  [/flux[-_ .]?1|flux-1/, { family: 'FLUX.1' }],
+];
+const META_BASE_KEYS = ['modelspec.architecture', 'ss_base_model_version', 'ss_architecture', 'ss_base_model', 'base_model', 'ss_base_checkpoint', 'ss_sd_model_name'];
+const SAME_ARCH = { 'FLUX.1': 'FLUX.2', 'FLUX.2': 'FLUX.1' };
+function loraBaseFromMeta(res, meta) {
+  const s = META_BASE_KEYS.map((k) => (typeof meta[k] === 'string' ? meta[k] : '')).join(' ').toLowerCase();
+  if (!s.trim()) return;
+  const hit = META_BASE.find(([rx]) => rx.test(s));
+  if (!hit) return;
+  const h = hit[1];
+  res.meta_base = h.family + (h.variant ? ` ${h.variant}` : '');
+  if (!res.family || SAME_ARCH[res.family] === h.family) { res.family = h.family; res.rule = res.rule || 'meta'; }
+  if (res.family === h.family && h.variant && !res.variant) res.variant = h.variant;
+}
+
 const KEEP_META = ['model_version', 'base_model', 'training_rank', 'training_alpha', 'format', 'modelspec.architecture',
   'ss_base_model_version', 'ss_network_dim', 'reference_kind', 'minimax_h3_fun_controlnet'];
 
@@ -641,7 +686,7 @@ async function identify(p, size, rel) {
       if (typeof meta.license === 'string' && meta.license.trim()) keep.license = meta.license.trim().split(/\r?\n/)[0].slice(0, 80);
       if (Object.keys(keep).length) out.meta = keep;
       if (keep.config_class && String(keep.config_class).startsWith('animate')) (res.flags = res.flags || []).push('animate');
-      if (res.role === 'lora') Object.assign(out, loraMeta(meta));
+      if (res.role === 'lora') { Object.assign(out, loraMeta(meta)); loraBaseFromMeta(res, meta); }
     } else if (ext === '.gguf') {
       const { names, shapes, info } = await readGguf(fh, size);
       Object.assign(out, { format: 'gguf', fingerprint: await sampleHash(fh, size) }, info);
@@ -1264,7 +1309,7 @@ function buildModels(records, bundles, ctx) {
     }
     // « Prêt » veut toujours dire « utilisable » : un modèle interdit par sa licence n'est jamais prêt.
     if (m.license === 'forbidden' && m.status === 'ready') { m.status = 'unused'; note(R.NOTES.forbidden); }
-    if (role === 'diffusion_model' || role === 'checkpoint') m.baseKey = R.baseKeyOf(family);
+    if (role === 'diffusion_model' || role === 'checkpoint') m.baseKey = R.baseKeyOf(family, m.variant);
     m._cat = cat;
     m._main = main;
     u.files.forEach((r) => byRecord.set(r.pathLow, m));
@@ -1284,7 +1329,7 @@ function applyLoras(models, ctx) {
   for (const m of models) {
     if (m.role !== 'lora' || m.status === 'other-app') continue;
     const main = m._main || {};
-    m.loraFor = R.baseKeyOf(m.family);
+    m.loraFor = R.baseKeyOf(m.family, m.variant);
     m.loraForLabel = m.loraFor ? R.baseLabel(m.loraFor, false) : null;
     const cat = m._cat;
     if (cat && cat.part) { m.loraKind = cat.part === 'mode' ? 'control' : 'technical'; continue; }
@@ -1907,7 +1952,7 @@ async function inspectFile(file, { inventory = null, files = null, engineRoot = 
     const diff = (inventory && Array.isArray(inventory.models) ? inventory.models : []).filter((m) => m.role === 'diffusion_model');
     // Même règle que le scan : une LoRA « LTX » ambiguë est pour LTX-2 quand seul LTX-2 est installé.
     if (family === 'LTX-Video 0.9' && diff.some((m) => m.family === 'LTX-2.x') && !diff.some((m) => m.family === 'LTX-Video 0.9')) family = 'LTX-2.x';
-    const loraFor = R.baseKeyOf(family);
+    const loraFor = R.baseKeyOf(family, info.variant);
     const ident = R.IDENTITY.find((i) => i.test.test(p.toLowerCase())) || null;
     const name = ident ? (ident.label[lang] || ident.label.fr) : R.loraNameFromFile(info.lora_title || out.file);
     const trigger = (ident && ident.trigger) || info.lora_trigger || '';

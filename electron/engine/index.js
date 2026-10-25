@@ -203,7 +203,7 @@ const TIMING_PARAMS = ['speed', 'detail'];
 // First-run lock estimates (minutes) until real durations are learned — from the catalog's estimates.
 const DEFAULT_MINUTES = {
   'i2v|preview': 2, 'i2v|final': 9, 't2v|preview': 2, 't2v|final': 9, 'real|preview': 3, 'real|final': 20,
-  'perform|preview': 5, 'perform|final': 15, edit: 3, upscale: 20, depth: 2, cutout: 3,
+  'perform|preview': 5, 'perform|final': 15, edit: 3, t2i: 1, upscale: 20, depth: 2, cutout: 3,
   'gen|preview': 2, 'gen|final': 9
 };
 
@@ -702,7 +702,7 @@ class Planner {
     const res = await this.computed(node, type, stack, reqMode);
     if (res.error) return res.upstream ? res : { error: this.tr('inBlock', { block: label, msg: res.error }), missing: res.missing, upstream: true };
     if (res.run) {
-      const o = res.run.outputs && res.run.outputs[port];
+      const o = runOutput(res.run, port);
       if (!o) return fail(this.tr('noSuchOutput', { name: label, port }));
       return { ref: { run: res.run, port }, hash: res.run.hash || res.hash, kind: o.kind || this.concrete(outDef, res.spec) };
     }
@@ -1358,7 +1358,7 @@ class Engine extends EventEmitter {
           const run = r.run || (r.job && r.job._.run);
           const name = r.job ? r.job.label : r.run && r.run.nodeId;
           if (!run) throw new Error(this.tr('upFailed', { name }));
-          const o = run.outputs && run.outputs[r.port];
+          const o = runOutput(run, r.port);
           if (!o) throw new Error(this.tr('noSuchOutput', { name, port: r.port }));
           v = {
             abs: path.join(dir, ...String(o.path).split('/')), rel: o.path, kind: o.kind, meta: o.meta || null,
@@ -2308,7 +2308,18 @@ function register(ctx) {
   return new Engine(ctx).install();
 }
 
+/**
+ * The output `port` of a finished run. A Model block (SPEC §23) has one output, « out », but its local runs made before
+ * 25/10/2026 kept the task executor's name (« video », « image »): a run with a single output answers for « out ».
+ */
+function runOutput(run, port) {
+  const outs = (run && run.outputs) || {};
+  if (outs[port]) return outs[port];
+  const all = Object.values(outs).filter(Boolean);
+  return port === 'out' && all.length === 1 ? all[0] : null;
+}
+
 module.exports = {
   register, Engine, Planner,
-  _internals: { stable, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB }
+  _internals: { stable, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB, runOutput }
 };

@@ -537,7 +537,7 @@ const FOLDED = new Set(['other', 'internal', 'apps', 'partials']);
 const HINTED = new Set(['loras', 'other', 'internal', 'apps', 'partials']);
 // Lignes de l'accueil : une par capacité, dans l'ordre où Quentin s'en sert.
 const HOME_CAPS = ['image-to-video', 'text-to-video', '3d-to-real', 'guided-video', 'reference-to-video', 'character-performance',
-  'image-edit', 'upscale', 'depth', 'cutout', 'lora'];
+  'image-edit', 'text-to-image', 'upscale', 'depth', 'cutout', 'lora'];
 const GENRE_KEYS = ['character', 'place', 'style'];
 const GENRE_FALLBACK = { character: { fr: 'Personnage', en: 'Character' }, place: { fr: 'Lieu', en: 'Place' }, style: { fr: 'Style', en: 'Style' } };
 
