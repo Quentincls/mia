@@ -26,15 +26,16 @@ import { familyOf, localKeyOf } from './route.js';
 import { modelName } from './modelpicker.js';
 
 strings({
-  'node.fam.local': 'Local',
-  'node.fam.cloud': 'Cloud',
+  'node.fam.local': 'Sur ce PC',
+  'node.fam.cloud': 'En ligne',
   'node.fam.search': 'Chercher un modèle (LTX, Seedance, Kling…)',
   'node.fam.noMatch': 'Aucun modèle ne correspond à « {q} ».',
   'node.fam.onPc': 'Sur ce PC',
   'node.fam.notInstalled': 'Non installé',
   'node.fam.unknown': 'Modèle introuvable',
   'node.fam.unknownTip': 'Ce modèle n’existe plus dans Mia. Choisis-en un autre.',
-  'node.fam.byWires': 'Images-clés ou Références : MiniMax choisit selon ce que tu branches.',
+  'node.fam.byWires': 'MiniMax prend lui-même le bon modèle selon ce que tu branches : références, image de début, vidéo à prolonger, vidéo guide ou texte seul.',
+  'node.fam.cloudChecking': 'Vérification du compte Higgsfield…',
   'node.fam.online': 'En ligne',
   'node.fam.tipLocal': 'Modèle · sur ce PC',
   'node.fam.tipCloud': 'Modèle · en ligne, payant',
@@ -45,11 +46,12 @@ strings({
   'node.fam.video': 'Vidéo',
   'node.fam.image': 'Image',
   'node.fam.w.text': 'Texte',
-  'node.fam.w.image': 'Image',
+  'node.fam.w.image': 'Animer',
   'node.fam.w.refs': 'Références',
   'node.fam.w.guided': 'Guidée',
   'node.fam.w.real': '3D → réel',
   'node.fam.w.act': 'Personnage',
+  'node.fam.w.sheet': 'Fiche',
   'node.fam.w.edit': 'Retouche',
   'node.fam.w.vedit': 'Modifier',
   'node.fam.w.extend': 'Prolonger',
@@ -58,15 +60,16 @@ strings({
   'node.fam.w.restyle': 'Restyler',
   'node.fam.w.cinema': 'Plan de cinéma',
 }, {
-  'node.fam.local': 'Local',
-  'node.fam.cloud': 'Cloud',
+  'node.fam.local': 'On this PC',
+  'node.fam.cloud': 'Online',
   'node.fam.search': 'Search a model (LTX, Seedance, Kling…)',
   'node.fam.noMatch': 'No model matches “{q}”.',
   'node.fam.onPc': 'On this PC',
   'node.fam.notInstalled': 'Not installed',
   'node.fam.unknown': 'Model not found',
   'node.fam.unknownTip': 'This model no longer exists in Mia. Choose another one.',
-  'node.fam.byWires': 'Keyframes or References: MiniMax picks from what you connect.',
+  'node.fam.byWires': 'MiniMax picks the right model itself from what you connect: references, a start image, a video to extend, a guide video or text alone.',
+  'node.fam.cloudChecking': 'Checking the Higgsfield account…',
   'node.fam.online': 'Online',
   'node.fam.tipLocal': 'Model · on this PC',
   'node.fam.tipCloud': 'Model · online, paid',
@@ -77,11 +80,12 @@ strings({
   'node.fam.video': 'Video',
   'node.fam.image': 'Image',
   'node.fam.w.text': 'Text',
-  'node.fam.w.image': 'Image',
+  'node.fam.w.image': 'Animate',
   'node.fam.w.refs': 'References',
   'node.fam.w.guided': 'Guided',
   'node.fam.w.real': '3D → real',
   'node.fam.w.act': 'Character',
+  'node.fam.w.sheet': 'Sheet',
   'node.fam.w.edit': 'Edit',
   'node.fam.w.vedit': 'Edit video',
   'node.fam.w.extend': 'Extend',
@@ -99,7 +103,7 @@ function wordKey(wf) {
   const rules = [
     [/^t2v$|text-to-video/, 'text'], [/^i2v$|image-to-video|first-last-frame/, 'image'],
     [/^refs$|reference-to-video|image-reference|custom-references/, 'refs'], [/^guided$/, 'guided'], [/^real$/, 'real'],
-    [/^perform$|motion-control|motion-transfer/, 'act'], [/video-edit/, 'vedit'], [/^extend$|video-extend/, 'extend'],
+    [/^perform$|motion-control|motion-transfer/, 'act'], [/video-edit/, 'vedit'], [/^extend$|video-extend/, 'extend'], [/^sheet$/, 'sheet'],
     [/video-reference/, 'follow'], [/object-swap/, 'swap'], [/restyle/, 'restyle'], [/cinema-studio/, 'cinema'],
     [/^edit$|\/edit$/, 'edit'], [/text-to-image|soul|ideogram|z-image|recraft|grok-imagine-image|ads-studio|marketing-studio/, 'text'],
   ];
@@ -108,7 +112,7 @@ function wordKey(wf) {
 }
 
 /** Ce que sait faire une famille, en mots courts, sans doublon, toujours dans le même ordre (texte, image…). */
-const WORD_ORDER = ['text', 'image', 'refs', 'guided', 'real', 'act', 'edit', 'vedit', 'extend', 'follow', 'swap', 'restyle', 'cinema'];
+const WORD_ORDER = ['text', 'image', 'refs', 'sheet', 'guided', 'real', 'act', 'edit', 'vedit', 'extend', 'follow', 'swap', 'restyle', 'cinema'];
 export function familyWords(def) {
   const keys = (def?.workflows || []).map((wf) => wordKey(wf) || `=${tl(wf.label || {})}`);
   const uniq = [...new Set(keys)].sort((a, b) => (WORD_ORDER.indexOf(a) + 1 || 99) - (WORD_ORDER.indexOf(b) + 1 || 99));
@@ -272,7 +276,7 @@ export function familyPicker({ param, value, onChange }) {
         btn.addEventListener('pointerdown', (e) => e.stopPropagation());
         btn.addEventListener('click', (e) => { e.stopPropagation(); closePop(); emit('settings:open', { section: 'cloud' }); });
         banner.append(el('span', {}, t('node.fam.cloudLink')), btn);
-      } else banner.append(el('span', {}, t('node.fam.cloudLinked')));
+      } else banner.append(el('span', {}, t(linked === null ? 'node.fam.cloudChecking' : 'node.fam.cloudLinked')));
       list.append(banner);
       const fams = (cloudCatalog().families || [])
         .filter((def) => !q || fold(`${def.name} ${def.maker} ${tl(def.desc || {})}`).includes(q))
@@ -317,7 +321,7 @@ export function familyPicker({ param, value, onChange }) {
     Promise.resolve(window.mia?.cloud?.status?.()).then((s) => {
       linked = !!(s && s.linked);
       if (tab === 'cloud' && openPop?.owner === root) render();
-    }).catch(() => { linked = false; });
+    }).catch(() => { linked = false; if (tab === 'cloud' && openPop?.owner === root) render(); });
 
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); trigger.focus(); }

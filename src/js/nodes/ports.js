@@ -55,8 +55,10 @@ export function nodeInputs(node, connected = [], { all = false, extra = [] } = {
   // ce qui manque à la façon de faire retenue se montre toujours (on ne demande jamais de brancher une entrée cachée)
   const plan = fam ? chooseWorkflow(fam, connected, node.params?.workflow || null) : null;
   for (const id of plan?.blocked ? plan.missing : []) main.add(id);
+  const ignored = new Set(plan?.unused || []);
+  const labels = portLabels(fam);
   const visible = (id) => all || id === 'prompt' || main.has(id) || shown.has(id) || connected.includes(id) || extra.includes(id);
-  return inputDefs(node.type)
+  const list = inputDefs(node.type)
     .filter((d) => (ports[d.id] && visible(d.id)) || connected.includes(d.id))
     .map((d) => {
       const p = ports[d.id];
@@ -66,9 +68,36 @@ export function nodeInputs(node, connected = [], { all = false, extra = [] } = {
       // montrée seulement le temps d'un fil tiré : dessinée plus discrète
       const peek = !all && extra.includes(d.id) && !removable && !main.has(d.id) && !connected.includes(d.id) && d.id !== 'prompt' && !shown.has(d.id);
       const base = p.multi ? { ...d, multi: true, max: p.max } : { ...d, multi: false, max: undefined };
+      if (labels[d.id]) base.label = labels[d.id];          // « Rendu 3D » (LTX), « Vidéo à prolonger » (MiniMax)
       if (p.trial) base.trial = true;
+      // reliée mais pas utilisée par la façon de faire retenue : grisée (elle reste une cible de fil, ≠ unused)
+      if (connected.includes(d.id) && ignored.has(d.id)) base.ignored = true;
       return removable ? { ...base, removable: true } : peek ? { ...base, peek: true } : base;
     });
+  // les entrées montrées le temps d'un fil vont tout en bas : rien ne bouge sous le pointeur (audit 25/10, LIVE-1)
+  return [...list.filter((d) => !d.peek), ...list.filter((d) => d.peek)];
+}
+
+/** Libellés propres à une famille (« Rendu 3D » pour la vidéo de LTX…), pris dans les ports de ses façons de faire. */
+export function portLabels(fam) {
+  const out = {};
+  for (const wf of fam?.def?.workflows || []) {
+    for (const [id, v] of Object.entries(wf.ports || {})) if (v && v.label && !out[id]) out[id] = v.label;
+  }
+  return out;
+}
+
+/**
+ * Entrées rangées qui, une fois reliées, serviraient tout de suite (une façon de faire possible s'en sert) : seules
+ * celles-là apparaissent pendant qu'on tire un fil — pas « Image de look » sur un LTX qui a déjà son image de début.
+ */
+export function usefulInputs(node, connected = []) {
+  const fam = blockFamily(node);
+  if (!fam) return [];
+  return hiddenInputs(node, connected).map((d) => d.id).filter((id) => {
+    const r = chooseWorkflow(fam, [...connected, id], node.params?.workflow || null);
+    return r && !r.blocked && !r.unused.includes(id);
+  });
 }
 
 /** Entrées que la famille sait prendre et que le bloc ne montre pas encore (le menu « + Ajouter »). */

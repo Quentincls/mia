@@ -34,8 +34,9 @@ import { segmented, dropdown, slider, toggle, textField, numberField } from '../
 import { modelPicker, isLoraParam, resolveModel, baseKeyOf, loraKeyOf, loraChoices, familyLabel } from './modelpicker.js';
 import { boundsFor, usesInput, familyName } from './profiles.js';
 import { familyPicker } from './familypicker.js';
-import { blockWorkflow } from './ports.js';
-import { localModelFor } from './route.js';
+import { blockWorkflow, portLabels } from './ports.js';
+import { localModelFor, needsOf, portsOfFamily } from './route.js';
+import { localCatalog } from './profiles.js';
 import * as runs from './runs.js';
 import { strings, baseName } from './media.js';
 import { toast } from '../ui/toasts.js';
@@ -66,8 +67,12 @@ strings({
   'node.limit.seconds': '{name} va jusqu’à {n} s : la vidéo fera {n} s.',
   'node.limit.res': '{name} travaille jusqu’à {n}p.',
   'node.limit.unused': '« {port} » n’est pas utilisée par {name}.',
-  'node.wf.missing': 'Branche {ports} pour « {what} ».',
-  'node.wf.unused': '{ports} : pas pris par {family}, ignoré.',
+  'node.wf.missing': 'Il manque pour « {what} » : {ports}.',
+  'node.wf.unused': 'Ignoré pour « {what} » : {ports}.',
+  'node.wf.foreign': '{ports} : {family} ne s’en sert pas. {others} oui : change le modèle en tête du bloc.',
+  'node.wf.foreignNone': '{ports} : {family} ne s’en sert pas.',
+  'node.wf.hint': 'Avec {family}, ce que tu branches décide : {list}. Quand deux façons vont aussi bien, tu choisis ici.',
+  'node.wf.nothing': 'rien',
   'node.wf.trial': 'À essayer',
   'node.wf.trialWhole': 'Nouveau, pas encore validé au labo : regarde le résultat d’un œil critique.',
   'node.wf.trialPorts': '{ports} : nouveau, pas encore validé au labo. Regarde le résultat d’un œil critique.',
@@ -97,8 +102,12 @@ strings({
   'node.limit.seconds': '{name} goes up to {n} s: the video will last {n} s.',
   'node.limit.res': '{name} works up to {n}p.',
   'node.limit.unused': '“{port}” is not used by {name}.',
-  'node.wf.missing': 'Connect {ports} for “{what}”.',
-  'node.wf.unused': '{ports}: not taken by {family}, ignored.',
+  'node.wf.missing': 'Missing for “{what}”: {ports}.',
+  'node.wf.unused': 'Ignored for “{what}”: {ports}.',
+  'node.wf.foreign': '{ports}: {family} does not use it. {others} does: change the model at the top of the block.',
+  'node.wf.foreignNone': '{ports}: {family} does not use it.',
+  'node.wf.hint': 'With {family}, what you connect decides: {list}. When two ways fit equally well, pick one here.',
+  'node.wf.nothing': 'nothing',
   'node.wf.trial': 'To try',
   'node.wf.trialWhole': 'New, not checked at the lab yet: look at the result with a critical eye.',
   'node.wf.trialPorts': '{ports}: new, not checked at the lab yet. Look at the result with a critical eye.',
@@ -373,10 +382,11 @@ export function mountParams(host, opts) {
     const box = el('div', { class: 'np-wf' }, value, trial);
     const note = el('div', { class: 'np-note', hidden: true });
     const row = el('div', { class: 'np-row np-wfrow np-wrap', 'data-param': p.id }, label(p), el('div', { class: 'np-ctl' }, box), note);
-    const words = (ports) => ports.map((id) => tl((type.inputs || []).find((i) => i.id === id)?.label || { fr: id })).join(', ');
+    const labels = wfInfo ? portLabels(wfInfo.fam) : {};
+    const words = (ports) => ports.map((id) => tl(labels[id] || (type.inputs || []).find((i) => i.id === id)?.label || { fr: id })).join(', ');
     function paint() {
       if (!wfInfo) { value.textContent = '—'; return; }
-      const { workflow, ties, missing, unused, blocked, trialPorts = [] } = wfInfo;
+      const { workflow, ties, missing, unused, blocked, trialPorts = [], connected = [] } = wfInfo;
       value.textContent = tl(workflow.label || {});
       trial.hidden = !(workflow.trial || trialPorts.length) || !!blocked;
       row.classList.toggle('blocked', !!blocked);
@@ -393,7 +403,19 @@ export function mountParams(host, opts) {
       } else { value.hidden = false; setStack(row, false); }
       const msgs = [];
       if (blocked && missing.length) msgs.push(t('node.wf.missing', { ports: words(missing), what: tl(workflow.label || {}) }));
-      if (unused && unused.length) msgs.push(t('node.wf.unused', { ports: words(unused), family: wfInfo.fam.def.name }));
+      // ignoré : soit la famille sait s'en servir autrement (façon de faire), soit elle ne le prend pas du tout (modèle)
+      const famPorts = portsOfFamily(wfInfo.fam);
+      const mine = (unused || []).filter((id) => famPorts[id]);
+      const foreign = (unused || []).filter((id) => !famPorts[id]);
+      if (mine.length) msgs.push(t('node.wf.unused', { ports: words(mine), what: tl(workflow.label || {}) }));
+      if (foreign.length) {
+        const fams = Object.values(localCatalog().families || {}).filter((f) => Array.isArray(f.workflows) && f.workflows.length
+          && f.name !== wfInfo.fam.def.name && foreign.some((id) => portsOfFamily({ def: f })[id]));
+        msgs.push(t(fams.length ? 'node.wf.foreign' : 'node.wf.foreignNone',
+          { ports: words(foreign), family: wfInfo.fam.def.name, others: fams.map((f) => f.name).join(', ') }));
+      }
+      // rien de branché : ce que fait le modèle, et quoi brancher pour le reste
+      if (!connected.length && wfInfo.fam.def.emptyHint) msgs.push(tl(wfInfo.fam.def.emptyHint));
       if (!blocked && workflow.trial) msgs.push(t('node.wf.trialWhole'));
       else if (!blocked && trialPorts.length) msgs.push(t('node.wf.trialPorts', { ports: words(trialPorts) }));
       note.hidden = !msgs.length;
@@ -928,16 +950,21 @@ function mountModelParams(host, opts) {
     const conn = connected();
     const r = blockWorkflow(node, conn);
     // entrées branchées encore « à essayer » pour cette façon de faire (images-clés, son à suivre…)
-    if (r) r.trialPorts = conn.filter((id) => r.workflow.ports?.[id]?.trial);
+    if (r) { r.trialPorts = conn.filter((id) => r.workflow.ports?.[id]?.trial); r.connected = conn.filter((id) => id !== 'prompt'); }
     return r;
   };
-  const signature = (r) => (r ? `${r.fam.provider}:${r.fam.key}:${r.workflow.id}:${r.ties.map((w) => w.id).join('|')}:${r.blocked ? 1 : 0}:${r.unused.join(',')}:${r.trialPorts.join(',')}` : 'none');
+  const signature = (r) => (r ? `${r.fam.provider}:${r.fam.key}:${r.workflow.id}:${r.ties.map((w) => w.id).join('|')}:${r.blocked ? 1 : 0}:${r.unused.join(',')}:${r.trialPorts.join(',')}:${r.connected.length ? 1 : 0}` : 'none');
 
   function effectiveType(r) {
-    const list = [P('model'), P('workflow')];
+    const list = [P('model'), workflowParam(r)];
     if (r && r.fam.provider === 'local') {
       for (const id of r.workflow.params || []) {
-        const p = P(id);
+        let p = P(id);
+        // réglage ajusté pour cette façon de faire (« Durée ajoutée » pour prolonger, exemple de consigne des références)
+        const ov = (r.workflow.paramOverrides || {})[id];
+        if (p && ov) p = { ...p, ...ov };
+        // consigne obligatoire quand la façon de faire l'exige : marquée, et dite avant le lancement (body.js)
+        if (p && id === 'prompt' && r.workflow.promptRequired) p = { ...p, required: true };
         // « Comme l'image de début » n'a de sens qu'avec une image de début : sans elle, 16:9 (le moteur fait de même)
         if (p && id === 'format' && !(r.workflow.ports || {}).start) {
           list.push({ ...p, default: '16:9', options: (p.options || []).filter((o) => o.value !== 'auto') });
@@ -948,6 +975,25 @@ function mountModelParams(host, opts) {
       for (const p of r.workflow.params || []) list.push(p);       // définitions du catalogue en ligne, telles quelles
     } else list.push(P('prompt'));
     return { ...base, params: list.filter(Boolean), _wf: r };
+  }
+
+  /** « Ce que fait le bloc » avec l'aide de SA famille : « rien → Vidéo depuis un texte · Image de début → Animer… ». */
+  function workflowParam(r) {
+    const p = P('workflow');
+    if (!p || !r) return p;
+    const labels = portLabels(r.fam);
+    const word = (id) => tl(labels[id] || (base.inputs || []).find((i) => i.id === id)?.label || { fr: id });
+    const seen = new Set();
+    const parts = [];
+    for (const w of r.fam.def.workflows || []) {
+      const what = tl(w.label || {});
+      if (seen.has(what)) continue;
+      seen.add(what);
+      const needs = needsOf(w);
+      parts.push(`${needs.length ? needs.map(word).join(' + ') : t('node.wf.nothing')} → ${what}`);
+    }
+    const hint = t('node.wf.hint', { family: r.fam.def.name, list: parts.join(' · ') });
+    return { ...p, hint: { fr: hint, en: hint } };
   }
 
   function build() {

@@ -9,7 +9,7 @@
 //     <Video 1>, <Audio k>. The model numbers every sound together, video soundtracks first (<Audio 1> is the sound
 //     of Vidéo 1 when it has one), so « Son 1 » is shifted past them;
 //   - 24 fps, length 17k+5, sizes on the 32-px grid, 720p at most.
-// The ref2va model and its turbo LoRA are not installed yet: the run stops at once with
+// When the ref2va model or its turbo LoRA is missing, the run stops at once with
 // « Le modèle « MiniMax H3 · références » n'est pas installé » (validate.js says the same).
 const path = require('node:path');
 const P = require('../patch');
@@ -116,7 +116,8 @@ function plan(x) {
   const preview = x.mode === 'preview';
   const refs = list(x.inputs && x.inputs.refs);
   const first = refs[0];
-  const ratio = E.formatRatio(x.params.format, first && first.meta, 16 / 9);
+  // « auto » (the Model block's default) shows as 16:9 on the block, since there is no start image: do the same
+  const ratio = E.formatRatio(x.params.format === 'auto' ? '16:9' : x.params.format, first && first.meta, 16 / 9);
   const native = !preview && Number(x.params.resolution) === 768;
   const short = native ? 768 : Math.min(MAX_SHORT, E.shortSide(x, { preview, previewCap: 448, max: MAX_SHORT }));
   const { w, h } = frameSize(ratio, short, native);

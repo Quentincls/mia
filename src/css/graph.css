@@ -533,7 +533,8 @@
   animation: g-pop var(--dur-pop) var(--ease-out);
   transition: color var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.w-cut:active { scale: 0.92; }
+/* pas de scale à l’appui : Chromium perd alors la pastille (le relâchement tombe sur le fil dessous, aucun clic) */
+.w-cut:active { opacity: 0.8; }
 .w-cut:hover { color: #fff; background: var(--danger, var(--state-err)); border-color: transparent; }
 .w-cut[hidden] { display: none; }
 @keyframes g-pop { from { opacity: 0; } }
@@ -1004,5 +1005,8 @@
 .n-unshow:hover { color: var(--txt); background: var(--wash-2); }
 .n-unshow svg { display: block; }
 .n-port.peek .lbl { color: var(--txt-3); }
+/* reliée mais pas utilisée par ce que fait le bloc : grisée, sans être barrée (le modèle sait s'en servir autrement) */
+.n-port.ignored .lbl { color: var(--txt-3); }
+.n-port.ignored .dot { opacity: .55; }
 .connecting .n-port.peek.target .lbl { color: var(--txt); }
 .lod-2 .n-add, .lod-2 .n-unshow { visibility: hidden; }

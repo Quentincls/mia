@@ -224,8 +224,8 @@
           "type": "image",
           "required": false,
           "label": {
-            "fr": "Fiche de référence",
-            "en": "Reference sheet"
+            "fr": "Fiche personnage",
+            "en": "Character sheet"
           },
           "hint": {
             "fr": "Une image qui montre ton personnage ou tes objets (plusieurs vues sur une même image). LTX s’en inspire sur tout le plan. Ignorée avec MiniMax.",
@@ -297,8 +297,8 @@
           "type": "media",
           "required": false,
           "label": {
-            "fr": "Zone libre",
-            "en": "Free area"
+            "fr": "Masque (zone libre)",
+            "en": "Mask (free area)"
           }
         },
         {
@@ -344,8 +344,8 @@
           "type": "audio",
           "required": false,
           "label": {
-            "fr": "Son",
-            "en": "Sound"
+            "fr": "Son à suivre",
+            "en": "Sound to follow"
           }
         },
         {
@@ -785,8 +785,8 @@
             "en": "What the block does"
           },
           "hint": {
-            "fr": "Mia le déduit de ce que tu branches : une image de début, il l’anime ; des références, il les mélange ; une vidéo guide, il la suit ; rien, il part du texte. Quand deux façons vont aussi bien, tu choisis ici.",
-            "en": "Mia works it out from what you connect: a start image, it animates it; references, it mixes them; a guide video, it follows it; nothing, it starts from the text. When two ways fit as well, you choose here."
+            "fr": "Mia le déduit de ce que tu branches : une image de début, il l’anime ; des références (MiniMax), il les mélange ; une vidéo guide, il la suit ; un rendu 3D (LTX), il le rend réel ; une vidéo (MiniMax), il la prolonge ; rien, il part du texte. Quand deux façons vont aussi bien, tu choisis ici.",
+            "en": "Mia works it out from what you connect: a start image, it animates it; references (MiniMax), it blends them; a guide video, it follows it; a 3D render (LTX), it makes it real; a video (MiniMax), it extends it; nothing, it starts from the text. When two ways fit equally well, pick one here."
           }
         }
       ],
@@ -1353,6 +1353,10 @@
           "label": {
             "fr": "À éviter",
             "en": "Avoid"
+          },
+          "hint": {
+            "fr": "Sans effet avec LTX distillé : ce modèle ne lit pas la consigne négative.",
+            "en": "No effect with distilled LTX: this model does not read the negative prompt."
           }
         },
         {
@@ -1859,8 +1863,8 @@
           "type": "image",
           "required": false,
           "label": {
-            "fr": "Image de départ",
-            "en": "Start image"
+            "fr": "Image de début (donne le look)",
+            "en": "Start image (sets the look)"
           },
           "hint": {
             "fr": "Donne le look : la 1re image, retouchée comme tu veux le résultat.",

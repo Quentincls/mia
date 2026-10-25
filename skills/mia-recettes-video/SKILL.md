@@ -168,6 +168,11 @@ Toutes passent par un bloc Modèle (`type:"gen"`, voir mia-piloter) ; le moteur 
   visage moins fidèle, pour le même temps). Une passe reste la bonne réponse pour un 1080p net.
 - **LTX « Enrichir la consigne »** (`enhance`) : Gemma réécrit la consigne en anglais détaillé (dans les notes).
 - **Qwen Image Edit** : jusqu'à 2 images d'appui (`ref`), citées « image 2 », « image 3 ».
+- **LTX « Vidéo depuis une fiche personnage »** (`sheet` seule, à essayer) : une image qui réunit le personnage,
+  ses tenues, ses objets ou le lieu ; la consigne désigne chaque élément par sa place (« l'homme à gauche »). Gabarit
+  officiel Ingredients ; au labo, visage moyen (moins bon que Wan Animate 2). Pour des références séparées, MiniMax.
+- **Recette « Vidéo à partir de mes références »** : 2 Médias (Personnage = Image 1, Lieu = Image 2) + une Consigne
+  qui les cite + « Vidéo à partir de références » (MiniMax).
 - **MiniMax 768p** : la taille native (1344 × 768) au lieu de 704 px ; si la mémoire manque, revenir en 720p.
 
 ## Durées indicatives (GPU portable de 24 Go, un calcul lourd à la fois)

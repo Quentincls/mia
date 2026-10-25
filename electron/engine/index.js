@@ -102,7 +102,8 @@ const STR = {
     waitTimeout: 'Toujours en cours après {s} s.',
     genNoModel: 'Choisis un modèle dans « {label} »',
     genNoLocal: 'Aucun modèle {family} installé ne sait faire « {what} »',
-    genUnused: '« {port} » ne sert pas pour « {what} » avec {family} : ignorée.',
+    genUnused: 'Ignoré pour « {what} » : {port}.',
+    genMissing: 'Il manque pour « {what} » : {ports}.',
     genMax: '{family} prend {max} « {label} » au plus : les suivantes sont ignorées.',
     cloudLink: 'Relie ton compte Higgsfield dans Réglages → Comptes en ligne',
     cloudUpstream: 'Le bloc « {name} » calcule en ligne (payant) : lance-le d’abord lui-même.'
@@ -176,7 +177,8 @@ const STR = {
     waitTimeout: 'Still running after {s} s.',
     genNoModel: 'Choose a model in “{label}”',
     genNoLocal: 'No installed {family} model can do “{what}”',
-    genUnused: '“{port}” is not used for “{what}” with {family}: ignored.',
+    genUnused: 'Ignored for “{what}”: {port}.',
+    genMissing: 'Missing for “{what}”: {ports}.',
     genMax: '{family} takes {max} “{label}” at most: the next ones are ignored.',
     cloudLink: 'Link your Higgsfield account in Settings → Online accounts',
     cloudUpstream: 'Block “{name}” computes online (paid): run it on its own first.'
@@ -456,6 +458,10 @@ class Planner {
     const inputHashes = {};
     const inputKinds = {};
     const deps = new Set();
+    // Model block: inputs whose only sources are empty Media blocks still count as connected for the choice of the
+    // workflow (the board shows them connected); planGen decides whether that workflow needs them (« Glisse un fichier »)
+    const isGen = type.ports === 'model';
+    const emptyGen = [];
 
     for (const inp of type.inputs || []) {
       let edges = this.edgesInto(node.id, inp.id);
@@ -468,6 +474,10 @@ class Planner {
           const label = this.emptyImport(e.from.node);
           if (label === null) kept.push(e);
           else empty = empty || { nodeId: e.from.node, label };
+        }
+        if (isGen && empty && !kept.length) {
+          emptyGen.push({ port: inp.id, nodeId: empty.nodeId, label: empty.label || tl(inp.label, this.lang) });
+          continue;
         }
         if (empty && (kept.length || !inp.required)) notes.push(this.tr('ignoredEmpty', { label: empty.label || tl(inp.label, this.lang) }));
         if (empty && !kept.length && inp.required) {
@@ -524,9 +534,22 @@ class Planner {
       }
     }
 
+    // Model block (SPEC §23): its family, the workflow its wires ask for, the model (or online service) doing it.
+    let gen = null;
+    let genPlan = null;
+    if (type.engine && type.engine.executor === 'gen') {
+      genPlan = this.planGen(node, type, params, inputRefs, inputHashes, inputKinds, emptyGen);
+      missing.push(...genPlan.missing);
+      notes.push(...genPlan.notes);
+      gen = genPlan.gen;
+    }
+    // settings the chosen workflow does not show are not resolved (a LoRA kept from another workflow must not block)
+    const genParams = gen && Array.isArray(gen.params) ? new Set(gen.params) : null;
+
     const models = {};
     for (const p of type.params || []) {
-      if (p.kind !== 'model' || p.gen) continue;            // the Model block's family: planGen below
+      if (p.kind !== 'model' || p.gen) continue;            // the Model block's family: planGen above
+      if (genParams && !genParams.has(p.id)) { models[p.id] = null; continue; }
       const v = params[p.id];
       if (p.allowNone && (v == null || v === '' || v === 'none')) { models[p.id] = null; continue; }
       const m = await this.e.resolveModel(v == null || v === '' ? 'auto' : v, p.caps);
@@ -544,14 +567,18 @@ class Planner {
       }
     }
 
-    // Model block (SPEC §23): its family, the workflow its wires ask for, the model (or online service) doing it.
-    let gen = null;
-    if (type.engine && type.engine.executor === 'gen') {
-      const r = this.planGen(node, type, params, inputRefs, inputHashes, inputKinds);
-      missing.push(...r.missing);
-      notes.push(...r.notes);
-      models.model = r.model || null;
-      gen = r.gen;
+    if (genPlan) models.model = genPlan.model || null;
+
+    // a kept resolution the model does not offer runs at the value the block shows (params.js fitValue): the largest
+    // allowed one below it, else the first — not at the raw kept value (audit 25/10: 768p shown, 720p computed)
+    for (const p of type.params || []) {
+      if (p.limit !== 'resolutions' || params[p.id] == null) continue;
+      const lim = genPlan ? (genPlan.limits || {}) : require('./patch').exec.familyLimits(models.model);
+      if (!Array.isArray(lim.resolutions)) continue;
+      const allowed = (p.options || []).map((o) => String(o.value)).filter((v) => lim.resolutions.map(String).includes(v));
+      if (!allowed.length || allowed.includes(String(params[p.id]))) continue;
+      const below = allowed.filter((v) => Number(v) <= Number(params[p.id]));
+      params[p.id] = below.length ? below[below.length - 1] : allowed[0];
     }
 
     if (missing.length) {
@@ -574,11 +601,11 @@ class Planner {
    * limit, and the model that does it: the best ready local variant, or the online family (Higgsfield).
    * Mutates refs / hashes / kinds (ports left out). → { missing, notes, model, gen }
    */
-  planGen(node, type, params, refs, hashes, kinds) {
+  planGen(node, type, params, refs, hashes, kinds, empty = []) {
     const R = route.rules();
     const { local, cloud } = route.catalogs();
     const inv = this.e.inventory();
-    const out = { missing: [], notes: [], model: null, gen: null };
+    const out = { missing: [], notes: [], model: null, gen: null, limits: {} };
     const label = this.label(node, type);
     const fam = R.familyOf(params.model, local, cloud, inv);
     if (!fam) {
@@ -586,18 +613,26 @@ class Planner {
       return out;
     }
     const family = fam.def.name;
-    const pick = R.chooseWorkflow(fam, Object.keys(refs), params.workflow || null);
+    if (fam.provider === 'local') out.limits = fam.def.limits || {};
+    // an input fed only by an empty Media block counts as connected, as on the board
+    const pick = R.chooseWorkflow(fam, [...Object.keys(refs), ...empty.map((e) => e.port)], params.workflow || null);
     const wf = pick.workflow;
     const what = tl(wf.label, this.lang);
     const inpDef = (id) => (type.inputs || []).find((i) => i.id === id);
     const portLabel = (id) => (inpDef(id) ? tl(inpDef(id).label, this.lang) : id);
     if (pick.blocked) {
-      for (const p of pick.missing) {
-        const d = inpDef(p);
-        out.missing.push({ nodeId: node.id, kind: 'input', port: p, message: d ? this.connectMessage(d) : this.tr('connectAny', { label: p }) });
-      }
+      // the same sentence as the block's « Ce que fait le bloc » row
+      out.missing.push({ nodeId: node.id, kind: 'input', port: pick.missing[0],
+        message: this.tr('genMissing', { what, ports: pick.missing.map(portLabel).join(', ') }) });
     }
     const ports = R.portsOfWorkflow(wf);
+    for (const e of empty) {
+      // needed by the workflow (required, or the only one of an « either » group) → « Glisse un fichier », else left out
+      const needed = (wf.required || []).includes(e.port)
+        || (wf.oneOf || []).some((g) => g.includes(e.port) && !g.some((q) => q !== e.port && refs[q]));
+      if (needed && ports[e.port]) out.missing.push({ nodeId: e.nodeId, kind: 'file', port: e.port, message: this.tr('dropFile', { label: e.label }) });
+      else out.notes.push(this.tr('ignoredEmpty', { label: e.label }));
+    }
     for (const p of Object.keys(refs)) {
       if (!ports[p]) {
         out.notes.push(this.tr('genUnused', { port: portLabel(p), what, family }));
@@ -620,8 +655,10 @@ class Planner {
       }
       out.model = m || null;
       // ports: the workflow's inputs reach its executor even when the task block has none of them (images-clés…)
+      // params: the settings this workflow shows — gen.js hands only those (over the task block's defaults) to the executor
       out.gen = { provider: 'local', key: fam.key, family, workflow: wf.id, what, executor: wf.executor, as: wf.as,
-        cap: wf.cap, kind: fam.def.kind || 'video', ports: Object.keys(ports) };
+        cap: wf.cap, kind: fam.def.kind || 'video', ports: Object.keys(ports),
+        params: (wf.params || []).map((p) => (typeof p === 'string' ? p : p.id)) };
     } else {
       if (!this.e.cloudLinked()) out.missing.push({ nodeId: node.id, kind: 'cloud', message: this.tr('cloudLink') });
       out.model = { id: fam.key, provider: fam.provider, cloud: true, file: family, label: { fr: family, en: family }, family };

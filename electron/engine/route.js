@@ -10,12 +10,12 @@ const SRC = path.join(__dirname, '..', '..', 'src');
 let rules = null;
 let catalogs = null;
 
-/** familyOf, chooseWorkflow, portsOfFamily, portsOfWorkflow, localModelFor, localKeyOf. */
+/** familyOf, chooseWorkflow, needsOf, portsOfFamily, portsOfWorkflow, localModelFor, localKeyOf. */
 function load() {
   if (rules) return rules;
   const src = fs.readFileSync(path.join(SRC, 'js', 'nodes', 'route.js'), 'utf8').replace(/^export /gm, '');
   // eslint-disable-next-line no-new-func
-  rules = new Function(`${src}\nreturn { familyOf, localKeyOf, portsOfWorkflow, portsOfFamily, chooseWorkflow, localModelFor };`)();
+  rules = new Function(`${src}\nreturn { familyOf, localKeyOf, portsOfWorkflow, portsOfFamily, chooseWorkflow, needsOf, localModelFor };`)();
   return rules;
 }
 

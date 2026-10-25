@@ -71,42 +71,66 @@ export function portsOfFamily(fam) {
 }
 
 /**
+ * Entrées « principales » : celles qui disent ce qu'on veut faire (une image de début, des références, une vidéo…).
+ * Jeter l'une d'elles coûte plus cher que jeter une entrée d'appoint (image de fin, images-clés, son, look, masque) :
+ * des références + une image-clé restent des références, pas une vidéo depuis le texte.
+ */
+const MAIN_PORTS = ['start', 'refs', 'refVideos', 'guide', 'video', 'image', 'character', 'motion'];
+
+/**
  * Le workflow que fera le bloc, d'après les entrées branchées (`connected` : ids de ports, la Consigne comprise ou
  * non) et le choix gardé par Quentin quand deux vont aussi bien (`choice` : id de workflow).
  * → { workflow, ties: [workflows à égalité], unused: [ports branchés qui ne servent pas], missing: [ports à brancher],
  *     blocked: vrai si aucun workflow n'est possible avec ce qui est branché }
+ * Règles (audit du 25/10) :
+ * - une entrée que la famille ne prend pas du tout est ignorée (barrée) et ne pèse pas sur le choix ;
+ * - une façon de faire qui ne se sert d'AUCUNE des entrées branchées n'est possible que s'il n'y a rien de branché :
+ *   une image de fin seule sur LTX ne part plus du texte en silence, le bloc dit « il manque l'image de début » ;
+ * - quand rien ne va, la plus proche est d'abord une façon de faire qui se sert de ce qui est branché.
  */
 export function chooseWorkflow(fam, connected, choice) {
   const wfs = (fam && fam.def && fam.def.workflows) || [];
-  const on = new Set((connected || []).filter((p) => p !== 'prompt'));
+  const famPorts = portsOfFamily(fam);
+  const all = [...new Set((connected || []).filter((p) => p !== 'prompt'))];
+  const foreign = all.filter((p) => !famPorts[p]);
+  const on = new Set(all.filter((p) => famPorts[p]));
   const scored = wfs.map((wf, i) => {
     const ports = portsOfWorkflow(wf);
     const req = wf.required || [];
     const missReq = req.filter((p) => !on.has(p));
     const missOne = (wf.oneOf || []).filter((g) => !g.some((p) => on.has(p)));
     const used = [...on].filter((p) => ports[p]);
-    const unused = [...on].filter((p) => !ports[p]);
+    const ignored = [...on].filter((p) => !ports[p]);
+    const penalty = ignored.reduce((sum, p) => sum + (MAIN_PORTS.includes(p) ? 30 : 10), 0);
     return {
       // need : ce que la façon de faire exige (entrées obligatoires, groupes « l'une ou l'autre ») — à score égal, celle
-      // qui a ce qu'elle exige passe devant celle qui n'exige rien (des références + une image-clé → les références)
-      wf, i, eligible: !missReq.length && !missOne.length, used: used.length, unused, need: req.length + (wf.oneOf || []).length,
+      // qui a ce qu'elle exige passe devant celle qui n'exige rien
+      wf, i, eligible: !missReq.length && !missOne.length && (used.length > 0 || on.size === 0),
+      used: used.length, unused: [...ignored, ...foreign], need: req.length + (wf.oneOf || []).length,
       size: Object.keys(ports).length, missing: [...missReq, ...missOne.map((g) => g[0])],
-      score: used.length - 10 * unused.length,
+      score: used.length - penalty,
     };
   });
   const ok = scored.filter((s) => s.eligible);
   if (!ok.length) {
-    // rien ne va : le plus proche (le moins de choses à brancher), pour dire quoi brancher
-    const near = scored.slice().sort((a, b) => a.missing.length - b.missing.length || b.used - a.used || a.i - b.i)[0];
+    // rien ne va : la plus proche, d'abord parmi celles qui se servent de ce qui est branché, pour dire quoi brancher
+    const near = scored.slice().sort((a, b) => (b.used > 0) - (a.used > 0) || a.missing.length - b.missing.length
+      || b.used - a.used || a.i - b.i)[0];
     return near ? { workflow: near.wf, ties: [], unused: near.unused, missing: near.missing, blocked: true } : null;
   }
   ok.sort((a, b) => b.score - a.score || b.need - a.need || a.size - b.size || a.i - b.i);
   const best = ok[0];
-  // à égalité (même score, mêmes exigences) : le choix est offert ; par défaut la plus petite
-  const ties = ok.filter((s) => s.score === best.score && s.need === best.need).map((s) => s.wf);
+  // à égalité (même score, mêmes exigences) : le choix est offert ; par défaut la plus petite. Rien de branché : pas de
+  // choix, la plus simple (texte → vidéo plutôt que des références sans références)
+  const ties = on.size ? ok.filter((s) => s.score === best.score && s.need === best.need).map((s) => s.wf) : [best.wf];
   const picked = (choice && ties.find((w) => w.id === choice)) || best.wf;
   const s = scored.find((x) => x.wf === picked);
   return { workflow: picked, ties: ties.length > 1 ? ties : [], unused: s.unused, missing: [], blocked: false };
+}
+
+/** Ce qu'exige une façon de faire, en ids d'entrées : ses obligatoires, puis la 1re de chaque groupe « l'une ou l'autre ». */
+export function needsOf(wf) {
+  return [...((wf && wf.required) || []), ...(((wf && wf.oneOf) || []).map((g) => g[0]))];
 }
 
 /** Le modèle local qui fera ce workflow : la variante choisie si elle sait le faire, sinon le meilleur prêt de la famille. */

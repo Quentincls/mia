@@ -29,6 +29,8 @@ import { mountVersions } from './versions.js';
 import { mountCompare } from './compare.js';
 import { modelProblem } from './modelpicker.js';
 import { blockWorkflow, isModelBlock } from './ports.js';
+import { portsOfWorkflow } from './route.js';
+import { typeOf } from '../catalog.js';
 import './viewer.js';      // écoute viewer:open
 import './inspector.js';   // écoute inspector:open
 
@@ -77,6 +79,7 @@ strings({
   'node.media.missingToast.other': '{n} médias introuvables sur cette planche.',
   'node.ref.image': 'Image {n}',
   'node.ref.video': 'Vidéo {n}',
+  'node.ref.audio': 'Son {n}',
   'node.ref.tip': '« {label} » dans la consigne = {name}',
   'node.extract.oldVersion': 'Extraction depuis la version courante seulement : reviens à v{cur} (ou garde celle-ci avec ★).',
 }, {
@@ -124,6 +127,7 @@ strings({
   'node.media.missingToast.other': '{n} media files missing on this board.',
   'node.ref.image': 'Image {n}',
   'node.ref.video': 'Video {n}',
+  'node.ref.audio': 'Sound {n}',
   'node.ref.tip': '“{label}” in the prompt = {name}',
   'node.extract.oldVersion': 'Extraction only from the current version: go back to v{cur} (or keep this one with ★).',
 });
@@ -258,6 +262,16 @@ function missingInputs(ctx) {
 
 /** Réglages obligatoires encore vides (consigne…) et non remplacés par un fil → libellés. */
 function missingParams(ctx) {
+  // bloc Modèle : la consigne est obligatoire quand la façon de faire retenue l'exige (texte seul, références,
+  // vidéo guidée, prolonger, retoucher) — dit avant le lancement, comme les blocs de tâche
+  if (isModelBlock(ctx.node)) {
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const r = blockWorkflow(ctx.node, conn);
+    const p = (ctx.type.params || []).find((x) => x.id === 'prompt');
+    if (!r || !r.workflow.promptRequired || !p || (p.port && ctx.connected(p.port))) return [];
+    const v = ctx.node.params?.prompt ?? p.default;
+    return v == null || String(v).trim() === '' ? [tl(p.label)] : [];
+  }
   return (ctx.type.params || []).filter((p) => {
     if (!p.required || (p.port && ctx.connected(p.port))) return false;
     const v = ctx.node.params?.[p.id] ?? p.default;
@@ -356,7 +370,18 @@ function mountFooter(ctx, host) {
   const foot = el('div', { class: 'nb-foot' }, install, est, actions);
   host.append(foot);
   for (const x of [actions, install]) { x.addEventListener('pointerdown', stop); x.addEventListener('dblclick', stop); }
-  const modes = ctx.type.modes || null;
+  // bloc Modèle : estimation et boutons de la façon de faire retenue (Qwen : un seul « Lancer », Wan : ses vraies
+  // durées), jamais « ≈ 1 min » pour un modèle en ligne, qui coûte des crédits (audit 25/10, UX-12)
+  const targetType = () => {
+    if (!isModelBlock(ctx.node)) return ctx.type;
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const r = blockWorkflow(ctx.node, conn);
+    if (!r) return ctx.type;
+    if (r.fam.provider !== 'local') return { ...ctx.type, estimate: null };
+    return typeOf(r.workflow.as) || ctx.type;
+  };
+  let ttype = targetType();
+  let modes = ttype.modes || null;
   let shape = null;          // 'active' | 'idle' | 'blocked|<raison>'
   let estDefault = '';
   let active = false;
@@ -365,7 +390,7 @@ function mountFooter(ctx, host) {
   tip(est, () => {
     if (blocked) return blocked.sub || '';
     if (modes && !active) {
-      return [t('node.estPreview', { est: estimateText(ctx.type, 'preview') }), t('node.estFinal', { est: estimateText(ctx.type, 'final') })].join(' · ');
+      return [t('node.estPreview', { est: estimateText(ttype, 'preview') }), t('node.estFinal', { est: estimateText(ttype, 'final') })].join(' · ');
     }
     return est.scrollWidth > est.clientWidth ? est.textContent : '';
   });
@@ -401,7 +426,7 @@ function mountFooter(ctx, host) {
         fin.dataset.tip = t('node.finalTip');
         pre.dataset.tip = t('node.previewTip');
         // l'estimation suit le bouton survolé : on sait ce que coûte chaque choix
-        const hover = (m) => () => { showEst(estimateText(ctx.type, m) || estDefault); };
+        const hover = (m) => () => { showEst(estimateText(ttype, m) || estDefault); };
         fin.addEventListener('pointerenter', hover('final'));
         pre.addEventListener('pointerenter', hover('preview'));
         for (const b of [fin, pre]) b.addEventListener('pointerleave', () => { showEst(estDefault); });
@@ -418,7 +443,9 @@ function mountFooter(ctx, host) {
     paint(st, problem) {
       active = ACTIVE.has(st.kind);
       blocked = !active && problem ? problem : null;
-      const want = active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle';
+      ttype = targetType();
+      modes = ttype.modes || null;
+      const want = (active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle') + `|${(modes || []).join(',')}`;
       if (want !== shape) { shape = want; build(); }
       if (st.kind === 'running') {
         estDefault = runs.endText(st.endAt) || t('node.running');
@@ -429,7 +456,7 @@ function mountFooter(ctx, host) {
       } else if (blocked) {
         estDefault = blocked.title;
       } else {
-        estDefault = estimateText(ctx.type, modes ? 'preview' : null);
+        estDefault = estimateText(ttype, modes ? 'preview' : null);
       }
       foot.classList.toggle('is-blocked', !!blocked);
       install.hidden = !blocked;
@@ -446,19 +473,31 @@ function mountFooter(ctx, host) {
 // que Quentin écrit dans sa consigne.
 
 function mountRefs(ctx, host) {
-  const ports = (ctx.type.inputs || []).filter((i) => i.multi && i.max && (i.type === 'image' || i.type === 'video'));
-  if (!ports.length || !host) return null;
+  // ce qui se cite dans la consigne : les références (images, vidéos, sons) et les images d'appui de Qwen — jamais
+  // les images-clés (audit 25/10, UX-3 / LIVE-4)
+  const CITED = ['refs', 'refVideos', 'refAudios', 'ref'];
+  const all = (ctx.type.inputs || []).filter((i) => CITED.includes(i.id) && i.multi && i.max);
+  if (!all.length || !host) return null;
+  const portsNow = () => {
+    if (!isModelBlock(ctx.node)) return all;
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const r = blockWorkflow(ctx.node, conn);
+    const used = r ? portsOfWorkflow(r.workflow) : {};
+    return all.filter((i) => used[i.id]);
+  };
   const root = el('div', { class: 'nb-refs', hidden: true });
   root.addEventListener('pointerdown', stop);
   host.append(root);
   let sig = null;
   function render() {
     const items = [];
-    for (const p of ports) {
+    for (const p of portsNow()) {
       const list = runs.upstream(ctx.id, p.id);
+      // Qwen : l'image à retoucher est l'Image 1, ses images d'appui sont les images 2 et 3
+      const from = p.id === 'ref' ? 2 : 1;
       list.forEach((s, i) => {
-        const kind = p.type === 'video' ? 'video' : 'image';
-        const label = t(kind === 'video' ? 'node.ref.video' : 'node.ref.image', { n: i + 1 });
+        const kind = p.type === 'video' ? 'video' : p.type === 'audio' ? 'audio' : 'image';
+        const label = t(`node.ref.${kind}`, { n: i + from });
         const thumb = s.kind === 'image' ? (s.path ? urlFor(s.path) : '') : (s.poster ? urlFor(s.poster) : '');
         const name = s.node.title || s.node.data?.name || tl(runs.typeOf(s.node.id)?.label || {});
         items.push({ label, thumb, name, key: `${p.id}:${s.node.id}:${s.path || ''}` });

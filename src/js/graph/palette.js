@@ -15,7 +15,8 @@ import {
   inputDefs, outputDefs, outRule, typeOf
 } from '../catalog.js';
 import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
-import { familyOf, localKeyOf, portsOfFamily } from '../nodes/route.js';
+import { familyOf, localKeyOf, portsOfFamily, chooseWorkflow } from '../nodes/route.js';
+import { mainPorts } from '../nodes/ports.js';
 import { familyWords } from '../nodes/familypicker.js';
 
 register({
@@ -283,8 +284,13 @@ export function createPalette(ed) {
   function linkForFamily(fam, from) {
     if (!fam) return null;
     if (from.dir === 'out') {
+      // l'entrée principale du modèle d'abord (MiniMax : Images de référence), puis une entrée qui sert seule (un son
+      // sur MiniMax : « Son à suivre »), puis la première compatible (audit 25/10, UX-2 / WORKFLOWS-13)
       const ports = portsOfFamily(fam);
-      const def = inputDefs('gen').find((p) => ports[p.id] && p.type !== 'text' && compatible(from.type, p.type));
+      const ok = inputDefs('gen').filter((p) => ports[p.id] && p.type !== 'text' && compatible(from.type, p.type));
+      const main = mainPorts(fam);
+      const alone = (p) => { const r = chooseWorkflow(fam, [p.id], null); return r && !r.blocked && !r.unused.includes(p.id); };
+      const def = ok.find((p) => main.includes(p.id)) || ok.find(alone) || ok[0];
       return def ? { def, dir: 'in' } : null;
     }
     const kind = fam.def.kind || 'video';
@@ -296,7 +302,8 @@ export function createPalette(ed) {
     const both = (v) => (v && typeof v === 'object' ? [v.fr, v.en] : [v]).filter(Boolean).join(' ');
     e.wName = words(e.name);
     e.wOther = words(both(src?.label));
-    e.wKeys = words(both(src?.keywords));
+    // le modèle qui fait tourner un bloc (« LTX 2.5 ») se cherche aussi : « ltx » trouve Animer une image… (LIVE-11)
+    e.wKeys = words(`${both(src?.keywords)} ${typeof e.meta === 'string' ? e.meta : ''}`);
     e.wDesc = words(`${both(src?.desc)} ${e.desc}`);
     e.wId = words(e.id);
     const lab = src?.label;
@@ -582,6 +589,10 @@ export function createPalette(ed) {
       else if (from?.dir === 'in') pos = { x: at.x - w - 12, y: at.y - 56 };
       // Tab au pointeur : la place libre la plus proche, jamais sur un autre bloc
       else pos = { x: at.x - w / 2, y: at.y - 18, free: true };
+    } else {
+      // « + Bloc » du dock avec un bloc sélectionné : le nouveau se pose à sa droite, les fils vont de gauche à droite
+      const sel = ed.api.selection();
+      if (sel.length === 1) pos = { near: sel[0] };
     }
     const data = {};
     if (from?.dir === 'in' && ty.id === 'import') {

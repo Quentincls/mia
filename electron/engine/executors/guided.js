@@ -48,7 +48,7 @@ const TXT = {
     fr: 'La zone libre ne marche qu’avec LTX : ignorée avec MiniMax H3.',
     en: 'The free area only works with LTX: ignored with MiniMax H3.',
   },
-  look: { fr: 'Image de départ posée sur la 1re image.', en: 'Start image pinned to the first frame.' },
+  look: { fr: 'Image de début posée sur la 1re image : elle donne le look.', en: 'Start image pinned to the first frame: it sets the look.' },
   strength: { fr: 'Fidélité au guide : {s}.', en: 'Guide fidelity: {s}.' },
   tooLong: {
     fr: 'Ce guide ferait {n} tranches de 4 s (plus de {max}) : coupe-le d’abord avec le bloc « Couper ».',

@@ -21,7 +21,8 @@ import { recipes, compatible, portDef, inputDefs, outputDefs, computes, typeOf }
 import { wirePathScreen } from './wires.js';
 import { GRID, NODE_MIN_W, NODE_MAX_W } from './doc.js';
 import { defaultTitle } from './view.js';
-import { nodeInputs, nodeOutputs, nodePortDef, hiddenInputs, isModelBlock } from '../nodes/ports.js';
+import { nodeInputs, nodeOutputs, nodePortDef, hiddenInputs, isModelBlock, usefulInputs, mainPorts, blockFamily } from '../nodes/ports.js';
+import { hideTip } from '../ui/tooltip.js';
 import { ms, easeFn } from '../ui/motion.js';
 import {
   TONE_MENU, toneKey, toneColor, hitSection, CURSORS, resizeBox, membersOf, sectionAt, adopt,
@@ -173,7 +174,8 @@ export function attachInteract(ed) {
     stopAutoPan();
     if (cur.captured) { try { stage.releasePointerCapture(cur.pid); } catch { /* déjà relâché */ } }
     stage.classList.remove('panning', 'dragging', 'connecting-cursor', 'resizing');
-    finish(cur, e?.type === 'pointercancel');
+    // un fil dont le pointeur a été perdu est annulé (rien ne se branche au hasard) ; les autres gestes finissent
+    finish(cur, e?.type === 'pointercancel' || (e?.type === 'lostpointercapture' && cur.kind === 'connect'));
   };
   stage.addEventListener('pointerup', end);
   stage.addEventListener('pointercancel', end);
@@ -460,6 +462,8 @@ export function attachInteract(ed) {
 
     let origin = { node: id, port, dir };
     let detached = null;
+    let frozen = null;
+    hideTip();
     if (dir === 'in' && (e.ctrlKey || e.metaKey)) {
       // Ctrl + glisser depuis une entrée : on décroche le fil et on le rebranche ailleurs
       const list = ed.doc.edgesTo(id, port);
@@ -467,6 +471,9 @@ export function attachInteract(ed) {
       if (edge) {
         ed.history.begin('rewire');
         detached = { id: edge.id, from: { ...edge.from }, to: { ...edge.to } };
+        // l'aperçu du bloc garde sa taille pendant le geste : ses entrées ne remontent pas sous le pointeur
+        frozen = ed.views.get(id)?.el.querySelector('.n-preview') || null;
+        if (frozen) frozen.style.height = `${frozen.offsetHeight}px`;
         ed.doc.removeEdge(edge.id);
         ed.wires.sync();
         ed.views.refreshPorts();
@@ -488,8 +495,10 @@ export function attachInteract(ed) {
       for (const v of ed.views.nodes.values()) {
         const n = banned.has(v.id) ? null : ed.doc.node(v.id);
         if (!n || n.collapsed || !isModelBlock(n)) continue;
-        const ids = hiddenInputs(n, v._connected()).filter((d) => compatible(outType, d.type)).map((d) => d.id);
-        if (ids.length && v.setReveal(ids)) revealed.push(v.id);
+        const conn = v._connected();
+        const useful = new Set(usefulInputs(n, conn));
+        const ids = hiddenInputs(n, conn).filter((d) => useful.has(d.id) && compatible(outType, d.type)).map((d) => d.id);
+        if (ids.length) { v.setReveal(ids); if (v.reveal) revealed.push(v.id); }
       }
       if (revealed.length) ed.wires.sync();
     }
@@ -508,7 +517,12 @@ export function attachInteract(ed) {
           const count = want === 'in' ? ed.connections(v.id, pid, 'in') : 0;
           // une entrée multiple bornée et pleine n'est plus « libre » (SPEC §17)
           const roomy = !!prt.def.multi && !(prt.def.max > 0 && count >= prt.def.max);
-          cands.push({ node: v.id, port: pid, el: prt.el, free: want === 'out' || count === 0 || roomy });
+          // lâcher sur le corps du bloc : l'entrée principale d'un bloc Modèle d'abord, puis une entrée visible, et une
+          // entrée montrée le temps du geste en dernier (audit 25/10, LIVE-2)
+          const n = ed.doc.node(v.id);
+          const rank = want === 'in' && isModelBlock(n)
+            ? (prt.def.peek ? 2 : mainPorts(blockFamily(n)).includes(pid) ? 0 : 1) : 1;
+          cands.push({ node: v.id, port: pid, el: prt.el, free: want === 'out' || count === 0 || roomy, rank });
         }
       }
       v.el.classList.toggle('no-compat', !any && v.id !== origin.node);
@@ -523,7 +537,7 @@ export function attachInteract(ed) {
     preview.dataset.t = type || 'media';
     previewEnd.dataset.t = type || 'media';
     const w0 = cam.toWorld(p.x, p.y);
-    begin('connect', e, p, { origin, want, cands, detached, revealed, target: null, endW: w0, shown: w0, tween: null, type, inType, outType });
+    begin('connect', e, p, { origin, want, cands, detached, revealed, frozen, target: null, endW: w0, shown: w0, tween: null, type, inType, outType });
     ed.connecting = g;
     drawPreview();
   }
@@ -545,7 +559,10 @@ export function attachInteract(ed) {
       // tout le corps d'un bloc aimante, mais seulement vers un port compatible
       // *libre* : remplacer un fil existant demande de viser son port
       const under = hit?.closest('.node');
-      if (under) best = g.cands.find((c) => c.node === under.dataset.id && c.free) || null;
+      if (under) {
+        const free = g.cands.filter((c) => c.node === under.dataset.id && c.free);
+        best = free.length ? free.reduce((a, c) => (c.rank < a.rank ? c : a)) : null;
+      }
     }
     if (best !== g.target) {
       g.target?.el.classList.remove('target');
@@ -603,11 +620,13 @@ export function attachInteract(ed) {
     ed.connecting = null;
     clearConnectClasses();
     hidePreview();
-    // les entrées montrées le temps du geste se rangent (celle qui vient de recevoir le fil reste : elle est reliée)
-    if (cur.revealed?.length) {
-      for (const id of cur.revealed) ed.views.get(id)?.setReveal(null);
-      ed.wires.sync();
-    }
+    hideTip();
+    if (cur.frozen) cur.frozen.style.height = '';
+    // les entrées montrées le temps du geste se rangent, sur TOUS les blocs (celle qui vient de recevoir le fil reste :
+    // elle est reliée) — rien ne doit survivre à la fin d'un geste, quelle qu'en soit la cause
+    let tidied = false;
+    for (const v of ed.views.nodes.values()) if (v.reveal) { v.setReveal(null); tidied = true; }
+    if (tidied || cur.revealed?.length) ed.wires.sync();
     const { origin, detached, target } = cur;
     if (cancelled || (!cur.moved && detached)) {
       if (detached) {

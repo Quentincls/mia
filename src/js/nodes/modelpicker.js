@@ -62,8 +62,8 @@ strings({
   'node.model.all': 'Voir tous les modèles',
   'node.model.search': 'Chercher un modèle',
   'node.model.noMatch': 'Aucun modèle ne correspond à « {q} ».',
-  'node.model.local': 'Local',
-  'node.model.cloud': 'Cloud',
+  'node.model.local': 'Sur ce PC',
+  'node.model.cloud': 'En ligne',
   'node.model.pickForMe': 'Choisir pour moi',
   'node.model.pickForMeSub': 'Mia prend le meilleur modèle installé : {name}',
   'node.model.pickForMeNone': 'Mia prendra le meilleur modèle dès qu’il y en aura un',
@@ -76,9 +76,9 @@ strings({
   'node.model.chip.sound': 'Son',
   'node.model.chip.fps': '{n} i/s',
   'node.model.chip.auto': 'Auto',
-  'node.model.cloud.soon': 'Bientôt',
+  'node.model.cloud.soon': 'Bloc Modèle',
   'node.model.cloud.link': 'Relier mon compte',
-  'node.model.cloud.linkTip': 'Pas encore disponible : la connexion à Higgsfield est prévue (SPEC §22.3).',
+  'node.model.cloud.linkTip': 'Ouvre Réglages → Comptes en ligne.',
   'node.model.notHere': 'Pas pour ce bloc',
   'node.model.notHereSub': 'Installés sur ce PC, mais ils ne savent pas faire ce que demande ce bloc.',
   'node.model.usedIn': 'Sert dans : {blocks}.',
@@ -122,8 +122,8 @@ strings({
   'node.model.all': 'See all models',
   'node.model.search': 'Search a model',
   'node.model.noMatch': 'No model matches “{q}”.',
-  'node.model.local': 'Local',
-  'node.model.cloud': 'Cloud',
+  'node.model.local': 'On this PC',
+  'node.model.cloud': 'Online',
   'node.model.pickForMe': 'Pick for me',
   'node.model.pickForMeSub': 'Mia takes the best installed model: {name}',
   'node.model.pickForMeNone': 'Mia will take the best model as soon as there is one',
@@ -136,9 +136,9 @@ strings({
   'node.model.chip.sound': 'Sound',
   'node.model.chip.fps': '{n} fps',
   'node.model.chip.auto': 'Auto',
-  'node.model.cloud.soon': 'Soon',
+  'node.model.cloud.soon': 'Model block',
   'node.model.cloud.link': 'Link my account',
-  'node.model.cloud.linkTip': 'Not available yet: the Higgsfield connection is planned (SPEC §22.3).',
+  'node.model.cloud.linkTip': 'Opens Settings → Online accounts.',
   'node.model.notHere': 'Not for this block',
   'node.model.notHereSub': 'Installed on this PC, but they cannot do what this block asks for.',
   'node.model.usedIn': 'Used in: {blocks}.',
@@ -772,9 +772,10 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
     function fillCloud(box) {
       const providers = cloudProviders();
       for (const c of providers) {
-        // pas encore branché : bouton éteint (aria-disabled, pour garder son infobulle)
-        const btn = el('button', { class: 'mp-cloud-btn', type: 'button', 'aria-disabled': 'true', 'data-tip': t('node.model.cloud.linkTip') }, t('node.model.cloud.link'));
+        // les modèles en ligne se posent avec un bloc Modèle (+ Bloc → En ligne) ; ici, on relie seulement le compte
+        const btn = el('button', { class: 'mp-cloud-btn on', type: 'button', 'data-tip': t('node.model.cloud.linkTip') }, t('node.model.cloud.link'));
         btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        btn.addEventListener('click', (e) => { e.stopPropagation(); emit('settings:open', { section: 'cloud' }); });
         box.append(el('div', { class: 'mp-cloud' },
           el('div', { class: 'mp-famhead' },
             el('span', { class: 'mp-mark' }, c.mark || 'HF'),

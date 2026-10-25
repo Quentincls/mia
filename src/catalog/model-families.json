@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "_doc": "Profils des familles de modèles (SPEC §22) : nom, fabricant, monogramme, phrase « à quoi ça sert » (FR/EN), variantes et limites. Même forme pour le local et, plus tard, le cloud. Lu par l'interface (src/js/nodes/profiles.js) et par le moteur (electron/engine/patch.js limits). Les limites locales sont celles vérifiées au labo ; un « à essayer » ne s'ouvre qu'après un essai GPU validé à l'œil.",
+  "_doc": "Profils des familles de modèles (SPEC §22) : nom, fabricant, monogramme, phrase « à quoi ça sert » (FR/EN), phrase quand rien n'est branché (emptyHint), variantes et limites. Par façon de faire : entrées (ports, avec un libellé propre au besoin), exigences (required, oneOf, promptRequired), réglages (params) et réglages ajustés (paramOverrides : label, hint, max, placeholder). Même forme pour le local et, plus tard, le cloud. Lu par l'interface (src/js/nodes/profiles.js) et par le moteur (electron/engine/patch.js limits). Les limites locales sont celles vérifiées au labo ; un « à essayer » ne s'ouvre qu'après un essai GPU validé à l'œil.",
   "families": {
     "ltx": {
       "provider": "local",
@@ -9,8 +9,12 @@
       "mark": "LT",
       "match": { "baseKey": "ltx", "family": "ltx" },
       "desc": {
-        "fr": "Le plus polyvalent : anime une image, part d’un texte, suit un guide ou rend une scène 3D photoréaliste. Fait aussi le son, et accepte tes personnages (LoRA).",
-        "en": "The most versatile: animates an image, starts from text, follows a guide or turns a 3D scene photoreal. Makes sound too, and takes your characters (LoRA)."
+        "fr": "Le plus polyvalent : part d’un texte, anime une image de début (avec image de fin et images-clés), suit une vidéo guide ou rend un rendu 3D photoréaliste. Fait le son et prend tes LoRA. Ne mélange pas plusieurs références séparées : pour ça, MiniMax H3.",
+        "en": "The most versatile: starts from text, animates a start image (with an end image and keyframes), follows a guide video or turns a 3D render photoreal. Makes sound and takes your LoRAs. Does not blend several separate references: use MiniMax H3 for that."
+      },
+      "emptyHint": {
+        "fr": "Rien de branché : LTX part de ta consigne. Branche une image de début pour l’animer, une vidéo guide pour lui donner le mouvement, ou une fiche personnage (à essayer). Pour mélanger plusieurs références, prends MiniMax H3.",
+        "en": "Nothing connected: LTX starts from your prompt. Connect a start image to animate it, a guide video to give it the motion, or a character sheet (to try). To blend several references, pick MiniMax H3."
       },
       "variants": [
         { "match": "nvfp4|rtx ?50", "tag": { "fr": "Rapide", "en": "Fast" },
@@ -24,21 +28,25 @@
       "main": ["start"],
       "workflows": [
         { "id": "real", "executor": "real", "cap": "3d-to-real", "as": "real",
-          "label": { "fr": "Rendre photoréaliste un rendu 3D", "en": "Make a 3D render photoreal" },
-          "ports": { "video": {}, "look": {} }, "required": ["video"],
+          "label": { "fr": "Rendre photoréaliste", "en": "Make it photoreal" },
+          "ports": { "video": { "label": { "fr": "Rendu 3D", "en": "3D render" } }, "start": {}, "look": {} }, "required": ["video"],
           "params": ["prompt", "keepBlacks", "lora", "loraStrength", "seed"] },
-        { "id": "guided", "executor": "guided", "cap": "guided-video", "as": "guided",
+        { "id": "guided", "executor": "guided", "cap": "guided-video", "as": "guided", "promptRequired": true,
           "label": { "fr": "Vidéo guidée", "en": "Guided video" },
-          "ports": { "guide": {}, "look": {}, "mask": {} }, "required": ["guide"],
+          "ports": { "guide": {}, "start": {}, "look": {}, "mask": {} }, "required": ["guide"],
           "params": ["prompt", "follow", "strength", "resolution", "lora", "loraStrength", "seed"] },
         { "id": "i2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v",
           "label": { "fr": "Animer une image", "en": "Animate an image" },
-          "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4, "trial": true }, "sheet": {} }, "required": ["start"],
+          "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4, "trial": true }, "sheet": { "trial": true } }, "required": ["start"],
           "params": ["prompt", "duration", "format", "resolution", "fps", "lora", "loraStrength", "enhance", "seed"] },
+        { "id": "sheet", "executor": "t2v", "cap": "text-to-video", "as": "t2v", "promptRequired": true, "trial": true,
+          "label": { "fr": "Vidéo depuis une fiche personnage", "en": "Video from a character sheet" },
+          "ports": { "sheet": {} }, "required": ["sheet"],
+          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "enhance", "seed"] },
         { "id": "t2v", "executor": "t2v", "cap": "text-to-video", "as": "t2v", "promptRequired": true,
           "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
           "ports": {}, "required": [],
-          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "negative", "enhance", "seed"] }
+          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "enhance", "seed"] }
       ]
     },
     "minimax": {
@@ -48,30 +56,37 @@
       "mark": "MM",
       "match": { "baseKey": "minimax", "family": "minimax" },
       "desc": {
-        "fr": "Mouvements naturels et visages expressifs. Va jusqu’à 15 s et fait le son. Travaille en 24 i/s, jusqu’à 768p (à essayer au-delà de 720p).",
-        "en": "Natural motion and expressive faces. Goes up to 15 s and makes sound. Works at 24 fps, up to 768p (above 720p: to try)."
+        "fr": "Le seul du PC qui fait une vidéo à partir de tes références : jusqu’à 9 images, 3 vidéos et 3 sons, sans image de début. Anime aussi une image, prolonge une vidéo, suit une vidéo guide. Jusqu’à 15 s avec le son, 24 i/s, 768p (à essayer).",
+        "en": "The only one on this PC that makes a video from your references: up to 9 images, 3 videos and 3 sounds, no start image needed. Also animates an image, extends a video, follows a guide video. Up to 15 s with sound, 24 fps, 768p (to try)."
+      },
+      "emptyHint": {
+        "fr": "Rien de branché : MiniMax part de ta consigne. Branche des images de référence pour les mélanger, une image de début pour l’animer, ou une vidéo pour la prolonger.",
+        "en": "Nothing connected: MiniMax starts from your prompt. Connect reference images to blend them, a start image to animate it, or a video to extend it."
       },
       "variants": [
         { "match": "ref2v|r[ée]f[ée]rences?", "tag": { "fr": "Références", "en": "References" },
           "desc": { "fr": "Mélange jusqu’à 9 images, 3 vidéos et 3 sons que tu cites dans la consigne (« Image 1 », « Vidéo 2 », « Son 1 »).", "en": "Mixes up to 9 images, 3 videos and 3 sounds that you name in the prompt (“Image 1”, “Video 2”, “Sound 1”)." } },
-        { "match": ".*", "tag": { "fr": "Images-clés", "en": "Keyframes" },
-          "desc": { "fr": "Anime une image de début, et rejoint une image de fin si tu en donnes une.", "en": "Animates a start image, and reaches an end image if you give one." } }
+        { "match": ".*", "tag": { "fr": "Animer", "en": "Animate" },
+          "desc": { "fr": "Anime une image de début (et rejoint une image de fin), passe par des images-clés, part d’un texte, prolonge une vidéo, suit une vidéo guide.", "en": "Animates a start image (and reaches an end image), passes through keyframes, starts from text, extends a video, follows a guide video." } }
       ],
       "limits": { "seconds": [2, 15], "fps": [24], "resolutions": ["540", "720", "768"], "audio": true,
-        "inputs": ["start", "end", "keys", "prompt", "refs", "refVideos", "refAudios", "video", "audio", "guide", "look", "mask"] },
+        "inputs": ["start", "end", "keys", "prompt", "refs", "refVideos", "refAudios", "video", "audio", "guide", "look"] },
       "kind": "video",
       "main": ["refs"],
       "workflows": [
-        { "id": "refs", "executor": "ref2v", "cap": "reference-to-video", "as": "ref2v",
+        { "id": "refs", "executor": "ref2v", "cap": "reference-to-video", "as": "ref2v", "promptRequired": true,
           "label": { "fr": "Vidéo à partir de références", "en": "Video from references" },
+          "paramOverrides": { "prompt": { "placeholder": {
+            "fr": "Dis le rôle de chaque référence : « Image 1 est la femme, Image 2 le décor. La femme de Image 1 traverse le décor de Image 2, caméra à l’épaule… » (en anglais de préférence)",
+            "en": "Say what each reference is: “Image 1 is the woman, Image 2 the set. The woman from Image 1 walks through the set of Image 2, handheld camera…”" } } },
           "ports": { "refs": { "multi": true, "max": 9 }, "refVideos": { "multi": true, "max": 3 },
             "refAudios": { "multi": true, "max": 3, "trial": true } }, "required": [],
           "oneOf": [["refs", "refVideos"]],
           "params": ["prompt", "duration", "format", "resolution", "fidelity", "seed"] },
-        { "id": "guided", "executor": "guided", "cap": "guided-video", "as": "guided",
+        { "id": "guided", "executor": "guided", "cap": "guided-video", "as": "guided", "promptRequired": true,
           "label": { "fr": "Vidéo guidée", "en": "Guided video" },
-          "ports": { "guide": {}, "look": {}, "mask": {} }, "required": ["guide"],
-          "params": ["prompt", "follow", "strength", "resolution", "seed"] },
+          "ports": { "guide": {}, "start": {}, "look": {} }, "required": ["guide"],
+          "params": ["prompt", "follow", "strength", "resolution", "lora", "loraStrength", "seed"] },
         { "id": "i2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v",
           "label": { "fr": "Animer une image", "en": "Animate an image" },
           "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4 }, "audio": { "trial": true } },
@@ -79,11 +94,14 @@
           "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] },
         { "id": "extend", "executor": "i2v", "cap": "image-to-video", "as": "i2v", "promptRequired": true,
           "label": { "fr": "Prolonger une vidéo", "en": "Extend a video" },
-          "ports": { "video": {} }, "required": ["video"],
+          "ports": { "video": { "label": { "fr": "Vidéo à prolonger", "en": "Video to extend" } } }, "required": ["video"],
+          "paramOverrides": { "duration": { "max": 13,
+            "label": { "fr": "Durée ajoutée", "en": "Added length" },
+            "hint": { "fr": "Ce que MiniMax ajoute après la fin de ta vidéo (13 s au plus). Le résultat est la vidéo entière.", "en": "What MiniMax adds after your video ends (13 s at most). The result is the whole video." } } },
           "params": ["prompt", "duration", "resolution", "lora", "loraStrength", "seed"] },
         { "id": "t2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v", "promptRequired": true,
           "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
-          "ports": { "keys": { "multi": true, "max": 4 }, "audio": { "trial": true } }, "required": [],
+          "ports": { "keys": { "multi": true, "max": 4, "trial": true }, "audio": { "trial": true } }, "required": [],
           "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] }
       ]
     },
@@ -103,7 +121,7 @@
       "main": ["character", "motion"],
       "workflows": [
         { "id": "perform", "executor": "perform", "cap": "character-performance", "as": "perform",
-          "label": { "fr": "Faire jouer un personnage", "en": "Make a character act" },
+          "label": { "fr": "Animer un personnage", "en": "Animate a character" },
           "ports": { "character": {}, "motion": {} }, "required": ["character", "motion"],
           "params": ["prompt", "lora", "loraStrength", "motionFidelity", "likeness", "seed"] }
       ]
@@ -115,8 +133,8 @@
       "mark": "QW",
       "match": { "baseKey": "qwen", "family": "qwen" },
       "desc": {
-        "fr": "Retouche une image en lui disant quoi changer : enlever, ajouter, changer une tenue ou une lumière. Peut s’aider d’une image de référence.",
-        "en": "Edits an image when you tell it what to change: remove, add, swap an outfit or a light. Can use a reference image."
+        "fr": "Retouche une image en lui disant quoi changer : enlever, ajouter, changer une tenue ou une lumière. Peut s’aider de deux images d’appui (une tenue, un objet, un style).",
+        "en": "Edits an image when you tell it what to change: remove, add, swap an outfit or a light. Can use two helper images (an outfit, an object, a style)."
       },
       "variants": [],
       "limits": { "inputs": ["image", "ref", "prompt"] },
@@ -184,8 +202,8 @@
       "name": "Higgsfield",
       "mark": "HF",
       "desc": {
-        "fr": "Les modèles en ligne (Kling, Seedance, Veo, MiniMax…) arriveront ici. Ils calculent sur les serveurs de Higgsfield : ta carte graphique reste libre, mais chaque vidéo coûte des crédits. Il faudra relier ton compte dans les Réglages.",
-        "en": "Online models (Kling, Seedance, Veo, MiniMax…) will come here. They run on Higgsfield’s servers: your graphics card stays free, but each video costs credits. You will link your account in Settings."
+        "fr": "Les modèles en ligne de Higgsfield (Seedance, Kling, Veo…) calculent sur leurs serveurs : ta carte graphique reste libre, chaque calcul coûte des crédits. Ils se posent avec un bloc Modèle (+ Bloc → En ligne) ; relie ton compte dans Réglages → Comptes en ligne.",
+        "en": "Higgsfield’s online models (Seedance, Kling, Veo…) run on their servers: your graphics card stays free, each job costs credits. They come as a Model block (+ Block → Online); link your account in Settings → Online accounts."
       }
     }
   }

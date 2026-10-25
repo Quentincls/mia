@@ -169,11 +169,15 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
 - **Relie en nommant le port** (`mia_connect … to:{node, port:"keys"}`) : c'est le port qui décide. Toutes les
   entrées du modèle se branchent, même celles que l'interface range derrière « + Ajouter » (le fil les montre).
   Une entrée multiple numérote ses fils dans l'ordre vertical des blocs sources (le plus haut = 1).
+- **Une entrée seule qui a besoin d'une autre bloque le bloc** (image de fin, images-clés ou fiche sans image de début
+  sur LTX…) : il affiche « Il manque pour « … » : … » et ne part plus du texte en silence. Branche ce qui manque.
 - **Vérifie avec `mia_get_board`** : chaque bloc Modèle a `model` = {family, does, workflow, otherWays, connect
   (ce qui manque), ignored (branché mais pas pris), trial}. `does` doit être ce que tu voulais avant de lancer.
 - Ce que savent les modèles du PC (entrées du bloc Modèle) :
   - **LTX 2.5** : `start` (+ `end`, + `keys` jusqu'à 4 images-clés réparties à intervalles égaux entre début et
-    fin) → animer ; rien → depuis le texte ; `guide` → guidée ; `video` (rendu 3D) → photoréaliste. Réglage
+    fin, + `sheet`) → animer ; rien → depuis le texte ; `guide` (+ `start`, qui sert de look) → guidée ; `video`
+    (rendu 3D, + `start` comme look) → photoréaliste ; `sheet` seule → vidéo depuis une fiche personnage (à
+    essayer). LTX ne mélange PAS plusieurs références séparées : c'est MiniMax. Réglage
     `enhance` (« Enrichir la consigne » : Gemma réécrit la consigne, la version réécrite est dans les notes).
     Images-clés : **même cadrage que l'image de début** (cadrée autrement, le plan coupe vers elle).
   - **MiniMax H3** (15 s, 24 i/s, `resolution` jusqu'à `768`) : `refs` (9 images) / `refVideos` (3) /

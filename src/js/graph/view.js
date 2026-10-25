@@ -16,7 +16,7 @@ import { fmtClock } from '../util.js';
 import { typeOf, typeLabel, inputDefs, outputDefs } from '../catalog.js';
 import { ms, reduced, play, replayClass } from '../ui/motion.js';
 import { tip } from '../ui/tooltip.js';
-import { nodeInputs, nodeOutputs, isModelBlock, portsSignature, modelBlockTitle, hiddenInputs } from '../nodes/ports.js';
+import { nodeInputs, nodeOutputs, isModelBlock, portsSignature, modelBlockTitle, hiddenInputs, blockWorkflow } from '../nodes/ports.js';
 import { openAddInput } from '../nodes/addinput.js';
 import { portTip } from '../nodes/porthelp.js';
 
@@ -177,7 +177,8 @@ export class NodeView {
       add.addEventListener('click', (e) => {
         e.stopPropagation();
         if (this.ed.readonly) return;
-        openAddInput(this.ed.doc.node(this.id), add, hiddenInputs(this.ed.doc.node(this.id), this._connected()), (id) => this._showPort(id, true));
+        openAddInput(this.ed.doc.node(this.id), add, hiddenInputs(this.ed.doc.node(this.id), this._connected()), (id) => this._showPort(id, true),
+          (value) => this.ed.api.setParam(this.id, 'model', value));
       });
       const row = h('div', 'n-row n-addrow');
       row.append(add);
@@ -195,6 +196,7 @@ export class NodeView {
     if (def.multi) p.dataset.multi = '';
     if (def.unused) p.classList.add('unused');
     if (def.peek) p.classList.add('peek');
+    if (def.ignored) p.classList.add('ignored');
     const dot = h('i', 'dot');
     const lbl = h('span', 'lbl');
     lbl.textContent = tl(def.label);
@@ -203,6 +205,10 @@ export class NodeView {
       const node = this.ed.doc.node(this.id);
       const r = portTip(node, def, dir, p.dataset.t || def.type);
       if (r && def.unused) r.body = t('graph.port.unused');
+      if (r && def.ignored) {
+        const w = blockWorkflow(node, this._connected());
+        if (w) r.meta = [t('port.ignored', { what: tl(w.workflow.label || {}) }), r.meta].filter(Boolean).join(' · ');
+      }
       return r;
     });
     p.append(dot, lbl);

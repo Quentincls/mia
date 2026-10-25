@@ -1,0 +1,86 @@
+{
+  "id": "references-video",
+  "icon": "refs",
+  "label": {
+    "fr": "Vidéo à partir de mes références",
+    "en": "Video from my references"
+  },
+  "desc": {
+    "fr": "Tes images de personnages, d’objets ou de lieux, une consigne qui les cite (« Image 1 », « Image 2 ») : MiniMax H3 en fait un plan, sans image de début.",
+    "en": "Your images of characters, objects or places, a prompt that names them (“Image 1”, “Image 2”): MiniMax H3 turns them into a shot, no start image needed."
+  },
+  "nodes": [
+    {
+      "key": "who",
+      "type": "import",
+      "x": 0,
+      "y": 0,
+      "placeholder": {
+        "kind": "image",
+        "fr": "Personnage (Image 1)",
+        "en": "Character (Image 1)"
+      }
+    },
+    {
+      "key": "where",
+      "type": "import",
+      "x": 0,
+      "y": 420,
+      "placeholder": {
+        "kind": "image",
+        "fr": "Lieu (Image 2)",
+        "en": "Place (Image 2)"
+      }
+    },
+    {
+      "key": "txt",
+      "type": "text",
+      "x": 24,
+      "y": 840,
+      "params": {
+        "text": "Image 1 is the woman, Image 2 is the place. The woman from Image 1 walks slowly through the place of Image 2, handheld camera, natural light."
+      }
+    },
+    {
+      "key": "ref",
+      "type": "ref2v",
+      "x": 432,
+      "y": 240
+    },
+    {
+      "key": "exp",
+      "type": "export",
+      "x": 864,
+      "y": 240,
+      "params": {
+        "format": "phone"
+      }
+    }
+  ],
+  "edges": [
+    [
+      "who",
+      "out",
+      "ref",
+      "refs"
+    ],
+    [
+      "where",
+      "out",
+      "ref",
+      "refs"
+    ],
+    [
+      "txt",
+      "text",
+      "ref",
+      "prompt"
+    ],
+    [
+      "ref",
+      "video",
+      "exp",
+      "media"
+    ]
+  ]
+}

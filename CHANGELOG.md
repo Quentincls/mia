@@ -43,6 +43,15 @@ concerne que les développeurs.
   - **LTX** : **enrichir la consigne** (Gemma réécrit ta consigne en anglais détaillé) ;
   - **Wan Animate 2** : « Fidélité au mouvement » et « Ressemblance au personnage » ;
   - **Qwen Image Edit** : deux images d’appui au lieu d’une (« image 2 », « image 3 »).
+- **Plus clair quand un branchement ne suffit pas** : une image de fin, des images-clés ou une fiche seules sur LTX
+  ne font plus partir le bloc du texte en silence ; il dit en rouge ce qui manque (« Il manque pour « Animer une
+  image » : Image de début »). Une entrée reliée mais pas utilisée est grisée, avec la raison au survol.
+- **Les fils se posent où tu vises** : pendant qu’on tire un fil, les entrées qui apparaissent s’ajoutent en bas au
+  lieu de pousser celles qu’on vise ; lâcher sur le corps d’un bloc MiniMax branche les références ; la croix qui
+  coupe un fil marche enfin.
+- **LTX et les références** : LTX ne mélange pas plusieurs références séparées (c’est MiniMax, le bloc le dit et
+  propose d’y passer d’un clic) ; il sait partir d’une **fiche personnage** seule (à essayer). Nouvelle recette
+  « Vidéo à partir de mes références ».
 - **Les assistants (Claude, Codex) connaissent tout cela** : chaque modèle, ce qu’il faut lui brancher pour chaque
   façon de faire, ses réglages, ce qui est à essayer ; et, sur la planche, ce que fait chaque bloc Modèle.
 
@@ -70,6 +79,14 @@ concerne que les développeurs.
   keyframes (LTX, MiniMax, up to 4 between start and end, same framing as the start image); MiniMax: extend a video
   (the result is the whole video, longer), a sound to follow, up to 3 reference sounds, 768p; LTX: enrich the prompt
   (Gemma rewrites it); Wan Animate 2: motion fidelity and character likeness; Qwen Image Edit: two helper images.
+- **Clearer when a wiring is not enough**: an end image, keyframes or a sheet alone on LTX no longer make the block
+  start from text silently; it says in red what is missing. An input connected but not used is greyed out, with the
+  reason on hover.
+- **Wires land where you aim**: while you drag a wire, the inputs that show up are added at the bottom instead of
+  pushing the one you aim at; dropping on a MiniMax block connects its references; the cross that cuts a wire works.
+- **LTX and references**: LTX does not blend several separate references (MiniMax does: the block says so and
+  switches in one click); it can start from a **character sheet** alone (to try). New recipe “Video from my
+  references”.
 - **Assistants (Claude, Codex) know all of it**: each model, what to wire for each way of working, its settings,
   what is to try; and, on the board, what each Model block does.
 
@@ -105,6 +122,15 @@ concerne que les développeurs.
   modèle ; descriptions et instructions du serveur MCP ; guides mia-piloter et mia-recettes-video.
 
 ### Changé
+- Audit du 25/10 (UX, textes, façons de faire) : règle de choix (une façon de faire qui ne se sert d’aucune entrée
+  branchée n’est possible que si rien n’est branché ; une entrée principale ignorée pèse plus qu’une entrée
+  d’appoint ; rien de branché = pas de choix proposé), vidéo guidée et photoréaliste prennent l’image de début comme
+  image de look, MiniMax sans « Zone libre » en vidéo guidée, consigne obligatoire dite avant le lancement, réglages
+  cachés du bloc Modèle plus envoyés au calcul (« À éviter », LoRA), Média vide compté comme branché, résolution
+  calculée = résolution affichée, format des références = 16:9 affiché, estimation et boutons de la façon de faire
+  retenue (Qwen : un seul « Lancer »), pastilles « Image n » seulement pour les références, onglets « Sur ce PC | En
+  ligne », accents des pastilles, « + Bloc » pose le nouveau bloc à droite de la sélection, recherche par nom de
+  modèle, textes simplifiés (FR/EN) ; nouveaux bancs tools/test-route.js.
 - Le modèle n’est plus jamais rangé sous « Avancé » dans un bloc de génération.
 - À égalité, la façon de faire dont les exigences sont remplies passe devant celle qui n’exige rien (des références
   et une image-clé → « Vidéo à partir de références ») ; deux façons aux mêmes exigences restent proposées au choix.
@@ -113,6 +139,9 @@ concerne que les développeurs.
 - **Animer une image** et **Vidéo à partir de références** : jusqu’à 15 s avec MiniMax H3 (sa limite vérifiée au
   labo) ; le moteur ramène toute durée à la limite du modèle et le note dans le résultat.
 - Le texte reçu d’une Consigne branchée (« Vient de … ») se lit en entier au survol quand il dépasse trois lignes.
+
+### Corrigé
+- La croix qui coupe un fil ne coupait pas : l’effet « enfoncé » faisait perdre la croix au navigateur.
 
 ### Pour les développeurs
 - Ports par bloc : `src/js/nodes/ports.js` (`nodeInputs`, `nodeOutputs`, `nodePortDef`) remplace la lecture directe
