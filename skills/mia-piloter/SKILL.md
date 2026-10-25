@@ -172,7 +172,9 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
   cliques pas ces boutons : tu relies le port.
 - **Relie en nommant le port** (`mia_connect … to:{node, port:"keys"}`) : c'est le port qui décide. Toutes les
   entrées du modèle se branchent, même celles que l'interface range derrière « Partir de » ou « + Ajouter » (le fil
-  les montre). Sans port, le fil va à l'entrée principale (MiniMax : `refs` ; LTX : `start`).
+  les montre). Sans port, le fil va à l'entrée principale tant qu'elle a de la place (MiniMax : `refs`, aussi pour la
+  2e et la 3e image ; LTX : `start`), puis à une entrée qui sert seule (un son dans MiniMax → `audio`, le son à
+  suivre). Un modèle qui ne sait pas partir de la consigne (Genjutsu, en ligne) montre ce qui lui manque.
   Une entrée multiple numérote ses fils dans l'ordre vertical des blocs sources (le plus haut = 1).
 - **Une entrée seule qui a besoin d'une autre bloque le bloc** (image de fin, images-clés ou fiche sans image de début
   sur LTX…) : il affiche « Il manque pour « … » : … » et ne part plus du texte en silence. Branche ce qui manque.
@@ -183,8 +185,7 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
   - **LTX 2.5** : `start` (+ `end`, + `keys` jusqu'à 4 images-clés réparties à intervalles égaux entre début et
     fin, + `sheet`) → animer ; rien → depuis le texte ; `guide` (+ `start`, qui sert de look) → guidée ; `video`
     (rendu 3D, + `start` comme look) → photoréaliste ; `sheet` seule → vidéo depuis une fiche personnage (à
-    essayer). LTX ne mélange PAS plusieurs références séparées : c'est MiniMax. Réglage
-    `enhance` (« Enrichir la consigne » : Gemma réécrit la consigne, la version réécrite est dans les notes).
+    essayer). LTX ne mélange PAS plusieurs références séparées : c'est MiniMax.
     Images-clés : **même cadrage que l'image de début** (cadrée autrement, le plan coupe vers elle).
   - **MiniMax H3** (15 s, 24 i/s, `resolution` jusqu'à `768`) : `refs` (9 images) / `refVideos` (3) /
     `refAudios` (3 sons) → références, citées « Image 1 », « Vidéo 2 », « Son 1 » (les sons comptés à part) ;
@@ -195,7 +196,7 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
     (ressemblance), 0 à 2, 1 = normal.
   - **Qwen Image Edit** : `image` + `ref` (jusqu'à 2 images d'appui) ; la consigne les cite « image 2 », « image 3 »
     (l'image à retoucher est l'image 1).
-- **« À essayer » (`trial`)** : images-clés de LTX, son à suivre, sons de référence, 768p, consigne enrichie n'ont
+- **« À essayer » (`trial`)** : images-clés de LTX, son à suivre, sons de référence, 768p n'ont
   pas encore été validés à l'œil au labo (prolonger et images-clés de MiniMax : validés le 24/10). Utilise-les quand on te le demande, dis-le, et fais juger
   le résultat à l'œil (côte à côte avec la source).
 - Un modèle en ligne ne se lance **que si l'utilisateur l'a demandé** (crédits) ; son compte se relie dans Réglages →

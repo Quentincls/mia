@@ -7,8 +7,9 @@
 // Character / place LoRA (SPEC §12): LoraLoaderModelOnly after the UNET, trigger word put first in the prompt.
 // Model block extras (« à essayer »): « Deux passes » (half size, latent ×2, 3 refining steps) for final renders and
 // « Enrichir la consigne » (Gemma rewrites the prompt), as in i2v.js; « Vidéo depuis une fiche personnage »: a
-// reference sheet without any start image, as the official LTX-2.5_ICLoRA_Ingredients template does (empty latent,
-// the sheet fitted to the frame and held on every frame as an IC-LoRA guide at frame 0, guides cropped before decode).
+// reference sheet without any start image, as the official LTX-2.5_ICLoRA_Ingredients template does (empty latent
+// with the sheet's own shape, the sheet held on every frame as an IC-LoRA guide at frame 0, guides cropped before
+// decode). GPU trial of 25/10: a sheet squeezed into a 16:9 frame with black bars is copied as is.
 const path = require('node:path');
 const P = require('../patch');
 
@@ -28,8 +29,8 @@ const TXT = {
   size: { fr: '{w} × {h}, {frames} images à {fps} i/s ({s} s).', en: '{w} × {h}, {frames} frames at {fps} fps ({s} s).' },
   previewNote: { fr: 'Aperçu : basse définition, 3 s au plus.', en: 'Preview: low resolution, 3 s at most.' },
   sheet: {
-    fr: 'Fiche personnage suivie sur tout le plan, sans image de début (à essayer : regarde si le personnage lui ressemble).',
-    en: 'Character sheet followed through the whole shot, no start image (to try: check the character looks like it).',
+    fr: 'Fiche personnage suivie sur tout le plan, sans image de début, au format de la fiche (à essayer : regarde si le personnage lui ressemble).',
+    en: 'Character sheet followed through the whole shot, no start image, in the sheet’s shape (to try: check the character looks like it).',
   },
   sheetRes: {
     fr: 'Avec une fiche, taille ramenée à {w} × {h} pour tenir en mémoire.',
@@ -40,8 +41,10 @@ const TXT = {
 function plan(x) {
   const preview = x.mode === 'preview';
   const sheet = !!(x.inputs && x.inputs.sheet && x.inputs.sheet.abs);
-  // « auto » (the Model block's default) shows as 16:9 without a start image: do the same
-  const ratio = E.formatRatio(x.params.format === 'auto' ? '16:9' : x.params.format, null, 16 / 9);
+  // « auto » (the Model block's default) shows as 16:9 without a start image: do the same; with a sheet, the video
+  // takes the sheet's shape (the Ingredients template)
+  const ratio = sheet ? E.formatRatio(null, x.inputs.sheet.meta, 16 / 9)
+    : E.formatRatio(x.params.format === 'auto' ? '16:9' : x.params.format, null, 16 / 9);
   const twoPass = !preview && x.params.twoPass === true && !sheet;
   // LTX is trusted up to its family limit (SPEC §22), the bound the block shows
   const dur = Math.max(1, Math.min(E.maxSeconds(E.model(x, 'model'), 'ltx'), Number(x.params.duration) || 5));

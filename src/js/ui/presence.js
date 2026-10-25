@@ -1046,7 +1046,7 @@ function modelInfo(n, conn) {
   if (r.unused?.length) info.ignored = r.unused;
   // rien de branché : ce dont il peut partir (la ligne « Partir de : » de l'écran), port par port
   const starts = safe(() => startPoints({ ...n, data: { ...(n.data || {}), shown: [] } }, conn)) || [];
-  if (starts.length) info.startFrom = starts.map((s) => ({ port: s.id, label: tl(s.label), for: s.what.map((w) => tl(w)) }));
+  if (starts.length) info.startFrom = starts.map((s) => ({ port: s.id, label: tl(s.label), for: s.what.map((w) => tl(w)), ...(s.trial ? { trial: true } : {}) }));
   const trial = conn.filter((id) => ports[id]?.trial);
   if (r.workflow.trial || trial.length) info.trial = r.workflow.trial ? 'the whole way' : trial;
   return info;
@@ -1403,11 +1403,18 @@ const METHODS = {
     if (to.port && !ins.some((i) => i.id === to.port)) fail('noInPort', { block: b, port: to.port, list: portLabelList(ins) });
 
     const wired = e.inputsOf(B.id) || {};
-    // bloc Modèle : l'entrée principale de son modèle d'abord (MiniMax : les références), comme un fil lâché sur le corps
-    const main = isModelBlock(B) ? (safe(() => mainPorts(blockFamily(B))) || []) : [];
+    // bloc Modèle, comme un fil lâché sur le corps : l'entrée principale de son modèle tant qu'elle a de la place
+    // (MiniMax : 2e, 3e image → toujours les références), puis une entrée qui sert seule (un son dans MiniMax → « Son à
+    // suivre », pas les sons de référence qui exigent des images)
+    const fam = isModelBlock(B) ? safe(() => blockFamily(B)) : null;
+    const main = fam ? (safe(() => mainPorts(fam)) || []) : [];
+    const conn = Object.keys(wired).filter((k) => (wired[k] || []).length);
+    const alone = (id) => { const r = safe(() => blockWorkflow(B, [...conn, id])); return !!r && !r.blocked && !(r.unused || []).includes(id); };
     const rank = (i) => {
       const n = (wired[i.id] || []).length;
-      if (!n) return i.required ? 0 : main.includes(i.id) ? 0.5 : 1;
+      if (!n && i.required) return 0;
+      if (main.includes(i.id) && (!n || (i.multi && (!i.max || n < i.max)))) return 0.5;
+      if (!n) return fam && alone(i.id) ? 0.75 : 1;
       if (i.multi && (!i.max || n < i.max)) return 2;
       return 3;
     };

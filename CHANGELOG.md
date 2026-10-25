@@ -43,7 +43,7 @@ concerne que les développeurs.
   - **MiniMax** : **prolonger une vidéo** (le résultat est la vidéo entière, rallongée ; raccord invisible à
     l’essai), un **son à suivre** (la vidéo se cale sur une voix ou une musique), jusqu’à 3 **sons de référence**
     (« Son 1 »…), et **768p** ;
-  - **LTX** : **enrichir la consigne** (Gemma réécrit ta consigne en anglais détaillé) ;
+
   - **Wan Animate 2** : « Fidélité au mouvement » et « Ressemblance au personnage » ;
   - **Qwen Image Edit** : deux images d’appui au lieu d’une (« image 2 », « image 3 »).
 - **Plus clair quand un branchement ne suffit pas** : une image de fin, des images-clés ou une fiche seules sur LTX
@@ -82,8 +82,7 @@ concerne que les développeurs.
   can take it show up for the gesture; an input you added and left empty goes away with ×.
 - **Everything this PC’s models can do**, in the Model block (new features say “To try” until judged by eye):
   keyframes (LTX, MiniMax, up to 4 between start and end, same framing as the start image); MiniMax: extend a video
-  (the result is the whole video, longer), a sound to follow, up to 3 reference sounds, 768p; LTX: enrich the prompt
-  (Gemma rewrites it); Wan Animate 2: motion fidelity and character likeness; Qwen Image Edit: two helper images.
+  (the result is the whole video, longer), a sound to follow, up to 3 reference sounds, 768p; Wan Animate 2: motion fidelity and character likeness; Qwen Image Edit: two helper images.
 - **Clearer when a wiring is not enough**: an end image, keyframes or a sheet alone on LTX no longer make the block
   start from text silently; it says in red what is missing. An input connected but not used is greyed out, with the
   reason on hover.
@@ -146,6 +145,15 @@ concerne que les développeurs.
 - Le texte reçu d’une Consigne branchée (« Vient de … ») se lit en entier au survol quand il dépasse trois lignes.
 
 ### Corrigé
+- « Enrichir la consigne » (LTX) est caché : à l’essai, la consigne réécrite était du charabia et la vidéo en partait
+  (le Gemma de ce PC sait lire une consigne, pas en écrire une ; le petit modèle prévu pour n’est pas installé).
+- « Vidéo depuis une fiche personnage » (LTX, à essayer) : la vidéo prend le format de la fiche, comme le gabarit
+  officiel ; posée dans un cadre 16:9 bordé de noir, la fiche était recopiée telle quelle (essai GPU du 25/10).
+- Bloc Modèle (relecture du 25/10) : la ligne « Partir de » revient après un changement de modèle ; un bloc replié
+  reçoit de nouveau un fil ; un fil lâché sur le corps va à l’entrée choisie dans « Partir de » ; au Ctrl+glisser,
+  l’entrée décrochée ne saute plus sous le pointeur ; « Ce que fait le bloc » suit chaque fil branché ou débranché ;
+  Genjutsu (en ligne) montre ce qui lui manque ; Kling O3 propose ses références. Assistants : un fil sans entrée
+  nommée va aux références de MiniMax tant qu’il y a de la place, un son à « Son à suivre ».
 - La croix qui coupe un fil ne coupait pas : l’effet « enfoncé » faisait perdre la croix au navigateur.
 - Les blocs restaient flous après un zoom avant : la planche est redessinée nette une fois le zoom posé.
 - Higgsfield : une image en ligne avec une image de référence (Soul…) était refusée (« URL input should be a string

@@ -471,6 +471,9 @@ export function attachInteract(ed) {
       if (edge) {
         ed.history.begin('rewire');
         detached = { id: edge.id, from: { ...edge.from }, to: { ...edge.to } };
+        // bloc Modèle : l'entrée qu'on décroche reste à sa place le temps du geste (rien ne saute sous le pointeur)
+        const hv = isModelBlock(node) ? ed.views.get(id) : null;
+        if (hv) hv.hold = [port];
         // l'aperçu du bloc garde sa taille pendant le geste : ses entrées ne remontent pas sous le pointeur
         frozen = ed.views.get(id)?.el.querySelector('.n-preview') || null;
         if (frozen) frozen.style.height = `${frozen.offsetHeight}px`;
@@ -517,11 +520,13 @@ export function attachInteract(ed) {
           const count = want === 'in' ? ed.connections(v.id, pid, 'in') : 0;
           // une entrée multiple bornée et pleine n'est plus « libre » (SPEC §17)
           const roomy = !!prt.def.multi && !(prt.def.max > 0 && count >= prt.def.max);
-          // lâcher sur le corps du bloc : l'entrée principale d'un bloc Modèle d'abord, puis une entrée visible, et une
-          // entrée montrée le temps du geste en dernier (audit 25/10, LIVE-2)
+          // lâcher sur le corps du bloc : l'entrée principale d'un bloc Modèle d'abord si elle est à l'écran, puis une
+          // entrée visible (celle choisie dans « Partir de »), puis l'entrée principale montrée le temps du geste, et
+          // les autres entrées montrées le temps du geste en dernier (audit 25/10, LIVE-2 ; relecture 25/10)
           const n = ed.doc.node(v.id);
+          const main = want === 'in' && isModelBlock(n) && mainPorts(blockFamily(n)).includes(pid);
           const rank = want === 'in' && isModelBlock(n)
-            ? (mainPorts(blockFamily(n)).includes(pid) ? 0 : prt.def.peek ? 2 : 1) : 1;
+            ? (main ? (prt.def.peek ? 1.5 : 0) : prt.def.peek ? 2 : 1) : 1;
           cands.push({ node: v.id, port: pid, el: prt.el, free: want === 'out' || count === 0 || roomy, rank });
         }
       }
@@ -625,7 +630,11 @@ export function attachInteract(ed) {
     // les entrées montrées le temps du geste se rangent, sur TOUS les blocs (celle qui vient de recevoir le fil reste :
     // elle est reliée) — rien ne doit survivre à la fin d'un geste, quelle qu'en soit la cause
     let tidied = false;
-    for (const v of ed.views.nodes.values()) if (v.reveal) { v.setReveal(null); tidied = true; }
+    for (const v of ed.views.nodes.values()) {
+      const held = !!v.hold;
+      v.hold = null;
+      if (v.reveal) { v.setReveal(null); tidied = true; } else if (held && v.rebuildPorts()) tidied = true;
+    }
     if (tidied || cur.revealed?.length) ed.wires.sync();
     const { origin, detached, target } = cur;
     if (cancelled || (!cur.moved && detached)) {

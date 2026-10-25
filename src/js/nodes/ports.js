@@ -43,16 +43,19 @@ export function mainPorts(fam) {
  * Entrées d'un bloc. `connected` : ids des entrées déjà reliées (gardées, grisées, si le modèle ne les prend pas).
  * Bloc Modèle (« + Ajouter », demande de Quentin du 24/10) : on montre l'entrée principale, la Consigne, ce qui est
  * relié et ce que Quentin a ajouté (`node.data.shown`) ; `all` montre tout ce que prend la famille (menu « + »,
- * assistant), `extra` quelques entrées de plus (celles qui peuvent recevoir le fil qu'on tire, le temps du geste).
+ * assistant), `extra` quelques entrées de plus (celles qui peuvent recevoir le fil qu'on tire, le temps du geste),
+ * `hold` celles qui restent à leur place pendant le geste (le fil qu'on décroche au Ctrl+glisser).
  */
-export function nodeInputs(node, connected = [], { all = false, extra = [] } = {}) {
+export function nodeInputs(node, connected = [], { all = false, extra = [], hold = [] } = {}) {
   if (!node) return [];
   if (!isModelBlock(node)) return inputDefs(node.type);
   const fam = blockFamily(node);
   const ports = fam ? portsOfFamily(fam) : { prompt: { max: 1, multi: false } };
   // une famille qui sait faire plusieurs choses n'impose aucune entrée (« points de départ ») ; une famille à une
-  // seule façon de faire (Wan : personnage + mouvement) montre ce qu'elle demande
-  const main = new Set(isMultiWay(fam) ? [] : mainPorts(fam));
+  // seule façon de faire (Wan : personnage + mouvement) montre ce qu'elle demande. Replié, un bloc garde son entrée
+  // principale : c'est elle qui reçoit un fil lâché sur sa barre de titre.
+  const main = new Set(isMultiWay(fam) && !node.collapsed ? [] : mainPorts(fam));
+  for (const id of hold) main.add(id);
   const shown = new Set(Array.isArray(node.data?.shown) ? node.data.shown : []);
   // ce qui manque à la façon de faire retenue se montre toujours (on ne demande jamais de brancher une entrée cachée)
   const plan = fam ? chooseWorkflow(fam, connected, node.params?.workflow || null) : null;
@@ -90,28 +93,42 @@ const LEADS = START_ORDER.slice(0, START_ORDER.indexOf('motion'));
 
 /**
  * Points de départ d'un bloc Modèle vide (rien de relié hors Consigne, rien d'ajouté) : la 1re entrée qu'exige chaque
- * façon de faire de sa famille → [{ id, label, what: [libellés des façons de faire] }]. Vide sinon.
+ * façon de faire de sa famille → [{ id, label, what: [libellés des façons de faire], trial }]. Vide sinon, et pour
+ * une famille qui ne sait pas partir de la consigne (Genjutsu : le bloc montre plutôt ce qui lui manque).
  */
 export function startPoints(node, connected = []) {
   if (!isModelBlock(node)) return [];
   const fam = blockFamily(node);
   if (!isMultiWay(fam)) return [];
   if (connected.some((id) => id !== 'prompt')) return [];
-  if (Array.isArray(node.data?.shown) && node.data.shown.length) return [];
+  // une entrée ajoutée que ce modèle prend : la ligne a fait son office (celle d'un modèle d'avant ne compte pas)
+  const ports = portsOfFamily(fam);
+  if ((Array.isArray(node.data?.shown) ? node.data.shown : []).some((id) => ports[id])) return [];
+  const empty = chooseWorkflow(fam, connected, node.params?.workflow || null);
+  if (!empty || empty.blocked) return [];
   const labels = portLabels(fam);
+  // une façon de faire sans exigence part de l'entrée de tête qui, branchée seule, la choisit vraiment (Kling O3 :
+  // ses références, pas son image de début)
+  const picks = (wf, p) => {
+    const r = chooseWorkflow(fam, [p], null);
+    return !!r && !r.blocked && (r.workflow.id === wf.id || (r.ties || []).some((w) => w.id === wf.id));
+  };
   const byId = new Map();
   for (const wf of fam.def.workflows) {
-    const id = needsOf(wf)[0] || LEADS.find((p) => (wf.ports || {})[p]);
+    const id = needsOf(wf)[0] || LEADS.find((p) => (wf.ports || {})[p] && picks(wf, p));
     if (!id) continue;
     const d = inputDefs(node.type).find((x) => x.id === id);
     if (!d) continue;
-    const cur = byId.get(id) || { id, label: labels[id] || d.label, what: [] };
+    const cur = byId.get(id) || { id, label: labels[id] || d.label, what: [], trials: [] };
     cur.what.push(wf.label || {});
+    cur.trials.push(!!wf.trial);
     byId.set(id, cur);
   }
   const main = mainPorts(fam);
   const rank = (id) => { const m = main.indexOf(id); if (m >= 0) return m - 100; const i = START_ORDER.indexOf(id); return i < 0 ? 99 : i; };
-  return [...byId.values()].sort((a, b) => rank(a.id) - rank(b.id));
+  // « à essayer » quand toutes les façons de faire qu'il ouvre le sont (la fiche personnage de LTX)
+  return [...byId.values()].sort((a, b) => rank(a.id) - rank(b.id))
+    .map(({ trials, ...s }) => ({ ...s, trial: trials.every(Boolean) }));
 }
 
 /** Libellés propres à une famille (« Rendu 3D » pour la vidéo de LTX…), pris dans les ports de ses façons de faire. */
@@ -162,9 +179,14 @@ export function nodePortDef(node, portId, dir) {
 /** Signature des ports (pour reconstruire les rangées quand le modèle change). */
 export function portsSignature(node, connected = [], opts = {}) {
   if (!isModelBlock(node)) return '';
-  const i = nodeInputs(node, connected, opts).map((p) => `${p.id}${p.multi ? `*${p.max}` : ''}${p.unused ? '!' : ''}${p.removable ? '-' : ''}${p.peek ? '~' : ''}`).join(',');
-  const more = !opts.extra?.length && hiddenInputs(node, connected).length ? '+' : '';
-  const st = opts.extra?.length ? '' : startPoints(node, connected).map((s) => `${s.id}=${s.label?.fr || ''}`).join(',');
+  const lab = (l) => l?.fr || '';
+  const i = nodeInputs(node, connected, opts).map((p) => `${p.id}=${lab(p.label)}${p.multi ? `*${p.max}` : ''}${p.unused ? '!' : ''}${p.removable ? '-' : ''}${p.peek ? '~' : ''}${p.ignored ? '#' : ''}`).join(',');
+  const gesture = !!opts.extra?.length;
+  const starts = gesture ? [] : startPoints(node, connected);
+  const hid = gesture ? [] : hiddenInputs(node, connected);
+  // « + » : seul derrière la ligne « Partir de » s'il reste autre chose à ajouter, « + Ajouter » sinon (view.js)
+  const more = hid.some((d) => !starts.some((s) => s.id === d.id)) ? '+' : '';
+  const st = starts.map((s) => `${s.id}=${lab(s.label)}:${s.what.map(lab).join('/')}${s.trial ? '?' : ''}`).join(',');
   const o = nodeOutputs(node).map((p) => `${p.id}:${p.type}`).join(',');
   return `${i}|${o}|${more}|${st}`;
 }

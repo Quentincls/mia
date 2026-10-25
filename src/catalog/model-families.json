@@ -13,8 +13,8 @@
         "en": "The most versatile: starts from text, animates a start image (with an end image and keyframes), follows a guide video or turns a 3D render photoreal. Makes sound and takes your LoRAs. Does not blend several separate references: use MiniMax H3 for that."
       },
       "emptyHint": {
-        "fr": "Rien de branché : LTX part de ta consigne, ou de ce que tu choisis dans « Partir de ». Pour mélanger plusieurs références, prends MiniMax H3.",
-        "en": "Nothing connected: LTX starts from your prompt, or from what you pick in “Start from”. To blend several references, pick MiniMax H3."
+        "fr": "Rien de branché : LTX part de ta consigne. Branche une image de début pour l’animer, une vidéo guide pour lui donner le mouvement, ou une fiche personnage (à essayer). Pour mélanger plusieurs références, prends MiniMax H3.",
+        "en": "Nothing connected: LTX starts from your prompt. Connect a start image to animate it, a guide video to give it the motion, or a character sheet (to try). To blend several references, pick MiniMax H3."
       },
       "variants": [
         { "match": "nvfp4|rtx ?50", "tag": { "fr": "Rapide", "en": "Fast" },
@@ -38,15 +38,15 @@
         { "id": "i2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v",
           "label": { "fr": "Animer une image", "en": "Animate an image" },
           "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4, "trial": true }, "sheet": { "trial": true } }, "required": ["start"],
-          "params": ["prompt", "duration", "format", "resolution", "fps", "lora", "loraStrength", "enhance", "seed"] },
+          "params": ["prompt", "duration", "format", "resolution", "fps", "lora", "loraStrength", "seed"] },
         { "id": "sheet", "executor": "t2v", "cap": "text-to-video", "as": "t2v", "promptRequired": true, "trial": true,
           "label": { "fr": "Vidéo depuis une fiche personnage", "en": "Video from a character sheet" },
           "ports": { "sheet": {} }, "required": ["sheet"],
-          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "enhance", "seed"] },
+          "params": ["prompt", "duration", "resolution", "lora", "loraStrength", "seed"] },
         { "id": "t2v", "executor": "t2v", "cap": "text-to-video", "as": "t2v", "promptRequired": true,
           "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
           "ports": {}, "required": [],
-          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "enhance", "seed"] }
+          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] }
       ]
     },
     "minimax": {
@@ -60,8 +60,8 @@
         "en": "The only one on this PC that makes a video from your references: up to 9 images, 3 videos and 3 sounds, no start image needed. Also animates an image, extends a video, follows a guide video. Up to 15 s with sound, 24 fps, 768p (to try)."
       },
       "emptyHint": {
-        "fr": "Rien de branché : MiniMax part de ta consigne, ou de ce que tu choisis dans « Partir de ».",
-        "en": "Nothing connected: MiniMax starts from your prompt, or from what you pick in “Start from”."
+        "fr": "Rien de branché : MiniMax part de ta consigne. Branche des images de référence pour les mélanger, une image de début pour l’animer, ou une vidéo pour la prolonger.",
+        "en": "Nothing connected: MiniMax starts from your prompt. Connect reference images to blend them, a start image to animate it, or a video to extend it."
       },
       "variants": [
         { "match": "ref2v|r[ée]f[ée]rences?", "tag": { "fr": "Références", "en": "References" },

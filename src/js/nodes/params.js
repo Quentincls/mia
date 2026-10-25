@@ -957,7 +957,7 @@ function mountModelParams(host, opts) {
     if (r) { r.trialPorts = conn.filter((id) => r.workflow.ports?.[id]?.trial); r.connected = conn.filter((id) => id !== 'prompt'); }
     return r;
   };
-  const signature = (r) => (r ? `${r.fam.provider}:${r.fam.key}:${r.workflow.id}:${r.ties.map((w) => w.id).join('|')}:${r.blocked ? 1 : 0}:${r.unused.join(',')}:${r.trialPorts.join(',')}:${r.connected.length ? 1 : 0}` : 'none');
+  const signature = (r) => (r ? `${r.fam.provider}:${r.fam.key}:${r.workflow.id}:${r.ties.map((w) => w.id).join('|')}:${r.blocked ? 1 : 0}:${r.unused.join(',')}:${r.trialPorts.join(',')}:${[...r.connected].sort().join(',')}` : 'none');
 
   function effectiveType(r) {
     const list = [P('model'), workflowParam(r)];

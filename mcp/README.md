@@ -166,8 +166,7 @@ branche (`ways` : ce qu'il faut brancher, combien, quels réglages, ce qui est �
 l'entrée (`start`, `keys`, `refs`, `refAudios`, `video`, `audio`…), même celles que l'écran range derrière
 « Partir de » ou « + Ajouter ». `mia_get_board` lui dit ensuite ce que fait chaque bloc Modèle (`model.does`), de
 quoi il se sert (`model.uses`), ce qui manque et ce qui est ignoré ; sur un bloc encore vide, `model.startFrom`
-donne les points de départ de la ligne « Partir de : » (entrée et ce qu'elle ferait). Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p, consigne
-enrichie) sont signalées comme telles : juge le résultat à l'œil. Prolonger une vidéo et les images-clés de MiniMax
+donne les points de départ de la ligne « Partir de : » (entrée et ce qu'elle ferait). Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p) sont signalées comme telles : juge le résultat à l'œil. Prolonger une vidéo et les images-clés de MiniMax
 sont validés (essais du 24/10).
 
 ## Sécurité

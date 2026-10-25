@@ -354,8 +354,9 @@ const VARIANTS = {
       models: { model: INV.minimax }, expectGraph: wantSize('800x448') },
   ],
   t2v: [
-    // fiche personnage seule, sans image de début (bloc Modèle, à essayer) : gabarit officiel Ingredients
-    { name: 'fiche personnage seule · 720p · format auto → 16:9', mode: 'final', inputs: { sheet: IMG_SQ },
+    // fiche personnage seule, sans image de début (bloc Modèle, à essayer) : gabarit officiel Ingredients, la vidéo au
+    // format de la fiche (essai GPU du 25/10 : bordée de noir dans un 16:9, la fiche était recopiée telle quelle)
+    { name: 'fiche personnage seule · 720p · au format de la fiche (carrée)', mode: 'final', inputs: { sheet: IMG_SQ },
       params: { prompt: 'the man on the left walks into the room', format: 'auto', resolution: '720' }, models: { model: INV.ltxInt8 },
       expectGraph: (gs) => {
         const g = gs[gs.length - 1];
@@ -364,7 +365,7 @@ const VARIANTS = {
         const lora = Object.values(g).some((n) => n.class_type === 'LTXICLoRALoaderModelOnly');
         const e = Object.values(g).find((n) => n.class_type === 'EmptyLTXVLatentVideo');
         if (!guide || !crop || !lora) return 'chaîne de la fiche incomplète';
-        return e && e.inputs.width > e.inputs.height ? null : `taille ${e && e.inputs.width}x${e && e.inputs.height}`;
+        return e && e.inputs.width === e.inputs.height ? null : `taille ${e && e.inputs.width}x${e && e.inputs.height}`;
       } },
     { name: 'deux passes · 1080p · consigne enrichie', mode: 'final', params: { prompt: 'a lighthouse in a storm', resolution: '1080',
       format: '16:9', twoPass: true, enhance: true }, models: { model: INV.ltxInt8 },

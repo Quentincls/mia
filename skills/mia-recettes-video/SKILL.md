@@ -166,7 +166,8 @@ Toutes passent par un bloc Modèle (`type:"gen"`, voir mia-piloter) ; le moteur 
   24/10 : raccord invisible, son continu (≈ 9 min pour 3 s + 4 s).
 - **LTX « Deux passes »** : caché dans Mia depuis l'essai GPU du 24/10 (en 1080p, **moins net** qu'une passe et
   visage moins fidèle, pour le même temps). Une passe reste la bonne réponse pour un 1080p net.
-- **LTX « Enrichir la consigne »** (`enhance`) : Gemma réécrit la consigne en anglais détaillé (dans les notes).
+- **LTX « Enrichir la consigne »** : caché depuis le 25/10 (essai GPU : le Gemma du PC, compressé pour lire la
+  consigne, la réécrit en charabia et la vidéo part de ce charabia ; il faut le petit Gemma prévu pour, absent).
 - **Qwen Image Edit** : jusqu'à 2 images d'appui (`ref`), citées « image 2 », « image 3 ».
 - **LTX « Vidéo depuis une fiche personnage »** (`sheet` seule, à essayer) : une image qui réunit le personnage,
   ses tenues, ses objets ou le lieu ; la consigne désigne chaque élément par sa place (« l'homme à gauche »). Gabarit

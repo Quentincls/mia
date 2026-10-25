@@ -178,7 +178,7 @@ export class NodeView {
       for (const sp of starts) {
         const b = h('button', 'n-start', { type: 'button' });
         b.textContent = tl(sp.label);
-        b.dataset.tip = t('graph.port.startTip', { what: sp.what.map((w) => tl(w)).join(' · ') });
+        b.dataset.tip = t('graph.port.startTip', { what: sp.what.map((w) => tl(w)).join(' · ') + (sp.trial ? t('graph.port.startTrial') : '') });
         b.addEventListener('pointerdown', (e) => e.stopPropagation());
         b.addEventListener('click', (e) => { e.stopPropagation(); if (!this.ed.readonly) this._showPort(sp.id, true); });
         row.append(b);
@@ -259,7 +259,17 @@ export class NodeView {
     this.ed.api.updateNode(this.id, { data: { shown: next } });
   }
 
-  _portOpts() { return { extra: this.reveal || [] }; }
+  _portOpts() { return { extra: this.reveal || [], hold: this.hold || [] }; }
+
+  /** Refait les rangées d'un bloc Modèle (révélation, fin d'un geste) ; true si c'en est un. */
+  rebuildPorts() {
+    const node = this.ed.doc.node(this.id);
+    if (!node || !isModelBlock(node)) return false;
+    this._buildPorts(node);
+    this.refreshPorts();
+    this.measure();
+    return true;
+  }
 
   /**
    * Pendant qu'on tire un fil : les entrées rangées qui peuvent le recevoir (`ids`) se montrent, le temps du geste ;
@@ -269,12 +279,7 @@ export class NodeView {
     const next = ids?.length ? [...ids] : null;
     if ((this.reveal || []).join() === (next || []).join()) return false;
     this.reveal = next;
-    const node = this.ed.doc.node(this.id);
-    if (!node || !isModelBlock(node)) return false;
-    this._buildPorts(node);
-    this.refreshPorts();
-    this.measure();
-    return true;
+    return this.rebuildPorts();
   }
 
   /** Types concrets et état relié/libre des pastilles (après tout changement de fils). */
