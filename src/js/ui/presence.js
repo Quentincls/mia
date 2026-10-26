@@ -85,6 +85,7 @@ register({
     'presence.online': 'en ligne, payant',
     'presence.err.noRecipe': 'Recette inconnue : « {q} ». Recettes : {list}.',
     'presence.err.notRunnable': 'Le bloc « {block} » ne se calcule pas (il n’a pas de bouton Lancer).',
+    'presence.err.noVariants': '« {block} » n’a pas de bouton « 4 variantes » : seulement un bloc Modèle qui fait des images sur ce PC (Qwen-Image 2.1, FLUX.2 Klein, Qwen Image Edit).',
     'presence.err.badMode': 'Mode « {mode} » inconnu pour ce bloc. Modes : {list}.',
     'presence.err.runFailed': 'Le calcul n’a pas pu partir : {why}',
     'presence.err.missing': ' À faire : {list}.',
@@ -151,6 +152,7 @@ register({
     'presence.online': 'online, paid',
     'presence.err.noRecipe': 'Unknown recipe: “{q}”. Recipes: {list}.',
     'presence.err.notRunnable': 'Block “{block}” does not compute (it has no Run button).',
+    'presence.err.noVariants': '“{block}” has no “4 variations” button: only a Model block making images on this PC (Qwen-Image 2.1, FLUX.2 Klein, Qwen Image Edit).',
     'presence.err.badMode': 'Unknown mode “{mode}” for this block. Modes: {list}.',
     'presence.err.runFailed': 'The job could not start: {why}',
     'presence.err.missing': ' To do: {list}.',
@@ -1031,6 +1033,15 @@ function shownParams(n, params) {
   return Object.fromEntries(Object.entries(params).filter(([k]) => keep.has(k) || k.startsWith('hf.')));
 }
 
+/** « 4 variantes » : un bloc Modèle qui fait des images sur ce PC, avec une graine (la règle de son bouton, nodes/body.js). */
+function variantsOk(e, n) {
+  if (!isModelBlock(n)) return false;
+  const ins = safe(() => e.inputsOf(n.id)) || {};
+  const r = safe(() => blockWorkflow(n, Object.keys(ins).filter((k) => ins[k] && ins[k].length)));
+  if (!r || r.blocked || r.fam.provider !== 'local' || r.fam.def?.kind !== 'image') return false;
+  return (r.workflow.params || []).some((p) => (typeof p === 'string' ? p : p.id) === 'seed');
+}
+
 /** Bloc Modèle : sa famille, ce qu'il fait avec ses fils, les autres façons possibles, ce qui manque ou est ignoré. */
 function modelInfo(n, conn) {
   const r = safe(() => blockWorkflow(n, conn));
@@ -1586,7 +1597,11 @@ const METHODS = {
     const e = await board(p);
     const n = nodeOf(e, p.nodeId);
     const def = typeOf(n.type);
-    if (!def?.engine) fail('notRunnable', { block: blockName(n) });
+    // une Consigne dont « Réécrire en anglais » est cochée se lance pour sa réécriture seule (« Réécrire maintenant »)
+    const rewriting = n.type === 'text' && n.params?.rewrite === true;
+    if (!def?.engine && !rewriting) fail('notRunnable', { block: blockName(n) });
+    const variants = p.variants == null ? 0 : Math.max(2, Math.min(8, Math.round(Number(p.variants)) || 4));
+    if (variants && !variantsOk(e, n)) fail('noVariants', { block: blockName(n) });
     let mode = p.mode ? String(p.mode) : null;
     if (Array.isArray(def.modes) && def.modes.length) {
       if (!mode) mode = def.modes.includes('preview') ? 'preview' : def.modes[0];
@@ -1599,10 +1614,24 @@ const METHODS = {
     if (st && ACTIVE.has(st.kind) && st.jobId) return { jobId: st.jobId, nodeId: n.id, ...where, mode, already: true };
 
     await ensureVisible(e, boxOf(e, n));
-    const btnSel = mode === 'final' ? '.nb-foot button:not(.shiny)' : '.nb-foot button.shiny, .nb-foot .btn-primary';
+    const btnSel = rewriting ? '.nb-rw .btn' : variants || mode === 'final' ? '.nb-foot button:not(.shiny)'
+      : '.nb-foot button.shiny, .nb-foot .btn-primary';
     await glideTo(elPoint(e, n, btnSel, 0.5, 0.5));
     await pace();
     press();
+    if (variants) {
+      const r = await R.runVariants(n.id, { count: variants, mode });
+      acted();
+      if (!r?.ok) {
+        const err = new Error(t('presence.err.runFailed', { why: r?.error || '?' }));
+        err.user = true;
+        throw err;
+      }
+      // mia_wait sur le dernier job : il finit après les autres (la file passe les calculs lourds un par un)
+      const out = { jobId: r.jobIds[r.jobIds.length - 1], jobIds: r.jobIds, seeds: r.seeds, nodeId: n.id, ...where, block: blockName(n), mode };
+      if (r.error) out.note = r.error;
+      return out;
+    }
     let res;
     try {
       res = await window.mia.engine.run({ projectId: state.project.id, nodeId: n.id, graph: e.getGraph(), mode });
@@ -1633,7 +1662,14 @@ const METHODS = {
       return { nodeId: n.id, block: name, outputs: [{ port: 'out', path: m.path, kind: m.kind, meta: m.meta }] };
     }
     if (n.type === 'text') {
-      return { nodeId: n.id, block: name, outputs: [{ port: 'text', text: n.params?.text ?? '', negative: n.params?.negative ?? '' }] };
+      const o = { port: 'text', text: n.params?.text ?? '', negative: n.params?.negative ?? '' };
+      if (n.params?.rewrite === true) {
+        // « Réécrire en anglais » : la réécriture de CE texte (ce que reçoit l'aval), null tant qu'elle n'est pas faite
+        const R = await getRuns();
+        const done = safe(() => R.list?.(n.id).find((r) => r.params?.text === o.text && r.outputs?.text));
+        o.rewritten = done?.outputs?.text?.meta?.text ?? null;
+      }
+      return { nodeId: n.id, block: name, outputs: [o] };
     }
     const R = await getRuns();
     const run = safe(() => R.current?.(n.id));

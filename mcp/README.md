@@ -151,7 +151,7 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 | `mia_remove_blocks` | retirer des blocs de la planche (aucun fichier effacé, Ctrl+Z possible) |
 | `mia_import_media` | importer des images/vidéos par leur chemin complet (`D:\…\plan12.mp4`) |
 | `mia_insert_recipe` · `mia_arrange` | poser une recette ; ranger la planche de gauche à droite |
-| `mia_run` · `mia_wait` · `mia_jobs` · `mia_cancel` | lancer (aperçu d'abord), attendre la fin, voir la file, annuler |
+| `mia_run` · `mia_wait` · `mia_jobs` · `mia_cancel` | lancer (aperçu d'abord ; `variants: 4` = le bouton « 4 variantes » d'un bloc image du PC ; sur une Consigne « Réécrire en anglais », la réécriture seule), attendre la fin, voir la file, annuler |
 | `mia_get_output` · `mia_snapshot` | les fichiers du résultat ; une capture de Mia pour que l'assistant regarde |
 | `mia_add_section` | encadrer des blocs dans une section nommée, à la manière de Figma ou Miro |
 | `mia_focus` · `mia_say` | te montrer des blocs ; t'écrire un mot dans une bulle |

@@ -175,6 +175,12 @@ Toutes passent par un bloc Modèle (`type:"gen"`, voir mia-piloter) ; le moteur 
   Masque → Modèle Qwen-Image 2.1 → Comparer). L'utilisateur peint la zone ; la consigne dit ce qu'il faut y mettre, LoRA
   comprise. Ampleur 0,6 à 0,75 (0,7 par défaut) ; le reste de l'image ne change pas d'un pixel. Une petite zone
   (pieds, mains, un œil) est calculée dans une fenêtre zoomée en 1024 : inutile de l'agrandir soi-même.
+  Ajouter un objet absent : ampleur 0,9 à 1 et une consigne qui le décrit (pas « add … ») ; 0,6 à 0,75 corrige
+  ce qui est déjà là (à confirmer à l'œil, 26/10).
+- **Consigne en français, avec des fautes, et LoRA de style (Qwen 2.1, Klein)** : cocher « Réécrire en anglais » sur
+  la Consigne (le lecteur de Qwen corrige, traduit, met « no people » s'il n'y a personne). Essai du 26/10 hors Mia :
+  la même idée en anglais clair a donné bien mieux qu'en français fautif (sépia, orque absente, personnages
+  inventés). Puis « 4 variantes » (4 graines) et l'utilisateur choisit à l'étoile.
 - **LTX « Enrichir la consigne »** : caché depuis le 25/10 (essai GPU : le Gemma du PC, compressé pour lire la
   consigne, la réécrit en charabia et la vidéo part de ce charabia ; il faut le petit Gemma prévu pour, absent).
 - **Qwen Image Edit** : jusqu'à 2 images d'appui (`ref`), citées « image 2 », « image 3 ».

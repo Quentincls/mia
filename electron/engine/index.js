@@ -57,6 +57,8 @@ const STR = {
     nodeNotFound: 'Bloc introuvable sur la planche.',
     unknownType: 'Type de bloc inconnu : {type}',
     notComputable: 'Ce bloc ne se calcule pas.',
+    rewriteOff: 'Coche « Réécrire en anglais » pour réécrire cette consigne.',
+    rewrittenUsed: 'Consigne réécrite en anglais : « {text} »',
     bypassed: 'Ce bloc est désactivé : réactive-le pour le lancer.',
     cycle: 'Les fils forment une boucle : impossible de calculer.',
     dangling: 'Un fil pointe vers un bloc qui n’existe plus.',
@@ -132,6 +134,8 @@ const STR = {
     nodeNotFound: 'Block not found on the board.',
     unknownType: 'Unknown block type: {type}',
     notComputable: 'This block does not compute anything.',
+    rewriteOff: 'Tick “Rewrite in English” to rewrite this prompt.',
+    rewrittenUsed: 'Prompt rewritten in English: “{text}”',
     bypassed: 'This block is disabled: enable it to run it.',
     cycle: 'The wires form a loop: nothing can be computed.',
     dangling: 'A wire points to a block that no longer exists.',
@@ -204,8 +208,12 @@ const TIMING_PARAMS = ['speed', 'detail'];
 const DEFAULT_MINUTES = {
   'i2v|preview': 2, 'i2v|final': 9, 't2v|preview': 2, 't2v|final': 9, 'real|preview': 3, 'real|final': 20,
   'perform|preview': 5, 'perform|final': 15, edit: 3, t2i: 1, mask: 0.1, upscale: 20, depth: 2, cutout: 3,
-  'gen|preview': 2, 'gen|final': 9
+  'gen|preview': 2, 'gen|final': 9, text: 0.5
 };
+// « Réécrire en anglais » (Prompt block): its text goes through executors/rewrite.js before reaching any block. A run
+// of the Prompt block, kept as its versions and redone only when the text changes; `version` is in the fingerprint:
+// another way of rewriting redoes the texts.
+const REWRITE = { executor: 'rewrite', gpu: 'heavy', version: 1 };
 
 // ------------------------------------------------------------------ helpers
 const fmt = (s, vars) => String(s).replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] != null ? String(vars[k]) : m));
@@ -270,6 +278,22 @@ function portAccepts(expected, got) {
 
 const pickMode = (type, mode) => (Array.isArray(type.modes) && type.modes.length
   ? (type.modes.includes(mode) ? mode : type.modes[0]) : null);
+
+/** Is a Prompt block's text rewritten first (REWRITE)? Only a ticked box with something written. */
+const rewriteOn = (params) => params.rewrite === true && !!String(params.text ?? '').trim();
+
+const rewriteTypes = new WeakMap();
+/**
+ * The Prompt block seen as a computed block while its text is rewritten: the rewrite.js run, fingerprinted on the
+ * text alone (« À éviter » is passed on as typed) plus the way of rewriting.
+ */
+function rewriteType(type) {
+  if (!rewriteTypes.has(type)) {
+    rewriteTypes.set(type, { ...type, params: (type.params || []).filter((p) => p.id !== 'negative'),
+      engine: { executor: REWRITE.executor, gpu: REWRITE.gpu }, hashTag: `rewrite-${REWRITE.version}` });
+  }
+  return rewriteTypes.get(type);
+}
 
 const tl = (obj, lang) => (obj && typeof obj === 'object' ? (obj[lang] ?? obj.fr ?? '') : String(obj ?? ''));
 
@@ -420,8 +444,15 @@ class Planner {
   async request(nodeId, mode) {
     const node = this.nodes.get(nodeId);
     if (!node) return { ok: false, error: this.tr('nodeNotFound'), missing: [] };
-    const type = this.e.types.get(node.type);
+    let type = this.e.types.get(node.type);
     if (!type) return { ok: false, error: this.tr('unknownType', { type: node.type }), missing: [] };
+    if (type.id === 'text') {
+      // a Prompt block runs only to rewrite its text (« Réécrire » under it): without the box ticked, nothing to do
+      const p = this.e.fullParams(type, node.params);
+      if (p.rewrite !== true) return { ok: false, error: this.tr('rewriteOff'), missing: [] };
+      if (!rewriteOn(p)) return { ok: false, error: this.tr('writePrompt'), missing: [{ nodeId, kind: 'param', param: 'text', message: this.tr('writePrompt') }] };
+      type = rewriteType(type);
+    }
     if (!type.engine || !type.engine.executor) return { ok: false, error: this.tr('notComputable'), missing: [] };
     if (node.bypass) return { ok: false, error: this.tr('bypassed'), missing: [{ nodeId, kind: 'bypass', message: this.tr('bypassed') }] };
 
@@ -587,10 +618,12 @@ class Planner {
     }
 
     const hashParams = this.e.hashParams(type, params, models);
-    // a Model block also hashes its workflow and its online settings (hf.*); every other block keeps its old hash
+    // a Model block also hashes its workflow and its online settings (hf.*), a rewritten Prompt block its way of
+    // rewriting (REWRITE); every other block keeps its old hash
     const hashFor = (m) => sha1(stable(gen
       ? [type.id, hashParams, type.modes ? m : null, inputHashes, gen.workflow, gen.cloudParams || null]
-      : [type.id, hashParams, type.modes ? m : null, inputHashes]));
+      : type.hashTag ? [type.id, hashParams, type.modes ? m : null, inputHashes, type.hashTag]
+        : [type.id, hashParams, type.modes ? m : null, inputHashes]));
     return { node, type, mode, params, models, inputRefs, inputKinds, deps: [...deps], hash: hashFor(mode), hashFor,
       notes: [...new Set(notes)], gen };
   }
@@ -692,6 +725,7 @@ class Planner {
       const p = this.e.fullParams(type, node.params);
       const text = String(p.text ?? '');
       const negative = String(p.negative ?? '');
+      if (rewriteOn(p) && !node.bypass) return this.rewriteOutput(node, type, stack, reqMode, { text, negative }, label);
       return { ref: { text: { text, negative } }, hash: sha1(stable(['text', text, negative])), kind: 'text' };
     }
     const outDef = (type.outputs || []).find((o) => o.id === port);
@@ -707,6 +741,20 @@ class Planner {
       return { ref: { run: res.run, port }, hash: res.run.hash || res.hash, kind: o.kind || this.concrete(outDef, res.spec) };
     }
     return { ref: { job: res.job, port }, hash: res.hash, kind: this.concrete(outDef, res.spec), job: res.job };
+  }
+
+  /**
+   * A Prompt block whose text is rewritten (REWRITE): its rewrite for this text (a version), or the job making it.
+   * The ref keeps the typed text (the prompt field shows it, the « write a prompt » checks pass) and the run that
+   * materialize() reads the rewritten text from; « À éviter » goes on as typed, in the fingerprint.
+   */
+  async rewriteOutput(node, type, stack, reqMode, typed, label) {
+    const res = await this.computed(node, rewriteType(type), stack, reqMode);
+    if (res.error) return res.upstream ? res : { error: this.tr('inBlock', { block: label, msg: res.error }), missing: res.missing, upstream: true };
+    const text = { ...typed, rewrite: true };
+    const hash = sha1(stable(['text-rewrite', res.hash, typed.negative]));
+    if (res.run) return { ref: { text, run: res.run, port: 'text' }, hash, kind: 'text' };
+    return { ref: { text, job: res.job, port: 'text' }, hash, kind: 'text', job: res.job };
   }
 
   /** Concrete type of a declared output: `follow:<input>` = type of what is wired into that input (SPEC §4). */
@@ -1353,7 +1401,7 @@ class Engine extends EventEmitter {
           v = { ...r.static, abs: path.resolve(dir, r.static.rel) };
           if (!fs.existsSync(v.abs)) throw new Error(this.tr('fileMissing', { file: v.name }));
         } else if (r.text) {
-          return { ...r.text };
+          return r.text.rewrite ? this.rewrittenText(r, dir) : { ...r.text };
         } else {
           const run = r.run || (r.job && r.job._.run);
           const name = r.job ? r.job.label : r.run && r.run.nodeId;
@@ -1376,6 +1424,20 @@ class Engine extends EventEmitter {
       out[inp.id] = Array.isArray(ref) ? ref.map(one) : one(ref);
     }
     return out;
+  }
+
+  /** The text a Prompt block's rewrite run made (REWRITE), with its « À éviter » as typed. */
+  rewrittenText(r, dir) {
+    const run = r.run || (r.job && r.job._.run);
+    const name = r.job ? r.job.label : r.run && r.run.nodeId;
+    if (!run) throw new Error(this.tr('upFailed', { name }));
+    const o = runOutput(run, 'text');
+    let text = o && o.meta && typeof o.meta.text === 'string' ? o.meta.text : null;
+    if (text == null && o && o.path) {
+      try { text = fs.readFileSync(path.join(dir, ...String(o.path).split('/')), 'utf8'); } catch { text = null; }
+    }
+    if (!text || !text.trim()) throw new Error(this.tr('noSuchOutput', { name, port: 'text' }));
+    return { text: text.trim(), negative: r.text.negative, original: r.text.text, rewritten: true };
   }
 
   // ------------------------------------------------------------ GPU gate
@@ -1688,13 +1750,19 @@ class Engine extends EventEmitter {
     const progress = (p, msg, eta) => this.onProgress(job, p, msg, eta);
     const preview = (abs) => this.onPreview(job, abs);
     const only = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v !== undefined));
+    const params = clone(spec.params);
+    // a rewritten Prompt block (REWRITE) also fills the field its wire overrides, as a typed one does at planning
+    for (const p of J.type.params || []) {
+      const v = p.port && inputs && inputs[p.port];
+      if (v && v.rewritten) params[p.id] = v.text;
+    }
     return {
       projectId: job.projectId,
       projectDir: J.project.dir,
       nodeId: job.nodeId,
       runId,
       type: J.type,
-      params: clone(spec.params),
+      params,
       mode: job.mode,
       inputs,
       outDir,
@@ -1743,6 +1811,10 @@ class Engine extends EventEmitter {
       if (dir !== before) inputs = await this.materialize(job);
       // Never create anything above the project: its folder must still be a project (project.json).
       if (!fs.existsSync(path.join(dir, 'project.json'))) throw new Error(this.tr('projectGone'));
+      // the version keeps the English text it was made from (the Prompt block only shows its latest rewrite)
+      for (const v of Object.values(inputs)) {
+        if (v && v.rewritten) J.spec.notes.push(this.tr('rewrittenUsed', { text: v.text.length > 300 ? `${v.text.slice(0, 300)}…` : v.text }));
+      }
 
       J.runId = makeRunId();
       J.outDir = path.join(dir, 'outputs', job.nodeId, J.runId);
@@ -1870,7 +1942,8 @@ class Engine extends EventEmitter {
       }
       let kind = (o && o.kind) || kindOf(abs);
       let meta = (o && o.meta) || null;
-      if (this.ffmpeg && typeof this.ffmpeg.probe === 'function') {
+      // a text (rewritten prompt) is not a medium: ffmpeg would read it as an ANSI-art « video »
+      if (kind !== 'text' && this.ffmpeg && typeof this.ffmpeg.probe === 'function') {
         try {
           const p = await this.ffmpeg.probe(abs);
           if (p) { if (p.kind) kind = p.kind; meta = pickMeta(p, meta); }

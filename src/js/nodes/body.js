@@ -88,6 +88,14 @@ strings({
   'node.zone.edit': 'Modifier la zone',
   'node.zone.needImage': 'Branche d’abord l’image à retoucher.',
   'node.zone.saveFailed': 'Le dessin n’a pas pu être enregistré : {error}',
+  'node.variants': '4 variantes',
+  'node.variantsTip': '4 images avec 4 graines différentes, l’une après l’autre. Compare-les dans les versions ; l’étoile garde celle que tu choisis.',
+  'node.rewrite.title': 'Comprise ainsi',
+  'node.rewrite.pending': 'Réécrite en anglais au prochain calcul.',
+  'node.rewrite.now': 'Réécrire maintenant',
+  'node.rewrite.queued': 'Réécriture en file…',
+  'node.rewrite.running': 'Réécriture en anglais…',
+  'node.rewrite.failed': 'Réécriture impossible : {error}',
 }, {
   'node.notComputed': 'Not computed yet',
   'node.connect': 'Connect first: {list}',
@@ -140,6 +148,14 @@ strings({
   'node.zone.edit': 'Edit the zone',
   'node.zone.needImage': 'Connect the image to retouch first.',
   'node.zone.saveFailed': 'The drawing could not be saved: {error}',
+  'node.variants': '4 variations',
+  'node.variantsTip': '4 images with 4 different seeds, one after another. Compare them in the versions; the star keeps the one you pick.',
+  'node.rewrite.title': 'Understood as',
+  'node.rewrite.pending': 'Rewritten in English at the next run.',
+  'node.rewrite.now': 'Rewrite now',
+  'node.rewrite.queued': 'Rewrite queued…',
+  'node.rewrite.running': 'Rewriting in English…',
+  'node.rewrite.failed': 'Rewrite failed: {error}',
 });
 
 const ACTIVE = new Set(['queued', 'waiting-gpu', 'running']);
@@ -256,6 +272,18 @@ function estimateText(type, mode) {
   if (mode && e[mode]) return tl(e[mode]);
   const first = e.preview || e.final || Object.values(e)[0];
   return first ? tl(first) : '';
+}
+
+/**
+ * « 4 variantes » : un bloc Modèle qui fait des images sur ce PC (Qwen-Image 2.1, FLUX.2 Klein, Qwen Image Edit) avec
+ * une graine — quelques secondes par image ; jamais en ligne, où chaque image coûte des crédits.
+ */
+function variantsOk(ctx) {
+  if (!isModelBlock(ctx.node)) return false;
+  const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+  const r = blockWorkflow(ctx.node, conn);
+  if (!r || r.blocked || r.fam.provider !== 'local' || r.fam.def?.kind !== 'image') return false;
+  return (r.workflow.params || []).some((p) => (typeof p === 'string' ? p : p.id) === 'seed');
 }
 
 /**
@@ -518,6 +546,14 @@ function mountFooter(ctx, host) {
       // modèle absent : un seul bouton éteint suffit, la place va à « Installer le modèle »
       actions.append(...(why ? [wrap(pre)] : [wrap(fin), wrap(pre)]));
     } else {
+      // images sur ce PC : 4 graines d'un coup, à comparer dans les versions (l'étoile choisit)
+      if (!why && variantsOk(ctx)) {
+        const four = button({ label: t('node.variants'), icon: 'dice', kind: 'ghost', size: 'sm', onClick: () => {
+          runs.runVariants(ctx.id, { count: 4 }).then((r) => { if (r.error) toast(r.error, { kind: 'error', ms: 5200 }); });
+        } });
+        four.dataset.tip = t('node.variantsTip');
+        actions.append(four);
+      }
       actions.append(wrap(button({ label: t('node.launch'), icon: 'play', kind: why ? 'ghost' : 'shiny', size: 'sm', disabled: !!why, onClick: () => run(null) })));
     }
   }
@@ -529,7 +565,8 @@ function mountFooter(ctx, host) {
       blocked = !active && problem ? problem : null;
       ttype = targetType();
       modes = ttype.modes || null;
-      const want = (active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle') + `|${(modes || []).join(',')}`;
+      const want = (active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle') + `|${(modes || []).join(',')}`
+        + (variantsOk(ctx) ? '|4' : '');
       if (want !== shape) { shape = want; build(); }
       if (st.kind === 'running') {
         estDefault = runs.endText(st.endAt) || t('node.running');
@@ -1061,6 +1098,48 @@ function importBody(ctx) {
   };
 }
 
+// ── consigne réécrite en anglais (case « Réécrire en anglais ») ──────
+// Sous le texte tapé : ce que le lecteur de Qwen en a compris (la version faite avec CE texte, que le moteur reprend),
+// sinon où en est la réécriture (en file, en cours, ratée), sinon de quoi la faire tout de suite.
+
+function mountRewrite(ctx, host) {
+  const head = el('div', { class: 'nb-rw-head' });
+  const body = el('div', { class: 'nb-rw-text' });
+  const now = button({ label: t('node.rewrite.now'), icon: 'play', kind: 'ghost', size: 'sm',
+    onClick: () => emit('node:run', { nodeId: ctx.id, mode: null }) });
+  const root = el('div', { class: 'nb-rw', hidden: true }, head, body, now);
+  for (const x of [root, now]) { x.addEventListener('pointerdown', stop); x.addEventListener('dblclick', stop); }
+  host.append(root);
+  let sig = null;
+  return {
+    paint() {
+      const p = ctx.node.params || {};
+      const text = p.text ?? '';
+      const st = runs.state(ctx.id);
+      const done = runs.list(ctx.id).find((r) => r.params?.text === text && r.outputs?.text);
+      let mode = 'pending';
+      let shown = '';
+      if (p.rewrite !== true || !String(text).trim()) mode = 'off';
+      else if (st.kind === 'running') mode = 'running';
+      else if (st.kind === 'queued' || st.kind === 'waiting-gpu') mode = 'queued';
+      else if (done) { mode = 'done'; shown = done.outputs.text.meta?.text || ''; }
+      else if (st.kind === 'error') { mode = 'error'; shown = t('node.rewrite.failed', { error: st.message || t('run.failed') }); }
+      if (mode === 'running' || mode === 'queued' || mode === 'pending') shown = t(`node.rewrite.${mode}`);
+      const next = `${mode}|${shown}`;
+      if (next === sig) return;
+      sig = next;
+      root.hidden = mode === 'off';
+      root.dataset.state = mode;
+      // l'étiquette seulement au-dessus du texte compris ; les états se disent en phrase
+      head.textContent = t('node.rewrite.title');
+      head.hidden = mode !== 'done';
+      body.textContent = shown;
+      now.hidden = !(mode === 'pending' || mode === 'error');
+    },
+    destroy() { root.remove(); },
+  };
+}
+
 // ── consigne et note : un texte qui grandit avec son contenu ─────────
 
 function textBody(ctx, { note = false } = {}) {
@@ -1103,16 +1182,19 @@ function textBody(ctx, { note = false } = {}) {
   const params = !note && ctx.C
     ? mountParams(ctx.C, { node: ctx.node, type: ctx.type, mode: 'card', setParam: ctx.setParam, exclude: ['text'] })
     : null;
+  const rewrite = note ? null : mountRewrite(ctx, wrap);
+  rewrite?.paint();
 
   return {
-    render() {},
+    render() { rewrite?.paint(); },
     renderInputs() {},
     sync(node) {
       params?.sync(node);
       const v = node.params?.text ?? '';
       if (document.activeElement !== ta && v !== ta.value) { ta.value = v; last = v; ta.dispatchEvent(new Event('input')); clearTimeout(timer); }
+      rewrite?.paint();
     },
-    destroy() { commit(); wrap.remove(); params?.destroy(); if (card) delete card.dataset.body; },
+    destroy() { commit(); wrap.remove(); params?.destroy(); rewrite?.destroy(); if (card) delete card.dataset.body; },
   };
 }
 

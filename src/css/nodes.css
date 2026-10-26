@@ -546,6 +546,20 @@ body {
 
 /* ── consigne et note ───────────────────────────────────────────────── */
 .nb-text-wrap { padding: 0; }
+/* consigne réécrite en anglais (« Réécrire en anglais ») : ce qui a été compris, sous le texte tapé */
+.nb-rw {
+  display: flex; flex-direction: column; gap: 5px; margin-top: 6px; padding: 7px 9px;
+  border-radius: 7px; background: var(--wash); color: var(--txt-2); font-size: 11.5px; line-height: 1.4;
+}
+.nb-rw[hidden] { display: none; }
+.nb-rw-head { color: var(--txt-3); font: 500 10px/1.3 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase; }
+.nb-rw-text { color: var(--txt); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; user-select: text; }
+.nb-rw-text:empty { display: none; }
+.nb-rw:not([data-state="done"]) .nb-rw-text { color: var(--txt-2); font-size: 11.5px; line-height: 1.4; }
+.nb-rw[data-state="error"] .nb-rw-text { color: var(--nb-err); }
+.nb-rw .nb-rw-head[hidden] { display: none; }
+.nb-rw .btn { align-self: flex-start; }
+.nb-rw .btn[hidden] { display: none; }
 .nb-textarea {
   display: block; width: 100%; min-height: 64px; max-height: 300px; resize: none; overflow: auto;
   padding: 8px 10px; border-radius: var(--r-media, 8px); border: 1px solid var(--line);

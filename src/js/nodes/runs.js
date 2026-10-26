@@ -31,6 +31,7 @@ strings({
   'run.err.noProject': 'Ouvre une planche avant de lancer un calcul.',
   'run.err.engine': 'Le moteur ne répond pas. Réessaie dans un instant.',
   'run.err.cancel': 'Impossible d’annuler ce calcul.',
+  'run.err.busy': 'Ce bloc calcule déjà : attends la fin ou annule.',
   'run.err.delete': 'Impossible de supprimer cette version.',
   'run.err.missing': 'Il manque : {list}',
   'run.failed': 'Le calcul a échoué.',
@@ -41,6 +42,7 @@ strings({
   'run.err.noProject': 'Open a board before running a job.',
   'run.err.engine': 'The engine is not responding. Try again in a moment.',
   'run.err.cancel': 'Could not cancel this job.',
+  'run.err.busy': 'This block is already running: wait for the end or cancel.',
   'run.err.delete': 'Could not delete this version.',
   'run.err.missing': 'Missing: {list}',
   'run.failed': 'The job failed.',
@@ -146,6 +148,9 @@ export function list(nodeId) {
 export function current(nodeId) {
   const versions = list(nodeId);
   if (!versions.length) return null;
+  // Consigne : la réécriture de SON texte, case cochée (comme le moteur, qui ne reprend que celle-là), sinon aucune
+  const typed = typedText(nodeId);
+  if (typed !== null) return typed === false ? null : versions.find((r) => r.params?.text === typed) || null;
   const pinned = editor()?.getNode?.(nodeId)?.pinnedRun;
   if (pinned) {
     const p = versions.find((r) => r.runId === pinned);
@@ -234,7 +239,13 @@ export function upstream(nodeId, portId) {
     const up = ed.getNode?.(link.node);
     if (!up) continue;
     if (up.type === 'text') {
-      out.push({ node: up, port: link.port, kind: 'text', text: up.params?.text || '', negative: up.params?.negative || '' });
+      // « Réécrire en anglais » : l'aval reçoit la réécriture de CE texte (sa version), dès qu'elle est faite
+      const typed = up.params?.text || '';
+      const rewrite = up.params?.rewrite === true && !!typed.trim();
+      const done = rewrite ? list(up.id).find((r) => r.params?.text === typed && r.outputs?.text) : null;
+      const rewritten = done?.outputs?.text?.meta?.text || null;
+      out.push({ node: up, port: link.port, kind: 'text', text: rewritten || typed, negative: up.params?.negative || '',
+        typed, rewrite, rewritten: !!rewritten });
       continue;
     }
     const run = up.type === 'import' ? null : current(up.id);
@@ -274,15 +285,29 @@ export function state(nodeId) {
     if (L.kind === 'queued') st.position = queuePosition(L.jobId);
     return st;
   }
-  if (L && (L.kind === 'error' || L.kind === 'cancelled')) {
+  // Consigne : un état seulement pour la réécriture de SON texte, case cochée (ni « fait » ni erreur d'un autre texte)
+  const typed = typedText(nodeId);
+  if (typed === false) return { kind: 'idle', progress: null, message: null, jobId: null };
+  if (L && (L.kind === 'error' || L.kind === 'cancelled')
+    && (typed === null || !L.run?.params || L.run.params.text === typed)) {
     return { ...L, run: L.run || null, last: current(nodeId) };
   }
   const run = current(nodeId);
-  if (run) {
+  if (run && (typed === null || run.params?.text === typed)) {
     const justDone = L?.kind === 'done' ? L.run?.runId || null : null;
     return { kind: 'done', run, progress: 1, message: null, jobId: null, fresh: justDone === run.runId, justDone };
   }
   return { kind: 'idle', progress: null, message: null, jobId: null };
+}
+
+/**
+ * Consigne : son texte quand « Réécrire en anglais » est cochée, false quand elle ne l'est pas (rien ne se calcule) ;
+ * null pour tout autre bloc.
+ */
+function typedText(nodeId) {
+  const n = editor()?.getNode?.(nodeId);
+  if (n?.type !== 'text') return null;
+  return n.params?.rewrite === true ? (n.params?.text ?? '') : false;
 }
 
 /** Rang (1 = prochain) d'un job dans la file d'attente de Mia. */
@@ -324,14 +349,18 @@ function onEngineEvent(evt) {
   const key = K(id, pid);
   const prev = live.get(key) || {};
   const base = { jobId: evt.jobId ?? prev.jobId ?? null, mode: evt.mode ?? prev.mode ?? null };
+  // « 4 variantes » : plusieurs calculs du même bloc. Un calcul qui entre en file ne remplace pas celui qui est
+  // affiché ; à la fin de l'un, le bloc passe au suivant au lieu de se dire fini (followNext).
+  const otherShown = ACTIVE.has(prev.kind) && !!prev.jobId && !!evt.jobId && prev.jobId !== evt.jobId;
 
   switch (evt.kind) {
     case 'queued':
+      if (otherShown) { upsertJob(evt, { state: 'queued', progress: null, message: evt.message || null }); break; }
       live.set(key, { ...base, kind: 'queued', progress: null, message: evt.message || null });
       upsertJob(evt, { state: 'queued', progress: null, message: evt.message || null, ...(evt.estSec > 0 ? { estSec: evt.estSec } : {}) });
       break;
     case 'waiting-gpu':
-      live.set(key, { ...base, kind: 'waiting-gpu', progress: null, who: evt.who || null, since: evt.since || null, message: evt.message || null });
+      if (!otherShown) live.set(key, { ...base, kind: 'waiting-gpu', progress: null, who: evt.who || null, since: evt.since || null, message: evt.message || null });
       upsertJob(evt, { state: 'waiting-gpu', who: evt.who || null, since: evt.since || null });
       break;
     case 'start':
@@ -352,24 +381,25 @@ function onEngineEvent(evt) {
     }
     case 'done': {
       if (evt.run) addRun(key, evt.run, pid);
-      live.set(key, { kind: 'done', jobId: evt.jobId, run: evt.run || null, finishedAt: now });
       upsertJob(evt, { state: 'done', progress: 1, finished: now, run: evt.run || null });
+      if (!otherShown && !followNext(key, id, pid, evt.jobId)) live.set(key, { kind: 'done', jobId: evt.jobId, run: evt.run || null, finishedAt: now });
       scheduleJobCleanup(evt.jobId);
       break;
     }
     case 'error': {
       if (evt.run) addRun(key, { ...evt.run, status: 'error' }, pid);
       const message = evt.message || evt.run?.error || t('run.failed');
-      live.set(key, { kind: 'error', jobId: evt.jobId, message, run: evt.run || null });
       upsertJob(evt, { state: 'error', message, finished: now, run: evt.run || null });
+      if (!otherShown && !followNext(key, id, pid, evt.jobId)) live.set(key, { kind: 'error', jobId: evt.jobId, message, run: evt.run || null });
       scheduleJobCleanup(evt.jobId, 9000);
       break;
     }
     case 'cancelled': {
       const mark = { kind: 'cancelled', jobId: evt.jobId, message: evt.message || null };
-      live.set(key, mark);
       upsertJob(evt, { state: 'cancelled', finished: now });
       scheduleJobCleanup(evt.jobId, 2500);
+      if (otherShown || followNext(key, id, pid, evt.jobId)) break;
+      live.set(key, mark);
       // « ANNULÉ » s'efface au bout de quelques secondes : la version d'avant reprend sa place
       setTimeout(() => {
         if (live.get(key) !== mark) return;
@@ -385,6 +415,17 @@ function onEngineEvent(evt) {
   invalidate();
   if (mine) emit('runs:changed', { nodeId: id });
   notifyJobs();
+}
+
+/** « 4 variantes » : un autre calcul du même bloc reste en file → le bloc l'affiche (true) ; sinon false. */
+function followNext(key, nodeId, pid, jobId) {
+  const next = [...jobs.values()].find((j) => j.jobId !== jobId && j.nodeId === nodeId
+    && (j.projectId || curPid()) === pid && ACTIVE.has(j.state));
+  if (!next) return false;
+  // « en cours » attend son prochain évènement de progression (début, fin prévue) : en file jusque-là
+  live.set(key, { jobId: next.jobId, mode: next.mode ?? null, kind: next.state === 'running' ? 'queued' : next.state,
+    progress: null, message: next.message || null });
+  return true;
 }
 
 function addRun(key, run, pid) {
@@ -544,7 +585,9 @@ function upstreamSig(nodeId) {
       const up = ed.getNode?.(link.node);
       if (!up) continue;
       if (up.type === 'import') parts.push(`${port}=f:${up.data?.src || ''}|${up.params?.skipFirst ? 1 : 0}`);
-      else if (up.type === 'text') parts.push(`${port}=t:${up.params?.text || ''}|${up.params?.negative || ''}`);
+      // « Réécrire en anglais » cochée : le texte réécrit change ce que reçoit l'aval (marque ajoutée seulement alors :
+      // les versions d'avant gardent leur signature)
+      else if (up.type === 'text') parts.push(`${port}=t:${up.params?.text || ''}|${up.params?.negative || ''}${up.params?.rewrite === true ? '|rw' : ''}`);
       else parts.push(`${port}=r:${current(up.id)?.runId || '-'}:${link.port}`);
     }
   }
@@ -617,7 +660,8 @@ on('graph:changed', (p) => {
 export function isStale(nodeId, _seen) {
   if (memo.has(nodeId)) return memo.get(nodeId);
   const run = current(nodeId);
-  if (!run) { memo.set(nodeId, false); return false; }
+  // une Consigne n'est jamais « à relancer » : sa réécriture se refait toute seule quand le texte change
+  if (!run || typedText(nodeId) !== null) { memo.set(nodeId, false); return false; }
   const seen = _seen || new Set();
   if (seen.has(nodeId)) return false;          // garde-fou contre un cycle
   seen.add(nodeId);
@@ -774,13 +818,79 @@ export function run(nodeId, mode = null) {
   emit('node:run', { nodeId, mode });
 }
 
-/** Annule le calcul en cours ou en file d'un bloc. */
+/**
+ * Annule le calcul en cours ou en file d'un bloc, et ses autres variantes encore en file (« 4 variantes ») — celles-ci
+ * d'abord : annulé le premier, le calcul en cours laisserait démarrer la suivante.
+ */
 export async function cancel(nodeId) {
   const L = live.get(K(nodeId));
   if (!L?.jobId || !ACTIVE.has(L.kind)) return;
-  let res;
-  try { res = await window.mia.engine.cancel(L.jobId); } catch { res = { ok: false }; }
-  if (res && res.ok === false) toast(res.error || t('run.err.cancel'), { kind: 'error' });
+  const pid = curPid();
+  const others = [...jobs.values()].filter((j) => j.jobId !== L.jobId && j.nodeId === nodeId
+    && (j.projectId || pid) === pid && ACTIVE.has(j.state)).map((j) => j.jobId);
+  let failed = null;
+  for (const id of [...others, L.jobId]) {
+    let res;
+    try { res = await window.mia.engine.cancel(id); } catch { res = { ok: false }; }
+    if (res && res.ok === false) failed = failed || res;
+  }
+  if (failed) toast(failed.error || t('run.err.cancel'), { kind: 'error' });
+}
+
+/**
+ * « 4 variantes » : le même calcul avec `count` graines tirées au hasard, l'un après l'autre dans la file : autant de
+ * versions à comparer, l'étoile choisit. La graine du bloc devient celle de la dernière variante (une étape annulable) :
+ * sans étoile, la version affichée à la fin correspond aux réglages du bloc.
+ * → { ok, jobIds, seeds, error } (ok : au moins une variante en file ; error : ce qui a arrêté les autres)
+ */
+export async function runVariants(nodeId, { count = 4, mode = null } = {}) {
+  const ed = editor();
+  const projectId = curPid();
+  if (!projectId || !ed) return { ok: false, jobIds: [], seeds: [], error: t('run.err.noProject') };
+  if (isActive(nodeId)) return { ok: false, jobIds: [], seeds: [], error: t('run.err.busy') };
+  const n = Math.max(2, Math.min(8, Math.round(Number(count)) || 4));
+  // des graines éloignées les unes des autres, entières et positives comme celles du dé
+  const base = 1 + Math.floor(Math.random() * 1e9);
+  const seeds = Array.from({ length: n }, (_, i) => base + i * 104729);
+  const key = K(nodeId, projectId);
+  live.set(key, { kind: 'queued', jobId: null, progress: null, mode: mode || null, optimistic: true });
+  emit('runs:changed', { nodeId });
+  const jobIds = [];
+  let error = null;
+  for (const seed of seeds) {
+    const graph = ed.getGraph();
+    const node = (graph?.nodes || []).find((x) => x.id === nodeId);
+    if (!node) { error = t('run.err.generic'); break; }
+    node.params = { ...(node.params || {}), seed };
+    let res;
+    try {
+      res = await window.mia.engine.run({ projectId, nodeId, graph, mode: mode || null });
+    } catch (err) {
+      res = { ok: false, error: t('run.err.engine') };
+      console.error(err);
+    }
+    if (!res || res.ok === false) { error = res?.error || t('run.err.generic'); break; }
+    if (!res.jobId) continue;
+    jobIds.push(res.jobId);
+    if (!jobs.has(res.jobId)) {
+      jobs.set(res.jobId, {
+        jobId: res.jobId, projectId, nodeId, label: nodeLabel(nodeId), type: typeOf(nodeId)?.id || null,
+        mode: mode || null, state: 'queued', created: Date.now(), progress: null, touched: Date.now(),
+      });
+    }
+  }
+  const L = live.get(key);
+  if (L?.optimistic) {
+    if (jobIds.length) live.set(key, { ...L, jobId: jobIds[0], optimistic: false });
+    else live.delete(key);
+  }
+  if (jobIds.length && editor()?.getNode?.(nodeId)) {
+    editor().updateNode?.(nodeId, { params: { seed: seeds[jobIds.length - 1] } }, { history: true });
+  }
+  notifyJobs();
+  if (curPid() === projectId) emit('runs:changed', { nodeId });
+  // l'appelant dit l'erreur (bouton : un message ; assistant : sa réponse), même quand une partie est partie
+  return { ok: jobIds.length > 0, jobIds, seeds: seeds.slice(0, jobIds.length), error };
 }
 
 export async function cancelJob(jobId) {
@@ -869,7 +979,7 @@ setInterval(() => {
 
 /** Objet unique pour `import { runs } from './runs.js'` (SPEC : runs.list(…)). */
 export const runs = {
-  load, list, all, current, state, isStale, output, upstream, source, pin, unpin, removeRun, run, cancel,
+  load, list, all, current, state, isStale, output, upstream, source, pin, unpin, removeRun, run, runVariants, cancel,
   cancelJob, versionNumber, findRun, registerType, typeOf, typeById, nodeLabel, jobList, onJobs, projectName, syncJobs,
   isActive, describe, endText, runDuration, typicalSec, setMissing, isMissing,
 };

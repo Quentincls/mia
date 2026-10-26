@@ -162,6 +162,11 @@ function makeFakes(tmp, oi, lists) {
       const outputs = {};
       const n = framesOf(graph);
       for (const [id, node] of Object.entries(graph)) {
+        // le texte que montre PreviewAny (consigne réécrite, Gemma de LTX) : une phrase anglaise, ou celle du cas
+        if (node.class_type === 'PreviewAny') {
+          outputs[id] = { text: [this.previewText ?? 'An old wooden boat stranded on an empty beach under a stormy sky, no people.'] };
+          continue;
+        }
         const pre = node.inputs.filename_prefix;
         if (typeof pre !== 'string') continue;
         const sub = path.dirname(pre).replace(/\//g, '\\');          // ComfyUI on Windows answers with "\"
@@ -290,6 +295,26 @@ const VARIANTS = {
     { name: 'vidéo · fine · inversée · 1re image ignorée', inputs: { media: { ...vid(1080, 1920, 97, 30), skipFirst: true } },
       params: { detail: 'fine', invert: true }, models: { model: INV.vda } },
     { name: 'image', inputs: { media: IMG_V }, models: { model: INV.vda } },
+  ],
+  // « Réécrire en anglais » (bloc Consigne, 26/10) : un lecteur Qwen du PC écrit la consigne en anglais (TextGenerate)
+  rewrite: [
+    { name: 'consigne française → anglais (lecteur de Qwen-Image 2.1)', params: { text: 'Epave de bateau en bois echoué sur une plage', rewrite: true },
+      assume: { text_encoders: ['qwen3vl_8b_int8_convrot.safetensors'] }, expectModel: 'Lecteur de consignes de Qwen (Qwen3-VL 8B)',
+      expectGraph: (gs) => {
+        const nodes = Object.values(gs[0]);
+        const cl = nodes.find((n) => n.class_type === 'CLIPLoader');
+        const tg = nodes.find((n) => n.class_type === 'TextGenerate');
+        if (!cl || !tg || !nodes.some((n) => n.class_type === 'PreviewAny')) return 'CLIPLoader, TextGenerate ou PreviewAny absent';
+        if (cl.inputs.clip_name !== 'qwen3vl_8b_int8_convrot.safetensors' || cl.inputs.type !== 'stable_diffusion') return `lecteur ${cl.inputs.clip_name} (${cl.inputs.type})`;
+        if (tg.inputs.use_default_template !== false || !tg.inputs.prompt.startsWith('<|im_start|>system')) return 'conversation pas écrite en entier';
+        return tg.inputs.prompt.includes('<|im_start|>user\nEpave de bateau en bois echoué sur une plage<|im_end|>') ? null : 'consigne absente de la conversation';
+      } },
+    { name: 'sans lui → le lecteur de Qwen Image Edit', params: { text: 'un phare', rewrite: true },
+      without: { text_encoders: ['qwen3vl_8b_int8_convrot.safetensors'] }, expectModel: 'Lecteur de consignes de Qwen (Qwen2.5-VL 7B)',
+      expectGraph: (gs) => (Object.values(gs[0]).find((n) => n.class_type === 'CLIPLoader').inputs.clip_name === 'qwen_2.5_vl_7b_fp8_scaled.safetensors' ? null : 'mauvais lecteur') },
+    { name: 'réponse illisible → refus clair', params: { text: 'un phare', rewrite: true }, previewText: '§§ ¤¤ ## 12 34 ~~',
+      assume: { text_encoders: ['qwen3vl_8b_int8_convrot.safetensors'] }, expectError: /rien donné de lisible/ },
+    { name: 'consigne vide → refus', params: { text: '   ', rewrite: true }, expectError: /Écris d’abord la consigne/ },
   ],
   // image depuis un texte (bloc Modèle FLUX.2 Klein 9B / Qwen-Image 2.1, 25/10) : à vide, avec les vrais graphes
   t2i: [
@@ -660,7 +685,8 @@ async function main() {
   for (const [execName, variants] of Object.entries(VARIANTS)) {
     if (ONLY.length && !ONLY.includes(execName)) continue;
     const exec = require(path.join(ENGINE, 'executors', `${execName}.js`));
-    const type = typeOf(execName);
+    // rewrite.js : le calcul du bloc Consigne quand « Réécrire en anglais » est cochée (pas un type du catalogue)
+    const type = typeOf(execName) || (execName === 'rewrite' ? typeOf('text') : null);
     if (!type) throw new Error(`type « ${execName} » absent du catalogue`);
     for (const v of variants) {
       V._resetCache();                        // each variant may see another schema (assumed models)
@@ -670,6 +696,7 @@ async function main() {
       if (v.liveOnly) lists = V.assumeInstalled(oi0, lists0, v.liveOnly).models;   // stale schema, fresh /models
       if (v.without) ({ objectInfo: oi, models: lists } = withoutModels(oi, lists, v.without));
       const fk = makeFakes(tmp, oi, lists);
+      if (v.previewText !== undefined) fk.comfy.previewText = v.previewText;
       const slug = `${execName}_${rows.length}`;
       const runId = `r_${slug}`;
       const outDir = path.join(tmp, 'runs', slug);

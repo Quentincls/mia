@@ -123,6 +123,19 @@
           }
         },
         {
+          "id": "rewrite",
+          "kind": "toggle",
+          "default": false,
+          "label": {
+            "fr": "Réécrire en anglais",
+            "en": "Rewrite in English"
+          },
+          "hint": {
+            "fr": "Sur ce PC, avant d’envoyer la consigne : corrige les fautes, traduit en anglais clair et décrit dans l’ordre (sujet, décor, fond, lumière, ce qu’on ne veut pas). Le texte compris s’affiche sous la consigne ; il n’est refait que si elle change.",
+            "en": "On this PC, before the prompt goes out: fixes the typos, translates into clear English and describes in order (subject, setting, background, light, what to leave out). The text as understood shows under the prompt; it is redone only when the prompt changes."
+          }
+        },
+        {
           "id": "negative",
           "kind": "prompt",
           "default": "",

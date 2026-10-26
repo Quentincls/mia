@@ -715,6 +715,63 @@ async function main() {
   T.cfg = {};
   await idle();
 
+  // ================================================================ consigne réécrite en anglais
+  section('Consigne « Réécrire en anglais » : un calcul du bloc Consigne, refait seulement quand le texte change');
+  graph.nodes.push({ id: 'n_rwt', type: 'text', x: 0, y: 5000, params: { text: 'une epave sur la plage', negative: 'blur', rewrite: true } });
+  graph.nodes.push({ id: 'n_rwi', type: 'i2v', x: 400, y: 5000, params: {} });
+  graph.edges.push({ id: 'erw1', from: { node: 'n_imp', port: 'out' }, to: { node: 'n_rwi', port: 'start' } });
+  graph.edges.push({ id: 'erw2', from: { node: 'n_rwt', port: 'text' }, to: { node: 'n_rwi', port: 'prompt' } });
+  const rewrites = () => T.log.filter((x) => x.name === 'rewrite').length;
+  T.log.length = 0;
+  r = await run('n_rwi', 'preview');
+  check('l’aval se lance (la consigne tapée passe les contrôles)', r.ok, r);
+  end = await waitEnd(r.jobId);
+  let rwi = T.log.find((x) => x.nodeId === 'n_rwi');
+  check('réécriture faite avant, sur le bloc Consigne', rewrites() === 1 && T.log[0].name === 'rewrite' && T.log[0].nodeId === 'n_rwt', T.log.map((x) => x.name));
+  check('l’aval reçoit le texte réécrit et « À éviter » tel quel', end.kind === 'done' && rwi && rwi.inputs.prompt.text === 'EN: UNE EPAVE SUR LA PLAGE'
+    && rwi.inputs.prompt.negative === 'blur' && rwi.inputs.prompt.original === 'une epave sur la plage', rwi && rwi.inputs.prompt);
+  check('le réglage écrasé par le fil aussi (x.params.prompt)', rwi && rwi.params.prompt === 'EN: UNE EPAVE SUR LA PLAGE', rwi && rwi.params.prompt);
+  check('la version de l’aval garde le texte envoyé', /Consigne réécrite en anglais : « EN: UNE EPAVE SUR LA PLAGE »/.test(String(end.run && end.run.notes)), end.run && end.run.notes);
+  const rwDirs = runDirs('n_rwt');
+  const rwRun = rwDirs.length ? readJsonSafe(path.join(projectDir, 'outputs', 'n_rwt', rwDirs[0], 'run.json')) : null;
+  check('la réécriture est une version du bloc Consigne (texte, sans sonde ffmpeg)', rwDirs.length === 1 && rwRun && rwRun.status === 'done'
+    && rwRun.outputs.text.kind === 'text' && rwRun.outputs.text.meta.text === 'EN: UNE EPAVE SUR LA PLAGE' && rwRun.params.text === 'une epave sur la plage', rwRun);
+  r = await run('n_rwi', 'final');
+  end = await waitEnd(r.jobId);
+  check('même texte : réécriture reprise, pas refaite', end.kind === 'done' && rewrites() === 1, rewrites());
+  node('n_rwt').params.negative = 'text';
+  r = await run('n_rwi', 'final');
+  check('« À éviter » changé : l’aval recalcule…', r.ok && r.jobId, r);
+  end = await waitEnd(r.jobId);
+  rwi = T.log.filter((x) => x.nodeId === 'n_rwi').pop();
+  check('… sans refaire la réécriture', end.kind === 'done' && rewrites() === 1 && rwi.inputs.prompt.negative === 'text', rewrites());
+  node('n_rwt').params.text = 'un phare';
+  r = await run('n_rwi', 'final');
+  end = await waitEnd(r.jobId);
+  check('texte changé : réécrit de nouveau', end.kind === 'done' && rewrites() === 2 && T.log.filter((x) => x.nodeId === 'n_rwi').pop().inputs.prompt.text === 'EN: UN PHARE', rewrites());
+  r = await run('n_rwt');
+  check('« Réécrire maintenant » : le bloc Consigne se lance seul', r.ok && r.jobId, r);
+  end = await waitEnd(r.jobId);
+  check('… et fait une version', end.kind === 'done' && rewrites() === 3 && runDirs('n_rwt').length === 3, runDirs('n_rwt'));
+  node('n_rwt').params.rewrite = false;
+  r = await run('n_rwt');
+  check('case décochée : la Consigne ne se lance pas', !r.ok && /Réécrire en anglais/.test(r.error || ''), r);
+  r = await run('n_rwi', 'preview');
+  end = await waitEnd(r.jobId);
+  check('case décochée : l’aval reçoit le texte tapé', end.kind === 'done' && rewrites() === 3
+    && T.log.filter((x) => x.nodeId === 'n_rwi').pop().inputs.prompt.text === 'un phare', rewrites());
+  node('n_rwt').params.rewrite = true;
+  node('n_rwt').params.text = '   ';
+  r = await run('n_rwt');
+  check('consigne vide : « Écris une consigne »', !r.ok && /Écris une consigne/.test(r.error || ''), r);
+  node('n_rwt').params.text = 'une tempete';
+  T.cfg.rewrite = { fail: 'La réécriture n’a rien donné de lisible.' };
+  r = await run('n_rwi', 'preview');
+  end = await waitEnd(r.jobId);
+  check('réécriture ratée : l’aval s’arrête avec le nom de la Consigne', end.kind === 'error' && /Consigne/.test(end.message || end.error || ''), end);
+  T.cfg = {};
+  await idle();
+
   // ================================================================ API pour le pont
   section('API du moteur pour le pont des assistants (ctx.engine)');
   T.cfg.depth = { delay: 300 };

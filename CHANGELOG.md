@@ -42,6 +42,12 @@ concerne que les développeurs.
   gomme, taille, inverser, zoom à la molette) ; seule cette zone est recalculée, avec ta LoRA, puis recollée : le
   reste de l’image ne bouge pas d’un pixel. Une petite zone (des pieds, un œil) est agrandie toute seule pour être
   calculée en détail. Recette « Retoucher une zone ».
+- **Réécrire ta consigne en anglais** : coche « Réécrire en anglais » sous une Consigne. Avant le calcul, un modèle de
+  ce PC (le lecteur de consignes de Qwen) corrige les fautes, traduit et décrit dans l’ordre : sujet, décor, fond,
+  lumière, puis ce qu’on ne veut pas. Le texte compris s’affiche sous la consigne ; il n’est refait que si tu la
+  changes. « Réécrire maintenant » le montre avant de lancer quoi que ce soit.
+- **4 variantes** : sur Qwen-Image 2.1, FLUX.2 Klein et Qwen Image Edit, un bouton lance 4 images avec 4 graines
+  différentes, l’une après l’autre. Compare-les dans les versions du bloc ; l’étoile garde celle que tu choisis.
 - **« + Bloc » rangé par ce que tu fabriques** : à gauche, Fabriquer (Vidéo, Image, Son), Préparer (Médias et
   consignes, Recettes, Notes), Retravailler (Montage, Finition). Dans Vidéo et Image : les modèles « Sur ce PC », ceux
   « En ligne », puis les blocs. Les modèles en ligne ne sont plus à part : chacun dans l’onglet de ce qu’il fait.
@@ -103,6 +109,12 @@ concerne que les développeurs.
   size, invert, wheel zoom); only that zone is remade, with your LoRA, then pasted back: the rest of the image does
   not move by a pixel. A small zone (feet, an eye) is enlarged on its own to be computed in detail. Recipe “Retouch
   a zone”.
+- **Rewrite your prompt in English**: tick “Rewrite in English” under a Prompt block. Before the job, a model on this
+  PC (Qwen’s prompt reader) fixes the typos, translates and describes in order: subject, setting, background, light,
+  then what to leave out. The text as understood shows under the prompt; it is redone only when you change it.
+  “Rewrite now” shows it before anything runs.
+- **4 variations**: on Qwen-Image 2.1, FLUX.2 Klein and Qwen Image Edit, one button makes 4 images with 4 different
+  seeds, one after another. Compare them in the block’s versions; the star keeps the one you pick.
 - **“+ Block” sorted by what you make**: on the left, Make (Video, Image, Sound), Prepare (Media and prompts, Recipes,
   Notes), Rework (Editing, Finishing). In Video and Image: the models “On this PC”, the “Online” ones, then the blocks.
   Online models are no longer apart: each one sits in the tab of what it makes.
@@ -155,6 +167,25 @@ concerne que les développeurs.
 - Pont des assistants : `choices[].ways` (needs, needsOneOf, takes, settings, trial), `howItWorks` détaillé,
   `mia_get_board` → `model` {family, does, workflow, otherWays, connect, ignored, trial} et réglages du seul
   modèle ; descriptions et instructions du serveur MCP ; guides mia-piloter et mia-recettes-video.
+- Bloc **Masque** (`mask`, `executors/mask.js`, sans GPU) : le dessin noir et blanc de l’éditeur
+  (`src/js/nodes/maskeditor.js`, écrit dans `media\` sous un nouveau nom à chaque validation, réglage `drawing`)
+  remis à la taille de l’image, bord adouci vers l’extérieur (flou puis ×2 : la zone peinte reste entière ; au plus
+  le quart du petit côté de la zone), inversé pour « Zone à protéger ». Qwen-Image 2.1 « Retoucher une zone »
+  (`image` + `mask`) : `VAEEncode` + `SetLatentNoiseMask`, « Ampleur du changement » (`zoneStrength`) en
+  débruitage, recollage `maskedmerge` de ffmpeg ; zone de moins de 300 px : fenêtre carrée de 6 fois la zone
+  (`ImageCrop`) calculée en 1024 × 1024 puis réduite et recollée. Recette `retouch-zone`.
+- Consigne **« Réécrire en anglais »** (réglage `rewrite`) : la Consigne cochée devient un calcul,
+  `executors/rewrite.js` (GPU) : `TextGenerate` de ComfyUI sur le lecteur de Qwen-Image 2.1
+  (`qwen3vl_8b_int8_convrot`, chargé en `stable_diffusion` : le modèle Qwen-VL qui écrit), sinon celui de Qwen Image
+  Edit (`qwen_2.5_vl_7b_fp8_scaled`) ; pas le Gemma de LTX (du charabia à l’essai du 25/10) ni le Qwen3 de Klein (son
+  fichier n’a pas la couche qui écrit, `lm_head`).
+  Conversation écrite en entier (règles, deux exemples), échantillonnage bas à graine fixe, réponse nettoyée et
+  refusée si illisible. Moteur : `rewriteType` (empreinte = texte + façon de réécrire, « À éviter » passe tel quel),
+  la réécriture est une version de la Consigne (`consigne.txt`, `outputs.text.meta.text`) reprise tant que le texte
+  ne change pas ; l’aval la reçoit (`x.inputs.prompt` et le réglage écrasé par le fil), sa version la note.
+- **« 4 variantes »** (`runs.runVariants`) : quatre demandes au moteur, graines tirées au hasard ; le bloc montre le
+  calcul en cours puis passe au suivant, « Annuler » les arrête toutes, la graine du bloc devient celle de la
+  dernière. Assistants : `mia_run {variants}`, et `rewritten` dans `mia_get_output` d’une Consigne.
 
 ### Changé
 - Audit du 25/10 (UX, textes, façons de faire) : règle de choix (une façon de faire qui ne se sert d’aucune entrée
@@ -196,18 +227,13 @@ concerne que les développeurs.
 - Bloc Modèle en ligne : « Ce que fait le bloc » dit « Image depuis un texte + Images de référence » quand les
   références branchées servent ; le puits du résultat n’annonce plus « ≈ 1 min » pour un calcul en ligne.
 - La recherche de « + Bloc » ouverte depuis un fil n’est plus coupée (« Chercher… »).
-- Bloc **Masque** (`mask`, `executors/mask.js`, sans GPU) : le dessin noir et blanc de l’éditeur
-  (`src/js/nodes/maskeditor.js`, écrit dans `media\` sous un nouveau nom à chaque validation, réglage `drawing`)
-  remis à la taille de l’image, bord adouci vers l’extérieur (flou puis ×2 : la zone peinte reste entière ; au plus
-  le quart du petit côté de la zone), inversé pour « Zone à protéger ». Qwen-Image 2.1 « Retoucher une zone »
-  (`image` + `mask`) : `VAEEncode` + `SetLatentNoiseMask`, « Ampleur du changement » (`zoneStrength`) en
-  débruitage, recollage `maskedmerge` de ffmpeg ; zone de moins de 300 px : fenêtre carrée de 6 fois la zone
-  (`ImageCrop`) calculée en 1024 × 1024 puis réduite et recollée. Recette `retouch-zone`.
 
 ### Pour les développeurs
 - `E.maskBox(x, abs)` (`patch.js`) : rectangle de la zone blanche d’un masque (filtre `bbox` de ffmpeg) ;
   `t2i.js` exporte `zoneWindow` et `pasteArgs`, essayés avec le vrai ffmpeg
   (`node tools/test-light-executors.js --only=mask` : le reste de l’image identique au pixel).
+- Réécriture : `tools/test-engine.js` (16 contrôles, faux `tools/fixtures/engine/executors/rewrite.js`) et
+  `tools/validate-workflows.js` (cas `rewrite` ; le faux ComfyUI rend un texte pour `PreviewAny`).
 - Points de départ : `startPoints` (`src/js/nodes/ports.js`, 1re exigence de chaque façon de faire, ou son entrée de
   tête) ; une famille à plusieurs façons de faire ne montre plus d’entrée principale d’office ; pont des assistants :
   `model.startFrom`, `model.uses`, un fil sans port va à l’entrée principale. Cloud : `uploadsOf`/`bodyOf`

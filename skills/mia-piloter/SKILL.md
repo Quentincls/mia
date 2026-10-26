@@ -208,6 +208,15 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
     (blanc = la zone ; `mode` `change` / `protect`, `feather` en px). Seule la zone est recalculée
     (`zoneStrength` 0,3 à 1, 0,7 par défaut) et recollée : le reste reste identique au pixel ; une zone de moins
     de 300 px est zoomée toute seule. Recette `retouch-zone`.
+    Pour faire apparaître un objet absent (une épave dans la mer) : `zoneStrength` 0,9 à 1 et une consigne qui
+    décrit l'objet (« an old wooden shipwreck… », pas « add a boat ») ; à 0,7 la zone garde trop de l'image.
+    **Réécrire en anglais** (Consigne, `params.rewrite: true`) : avant le calcul, le lecteur de consignes de Qwen
+    (sur ce PC) corrige les fautes, traduit et décrit dans l'ordre (sujet, décor, fond, lumière, ce qu'on ne
+    veut pas). Le texte compris est une version de la Consigne, refaite seulement quand le texte change :
+    `mia_run` sur la Consigne le fait tout de suite, `mia_get_output` le donne (`rewritten`). Le mot déclencheur
+    de la LoRA reste ajouté par le bloc image. **4 variantes** : `mia_run {nodeId, variants: 4}` sur un bloc
+    Modèle qui fait des images sur ce PC → 4 versions à graines différentes (`jobIds`, `seeds`) ; l'utilisateur met
+    l'étoile sur celle à garder ; `mia_wait` sur le dernier `jobId`.
     Licences non commerciales (essais, projets perso) : dis-le. Une LoRA n'est proposée que sur le modèle pour lequel
     elle a été entraînée (une LoRA Klein 9B sur Klein, une LoRA Qwen-Image 2.1 sur Qwen 2.1, jamais l'une sur l'autre).
 - **« À essayer » (`trial`)** : images-clés de LTX, son à suivre, sons de référence, 768p n'ont

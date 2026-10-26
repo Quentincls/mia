@@ -45,6 +45,8 @@ strings({
   'node.adv': 'Avancé',
   'node.advTitle': 'Avancé',
   'node.from': 'Vient de « {name} »',
+  'node.fromRewritten': 'Vient de « {name} », réécrite en anglais',
+  'node.fromToRewrite': 'Vient de « {name} », réécrite en anglais au lancement',
   'node.fromEmpty': 'Le texte de « {name} » est vide.',
   'node.seedRandom': 'Au hasard',
   'node.frame.first': 'Première image (0)',
@@ -80,6 +82,8 @@ strings({
   'node.adv': 'Advanced',
   'node.advTitle': 'Advanced',
   'node.from': 'From “{name}”',
+  'node.fromRewritten': 'From “{name}”, rewritten in English',
+  'node.fromToRewrite': 'From “{name}”, rewritten in English when it runs',
   'node.fromEmpty': 'The text of “{name}” is empty.',
   'node.seedRandom': 'Random',
   'node.frame.first': 'First frame (0)',
@@ -500,8 +504,10 @@ export function mountParams(host, opts) {
         const body = el('div', { class: `np-from-text${text ? '' : ' empty'}` }, text || t('node.fromEmpty', { name }));
         // trois lignes au plus dans la carte : le texte entier au survol quand il est plus long
         tip(body, () => (text && body.scrollHeight > body.clientHeight + 1 ? text : ''));
+        // « Réécrire en anglais » : le texte montré est celui que le modèle recevra
+        const from = src?.rewrite ? (src.rewritten ? 'node.fromRewritten' : 'node.fromToRewrite') : 'node.from';
         fromEl = el('div', { class: 'np-from' },
-          el('div', { class: 'np-from-head' }, t('node.from', { name })),
+          el('div', { class: 'np-from-head' }, t(from, { name })),
           body);
         wrap.replaceChildren(fromEl);
         field = null;
