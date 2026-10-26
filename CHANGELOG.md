@@ -34,6 +34,14 @@ concerne que les développeurs.
   **Qwen-Image 2.1 Turbo** (très fidèle aux textes écrits dans l’image, jusqu’à 2K). Tailles 1K, 1,5K, 2K. Licences
   non commerciales : proposés « à essayer », pour des essais et des projets perso. Une LoRA n’est proposée que sur le
   modèle pour lequel elle a été entraînée (Klein 9B ou Qwen-Image 2.1, jamais l’une sur l’autre, ni sur Qwen Image Edit).
+- **Un cadrage pour Qwen-Image 2.1** : branche une image sur « Cadrage », le bloc garde sa composition (sa profondeur)
+  et ta LoRA garde son style ; « Respect du cadrage » : Strict, Équilibré, Souple. Le format suit l’image de cadrage.
+- **Les conseils d’une LoRA** : une fiche posée à côté du fichier (<nom>.mia.json) donne son mot déclencheur, sa force
+  conseillée (posée quand tu la choisis) et une aide affichée sous « Force ».
+- **Retoucher une zone** (Qwen-Image 2.1) : un nouveau bloc **Masque** où l’on peint la zone sur l’image (pinceau,
+  gomme, taille, inverser, zoom à la molette) ; seule cette zone est recalculée, avec ta LoRA, puis recollée : le
+  reste de l’image ne bouge pas d’un pixel. Une petite zone (des pieds, un œil) est agrandie toute seule pour être
+  calculée en détail. Recette « Retoucher une zone ».
 - **« + Bloc » rangé par ce que tu fabriques** : à gauche, Fabriquer (Vidéo, Image, Son), Préparer (Médias et
   consignes, Recettes, Notes), Retravailler (Montage, Finition). Dans Vidéo et Image : les modèles « Sur ce PC », ceux
   « En ligne », puis les blocs. Les modèles en ligne ne sont plus à part : chacun dans l’onglet de ce qu’il fait.
@@ -87,6 +95,14 @@ concerne que les développeurs.
   few seconds; connect an image and it edits it, keeping its framing) and **Qwen-Image 2.1 Turbo** (very faithful to text
   written in the image, up to 2K). Sizes 1K, 1.5K, 2K. Non-commercial licenses: offered “to try”, for trials and personal
   projects. A LoRA is offered only on the model it was trained for (Klein 9B or Qwen-Image 2.1, never one on the other).
+- **A layout for Qwen-Image 2.1**: connect an image to “Layout” and the block keeps its composition (its depth) while
+  your LoRA keeps its style; “Layout strength”: Strict, Balanced, Loose. The format follows the layout image.
+- **A LoRA’s advice**: a file next to it (<name>.mia.json) gives its trigger word, its suggested strength (set when you
+  pick it) and advice shown under “Strength”.
+- **Retouch a zone** (Qwen-Image 2.1): a new **Mask** block where you paint the zone on the image (brush, eraser,
+  size, invert, wheel zoom); only that zone is remade, with your LoRA, then pasted back: the rest of the image does
+  not move by a pixel. A small zone (feet, an eye) is enlarged on its own to be computed in detail. Recipe “Retouch
+  a zone”.
 - **“+ Block” sorted by what you make**: on the left, Make (Video, Image, Sound), Prepare (Media and prompts, Recipes,
   Notes), Rework (Editing, Finishing). In Video and Image: the models “On this PC”, the “Online” ones, then the blocks.
   Online models are no longer apart: each one sits in the tab of what it makes.
@@ -180,8 +196,18 @@ concerne que les développeurs.
 - Bloc Modèle en ligne : « Ce que fait le bloc » dit « Image depuis un texte + Images de référence » quand les
   références branchées servent ; le puits du résultat n’annonce plus « ≈ 1 min » pour un calcul en ligne.
 - La recherche de « + Bloc » ouverte depuis un fil n’est plus coupée (« Chercher… »).
+- Bloc **Masque** (`mask`, `executors/mask.js`, sans GPU) : le dessin noir et blanc de l’éditeur
+  (`src/js/nodes/maskeditor.js`, écrit dans `media\` sous un nouveau nom à chaque validation, réglage `drawing`)
+  remis à la taille de l’image, bord adouci vers l’extérieur (flou puis ×2 : la zone peinte reste entière ; au plus
+  le quart du petit côté de la zone), inversé pour « Zone à protéger ». Qwen-Image 2.1 « Retoucher une zone »
+  (`image` + `mask`) : `VAEEncode` + `SetLatentNoiseMask`, « Ampleur du changement » (`zoneStrength`) en
+  débruitage, recollage `maskedmerge` de ffmpeg ; zone de moins de 300 px : fenêtre carrée de 6 fois la zone
+  (`ImageCrop`) calculée en 1024 × 1024 puis réduite et recollée. Recette `retouch-zone`.
 
 ### Pour les développeurs
+- `E.maskBox(x, abs)` (`patch.js`) : rectangle de la zone blanche d’un masque (filtre `bbox` de ffmpeg) ;
+  `t2i.js` exporte `zoneWindow` et `pasteArgs`, essayés avec le vrai ffmpeg
+  (`node tools/test-light-executors.js --only=mask` : le reste de l’image identique au pixel).
 - Points de départ : `startPoints` (`src/js/nodes/ports.js`, 1re exigence de chaque façon de faire, ou son entrée de
   tête) ; une famille à plusieurs façons de faire ne montre plus d’entrée principale d’office ; pont des assistants :
   `model.startFrom`, `model.uses`, un fil sans port va à l’entrée principale. Cloud : `uploadsOf`/`bodyOf`

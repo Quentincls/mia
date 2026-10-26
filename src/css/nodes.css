@@ -62,6 +62,11 @@ body {
    reprenait sa hauteur naturelle, rognée par le puits. */
 .nb-layer > .nb-media, .nb-layer > .nb-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .nb-layer.use-poster .nb-poster { display: block; }
+/* zone peinte d'un bloc Masque : l'accent là où le dessin est blanc (le dessin a la taille de l'image) */
+.nb-zone {
+  position: absolute; inset: 0; pointer-events: none; background: var(--accent); opacity: .5;
+  mask-image: var(--zone); mask-size: 100% 100%; mask-repeat: no-repeat; mask-mode: luminance;
+}
 .nb-layer.use-poster video.nb-media { visibility: hidden; }
 
 /* badge méta (au survol), étiquette (toujours), « en direct » */
@@ -198,6 +203,8 @@ body {
   border-radius: 7px; background: var(--wash); color: var(--txt-2); font-size: 11.5px; line-height: 1.4;
 }
 .nb-hint[hidden] { display: none; }
+.nb-zone-row { display: flex; padding: 6px 12px 2px; }
+.nb-zone-row .btn { flex: 1; justify-content: center; }
 .nb-hint-ico { color: var(--txt-3); flex: none; display: grid; margin-top: 1px; }
 .nb-hint b { font-weight: 600; color: var(--txt); }
 .nb-hint-ico svg { width: 13px; height: 13px; }
@@ -846,3 +853,40 @@ body {
 }
 .mp-cloud-btn.on { flex: none; color: var(--txt); cursor: pointer; transition: background var(--nb-dur) var(--nb-ease); }
 .mp-cloud-btn.on:hover { background: var(--wash); }
+
+/* ── éditeur de zone du bloc Masque (maskeditor.js) ──────────────────── */
+.mz-dialog {
+  width: min(1180px, 94vw); height: min(860px, calc(100vh - 48px)); padding: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.mz { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.mz-bar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--line);
+}
+.mz-bar .mz-title { margin: 0 6px 0 0; font-size: 14px; }
+.mz-size { display: flex; align-items: center; gap: 8px; width: 210px; }
+.mz-size .sld { flex: 1; }
+.mz-lbl { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); }
+.mz-tools { display: flex; align-items: center; gap: 4px; }
+.mz-acts { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.mz-stage {
+  position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--nb-well);
+  cursor: none; touch-action: none;
+}
+.mz-stage.space, .mz-stage.panning { cursor: grab; }
+.mz-stage.panning { cursor: grabbing; }
+.mz-view { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mz-img, .mz-cv {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  -webkit-user-drag: none; user-select: none; pointer-events: none;
+}
+.mz-cv { opacity: .5; }
+.mz-cursor {
+  position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .9);
+}
+.mz-cursor.erase { border: 1px dashed rgba(255, 255, 255, .9); }
+.mz-cursor[hidden] { display: none; }
+.mz-msg { padding: 9px 18px 11px; font-size: 12px; color: var(--txt-3); border-top: 1px solid var(--line); }
+.mz-msg.warn { color: var(--danger); }

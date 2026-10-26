@@ -177,6 +177,21 @@ export function mountParams(host, opts) {
   const commit = (p, v) => {
     opts.setParam(p.id, v);
     opts.onChange?.(p.id, v);
+    // une LoRA choisie avec une force conseillée (fiche <nom>.mia.json) : la force la suit ; une LoRA sans conseil
+    // rend la force par défaut si celle d'avant venait d'un conseil
+    if (loraParam && p === loraParam) {
+      const inv = state.inventory?.models || [];
+      const l = inv.find((m) => m.id === v);
+      const sp = (type.params || []).find((x) => x.id === `${loraParam.id}Strength`);
+      const cur = sp ? Number(val(sp)) : null;
+      const next = l && Number.isFinite(l.strength) ? l.strength
+        : sp && prevLora && Number.isFinite(prevLora.strength) && cur === prevLora.strength ? sp.default : null;
+      if (sp && next != null && next !== cur) {
+        opts.setParam(sp.id, next);
+        ctrls.get(sp.id)?.set(next);
+      }
+      prevLora = l || null;
+    }
   };
 
   // ── LoRA : famille du modèle du bloc ─────────────────────────────────
@@ -191,6 +206,7 @@ export function mountParams(host, opts) {
     return refId !== 'model' ? refId : null;
   }
   /** Entrée d'inventaire du LoRA choisi (ou null). */
+  let prevLora = null;               // dernière LoRA choisie (sa force conseillée a-t-elle été posée ?)
   function chosenLora() {
     if (!loraParam) return null;
     const v = val(loraParam);
@@ -361,8 +377,25 @@ export function mountParams(host, opts) {
       reset: p.default,                  // double-clic : valeur par défaut
       onChange: (v) => commit(p, v),
     });
-    ctrls.set(p.id, { set: (v) => c.setValue(v), owns: (x) => c.contains(x) });
-    return narrowLine(p, c, 'np-slider');
+    const row = narrowLine(p, c, 'np-slider');
+    // la force d'une LoRA : ses conseils (fiche <nom>.mia.json), sous le curseur
+    let advice = null;
+    if (loraParam && p.id === `${loraParam.id}Strength`) {
+      advice = el('div', { class: 'np-note np-lora-advice', hidden: true });
+      row.append(advice);
+      row.classList.add('np-wrap');          // la note passe sous le curseur, comme les autres
+    }
+    const showAdvice = () => {
+      if (!advice) return;
+      const l = chosenLora();
+      const text = l && l.advice ? tl(l.advice) : '';
+      advice.hidden = !text;
+      if (text) advice.replaceChildren(el('span', { class: 'np-note-ico', html: icon('info', 12) }), el('span', {}, text));
+    };
+    showAdvice();
+    prevLora = chosenLora();
+    ctrls.set(p.id, { set: (v) => c.setValue(v), owns: (x) => c.contains(x), advice: showAdvice });
+    return row;
   }
 
   function toggleRow(p) {
@@ -857,7 +890,7 @@ export function mountParams(host, opts) {
             el('span', {}, t('node.lora.wrongNow', { lora: familyLabel(loraKeyOf(l)), base: familyLabel(key) })));
         }
       }
-      for (const x of ctrls.values()) x.trigger?.();
+      for (const x of ctrls.values()) { x.trigger?.(); x.advice?.(); }
     }
   }
 
@@ -973,8 +1006,12 @@ function mountModelParams(host, opts) {
       for (const id of r.workflow.params || []) {
         let p = P(id);
         // réglage ajusté pour cette façon de faire (« Durée ajoutée » pour prolonger, exemple de consigne des références)
+        // un réglage lié à une entrée (« Respect du cadrage ») ne se montre que si elle est branchée
+        if (p && p.onlyWith && !(r.connected || []).includes(p.onlyWith)) continue;
         const ov = (r.workflow.paramOverrides || {})[id];
         if (p && ov) p = { ...p, ...ov };
+        // et un réglage qu'une entrée branchée remplace (Format quand l'image de cadrage impose le sien) se tait
+        if (p && p.hideWith && (r.connected || []).includes(p.hideWith)) continue;
         // consigne obligatoire quand la façon de faire l'exige : marquée, et dite avant le lancement (body.js)
         if (p && id === 'prompt' && r.workflow.promptRequired) p = { ...p, required: true };
         // « Comme l'image de début » n'a de sens qu'avec une image de début : sans elle, 16:9 (le moteur fait de même)

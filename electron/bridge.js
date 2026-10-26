@@ -546,7 +546,8 @@ class Bridge {
         if (!usable(m)) continue;
         if (isLora) {
           if (!(m.role === 'lora' || (m.caps || []).includes('lora')) || m.hidden) continue;
-          out.push({ value: m.id, label: L(m.label) || m.file, loraFor: m.loraFor || null, trigger: m.trigger || null, kind: m.loraKind || null });
+          out.push({ value: m.id, label: L(m.label) || m.file, loraFor: m.loraFor || null, trigger: m.trigger || null, kind: m.loraKind || null,
+            ...(Number.isFinite(Number(m.strength)) ? { strength: Number(m.strength) } : {}), ...(m.advice ? { advice: L(m.advice) } : {}) });
         } else {
           if (m.hidden || !(m.caps || []).some((c) => caps.includes(c))) continue;
           out.push({ value: m.id, label: L(m.label) || m.file, family: m.family || null, speed: m.speed ?? null, quality: m.quality ?? null, license: m.license });

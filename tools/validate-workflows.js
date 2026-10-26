@@ -108,6 +108,7 @@ function makeFakes(tmp, oi, lists) {
     calls: [],
     async run(args) {
       this.calls.push(args);
+      if (args.some((a) => String(a).includes('bbox='))) return { code: 0, stderr: `[Parsed_bbox_1] n:0 ${this.bbox(args)}` };
       const out = args[args.length - 1];
       const fi = args.indexOf('-frames:v');
       const ii = args.indexOf('-i');
@@ -121,6 +122,11 @@ function makeFakes(tmp, oi, lists) {
       return { code: 0, stderr: '' };
     },
     async probe(abs) { return meta.get(path.resolve(abs)) || { kind: 'image', w: 1080, h: 1920 }; },
+    // filtre bbox (zone d'un masque) : petite si le cas le dit (meta.zone), sinon une grande zone
+    bbox(args) {
+      const m = meta.get(path.resolve(args[args.indexOf('-i') + 1] || '')) || {};
+      return m.zone === 'small' ? 'x1:500 x2:524 y1:900 y2:926 w:25 h:27' : 'x1:100 x2:899 y1:200 y2:1499 w:800 h:1300';
+    },
     async nvenc() { return true; },
     encodeArgs() { return ['-c:v', 'h264_nvenc']; },
   };
@@ -304,6 +310,38 @@ const VARIANTS = {
         && gs[0]['459:458'].inputs.steps === 8 ? null : `taille ${gs[0]['459:456'].inputs.width}x${gs[0]['459:456'].inputs.height}, ${gs[0]['459:458'].inputs.steps} étapes`) },
     { name: 'Qwen 2.1 · LoRA Qwen 2.1', params: { prompt: 'a poster', format: '3:4' }, models: { model: INV.qwen21, lora: INV.qwen21Lora },
       assume: TEST_LORAS, expectGraph: (gs) => hasLora(gs, 'qwen21_style_test') },
+    { name: 'Qwen 2.1 · cadrage équilibré + LoRA (guide après la LoRA)', inputs: { layout: IMG_V },
+      params: { prompt: 'an old man, low angle', layoutFollow: 'balanced' }, models: { model: INV.qwen21, lora: INV.qwen21Lora },
+      assume: TEST_LORAS, expectGraph: (gs) => {
+        const g = gs[0];
+        const cn = Object.entries(g).find(([, n]) => n.class_type === 'QwenImageDiffsynthControlnet');
+        if (!cn) return 'pas de guide de cadrage';
+        const [id, n] = cn;
+        const lora = Object.entries(g).find(([, x]) => x.class_type === 'LoraLoaderModelOnly');
+        if (!lora || n.inputs.model[0] !== lora[0]) return 'le guide ne suit pas la LoRA';
+        if (g['459:480'].inputs.model[0] !== id) return 'le cache ne prend pas le modèle guidé';
+        if (n.inputs.strength !== 0.8 || n.inputs.end_percent !== 0.6) return `dosage ${n.inputs.strength}/${n.inputs.end_percent}`;
+        const e = g['459:456'].inputs;
+        return e.width < e.height ? null : `format ${e.width}x${e.height} au lieu de vertical (image de cadrage 9:16)`;
+      } },
+    { name: 'Qwen 2.1 · retoucher une zone (grande) : bruit masqué, recollage', inputs: { image: IMG_V, mask: IMG_V },
+      params: { prompt: 'a red coat', zoneStrength: 0.7 }, models: { model: INV.qwen21 }, expectGraph: (gs) => {
+        const g = gs[0];
+        if (g['459:456']) return 'image vide encore là';
+        const k = g['459:458'].inputs;
+        if (!Array.isArray(k.latent_image) || g[k.latent_image[0]].class_type !== 'SetLatentNoiseMask') return 'pas de bruit masqué';
+        if (k.denoise !== 0.7) return `ampleur ${k.denoise}`;
+        return Object.values(g).some((n) => n.class_type === 'ImageCrop') ? 'fenêtre alors que la zone est grande' : null;
+      } },
+    { name: 'Qwen 2.1 · retoucher une petite zone : fenêtre zoomée à 1024', inputs: { image: IMG_V, mask: { kind: 'image', meta: { w: 1080, h: 1920, zone: 'small' } } },
+      params: { prompt: 'bare feet', zoneStrength: 0.7 }, models: { model: INV.qwen21 }, expectGraph: (gs) => {
+        const g = gs[0];
+        const crops = Object.values(g).filter((n) => n.class_type === 'ImageCrop');
+        if (crops.length !== 2) return `${crops.length} découpe(s)`;
+        const c = crops[0].inputs;
+        if (c.width !== 162 || c.height !== 162) return `fenêtre ${c.width}x${c.height}`;
+        return g['9741'].inputs.width === 1024 && g['9741'].inputs.height === 1024 ? null : 'pas agrandie à 1024';
+      } },
     { name: 'Qwen 2.1 · LoRA Klein refusée', params: { prompt: 'x' }, models: { model: INV.qwen21, lora: INV.kleinLora },
       expectError: /fait pour FLUX\.2 Klein 9B, pas pour Qwen-Image 2\.1/ },
     { name: 'sans consigne → refus', params: { prompt: '' }, models: { model: INV.klein }, expectError: /consigne de l’image/ },

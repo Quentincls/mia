@@ -6,6 +6,7 @@
 //   note     → mot sur la planche, façon post-it sobre
 //   compare  → volet A/B, côte à côte, différence
 //   export   → fichier exporté + « Afficher dans l'Explorateur » / « Ouvrir »
+//   mask     → l'image branchée avec la zone peinte par-dessus, « Dessiner la zone » (éditeur)
 //   calcul   → puits du résultat (onglets si plusieurs sorties), aperçu en
 //              direct, erreur lisible, versions, références numérotées,
 //              réglages, pied « Lancer » (ou la raison qui l'empêche)
@@ -31,6 +32,7 @@ import { modelProblem } from './modelpicker.js';
 import { blockWorkflow, isModelBlock } from './ports.js';
 import { portsOfWorkflow } from './route.js';
 import { typeOf } from '../catalog.js';
+import { openMaskEditor } from './maskeditor.js';
 import './viewer.js';      // écoute viewer:open
 import './inspector.js';   // écoute inspector:open
 
@@ -82,6 +84,10 @@ strings({
   'node.ref.audio': 'Son {n}',
   'node.ref.tip': '« {label} » dans la consigne = {name}',
   'node.extract.oldVersion': 'Extraction depuis la version courante seulement : reviens à v{cur} (ou garde celle-ci avec ★).',
+  'node.zone.draw': 'Dessiner la zone',
+  'node.zone.edit': 'Modifier la zone',
+  'node.zone.needImage': 'Branche d’abord l’image à retoucher.',
+  'node.zone.saveFailed': 'Le dessin n’a pas pu être enregistré : {error}',
 }, {
   'node.notComputed': 'Not computed yet',
   'node.connect': 'Connect first: {list}',
@@ -130,6 +136,10 @@ strings({
   'node.ref.audio': 'Sound {n}',
   'node.ref.tip': '“{label}” in the prompt = {name}',
   'node.extract.oldVersion': 'Extraction only from the current version: go back to v{cur} (or keep this one with ★).',
+  'node.zone.draw': 'Draw the zone',
+  'node.zone.edit': 'Edit the zone',
+  'node.zone.needImage': 'Connect the image to retouch first.',
+  'node.zone.saveFailed': 'The drawing could not be saved: {error}',
 });
 
 const ACTIVE = new Set(['queued', 'waiting-gpu', 'running']);
@@ -332,6 +342,74 @@ function formatRatio(v, ctx) {
   const r = /^(\d+(?:[.,]\d+)?)\s*[:x×/]\s*(\d+(?:[.,]\d+)?)$/.exec(String(v));
   if (r) return parseFloat(r[1].replace(',', '.')) / parseFloat(r[2].replace(',', '.'));
   return v === 'vertical' ? 9 / 16 : v === 'wide' ? 2.39 : 16 / 9;
+}
+
+// ── bloc Masque : « Dessiner la zone » ────────────────────────────────
+
+/** Taille naturelle d'une image (quand le média n'a pas sa fiche). */
+function naturalSize(url) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight });
+    im.onerror = () => res(null);
+    im.src = url;
+  });
+}
+
+const zoneStamp = () => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+};
+
+/**
+ * Le bouton du bloc Masque. Le dessin validé va dans media\ de la planche sous un nouveau nom (l'empreinte du bloc
+ * change, ce qui en dépend se recalcule), puis dans le réglage `drawing`.
+ */
+function mountZoneRow(ctx, host) {
+  let busy = false;
+  let shown = null;                // libellé et état affichés : le bouton n'est redessiné que s'ils changent
+  const btn = button({ label: t('node.zone.draw'), icon: 'edit', kind: 'ghost', size: 'sm', onClick: () => draw() });
+  const row = el('div', { class: 'nb-zone-row' }, btn);
+  row.addEventListener('pointerdown', stop);
+  row.addEventListener('dblclick', stop);
+  host.append(row);
+  const rel = () => String(ctx.node.params?.drawing || '').trim();
+
+  async function draw() {
+    if (busy) return;
+    const src = sourceMedia(ctx, 'image');
+    if (!src || src.kind !== 'image') { toast(t('node.zone.needImage'), { kind: 'info' }); return; }
+    busy = true;
+    try {
+      const dims = src.meta?.w && src.meta?.h ? src.meta : await naturalSize(src.url);
+      const pid = ctx.projectId();
+      const bytes = await openMaskEditor({ imageUrl: src.url, w: dims?.w, h: dims?.h, drawingUrl: rel() ? urlFor(rel()) : null });
+      if (!bytes || ctx.projectId() !== pid) return;
+      const r = await window.mia.media.importBuffer(pid, `zone-${zoneStamp()}.png`, bytes);
+      if (!r?.ok || !r.data?.src) {
+        toast(t('node.zone.saveFailed', { error: r?.error || '?' }), { kind: 'error' });
+        return;
+      }
+      if (ctx.projectId() === pid) ctx.setParam('drawing', r.data.src);
+    } catch (e) {
+      toast(t('node.zone.saveFailed', { error: String(e?.message || e) }), { kind: 'error' });
+    } finally {
+      busy = false;
+    }
+  }
+  return {
+    url: () => (rel() ? urlFor(rel()) : null),
+    paint() {
+      const label = t(rel() ? 'node.zone.edit' : 'node.zone.draw');
+      const off = !sourceMedia(ctx, 'image');
+      if (shown && shown.label === label && shown.off === off) return;
+      shown = { label, off };
+      btn.setValue(label);
+      btn.setDisabled(off);
+    },
+    destroy() { row.remove(); },
+  };
 }
 
 // ── état d'exécution dans l'en-tête ─────────────────────────────────
@@ -595,8 +673,9 @@ function computeBody(ctx) {
     openInspector: () => emit('inspector:open', { nodeId: ctx.id }),
   });
 
-  // références numérotées + réglages + conseil d'entrée + pied
+  // références numérotées + (Masque) dessiner la zone + réglages + conseil d'entrée + pied
   const refs = mountRefs(ctx, C);
+  const zone = type.id === 'mask' && C ? mountZoneRow(ctx, C) : null;
   const params = C ? mountParams(C, {
     node: ctx.node, type, mode: 'card', setParam: ctx.setParam,
     onScrub: (paramId, frame) => { ctx.scrub = frame == null ? null : { paramId, frame }; renderWell(); },
@@ -681,6 +760,11 @@ function computeBody(ctx) {
     well.setTag(null);
     if (st.kind === 'running' && st.preview) { ctx.shows = 'live'; well.showLive(st.preview); return; }
     if (ctx.scrub && showSource(ctx.scrub.paramId, ctx.scrub.frame)) return;
+    // bloc Masque : l'image branchée et la zone peinte par-dessus (le masque gris, lui, s'ouvre au double-clic)
+    if (zone && !ACTIVE.has(st.kind)) {
+      const src = sourceMedia(ctx, 'image');
+      if (src && src.kind === 'image') { ctx.shows = 'source'; well.show({ ...src, zone: zone.url() }); return; }
+    }
     const run = viewedRun();
     const media = run ? outputMedia(run) : null;
     if (media) {
@@ -809,15 +893,16 @@ function computeBody(ctx) {
     renderWell(st, problem);
     renderHint();
     refs?.render();
+    zone?.paint();
     versions?.refresh();
   }
 
   return {
     render: renderAll,
-    renderInputs() { params?.refreshInputs(); renderHint(); renderWell(); refs?.render(); chrome.paint(runs.state(ctx.id), type.engine ? modelProblem(type, ctx.node) : null); },
+    renderInputs() { params?.refreshInputs(); renderHint(); zone?.paint(); renderWell(); refs?.render(); chrome.paint(runs.state(ctx.id), type.engine ? modelProblem(type, ctx.node) : null); },
     sync(node) { params?.sync(node); },
     destroy() {
-      well?.destroy(); params?.destroy(); versions?.destroy(); footer?.destroy(); chrome.destroy(); refs?.destroy();
+      well?.destroy(); params?.destroy(); versions?.destroy(); footer?.destroy(); chrome.destroy(); refs?.destroy(); zone?.destroy();
       tabs?.remove?.(); errorBox.remove(); hint.remove(); exportBox?.remove();
     },
   };

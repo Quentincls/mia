@@ -704,6 +704,23 @@
       "gated": false,
       "license": "qwen-research",
       "sha256": "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9"
+    },
+    {
+      "key": "qwen21-control",
+      "model": "qwen21-control",
+      "label": {
+        "fr": "Guide de cadrage Qwen-Image 2.1",
+        "en": "Qwen-Image 2.1 layout guide"
+      },
+      "repo": "Comfy-Org/Qwen-Image-2.1",
+      "revision": "0217efd1d9c9452e84f6448903d6e21bfa171ffd",
+      "path": "model_patches/qwen_image_2.1_fun_controlnet_union_int8_convrot.safetensors",
+      "dest": "model_patches",
+      "bytes": 3779298944,
+      "sizeGB": 3.78,
+      "gated": false,
+      "license": "qwen-research",
+      "sha256": "07aa961570ac0e03d4ca936aecd76854d077a33cde69b5092399afba01b3715d"
     }
   ],
   "capabilities": {
@@ -923,6 +940,24 @@
             "qwen21",
             "qwen21-te",
             "qwen21-vae"
+          ]
+        },
+        {
+          "id": "qwen21-layout",
+          "label": {
+            "fr": "Cadrage pour Qwen-Image 2.1",
+            "en": "Layout for Qwen-Image 2.1"
+          },
+          "desc": {
+            "fr": "Garde la composition d’une image (sa profondeur) en laissant faire ta LoRA.",
+            "en": "Keeps an image’s composition (its depth) while your LoRA does its work."
+          },
+          "keys": [
+            "qwen21",
+            "qwen21-te",
+            "qwen21-vae",
+            "qwen21-control",
+            "vda"
           ]
         }
       ]

@@ -198,7 +198,16 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
     (l'image à retoucher est l'image 1).
   - **FLUX.2 Klein 9B** (`fam:klein`) : rien → une image depuis la consigne (`format`, `resolution` 1024 = 1K ou
     1440 = 1,5K), en quelques secondes ; `image` → la retouche en gardant son cadrage. **Qwen-Image 2.1 Turbo**
-    (`fam:qwen21`) : une image depuis la consigne, très bon pour les textes écrits dans l'image (jusqu'à 2048 = 2K).
+    (`fam:qwen21`) : une image depuis la consigne, très bon pour les textes écrits dans l'image (jusqu'à 2048 = 2K) ;
+    une image branchée sur `layout` (« Cadrage ») lui fait garder sa composition (sa profondeur), la LoRA gardant son
+    style (`layoutFollow` : `strict`, `balanced` par défaut, `loose`) ; le format suit alors cette image. Une LoRA
+    peut avoir des conseils (`advice`) et une force conseillée (`strength`) dans `mia_catalog` : suis-les.
+    **Retoucher une zone** (Qwen 2.1) : l'image sur `image` et un bloc **Masque** (`mask`, son entrée `image` =
+    la même image) sur `mask`. La zone se peint dans Mia (bouton « Dessiner la zone » du Masque) : tu ne peux pas
+    peindre, demande-le à l'utilisateur, ou mets dans `drawing` le chemin absolu d'un PNG noir et blanc que tu as fait
+    (blanc = la zone ; `mode` `change` / `protect`, `feather` en px). Seule la zone est recalculée
+    (`zoneStrength` 0,3 à 1, 0,7 par défaut) et recollée : le reste reste identique au pixel ; une zone de moins
+    de 300 px est zoomée toute seule. Recette `retouch-zone`.
     Licences non commerciales (essais, projets perso) : dis-le. Une LoRA n'est proposée que sur le modèle pour lequel
     elle a été entraînée (une LoRA Klein 9B sur Klein, une LoRA Qwen-Image 2.1 sur Qwen 2.1, jamais l'une sur l'autre).
 - **« À essayer » (`trial`)** : images-clés de LTX, son à suivre, sons de référence, 768p n'ont

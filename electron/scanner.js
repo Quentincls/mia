@@ -226,6 +226,21 @@ function loraShapeOk(r, loraKeys, shapes) {
   return !!a && (r.lora_width || []).includes(shapes[a[1]][r.lora_probe[1]]);
 }
 
+/** Force conseillée d'une fiche : un nombre (ou « 0,85 » / « 0.85 »), bornée 0–2 ; null, vide, vrai/faux → aucune. */
+function sidecarStrength(side) {
+  const v = side && side.strength;
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v.trim().replace(',', '.')) : NaN;
+  return Number.isFinite(n) ? Math.max(0, Math.min(2, n)) : null;
+}
+
+/** Fiche de conseils d'une LoRA (<nom>.mia.json à côté du fichier), ou null. */
+function loraSidecar(file) {
+  try {
+    const j = JSON.parse(fs.readFileSync(String(file).replace(/\.[^.\\/]+$/, '.mia.json'), 'utf8'));
+    return j && typeof j === 'object' ? j : null;
+  } catch { return null; }
+}
+
 // Indices par le nom, lus sur le chemin RELATIF à la racine (sinon tout KimodoStudio\ devient « Kimodo »).
 function applyNameHints(res, p, rel) {
   const low = (rel || p).toLowerCase().replace(/\\/g, '/');
@@ -636,7 +651,8 @@ function loraMeta(meta) {
 // Modèle de base écrit par l'outil d'entraînement. Il comble une famille inconnue et précise la variante d'une même
 // architecture ; il ne contredit jamais une architecture lue dans les tenseurs (sauf FLUX.1 / FLUX.2, mêmes noms).
 const META_BASE = [
-  [/qwen[-_ .]?image[-_ .]?2[-_.]?1/, { family: 'Qwen-Image 2.1' }],
+  // ai-toolkit écrit « qwen_image_2 » pour Qwen-Image 2.x (2511, Edit 2509… sont « qwen_image » / « …edit… »)
+  [/qwen[-_ .]?image[-_ .]?2[-_.]?1|qwen[-_ .]?image[-_ .]?2(?![0-9])/, { family: 'Qwen-Image 2.1' }],
   [/qwen[-_ .]?image/, { family: 'Qwen-Image' }],
   [/klein[-_ .]?(base[-_ .]?)?9b|flux[-_ .]?2[-_ .]?klein[-_ .]?(base[-_ .]?)?9/, { family: 'FLUX.2', variant: 'Klein 9B' }],
   [/klein[-_ .]?(base[-_ .]?)?4b|flux[-_ .]?2[-_ .]?klein[-_ .]?(base[-_ .]?)?4/, { family: 'FLUX.2', variant: 'Klein 4B' }],
@@ -1351,8 +1367,17 @@ function applyLoras(models, ctx) {
     m.loraId = entry ? entry.id : null;
     m.caps = ['lora'];
     m.hidden = false; m.part = null;
-    if (entry && typeof entry.trigger === 'string') m.trigger = entry.trigger.trim() || null;
+    // fiche de conseils posée à côté du fichier (<nom>.mia.json : trigger, strength, advice) — après le registre de
+    // Mia, avant les métadonnées d'entraînement ; elle voyage avec la LoRA (SPEC §12)
+    const side = loraSidecar(m.path);
+    const regTrig = entry && typeof entry.trigger === 'string' ? entry.trigger.trim() : '';
+    if (regTrig) m.trigger = regTrig;
+    else if (side && typeof side.trigger === 'string' && side.trigger.trim()) m.trigger = side.trigger.trim();
+    else if (entry && typeof entry.trigger === 'string') m.trigger = null;      // vidé à la main, et pas de fiche
     else if (!m.trigger && main.lora_trigger) m.trigger = main.lora_trigger;
+    const strength = sidecarStrength(side);
+    if (strength != null) m.strength = strength;
+    if (side && side.advice) m.advice = typeof side.advice === 'string' ? { fr: side.advice, en: side.advice } : side.advice;
     // Genre : celui choisi par Quentin, sinon celui du personnage reconnu, sinon deviné d'après le nom.
     m.genre = (entry && R.GENRES[entry.kind] ? entry.kind : null) || m.genre
       || R.guessGenre(`${(entry && entry.name) || ''} ${main.lora_title || ''} ${m.trigger || ''} ${m.file}`);
@@ -1955,7 +1980,8 @@ async function inspectFile(file, { inventory = null, files = null, engineRoot = 
     const loraFor = R.baseKeyOf(family, info.variant);
     const ident = R.IDENTITY.find((i) => i.test.test(p.toLowerCase())) || null;
     const name = ident ? (ident.label[lang] || ident.label.fr) : R.loraNameFromFile(info.lora_title || out.file);
-    const trigger = (ident && ident.trigger) || info.lora_trigger || '';
+    const side = loraSidecar(p);
+    const trigger = (side && typeof side.trigger === 'string' && side.trigger.trim()) || (ident && ident.trigger) || info.lora_trigger || '';
     return { ...out, isLora: true, family, loraFor,
       familyLabel: loraFor ? R.baseLabel(loraFor) : { ...R.INSPECT.unknownBase },
       suggestedName: name, suggestedTrigger: trigger,
@@ -2152,7 +2178,7 @@ class ModelService {
       try {
         const w = fs.watch(p, { recursive: true, persistent: false }, (_ev, file) => {
           const ext = path.extname(String(file || '')).toLowerCase();
-          if (!file || WEIGHT_EXT.has(ext) || PARTIAL_EXT.has(ext) || !ext) kick();
+          if (!file || WEIGHT_EXT.has(ext) || PARTIAL_EXT.has(ext) || !ext || /\.mia\.json$/i.test(String(file))) kick();
         });
         w.on('error', () => {});
         this.watchers.push(w);

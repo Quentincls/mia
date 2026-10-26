@@ -2,7 +2,7 @@
 // Essai des exécuteurs de B3 hors d'Electron, SANS GPU :
 //   frame, trim, resize, sequence, export, sound, looks (ffmpeg) · cutout, composite, finish (worker Python).
 //
-//   node tools/test-light-executors.js [--no-python] [--only=frame,trim,resize,sequence,export,sound,looks,python,finish]
+//   node tools/test-light-executors.js [--no-python] [--only=frame,trim,resize,sequence,export,sound,looks,mask,python,finish]
 //
 // - Médias de test fabriqués par le ffmpeg du labo en libx264 (processeur), dans _dev/B3/work (recréé à chaque essai ;
 //   MIA_TEST_WORK=<dossier> pour en changer).
@@ -242,6 +242,13 @@ function makeMedia() {
   ffSync(['-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=48000:duration=2', '-af', 'volume=-25dB', '-ac', '2', '-c:a', 'pcm_s16le', m('faible.wav')]);
   ffSync(['-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000:duration=0.2', '-f', 'lavfi', '-i', 'color=c=gray:s=64x64',
     '-map', '0:a', '-map', '1:v', '-frames:v', '1', '-c:a', 'libmp3lame', '-c:v', 'mjpeg', '-disposition:v', 'attached_pic', m('court.mp3')]);
+  // bloc Masque : une image 400×600 et des dessins à moitié de sa taille (une petite zone de 20 px, un dessin vide)
+  ffSync(['-f', 'lavfi', '-i', 'testsrc2=size=400x600', '-frames:v', '1', m('a_retoucher.png')]);
+  ffSync(['-f', 'lavfi', '-i', 'color=c=black:s=200x300', '-vf', 'drawbox=x=90:y=140:w=20:h=20:color=white:t=fill',
+    '-frames:v', '1', m('dessin_zone.png')]);
+  ffSync(['-f', 'lavfi', '-i', 'color=c=black:s=200x300', '-frames:v', '1', m('dessin_vide.png')]);
+  ffSync(['-f', 'lavfi', '-i', 'color=c=red:s=1024x1024', '-frames:v', '1', m('generee_carre.png')]);
+  ffSync(['-f', 'lavfi', '-i', 'color=c=red:s=384x576', '-frames:v', '1', m('generee.png')]);
   // LUT 3D de la Finition : 2³ qui inverse les couleurs (ordre .cube : le rouge varie le plus vite)
   const rows = [];
   for (let b = 0; b < 2; b++) for (let g = 0; g < 2; g++) for (let r = 0; r < 2; r++) rows.push(`${1 - r} ${1 - g} ${1 - b}`);
@@ -284,6 +291,7 @@ async function main() {
   const clipC = await inputOf(m('clip_c.mkv'));
   const img = await inputOf(m('image.png'));
   const alphaImg = await inputOf(m('alpha.png'));
+  const retouch = await inputOf(m('a_retoucher.png'));
 
   console.log('\nExtraire une image');
   await test('frame', 'image 3, PNG 256² nommé « clip_a_f0003.png »', async () => {
@@ -492,6 +500,53 @@ async function main() {
     const r = await run('sound', makeX('sound', { video: clipA, audio: court }, { mode: 'replace', loop: true, fadeOut: 0 }));
     const end = meanDb(r.outputs.video.abs, 0.3, 0.4);
     expect(r.notes.loop === true && end > -40, `fin ${end} dB (le son doit encore jouer)`);
+  });
+
+  console.log('\nMasque et recollage d\'une zone');
+  const maskOut = {};
+  await test('mask', 'dessin à moitié de la taille → masque 400×600, zone blanche à sa place, bord réduit (petite zone)', async () => {
+    const r = await run('mask', makeX('mask', { image: retouch }, { drawing: 'media/dessin_zone.png', feather: 18 }));
+    const p = await ffmpeg.probe(r.outputs.mask.abs);
+    expect(p.w === 400 && p.h === 600, `taille ${p.w}×${p.h}`);
+    expect(pixel(r.outputs.mask.abs, 200, 300)[0] > 200, `centre ${pixel(r.outputs.mask.abs, 200, 300)}`);
+    expect(pixel(r.outputs.mask.abs, 20, 20)[0] < 5, `coin ${pixel(r.outputs.mask.abs, 20, 20)}`);
+    expect(/bord adouci de 10 px \(réduit : petite zone\)/.test(r.notes), r.notes);
+    maskOut.abs = r.outputs.mask.abs;
+    return r.notes;
+  });
+  await test('mask', '« Zone à protéger » : inversé, le coin devient la zone', async () => {
+    const r = await run('mask', makeX('mask', { image: retouch }, { drawing: 'media/dessin_zone.png', mode: 'protect', feather: 0 }));
+    expect(pixel(r.outputs.mask.abs, 20, 20)[0] > 250 && pixel(r.outputs.mask.abs, 200, 300)[0] < 5, 'pas inversé');
+  });
+  await test('mask', 'dessin vide ou absent → message clair', async () => {
+    await expectError(run('mask', makeX('mask', { image: retouch }, { drawing: 'media/dessin_vide.png' })), /dessin est vide/);
+    await expectError(run('mask', makeX('mask', { image: retouch }, { drawing: '' })), /Dessine d.abord la zone/);
+  });
+  const t2i = require(path.join(EXEC, 't2i.js'));
+  const pasteTest = async (gen, win) => {
+    const out = path.join(WORK, `recolle_${win ? 'fenetre' : 'plein'}.png`);
+    ffSync(t2i.pasteArgs({ img: retouch.abs, gen, mask: maskOut.abs, w: 400, h: 600, win, out }));
+    const p = await ffmpeg.probe(out);
+    expect(p.w === 400 && p.h === 600, `taille ${p.w}×${p.h}`);
+    const c = pixel(out, 200, 300);
+    expect(c[0] > 240 && c[1] < 15 && c[2] < 15, `zone ${c}`);
+    // hors de la zone (et dans la fenêtre zoomée, hors du masque) : l'original, au pixel près
+    for (const [px, py] of [[5, 5], [395, 595], [150, 250], [250, 350]]) {
+      expect(String(pixel(out, px, py)) === String(pixel(retouch.abs, px, py)), `(${px}, ${py}) changé`);
+    }
+  };
+  await test('mask', 'recollage : la zone vient de la génération, le reste identique au pixel', async () => {
+    if (!maskOut.abs) throw new Error('masque absent');
+    await pasteTest(m('generee.png'), null);
+  });
+  await test('mask', 'petite zone : fenêtre de 240 px (6 × 40) autour, génération en 1024 recollée', async () => {
+    if (!maskOut.abs) throw new Error('masque absent');
+    const win = t2i.zoneWindow({ x: 180, y: 280, w: 40, h: 40 }, 400, 600);
+    expect(win && win.s === 240 && win.x === 80 && win.y === 180, `fenêtre ${JSON.stringify(win)}`);
+    expect(t2i.zoneWindow({ x: 0, y: 0, w: 380, h: 40 }, 400, 600) === null, 'grande zone zoomée');
+    const edge = t2i.zoneWindow({ x: 0, y: 590, w: 10, h: 10 }, 400, 600);
+    expect(edge.x === 0 && edge.y === 600 - edge.s, `bord ${JSON.stringify(edge)}`);
+    await pasteTest(m('generee_carre.png'), win);
   });
 
   console.log('\nLooks (Mia\\luts) et « Essayer des looks »');

@@ -192,6 +192,7 @@ registerIcons({
   // trois plans décalés
   depth: '<rect x="3.6" y="10" width="10" height="10.2" rx="1.5"/><path d="M7.2 10V7.6a1.4 1.4 0 0 1 1.4-1.4h7.6a1.4 1.4 0 0 1 1.4 1.4v7.6a1.4 1.4 0 0 1-1.4 1.4h-2.6"/><path d="M10.8 6.2V4.8a1.4 1.4 0 0 1 1.4-1.4h6.8a1.4 1.4 0 0 1 1.4 1.4v6.8a1.4 1.4 0 0 1-1.4 1.4h-1.4"/>',
   // silhouette dans un cadre pointillé
+  zone: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M8.2 15.6c-1.9-1.6-1-5 1.8-5.4 2.3-.3 3 1.3 4.8 1 2-.3 2.9 2.4 1.2 3.9-1.9 1.6-5.9 2.1-7.8.5z" stroke-dasharray="2 2.1"/>',
   cutout: '<rect x="3.6" y="3.6" width="16.8" height="16.8" rx="2.6" stroke-dasharray="2.2 2.6"/><circle cx="12" cy="10" r="2.6"/><path d="M7.4 18.4a4.6 4.6 0 0 1 9.2 0"/>',
   // un cadre coupé en deux, poignée au milieu
   compare: '<rect x="3.4" y="4.8" width="17.2" height="14.4" rx="2.2"/><path d="M12 2.8v18.4"/><circle cx="12" cy="12" r="1.9"/>',

@@ -203,7 +203,7 @@ const TIMING_PARAMS = ['speed', 'detail'];
 // First-run lock estimates (minutes) until real durations are learned — from the catalog's estimates.
 const DEFAULT_MINUTES = {
   'i2v|preview': 2, 'i2v|final': 9, 't2v|preview': 2, 't2v|final': 9, 'real|preview': 3, 'real|final': 20,
-  'perform|preview': 5, 'perform|final': 15, edit: 3, t2i: 1, upscale: 20, depth: 2, cutout: 3,
+  'perform|preview': 5, 'perform|final': 15, edit: 3, t2i: 1, mask: 0.1, upscale: 20, depth: 2, cutout: 3,
   'gen|preview': 2, 'gen|final': 9
 };
 

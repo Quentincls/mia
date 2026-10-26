@@ -968,6 +968,25 @@ const dec = (v, digits = 1) => {
   return lang === 'fr' ? str.replace('.', ',') : str;
 };
 
+/**
+ * Rectangle of a mask's white zone (pixels ≥ `threshold`, 0–255), read with ffmpeg's bbox filter:
+ * { x, y, w, h } — { empty: true } when nothing is white — null when it could not be read.
+ */
+async function maskBox(x, abs, threshold = 128) {
+  let r = null;
+  try {
+    r = await x.ffmpeg.run(['-hide_banner', '-nostdin', '-v', 'info', '-i', abs, '-vf', `format=gray,bbox=min_val=${threshold}`,
+      '-frames:v', '1', '-f', 'null', '-'], { signal: x.signal });
+  } catch { return null; }
+  const err = String((r && r.stderr) || '');
+  const m = /x1:(-?\d+)\s+x2:(-?\d+)\s+y1:(-?\d+)\s+y2:(-?\d+)/.exec(err);
+  // rien d'assez blanc : bbox écrit sa ligne sans coordonnées
+  if (!m) return /Parsed_bbox/.test(err) ? { empty: true } : null;
+  const [x1, x2, y1, y2] = m.slice(1).map(Number);
+  if (x2 < x1 || y2 < y1) return { empty: true };
+  return { x: x1, y: y1, w: x2 - x1 + 1, h: y2 - y1 + 1 };
+}
+
 /** Text for run.json `notes`. */
 const notes = (list) => list.filter(Boolean).join('\n') || undefined;
 
@@ -978,7 +997,7 @@ const exec = {
   LTX_UPSCALER, LTX_STAGE2_SIGMAS, ltxEnhance, enhancedText,
   familyKey, familyLabel, familyLimits, maxSeconds, loraTrigger, withTrigger, listedName, lora, loraPrompt, addLora, requireModels,
   engine, ranged, tmp, cleanup, upload, annotated, prefix, release, wrap, sweepEngineTemps, submit, files, filesOrThrow, metaOf,
-  hasNvenc, codecArgs, ffmpeg, encode, framesInput, framesToVideo, stillTo, prepVideo, notes, dec,
+  hasNvenc, codecArgs, ffmpeg, encode, framesInput, framesToVideo, stillTo, prepVideo, notes, dec, maskBox,
 };
 
 module.exports = {

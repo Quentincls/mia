@@ -185,19 +185,26 @@
       "mark": "Q2",
       "match": { "baseKey": "qwen21", "family": "qwen-image 2.1" },
       "desc": {
-        "fr": "Une image depuis ta consigne, très fidèle aux textes écrits dans l’image (panneaux, titres) ; version Turbo, quelques secondes. Licence de recherche : essais et projets perso.",
-        "en": "An image from your prompt, very faithful to text written in the image (signs, titles); Turbo version, a few seconds. Research license: trials and personal projects."
+        "fr": "Une image depuis ta consigne, très fidèle aux textes écrits dans l’image (panneaux, titres) ; version Turbo, quelques secondes. Une image de cadrage lui fait garder une composition ; une image et un masque, il ne refait que la zone. Licence de recherche : essais et projets perso.",
+        "en": "An image from your prompt, very faithful to text written in the image (signs, titles); Turbo version, a few seconds. A layout image makes it keep a composition; an image and a mask, it redoes only the zone. Research license: trials and personal projects."
       },
       "variants": [],
-      "limits": { "inputs": ["prompt"], "resolutions": ["1024", "1440", "2048"] },
+      "limits": { "inputs": ["layout", "image", "mask", "prompt"], "resolutions": ["1024", "1440", "2048"] },
       "kind": "image",
-      "main": [],
+      "main": ["layout"],
       "workflows": [
         { "id": "t2i", "executor": "t2i", "cap": "text-to-image", "as": "t2i", "promptRequired": true, "trial": true,
           "label": { "fr": "Image depuis un texte", "en": "Image from text" },
-          "ports": {},
-          "paramOverrides": { "prompt": { "placeholder": { "fr": "Ce que montre l’image, la lumière, le style… (en anglais)", "en": "What the image shows, the light, the style… (in English)" } } },
-          "params": ["prompt", "format", "resolution", "lora", "loraStrength", "seed"] }
+          "ports": { "layout": {} },
+          "paramOverrides": { "format": { "hideWith": "layout" }, "resolution": { "hint": { "fr": "Pour une image finale avec une LoRA : 1K, puis le bloc Agrandir. Le 2K direct fait plus « IA ».", "en": "For a final image with a LoRA: 1K, then the Upscale block. Direct 2K looks more “AI-made”." } }, "prompt": { "placeholder": { "fr": "Ce que montre l’image, la lumière, le style… (en anglais)", "en": "What the image shows, the light, the style… (in English)" } } },
+          "params": ["prompt", "format", "resolution", "layoutFollow", "lora", "loraStrength", "seed"] },
+        { "id": "zone", "executor": "t2i", "cap": "text-to-image", "as": "t2i", "promptRequired": true, "trial": true,
+          "label": { "fr": "Retoucher une zone", "en": "Retouch a zone" },
+          "ports": { "image": { "label": { "fr": "Image à retoucher", "en": "Image to retouch" } },
+            "mask": { "label": { "fr": "Zone à changer", "en": "Zone to change" } } },
+          "required": ["image", "mask"],
+          "paramOverrides": { "prompt": { "placeholder": { "fr": "Ce qu’il faut mettre dans la zone (en anglais)", "en": "What goes in the zone (in English)" } } },
+          "params": ["prompt", "zoneStrength", "lora", "loraStrength", "seed"] }
       ]
     },
     "seedvr2": {

@@ -87,7 +87,7 @@ export function nodeInputs(node, connected = [], { all = false, extra = [], hold
 const isMultiWay = (fam) => ((fam?.def?.workflows) || []).length > 1;
 
 // ordre des points de départ : ce qu'on fait le plus souvent d'abord
-const START_ORDER = ['start', 'refs', 'refVideos', 'image', 'character', 'video', 'guide', 'sheet', 'motion', 'end', 'keys', 'audio'];
+const START_ORDER = ['start', 'refs', 'refVideos', 'image', 'character', 'video', 'guide', 'sheet', 'layout', 'motion', 'end', 'keys', 'audio'];
 // ce dont une façon de faire sans exigence peut partir (pas les images-clés ni le son d'un « depuis un texte »)
 const LEADS = START_ORDER.slice(0, START_ORDER.indexOf('motion'));
 

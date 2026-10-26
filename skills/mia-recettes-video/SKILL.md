@@ -166,6 +166,15 @@ Toutes passent par un bloc Modèle (`type:"gen"`, voir mia-piloter) ; le moteur 
   24/10 : raccord invisible, son continu (≈ 9 min pour 3 s + 4 s).
 - **LTX « Deux passes »** : caché dans Mia depuis l'essai GPU du 24/10 (en 1080p, **moins net** qu'une passe et
   visage moins fidèle, pour le même temps). Une passe reste la bonne réponse pour un 1080p net.
+- **Images depuis un texte (Qwen-Image 2.1 Turbo, FLUX.2 Klein 9B)** : avec une LoRA de style, image finale = **1K**
+  (ex. 832×1024) puis **Agrandir** (SeedVR2 7B, petit côté 2048) : le 2K direct de Qwen 2.1 fait plus « IA » (essai
+  côte à côte, 25/10). Composition imposée (Qwen 2.1) : brancher l'image sur **Cadrage** (sa profondeur
+  tient la composition, la LoRA garde son style) ; repartir de l'image elle-même efface le style de la LoRA. Suivre les
+  conseils de force de la LoRA (`advice` / `strength` dans `mia_catalog`).
+- **Corriger un détail d'une image (Qwen-Image 2.1, « Retoucher une zone »)** : recette `retouch-zone` (Média →
+  Masque → Modèle Qwen-Image 2.1 → Comparer). L'utilisateur peint la zone ; la consigne dit ce qu'il faut y mettre, LoRA
+  comprise. Ampleur 0,6 à 0,75 (0,7 par défaut) ; le reste de l'image ne change pas d'un pixel. Une petite zone
+  (pieds, mains, un œil) est calculée dans une fenêtre zoomée en 1024 : inutile de l'agrandir soi-même.
 - **LTX « Enrichir la consigne »** : caché depuis le 25/10 (essai GPU : le Gemma du PC, compressé pour lire la
   consigne, la réécrit en charabia et la vidéo part de ce charabia ; il faut le petit Gemma prévu pour, absent).
 - **Qwen Image Edit** : jusqu'à 2 images d'appui (`ref`), citées « image 2 », « image 3 ».

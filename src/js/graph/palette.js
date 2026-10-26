@@ -29,7 +29,7 @@ const TABS = [
 const TAB_OF_TYPE = {
   import: 'files', text: 'files', note: 'notes',
   i2v: 'video', t2v: 'video', ref2v: 'video', real: 'video', guided: 'video', perform: 'video',
-  edit: 'image', t2i: 'image', sound: 'sound',
+  edit: 'image', t2i: 'image', mask: 'image', sound: 'sound',
   trim: 'edit', sequence: 'edit', composite: 'edit', resize: 'edit', frame: 'edit', depth: 'edit', cutout: 'edit',
   finish: 'finish', looks: 'finish', upscale: 'finish', compare: 'finish', export: 'finish',
 };

@@ -293,12 +293,12 @@
           }
         },
         {
-          "id": "mask",
-          "type": "media",
+          "id": "layout",
+          "type": "image",
           "required": false,
           "label": {
-            "fr": "Masque (zone libre)",
-            "en": "Mask (free area)"
+            "fr": "Cadrage",
+            "en": "Layout"
           }
         },
         {
@@ -338,6 +338,15 @@
           },
           "multi": true,
           "max": 2
+        },
+        {
+          "id": "mask",
+          "type": "media",
+          "required": false,
+          "label": {
+            "fr": "Masque (zone libre)",
+            "en": "Mask (free area)"
+          }
         },
         {
           "id": "audio",
@@ -623,6 +632,59 @@
           "hint": {
             "fr": "Profondeur : garde les volumes et la caméra. Contours : garde aussi les détails des formes.",
             "en": "Depth: keeps volumes and camera. Outlines: also keeps the shapes’ details."
+          }
+        },
+        {
+          "id": "layoutFollow",
+          "kind": "seg",
+          "default": "balanced",
+          "onlyWith": "layout",
+          "label": {
+            "fr": "Respect du cadrage",
+            "en": "Layout strength"
+          },
+          "options": [
+            {
+              "value": "strict",
+              "label": {
+                "fr": "Strict",
+                "en": "Strict"
+              }
+            },
+            {
+              "value": "balanced",
+              "label": {
+                "fr": "Équilibré",
+                "en": "Balanced"
+              }
+            },
+            {
+              "value": "loose",
+              "label": {
+                "fr": "Souple",
+                "en": "Loose"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Strict : la composition de l’image de cadrage, presque à l’identique. Souple : le modèle s’en inspire et invente davantage.",
+            "en": "Strict: the layout image’s composition, almost as is. Loose: the model takes it as a hint and invents more."
+          }
+        },
+        {
+          "id": "zoneStrength",
+          "kind": "slider",
+          "min": 0.3,
+          "max": 1,
+          "step": 0.05,
+          "default": 0.7,
+          "label": {
+            "fr": "Ampleur du changement",
+            "en": "How much changes"
+          },
+          "hint": {
+            "fr": "Bas : la zone garde ses formes et ses couleurs, retouchées. Haut : elle est refaite d’après la consigne (0,6 à 0,75 en général).",
+            "en": "Low: the zone keeps its shapes and colours, touched up. High: it is redone from the prompt (0.6 to 0.75 usually)."
           }
         },
         {
@@ -2978,6 +3040,118 @@
       "estimate": {
         "fr": "≈ 0,1 s par image",
         "en": "≈ 0.1 s per frame"
+      }
+    },
+    {
+      "id": "mask",
+      "category": "tools",
+      "icon": "zone",
+      "width": 320,
+      "label": {
+        "fr": "Masque",
+        "en": "Mask"
+      },
+      "desc": {
+        "fr": "Dessine sur une image la zone à changer (ou à protéger) : le masque sert à retoucher seulement cette zone.",
+        "en": "Paint on an image the zone to change (or to protect): the mask is used to retouch only that zone."
+      },
+      "keywords": {
+        "fr": "masque zone pinceau dessiner retouche inpainting",
+        "en": "mask zone brush paint draw retouch inpainting"
+      },
+      "inputs": [
+        {
+          "id": "image",
+          "type": "image",
+          "required": true,
+          "label": {
+            "fr": "Image",
+            "en": "Image"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "mask",
+          "type": "image",
+          "label": {
+            "fr": "Masque",
+            "en": "Mask"
+          }
+        }
+      ],
+      "params": [
+        {
+          "id": "mode",
+          "kind": "seg",
+          "default": "change",
+          "label": {
+            "fr": "Ce que tu dessines",
+            "en": "What you paint"
+          },
+          "options": [
+            {
+              "value": "change",
+              "label": {
+                "fr": "Zone à changer",
+                "en": "Zone to change"
+              }
+            },
+            {
+              "value": "protect",
+              "label": {
+                "fr": "Zone à protéger",
+                "en": "Zone to protect"
+              }
+            }
+          ]
+        },
+        {
+          "id": "feather",
+          "kind": "slider",
+          "min": 0,
+          "max": 60,
+          "step": 1,
+          "default": 18,
+          "unit": "px",
+          "label": {
+            "fr": "Adoucir le bord",
+            "en": "Soften the edge"
+          },
+          "hint": {
+            "fr": "Un bord flou fond la zone refaite dans l’image (18 px pour une image de 1 000 px environ).",
+            "en": "A soft edge blends the redone zone into the image (about 18 px for a 1,000 px image)."
+          }
+        },
+        {
+          "id": "drawing",
+          "kind": "file",
+          "accept": [
+            "png"
+          ],
+          "default": "",
+          "advanced": true,
+          "label": {
+            "fr": "Dessin",
+            "en": "Drawing"
+          },
+          "placeholder": {
+            "fr": "Choisir un masque .png…",
+            "en": "Pick a .png mask…"
+          },
+          "hint": {
+            "fr": "Écrit par « Dessiner la zone ». Un masque fait ailleurs marche aussi : blanc = la zone.",
+            "en": "Written by “Draw the zone”. A mask made elsewhere works too: white = the zone."
+          }
+        }
+      ],
+      "engine": {
+        "executor": "mask",
+        "gpu": "none"
+      },
+      "estimate": {
+        "fr": "instantané",
+        "en": "instant"
       }
     },
     {

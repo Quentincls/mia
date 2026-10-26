@@ -499,7 +499,7 @@ window.addEventListener('contextmenu', (e) => {
  * Crée un puits de média.
  * opts : { onOpen(), onExtract(frame)?, onMissing()?, autoplay = true, controls = true, ratio = 16/9 }
  * Retour : { el, show(media), showLive(url), empty(spec), setTag(text), video(), player(), destroy() }
- * media = { url, poster?, kind:'image'|'video', meta?, alpha?, note? }
+ * media = { url, poster?, kind:'image'|'video', meta?, alpha?, note?, zone? }   (zone : dessin noir et blanc d'un Masque)
  * Le puits prend le ratio du média (SPEC §16) : plus étroit et centré pour un
  * média vertical, jamais rogné, 460 px de haut au plus.
  */
@@ -575,7 +575,7 @@ export function createWell(opts = {}) {
     badge.textContent = media.badge ?? metaText(media.meta, media.kind);
     badge.hidden = !badge.textContent;
     fitTop();
-    const key = `${media.kind}|${media.url}|${media.paused ? 'p' : ''}`;
+    const key = `${media.kind}|${media.url}|${media.paused ? 'p' : ''}|${media.zone || ''}`;
     if (layer && layer.key === key) {          // même média : on garde la lecture en cours
       if (media.meta?.w && media.meta?.h) setRatio(media.meta.w / media.meta.h);
       return;
@@ -593,6 +593,8 @@ export function createWell(opts = {}) {
   function imageLayer(media, key) {
     const img = el('img', { class: 'nb-media', draggable: 'false', decoding: 'async', alt: '' });
     const box = el('div', { class: 'nb-layer' }, img);
+    // la zone peinte d'un bloc Masque : l'accent, à demi transparent, là où le dessin est blanc
+    if (media.zone) box.append(el('div', { class: 'nb-zone', style: `--zone: url("${media.zone}")` }));
     img.onload = () => {
       if (!media.meta?.w && img.naturalWidth) setRatio(img.naturalWidth / img.naturalHeight);
     };

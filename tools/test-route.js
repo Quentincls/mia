@@ -48,7 +48,9 @@ const CASES = [
   ['fam:klein', ['image'], 'edit', { unused: [] }],
   ['fam:klein', ['ref'], 't2i', { unused: ['ref'] }],                            // Klein ne prend pas d'images d'appui
   ['fam:qwen21', [], 't2i', { ties: [] }],
-  ['fam:qwen21', ['image'], 't2i', { unused: ['image'] }],                         // 2.1 : pas de retouche (Qwen Image Edit)
+  ['fam:qwen21', ['image'], 'zone', { blocked: true, missing: ['mask'] }],    // une image seule : il manque la zone
+  ['fam:qwen21', ['image', 'mask'], 'zone', { unused: [] }],                  // retoucher une zone
+  ['fam:qwen21', ['layout'], 't2i', { unused: [] }],                          // guide de cadrage (profondeur)                         // 2.1 : pas de retouche (Qwen Image Edit)
   ['hf:seedance-2-5', [], 'bytedance/seedance-2.5/text-to-video', { ties: [] }],
   ['hf:seedance-2-5', ['refs'], 'bytedance/seedance-2.5/reference-to-video', {}],
 ];
