@@ -2830,8 +2830,8 @@
         "gpu": "heavy"
       },
       "estimate": {
-        "fr": "≈ 6 s par image de vidéo",
-        "en": "≈ 6 s per video frame"
+        "fr": "≈ 6 s par image (SeedVR2), plus avec LTX · détails",
+        "en": "≈ 6 s per frame (SeedVR2), more with LTX · details"
       }
     },
     {

@@ -437,7 +437,16 @@ async function freshModels(comfy, folders) {
 }
 
 async function ensureValid(graph, { comfy, info = {} } = {}) {
-  const objectInfo = await objectInfoFrom(comfy);
+  let objectInfo = await objectInfoFrom(comfy);
+  // a node the cached schema lacks may come from a pack installed since (same ComfyUI version): ask for it alone
+  const absent = [...new Set(Object.values(graph || {}).map((n) => n && n.class_type))]
+    .filter((c) => c && !objectInfo[c] && typeof comfy.objectInfo === 'function');
+  if (absent.length) {
+    objectInfo = { ...objectInfo };
+    for (const c of absent) {
+      try { const v = await comfy.objectInfo(c); if (v) objectInfo[c] = v; } catch { /* stays unknown */ }
+    }
+  }
   const models = await modelsFrom(comfy, foldersOf(graph));
   const ctx = { objectInfo, models, inputDir: info.inputDir, outputDir: info.outputDir, modelsDir: info.modelsDir };
   let r = validateGraph(graph, ctx);

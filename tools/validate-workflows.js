@@ -249,6 +249,9 @@ const INV = {
   sv7: inv('seedvr2_7b_int8_convrot.safetensors', 'diffusion_models', 'SeedVR2', 'SeedVR2 7B'),
   sv3: inv('seedvr2_3b_int8_convrot.safetensors', 'diffusion_models', 'SeedVR2', 'SeedVR2 3B'),
   svNode: inv('seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors', 'seedvr2', 'SeedVR2', 'SeedVR2 7B (fp8)'),
+  rtx: { id: 'rtxvsr01', key: 'rtx-vsr', file: 'nvngx_vsr.dll', family: 'NVIDIA RTX VSR', label: { fr: 'NVIDIA RTX · express', en: 'NVIDIA RTX · express' }, comfy: null },
+  ltxUp: inv('ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors', 'latent_upscale_models', 'LTX-2.x', 'LTX · détails',
+    { key: 'ltx-upscaler' }),
 };
 // les LoRA de personnage et de lieu des essais n'existent nulle part : supposés installés pour toutes les variantes
 const CHARACTER_LORAS = { loras: [INV.mara.file, INV.rooftop.file, INV.theo.file] };
@@ -520,6 +523,23 @@ const VARIANTS = {
     { name: 'vidéo · nœud fp8 (CLI du labo)', inputs: { media: vid(1080, 1920, 97) }, models: { model: INV.svNode } },
     { name: 'image · auto', inputs: { media: IMG_V }, models: { model: null } },
     { name: 'image · nœud fp8', inputs: { media: IMG_H }, params: { target: '2160' }, models: { model: INV.svNode } },
+    { name: 'vidéo · LTX détails · 1440 (son)', inputs: { media: vid(1280, 720, 241, 24, { hasAudio: true }) }, models: { model: INV.ltxUp },
+      expectGraph: (gs) => gs.length === 3 && gs[0]['31'].inputs.width === 1280 && gs[0]['31'].inputs.height === 736 && gs[0]['31'].inputs.length === 97
+        && gs[0]['41'].inputs.width === 2560 && gs[0]['41'].inputs.height === 1472 ? null : 'toiles LTX inattendues' },
+    { name: 'vidéo · LTX détails · 4K · vertical', inputs: { media: vid(720, 1280, 100) }, params: { target: '2160' }, models: { model: INV.ltxUp },
+      expectGraph: (gs) => (gs.length === 3 && gs[0]['41'].inputs.width === 2176 && gs[0]['41'].inputs.height === 3840 && gs[0]['31'].inputs.length === 49
+        ? null : 'toiles LTX inattendues') },
+    { name: 'vidéo · LTX détails · court (une tranche)', inputs: { media: vid(1280, 720, 60) }, models: { model: INV.ltxUp },
+      expectGraph: (gs) => (gs.length === 1 && gs[0]['31'].inputs.length === 65 ? null : 'une seule tranche de 65 images attendue') },
+    { name: 'vidéo · RTX · 1440 (son, par paquets)', inputs: { media: vid(1280, 720, 241, 24, { hasAudio: true }) }, models: { model: INV.rtx },
+      expectGraph: (gs) => (gs.length === 3 && gs[0]['3'].inputs['resize_type.width'] === 2560 && gs[0]['3'].inputs['resize_type.height'] === 1440
+        ? null : 'paquets RTX inattendus') },
+    { name: 'vidéo · RTX · 4K', inputs: { media: vid(1280, 720, 97) }, params: { target: '2160' }, models: { model: INV.rtx } },
+    { name: 'image · RTX', inputs: { media: IMG_H }, models: { model: INV.rtx } },
+    { name: 'vidéo 4K vers 1440 → refus clair', inputs: { media: vid(3840, 2160, 477) }, models: { model: INV.sv7 }, expectError: /plus que 1440p : rien à agrandir/ },
+    { name: 'vidéo · natif 7B · 20 s → tranches', inputs: { media: vid(1280, 720, 480, 24, { hasAudio: true }) }, models: { model: INV.sv7 },
+      expectGraph: (gs) => (gs.length > 1 ? null : 'tranches SeedVR2 attendues') },
+    { name: 'image · LTX détails → refus clair', inputs: { media: IMG_H }, models: { model: INV.ltxUp }, expectError: /n’agrandit que des vidéos/ },
   ],
   ref2v: [
     { name: 'modèle absent → message clair', mode: 'preview', without: PENDING, inputs: { refs: [IMG_V, IMG_H] },

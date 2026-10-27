@@ -1106,6 +1106,7 @@ async function workflowRefs(env, cached) {
 // 6. Présentation : fichiers -> modèles lisibles par quelqu'un qui n'est pas technicien
 // =============================================================================================
 function matchWhen(w, r) {
+  if (w.never) return false;                     // entrée faite à la main (builtInModels), jamais par un fichier
   const ok = (val, cond) => {
     if (cond == null) return true;
     if (cond instanceof RegExp) return cond.test(String(val || '').toLowerCase());
@@ -1477,6 +1478,38 @@ function missingNote(miss, modelsDir) {
     en: `${miss.length} parts are missing: ${miss.map((x) => one(x, 'en')).join('; ')}.` };
 }
 
+// Moteurs livrés sans fichier de poids à eux (dans un paquet Python du moteur) : une entrée faite à la main,
+// seulement quand le paquet et son pack de nœuds ComfyUI sont installés dans le dossier du moteur.
+const BUILT_IN = [
+  { key: 'rtx-vsr', file: 'env/venv/Lib/site-packages/nvvfx/libs/nvngx_vsr.dll',
+    node: 'env/ComfyUI/custom_nodes/ComfyUI_Nvidia_VFX_Nodes', family: 'NVIDIA RTX VSR', role: 'upscaler' },
+];
+
+function builtInModels(env) {
+  const out = [];
+  if (!env.engineRoot) return out;
+  for (const b of BUILT_IN) {
+    const abs = P(path.join(env.engineRoot, b.file));
+    let st = null;
+    try { st = fs.statSync(abs); } catch { continue; }
+    if (!fs.existsSync(path.join(env.engineRoot, b.node))) continue;
+    const cat = R.CATALOG.find((c) => c.key === b.key);
+    if (!cat) continue;
+    out.push({
+      id: modelId(abs), key: b.key, path: abs, file: path.basename(abs), name: path.basename(abs),
+      sizeGB: gb(st.size), family: b.family, role: b.role, variant: null, quant: null, quantClass: null, params: null,
+      rank: null, label: { ...cat.label }, desc: { ...cat.desc }, caps: [...cat.caps], default: [],
+      comfy: null, engine: 'comfy', license: cat.license, licenseNote: cat.licenseNote, vramGB: cat.vramGB,
+      speed: cat.speed, quality: cat.quality, status: 'ready', statusNote: null, app: null, hidden: false, group: 'other',
+      part: null, tier: cat.tier || null, trigger: null, identity: null, genre: null, trainingStep: null, duplicateOf: null,
+      missingParts: [], parts: null, baseKey: null,
+      root: { path: P(env.engineRoot), kind: 'comfy', label: { fr: 'Dossier du moteur', en: 'Engine folder' } },
+      usedBy: [], files: null, mtime: st.mtimeMs || null, builtIn: true, _cat: cat, _main: null,
+    });
+  }
+  return out;
+}
+
 function resolveParts(models, modelsDir) {
   const readyByKey = new Map();
   for (const m of models) {
@@ -1821,6 +1854,7 @@ async function scan(opts = {}) {
   const rootsByPath = new Map(roots.map((r) => [r.path.toLowerCase(), r]));
   const { models, byRecord } = buildModels(records, [...bundles.values()], { layout, comfy, rootsByPath, env });
   applyLoras(models, { env, registry, placements });
+  models.push(...builtInModels(env));
   const duplicates = markDuplicates(models, records, byRecord, { env });
   resolveParts(models, layout.modelsDir);
   assignGroups(models);

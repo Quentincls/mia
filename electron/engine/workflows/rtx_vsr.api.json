@@ -1,0 +1,6 @@
+{
+  "1": {"class_type":"LoadVideo","inputs":{"file":"mia/placeholder_upscale.mp4"}},
+  "2": {"class_type":"GetVideoComponents","inputs":{"video":["1",0]}},
+  "3": {"class_type":"RTXVideoSuperResolution","inputs":{"images":["2",0],"resize_type":"target dimensions","resize_type.width":2560,"resize_type.height":1440,"quality":"ULTRA","strength":1,"image_encoding":"8-bit RGB"}},
+  "9990": {"class_type":"SaveImage","inputs":{"filename_prefix":"mia/upscale/frame","images":["3",0]}}
+}

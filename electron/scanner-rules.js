@@ -138,7 +138,7 @@ const RULES = {
 // /models : le custom node le lit en direct, on le marque « comfy » à la main (models.md §5.4).
 const COMFY_FOLDERS = ['checkpoints', 'diffusion_models', 'unet', 'text_encoders', 'clip', 'vae', 'loras',
   'clip_vision', 'controlnet', 'model_patches', 'upscale_models', 'latent_upscale_models', 'seedvr2',
-  'audio_encoders', 'background_removal', 'frame_interpolation', 'optical_flow', 'detection',
+  'flashvsr', 'audio_encoders', 'background_removal', 'frame_interpolation', 'optical_flow', 'detection',
   'geometry_estimation', 'style_models', 'embeddings', 'gligen', 'photomaker', 'vae_approx', 'diffusers',
   'hypernetworks', 'classifiers'];
 const UNLISTED_COMFY_FOLDERS = ['videodepthanything'];
@@ -220,6 +220,12 @@ const APPS = {
 const F = (file, folder, sizeGB = null) => ({ file, folder, sizeGB });
 const FILES = {
   ltx: F('ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors', 'diffusion_models', 21.5),
+  ltxUpscaler: F('ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors', 'latent_upscale_models', 1.0),
+  ltxRefine: F('ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors', 'loras', 1.3),
+  flashvsr: F('FlashVSR1_1-int8_convrot.safetensors', 'flashvsr', 1.45),
+  flashvsrLq: F('LQ_proj_in.safetensors', 'flashvsr', 0.58),
+  flashvsrDecoder: F('TCDecoder-fp16.safetensors', 'flashvsr', 0.09),
+  flashvsrPrompt: F('Prompt.safetensors', 'flashvsr', 0.004),
   ltxTe: F('gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors', 'text_encoders', 15.4),
   ltxVae: F('ltx-2.5-video-vae-bf16.safetensors', 'vae', 1.5),
   ltxAudioVae: F('ltx-2.5-audio-vae-bf16.safetensors', 'vae', 0.4),
@@ -300,7 +306,7 @@ const CAPS = [
     label: { fr: 'Image depuis un texte', en: 'Image from text' },
     missing: { fr: 'Aucun modèle d’image depuis un texte n’est installé (FLUX.2 Klein 9B ou Qwen-Image 2.1).', en: 'No text-to-image model is installed (FLUX.2 Klein 9B or Qwen-Image 2.1).' },
     files: [FILES.klein9b, FILES.klein9bTe, FILES.flux2Vae], download: true, sizeGB: 27 },
-  { id: 'upscale', group: 'upscale', prefer: ['seedvr2-7b', 'seedvr2-3b'],
+  { id: 'upscale', group: 'upscale', prefer: ['seedvr2-7b', 'seedvr2-3b', 'ltx-upscaler', 'rtx-vsr'],
     name: { fr: 'SeedVR2', en: 'SeedVR2' },
     label: { fr: 'Agrandir', en: 'Upscale' },
     missing: { fr: "SeedVR2 n’est pas installé.", en: 'SeedVR2 is not installed.' },
@@ -399,6 +405,8 @@ const LIC = {
   ltx: { fr: "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
     en: 'Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files).' },
   apache: { fr: 'Usage commercial autorisé (Apache-2.0).', en: 'Commercial use allowed (Apache-2.0).' },
+  nvidia: { fr: 'Usage commercial autorisé (licence du SDK NVIDIA Video Effects, cartes RTX).',
+    en: 'Commercial use allowed (NVIDIA Video Effects SDK license, RTX cards).' },
   mit: { fr: 'Usage commercial autorisé (MIT).', en: 'Commercial use allowed (MIT).' },
   bsd: { fr: 'Usage commercial autorisé (BSD).', en: 'Commercial use allowed (BSD).' },
   openrail: { fr: 'Usage commercial autorisé (OpenRAIL++-M).', en: 'Commercial use allowed (OpenRAIL++-M).' },
@@ -451,6 +459,27 @@ const CATALOG = [
   { key: 'nc-misc', when: { name: /ditto|lucy.?edit|tc.?light|gimm.?vfi/ },
     label: null, desc: { fr: 'Modèle exclu par sa licence.', en: 'Model excluded by its license.' },
     caps: [], license: 'forbidden', licenseNote: LIC.nc },
+
+  // --- FlashVSR (agrandir) : un Wan 2.1 1.3B que les règles de tenseurs prendraient pour Wan, d'où sa place ici ---
+  { key: 'flashvsr-lq', when: { path: /\/flashvsr\//, name: /lq_proj/ }, ...PART('upscaler'), expect: FILES.flashvsrLq,
+    label: { fr: 'Entrée FlashVSR', en: 'FlashVSR input' },
+    desc: { fr: 'Prépare la vidéo source pour FlashVSR.', en: 'Prepares the source video for FlashVSR.' },
+    license: 'ok', licenseNote: LIC.apache },
+  { key: 'flashvsr-decoder', when: { path: /\/flashvsr\//, name: /tcdecoder/ }, ...PART('vae'), expect: FILES.flashvsrDecoder,
+    label: { fr: 'Décodeur FlashVSR', en: 'FlashVSR decoder' },
+    desc: { fr: 'Transforme le calcul de FlashVSR en images.', en: "Turns FlashVSR's computation into frames." },
+    license: 'ok', licenseNote: LIC.apache },
+  { key: 'flashvsr-prompt', when: { path: /\/flashvsr\//, name: /prompt/ }, ...PART('text_encoder'), expect: FILES.flashvsrPrompt,
+    label: { fr: 'Consigne fixe FlashVSR', en: 'FlashVSR fixed prompt' },
+    desc: { fr: 'Consigne déjà calculée que FlashVSR utilise toujours.', en: 'Precomputed prompt FlashVSR always uses.' },
+    license: 'ok', licenseNote: LIC.apache },
+  { key: 'flashvsr', when: { path: /\/flashvsr\//, name: /flashvsr/ },
+    label: { fr: 'FlashVSR · express', en: 'FlashVSR · express' },
+    desc: { fr: 'Agrandit une vidéo en une minute environ, sans rien inventer. Un peu moins fin.',
+      en: 'Upscales a video in about a minute, without inventing anything. A little less fine.' },
+    // pas encore proposé : trop lent sur ce PC sans attention creuse (essais du 26/10) — caps: ['upscale'] une fois réglé
+    caps: [], unused: true, needs: ['flashvsr-lq', 'flashvsr-decoder', 'flashvsr-prompt'], tier: 'express', expect: FILES.flashvsr,
+    license: 'ok', licenseNote: LIC.apache, vramGB: 10, speed: 3, quality: 1 },
 
   // --- moteurs vidéo ---
   { key: 'ltx-nvfp4', when: { family: 'LTX-2.x', role: 'diffusion_model', name: /nvfp4/ },
@@ -536,6 +565,14 @@ const CATALOG = [
       en: "Version read by the SeedVR2 command-line tool. Mia uses the int8 versions." },
     caps: [], unused: true, license: 'ok', licenseNote: LIC.apache, vramGB: 12, speed: 1, quality: 2 },
 
+  // RTX Video Super Resolution : pas de fichier de poids, ils viennent dans le paquet Python nvidia-vfx du moteur
+  // (scanner.js builtInModels, quand le paquet ET le pack de nœuds ComfyUI_Nvidia_VFX_Nodes sont là).
+  { key: 'rtx-vsr', when: { never: true },
+    label: { fr: 'NVIDIA RTX · express', en: 'NVIDIA RTX · express' },
+    desc: { fr: 'Agrandit une vidéo en quelques secondes sur la carte RTX, sans rien inventer : nettoie et affine.',
+      en: 'Upscales a video in seconds on the RTX card, inventing nothing: cleans and sharpens.' },
+    caps: ['upscale'], tier: 'express', license: 'ok', licenseNote: LIC.nvidia, vramGB: 2, speed: 3, quality: 1 },
+
   // --- profondeur, détourage ---
   { key: 'vda-small', when: { name: /video_depth_anything_vits/ },
     label: { fr: 'Video Depth Anything · Small', en: 'Video Depth Anything · Small' },
@@ -598,9 +635,10 @@ const CATALOG = [
     label: { fr: 'Mode Propager une retouche', en: 'Propagate an edit mode' },
     desc: { fr: 'Tu retouches la première image, la vidéo suit.', en: 'You retouch the first frame, the video follows.' },
     license: 'ok', licenseNote: LIC.ltx },
-  { key: 'ltx-refine', when: { role: 'lora', name: /refine-details/ }, ...PART('mode'),
-    label: { fr: 'Mode Affiner les détails (4K)', en: 'Refine details (4K) mode' },
-    desc: { fr: 'Ajoute du détail sans changer le cadrage. Testé : gain quasi nul.', en: 'Adds detail without changing the framing. Tested: almost no gain.' },
+  { key: 'ltx-refine', when: { role: 'lora', name: /refine-details/ }, ...PART('mode'), expect: FILES.ltxRefine,
+    label: { fr: 'Mode Affiner les détails', en: 'Refine details mode' },
+    desc: { fr: 'Recrée le détail fin sans changer le cadrage : utilisé par « Agrandir › LTX · détails ».',
+      en: 'Recreates fine detail without changing the framing: used by “Upscale › LTX · details”.' },
     license: 'ok', licenseNote: LIC.ltx },
 
   // --- accélérateurs ---
@@ -665,9 +703,12 @@ const CATALOG = [
     label: { fr: 'Décodeur vidéo LTX', en: 'LTX video decoder' },
     desc: { fr: 'Transforme le calcul de LTX en images.', en: "Turns LTX's computation into frames." },
     license: 'ok', licenseNote: LIC.ltx },
-  { key: 'ltx-upscaler', when: { role: 'latent_upscaler' }, ...PART('latent_upscaler'),
-    label: { fr: 'Agrandisseur LTX ×2 (2e étape)', en: 'LTX ×2 upscaler (2nd stage)' },
-    desc: { fr: 'Double la définition de LTX pendant le calcul.', en: "Doubles LTX's resolution during the computation." },
+  // visible dans « Agrandir » : composition, ×2 dans le calcul, puis affinage par tuiles (LTX-2.5 Native Resolution)
+  { key: 'ltx-upscaler', when: { role: 'latent_upscaler' }, expect: FILES.ltxUpscaler,
+    label: { fr: 'LTX · détails', en: 'LTX · details' },
+    desc: { fr: 'Agrandit une vidéo avec LTX en recréant le détail fin, fidèle au cadrage et au style. Lent.',
+      en: 'Upscales a video with LTX by recreating fine detail, true to framing and style. Slow.' },
+    caps: ['upscale'], needs: ['ltx-int8', 'ltx-refine', 'ltx-te', 'ltx-vae'], tier: 'details', vramGB: 20, speed: 1, quality: 3,
     license: 'ok', licenseNote: LIC.ltx },
   { key: 'minimax-vae', when: { family: 'MiniMax H3', role: 'vae', name: /video/ }, ...PART('vae'), expect: FILES.minimaxVae,
     label: { fr: 'Décodeur vidéo MiniMax', en: 'MiniMax video decoder' },

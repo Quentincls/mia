@@ -128,6 +128,31 @@
         "672:597": "graine"
       }
     },
+    "rtx_vsr": {
+      "executor": "upscale (NVIDIA RTX · express)",
+      "source": "exemple Comfy-Org ComfyUI_Nvidia_VFX_Nodes example_workflows/rtx_video_upscale.json (Apache-2.0), écrit à la main au format API",
+      "changes": ["taille cible au lieu d'un multiplicateur", "SaveVideo -> SaveImage 9990 (Mia encode et remet le son)"],
+      "nodes": { "1": "vidéo (un paquet d'images ; LoadImage pour une image)", "3": "RTX Video Super Resolution (ULTRA)", "9990": "PNG" }
+    },
+    "ltx_upscale": {
+      "executor": "upscale (LTX · détails)",
+      "source": "exemple Lightricks LTX-2.5_V2V_TiledFusion_Native_4K_8K.json (ComfyUI-LTXVideo, example_workflows/2.5), sous-graphes mis à plat ; licence LTX-2.x (voir NOTICE.md)",
+      "changes": [
+        "IC-LoRA Refine Details aux deux étapes (l'exemple prend Day-To-Night pour la composition)",
+        "UNET et Gemma int8, pas d'améliorateur de consigne ni de branche Gemma API (cloud)",
+        "son retiré du calcul (Mia remet celui de la source)",
+        "tailles calculées par l'executor (toile 2 = cible en multiples de 64, toile 1 = moitié) au lieu de LTXVGetTilingSizes",
+        "SaveVideo -> SaveImage 9990 ; mise à la taille exacte par ffmpeg"
+      ],
+      "nodes": {
+        "1": "vidéo source (8k+1 images)",
+        "10/11/12/13/14": "UNET, IC-LoRA Refine Details, VAE, Gemma, agrandisseur latent ×2",
+        "30/31": "toile 1 (composition, 8 pas)",
+        "40/41": "×2 latent, guide à la toile 2",
+        "44": "affinage, 3 pas",
+        "9990": "PNG"
+      }
+    },
     "seedvr2_native": {
       "executor": "upscale (modèles int8 de diffusion_models)",
       "source": "blueprint de ComfyUI blueprints/Upscale Video (SeedVR2 3B Int8).json (licence GPL-3.0, voir NOTICE.md), découpage temporel activé",

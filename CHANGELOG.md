@@ -10,6 +10,23 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## Prochaine version — en cours (pas encore publiée)
+
+### En bref
+- **Agrandir vite avec NVIDIA** : « Modèle › NVIDIA RTX · express » dans le bloc Agrandir (RTX Video Super Resolution,
+  sur la carte RTX) : quelques secondes à quelques minutes pour 10 s, rien d’inventé, image et vidéo.
+- **Agrandir avec LTX** : dans le bloc Agrandir, « Modèle › LTX · détails » agrandit une vidéo en 1440p ou en 4K
+  en recréant le détail fin, fidèle au cadrage et au style (LTX-2.5 Native Resolution : une passe de composition,
+  ×2 dans le calcul, puis un affinage par tuiles), en morceaux de quelques secondes fondus entre eux pour tenir en
+  mémoire vive. Plus lent que SeedVR2 (≈ 25 à 35 min pour 10 s en 1440p).
+
+### In short
+- **Fast upscaling with NVIDIA**: “Model › NVIDIA RTX · express” in the Upscale block (RTX Video Super Resolution, on
+  the RTX card): seconds to a few minutes for 10 s, nothing invented, images and videos.
+- **Upscaling with LTX**: “Model › LTX · details” in the Upscale block takes a video to 1440p or 4K by recreating fine
+  detail, true to framing and style (LTX-2.5 Native Resolution), in cross-faded chunks of a few seconds to fit in RAM.
+  Slower than SeedVR2 (≈ 25 to 35 min for 10 s at 1440p).
+
 ## 0.6.0 — 27/10/2026
 
 ### En bref

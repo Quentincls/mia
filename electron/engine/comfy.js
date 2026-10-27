@@ -720,7 +720,11 @@ class Comfy {
   async objectInfo(cls) {
     if (!this.url) { try { await this.ensure({ launch: false }); } catch { /* fall back on the disk cache */ } }
     this._loadOiDisk();
-    if (this._oi.all && this._oi.version === this.version) return cls ? this._oi.all[cls] ?? null : this._oi.all;
+    if (this._oi.all && this._oi.version === this.version) {
+      if (!cls) return this._oi.all;
+      if (this._oi.all[cls]) return this._oi.all[cls];
+      // absent from the cached schema: a custom node added since (same ComfyUI version) — ask for it alone
+    }
     if (cls && this._oi.classes.has(cls)) return this._oi.classes.get(cls);
     if (!this.url) {
       if (this._oi.all) return cls ? this._oi.all[cls] ?? null : this._oi.all;   // stale but better than nothing
@@ -730,7 +734,7 @@ class Comfy {
       if (cls) {
         const j = await this._fetchJson(`/object_info/${encodeURIComponent(cls)}`, { timeout: 10000 });
         const v = (j && j[cls]) || null;
-        this._oi.classes.set(cls, v);
+        if (v) this._oi.classes.set(cls, v);          // an unknown node may be installed later: ask again
         return v;
       }
       const all = await this._fetchJson('/object_info', { timeout: 60000 });
