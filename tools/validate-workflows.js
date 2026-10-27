@@ -54,6 +54,13 @@ const FOLDERS = ['diffusion_models', 'text_encoders', 'vae', 'loras', 'clip_visi
 // models expected by Mia but not on this PC yet (SPEC §17) — assumed only where a variant says so
 const REF2V = require(path.join(ENGINE, 'executors', 'ref2v.js'));
 const PENDING = { diffusion_models: [REF2V.REF2VA], loras: [REF2V.TURBO4] };
+// the image models of the Model block (FLUX.2 Klein 9B, Qwen-Image 2.1, 25/10): the saved schema predates them, so
+// without a live ComfyUI to list the model folders they are assumed installed (test mode, said in the report)
+const T2I = require(path.join(ENGINE, 'executors', 't2i.js'));
+const IMAGE_MODELS = {
+  diffusion_models: [T2I.FILES.KLEIN.unet, T2I.FILES.QWEN21.unet], text_encoders: [T2I.FILES.KLEIN.te, T2I.FILES.QWEN21.te],
+  vae: [T2I.FILES.KLEIN.vae, T2I.FILES.QWEN21.vae], model_patches: [T2I.FILES.QWEN21_CN],
+};
 // LoRAs made up for the family / placement tests (« mia\… » = ComfyUI's Windows spelling of models\loras\mia\…)
 const TEST_LORAS = { loras: ['wan_style_test.safetensors', 'qwen_style_test.safetensors', 'minimax_style_test.safetensors',
   'mia\\perso_test.safetensors', 'klein_style_test.safetensors', 'qwen21_style_test.safetensors'] };
@@ -656,7 +663,7 @@ async function main() {
     process.exit(2);
   }
   const { lists: rawLists, live } = await modelLists(schema);
-  const { objectInfo: oi0, models: lists0 } = V.assumeInstalled(schema, rawLists, CHARACTER_LORAS);
+  const { objectInfo: oi0, models: lists0 } = V.assumeInstalled(schema, rawLists, live ? CHARACTER_LORAS : merge(CHARACTER_LORAS, IMAGE_MODELS));
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mia-validate-'));
   const rows = [];
   let bad = 0;
@@ -782,7 +789,8 @@ async function main() {
   const w1 = Math.max(...rows.map((r) => r.exec.length));
   const w2 = Math.max(...rows.map((r) => r.variant.length));
   console.log(`Schéma : ${path.relative(ROOT, SCHEMA)} · listes de modèles : ${live ? 'ComfyUI en direct (GET /models)' : 'hors ligne (schéma)'}`
-    + (vdaAssumed ? ' · poids VDA Small supposés présents (test)' : ''));
+    + (vdaAssumed ? ' · poids VDA Small supposés présents (test)' : '')
+    + (live ? '' : ' · modèles d’image du bloc Modèle supposés présents (test)'));
   console.log('');
   console.log(`${'executor'.padEnd(w1)}  ${'variante'.padEnd(w2)}  graphes  résultat  détail`);
   console.log(`${'-'.repeat(w1)}  ${'-'.repeat(w2)}  -------  --------  ------`);

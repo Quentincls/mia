@@ -245,4 +245,4 @@ function estimate(x) {
   return x && x.gen && x.gen.key === 'qwen21' ? 0.8 : 0.5;
 }
 
-module.exports = { run: E.wrap(run), estimate, FILES: { KLEIN, QWEN21 }, zoneWindow, pasteArgs };
+module.exports = { run: E.wrap(run), estimate, FILES: { KLEIN, QWEN21, QWEN21_CN }, zoneWindow, pasteArgs };

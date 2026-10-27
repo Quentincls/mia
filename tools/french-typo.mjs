@@ -126,7 +126,7 @@ function frSpansChangelog(src) {
   let pos = 0;
   let fr = true;          // par défaut, un texte de Mia est en français
   for (const l of lines) {
-    const h = /^#{2,4}\s+(.*)$/.exec(l);
+    const h = /^#{2,4}\s+(.*?)\r?$/.exec(l);           // \r : fins de ligne Windows (CRLF)
     // seule la section « In short » est en anglais ; tout le reste du journal est en français
     if (h) fr = !/^in short(\s|$)/i.test(h[1].trim());
     if (fr && !h) out.push([pos, pos + l.length, 'md']);
