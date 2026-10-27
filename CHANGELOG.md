@@ -10,7 +10,7 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
-## Prochaine version — en cours (pas encore publiée)
+## 0.6.0 — 27/10/2026
 
 ### En bref
 - **Un bloc par modèle** : « + Bloc » montre d’abord les **Modèles** (LTX, MiniMax, Wan, Qwen) et ceux **En ligne**

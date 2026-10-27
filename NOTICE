@@ -10,7 +10,8 @@ were derived from published examples and keep the licence of their source.
   ltx_layout_single.api.json
       LTX-2.x Community License Agreement
   minimax_i2v.api.json, minimax_r2v.api.json, qwen_edit_2511.api.json,
-  wan_animate2.api.json
+  wan_animate2.api.json, flux2_klein9b_t2i.api.json, flux2_klein9b_edit.api.json,
+  qwen_image21_t2i.api.json
       MIT License
   seedvr2_native.api.json
       GNU General Public License, version 3 (GPL-3.0)
@@ -84,6 +85,14 @@ docs/licenses/Comfy-Org-workflow_templates-MIT.txt):
   qwen_edit_2511.api.json  from the template "image_qwen_image_edit_2511_int8"
   wan_animate2.api.json    from the template "video_wan_animate2" (its default
                            Chinese negative prompt for Wan is kept)
+  flux2_klein9b_t2i.api.json   from the template "image_flux2_klein_text_to_image"
+  flux2_klein9b_edit.api.json  from the template
+                               "image_flux2_klein_image_edit_9b_distilled"
+  qwen_image21_t2i.api.json    from the template "image_qwen_image_2_1_t2i"
+                               (its prompt enhancer branch removed)
+  These graphs only name the model files; the models themselves keep their own
+  licences (FLUX Non-Commercial License for FLUX.2 Klein 9B, the Qwen research
+  licence for Qwen-Image 2.1) and are never shipped with Mia.
 
 Derived from a blueprint shipped with ComfyUI
 (https://github.com/comfyanonymous/ComfyUI), GNU General Public License,

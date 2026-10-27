@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![version](https://img.shields.io/badge/version-0.5.1-2E7D32?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.6.0-2E7D32?style=flat-square)](CHANGELOG.md)
 [![licence](https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-38-47848F?style=flat-square)](https://www.electronjs.org/)
 [![plateforme](https://img.shields.io/badge/plateforme-Windows%2010%20%7C%2011-0078D4?style=flat-square)](docs/INSTALL.md)
@@ -15,8 +15,8 @@
 **Mia est une planche nodale pour faire de la vidéo et de l'image avec l'IA, entièrement sur son propre PC.** On
 dépose images, vidéos et sons sur une planche noire infinie, on les relie à des blocs nommés par ce qu'ils font
 (*Animer une image*, *Profondeur*, *Rendre photoréaliste*), on choisit le modèle, on lance, et le résultat se lit
-dans le bloc. Ni nuage, ni compte, ni graphe de soixante nœuds : Mia pilote ComfyUI et un petit worker Python à
-votre place, un calcul GPU à la fois.
+dans le bloc. Ni compte, ni graphe de soixante nœuds : Mia pilote ComfyUI et un petit worker Python à votre place,
+un calcul GPU à la fois. Des modèles en ligne sont là aussi, seulement si vous reliez votre propre compte.
 
 **[Installer](docs/INSTALL.md)** · **[Journal des versions](CHANGELOG.md)** · **[Architecture](docs/ARCHITECTURE.md)** ·
 **[Assistants (MCP)](mcp/README.md)** · **[Skills](skills/README.md)** · **[English](README.md)**
@@ -26,23 +26,28 @@ votre place, un calcul GPU à la fois.
 </div>
 <p align="center"><em>Claude monte le plan par le serveur MCP de Mia, sous vos yeux : une maquette 3D et sa première image retouchée, <b>Rendre photoréaliste</b>, câblage, lancement, puis un volet avant/après. L'aperçu d'une minute est raccourci ici.</em></p>
 
-### Nouveau dans la 0.5
+### Nouveau dans la 0.6
 
 <div align="center">
   <a href="CHANGELOG.md"><img src="assets/home.fr.webp" alt="Accueil de Mia : projets, planches, recettes" width="100%"></a>
 </div>
 <p align="center"><em>Un projet range des planches ; ses onglets restent ensemble, à sa couleur, comme les groupes d'onglets de Chrome.</em></p>
 
-- **Installer Mia sur un autre PC** : un installateur Windows et une version portable en zip, un script qui
-  installe le moteur (Python, ComfyUI à une version figée, PyTorch pour NVIDIA, les nœuds ajoutés), et un assistant
-  de premier lancement quand aucun moteur n'est trouvé.
-- **Installer les modèles manquants depuis la bibliothèque** : taille annoncée, téléchargements avec reprise,
-  pause et annulation, vérification de la taille, puis nouveau scan.
-- **Mouvement** : blocs, fils, calculs, onglets et menus bougent avec retenue ; le réglage Windows « réduire les
-  animations » est respecté.
-- **Formats de fichiers versionnés**, mis à jour à l'ouverture sans rien perdre (l'ancien fichier est gardé à côté).
-- Et depuis la 0.4 : **projets et planches**, **onglets groupés**, les blocs **Son** et **Finition**, sept looks
-  « film » et la planche contact **Essayer des looks**.
+- **Un bloc par modèle** : LTX, MiniMax, Wan, Qwen, FLUX.2 Klein… chacun dans un bloc **Modèle** qui n'a que les
+  entrées que son modèle sait prendre. Ce qu'on branche décide de ce qu'il fait : une image de début, il l'anime ;
+  des références, il les mélange ; rien, il part du texte.
+- **Des modèles en ligne, si on le veut** : Seedance, Kling, MiniMax 2K et d'autres par votre propre compte
+  Higgsfield (la clé reste chiffrée sur votre PC). Chaque calcul coûte des crédits et ne part qu'à votre clic.
+- **Des images sur votre PC** : FLUX.2 Klein 9B et Qwen-Image 2.1 Turbo (licences non commerciales, proposés « à
+  essayer »). Une entrée **Cadrage** garde une composition pendant que votre LoRA garde son style.
+- **Retoucher une zone** : on peint la zone dans un bloc **Masque** ; seule cette zone est refaite, le reste de
+  l'image reste identique au pixel. Une petite zone (des pieds, un œil) est agrandie toute seule.
+- **Réécrire en anglais** : une Consigne peut faire corriger et traduire son texte par un modèle de votre PC avant
+  le calcul, et montre ce qui a été compris.
+- **4 variantes** : un clic fait quatre images avec quatre graines ; l'étoile garde celle qu'on choisit.
+- Et : **+ Bloc** rangé par ce qu'on fabrique, images-clés (LTX, MiniMax), prolonger une vidéo et un son à suivre
+  (MiniMax), une infobulle sur chaque entrée. Depuis la 0.5 : l'installateur et la version portable, les modèles
+  installés depuis la bibliothèque.
 
 [Ce que fait Mia](#ce-que-fait-mia) · [Blocs](#blocs) · [Modèles](#modèles) · [Installer](#installer) ·
 [Utiliser](#utiliser) · [Assistants](#assistants) · [Licence et crédits](#licence-et-crédits)
@@ -72,8 +77,8 @@ en plans, pas en graphes.
   seul à la consigne.
 - **Des assistants sur la planche** : Claude ou Codex construisent une planche par le serveur MCP de Mia, sous vos
   yeux (un curseur à leur nom pose et relie les blocs). Chaque action s'annule avec Ctrl+Z.
-- **Tout en local.** Mia n'écoute que `127.0.0.1` et ne contacte rien sur Internet, sauf les téléchargements de
-  modèles que vous lancez.
+- **Le local d'abord.** Mia n'écoute que `127.0.0.1`. Elle ne va sur Internet que pour les téléchargements de
+  modèles que vous lancez et, si vous reliez un compte Higgsfield, pour les calculs en ligne que vous lancez.
 
 <div align="center">
   <img src="assets/demo-wiring.fr.webp" alt="Un bloc ajouté depuis la palette, un fil, une consigne, un aperçu : la maquette grise devient une chambre au soleil" width="100%">
@@ -116,7 +121,8 @@ Les captures et les animations utilisent de simples blockouts 3D rendus pour cet
 | Sources | **Média** | Une image, une vidéo ou un son du PC | — |
 | | **Consigne** | Un texte qui dit à l'IA quoi montrer ou faire | — |
 | Planche | **Note** | Une note pour soi sur la planche | — |
-| Créer | **Animer une image** | Une image devient une courte vidéo ; une image de fin dit où le plan doit arriver | GPU |
+| Créer | **Modèle** | Un bloc par modèle, sur ce PC ou en ligne : ses entrées sont celles du modèle, ce qu'on branche décide de ce qu'il fait (vidéo, image, retoucher une zone…) | GPU, ou en ligne |
+| | **Animer une image** | Une image devient une courte vidéo ; une image de fin dit où le plan doit arriver | GPU |
 | | **Vidéo depuis un texte** | Une courte vidéo à partir d'une simple description | GPU |
 | | **Vidéo à partir de références** | Une vidéo avec vos personnages, objets ou lieux, d'après jusqu'à 9 images | GPU |
 | | **Rendre photoréaliste** | Repeint un rendu 3D en image filmée, caméra et mouvements gardés | GPU |
@@ -126,7 +132,8 @@ Les captures et les animations utilisent de simples blockouts 3D rendus pour cet
 | | **Agrandir** | Plus de définition, détails recréés, mouvement intact | GPU |
 | Analyser | **Profondeur** | La profondeur de chaque image, sans scintillement (clair = proche) | GPU |
 | | **Détourer** | Sépare le sujet principal du fond | GPU |
-| Outils | **Comparer A/B** | Deux images ou vidéos côte à côte, lues ensemble | — |
+| Outils | **Masque** | Peindre sur une image la zone à changer (ou à protéger) | processeur |
+| | **Comparer A/B** | Deux images ou vidéos côte à côte, lues ensemble | — |
 | | **Extraire une image** | Une image exacte d'une vidéo | instantané |
 | | **Couper** · **Redimensionner** · **Assembler** | Couper, recadrer, mettre des plans bout à bout dans l'ordre des fils | NVENC, sinon processeur |
 | | **Superposer** | Un calque sur un fond, à travers un masque | GPU |
@@ -135,9 +142,10 @@ Les captures et les animations utilisent de simples blockouts 3D rendus pour cet
 | | **Essayer des looks** | Une image passée par tous les looks de la Finition, en planche contact | processeur |
 | | **Exporter** | Range le résultat dans le dossier « à regarder » de la planche, au bon format | NVENC, sinon processeur |
 
-Cinq **recettes** démarrent une planche déjà câblée : *Rendre photoréaliste un rendu Unreal*, *Animer une image*,
-*Faire jouer mon personnage*, *Passe de profondeur d'une vidéo*, *Détourer un personnage*. Le catalogue est dans
-[`src/catalog/nodes.json`](src/catalog/nodes.json).
+Sept **recettes** démarrent une planche déjà câblée : *Rendre photoréaliste un rendu Unreal*, *Animer une image*,
+*Vidéo à partir de mes références*, *Faire jouer mon personnage*, *Passe de profondeur d'une vidéo*, *Retoucher une
+zone*, *Détourer un personnage*. Une **Consigne** peut d'abord réécrire son texte en anglais sur votre PC
+(*Réécrire en anglais*). Le catalogue est dans [`src/catalog/nodes.json`](src/catalog/nodes.json).
 
 ---
 
@@ -152,17 +160,21 @@ ce qu'il sait faire ; ce qui manque s'installe depuis la bibliothèque.
 | Animer une image (avec le son), vidéo à partir de références, vidéo guidée | MiniMax H3, MiniMax H3 Références | R&D seulement | ~21 Go |
 | Animer un personnage | Wan Animate 2 | Apache-2.0 | ~18 Go |
 | Retoucher une image | Qwen Image Edit | Apache-2.0 | ~21 Go |
+| Image depuis un texte, retoucher une zone | FLUX.2 Klein 9B · Qwen-Image 2.1 Turbo | FLUX Non-Commercial · licence de recherche Qwen : proposés « à essayer », pour des essais et des projets perso | ~22 / ~17 Go |
+| Réécrire une consigne en anglais | le lecteur de texte de Qwen-Image 2.1 (Qwen3-VL 8B), sinon celui de Qwen Image Edit | celle de son modèle | ~10 Go |
 | Agrandir | SeedVR2 7B (qualité), 3B (rapide) | Apache-2.0 | 12 / 7 Go |
 | Profondeur | Video Depth Anything Small | Apache-2.0 | ~3 Go |
 | Détourer | BiRefNet | MIT | ~2 Go |
-| Personnage ou lieu | Vos LoRA pour LTX, Wan ou Qwen | les vôtres | — |
+| Personnage ou lieu | Vos LoRA pour LTX, Wan, Qwen, FLUX.2 Klein ou Qwen-Image 2.1 | les vôtres | — |
+| En ligne, au choix | Seedance, Kling, MiniMax 2K, Soul… par votre compte Higgsfield | leurs conditions, payant à chaque calcul | aucune |
 
 Les deux IC-LoRA de la vidéo guidée et des fiches de référence (Union-Control, Ingredients) sont des fichiers
 LTX-2.3, sous la [LTX-2 Community License](docs/licenses/LTX-2-Community-License.txt) de janvier 2026, avec le même
 seuil de 10 M$.
 
 MiniMax H3 est proposé avec la mention **R&D seulement**. Les modèles dont la licence est non commerciale ou exclut
-l'Union européenne sont reconnus mais **jamais proposés** dans un bloc. Ces indications aident à choisir ; elles ne valent pas avis juridique : lire la fiche de chaque modèle
+l'Union européenne sont reconnus mais **jamais proposés** dans un bloc, sauf FLUX.2 Klein 9B et Qwen-Image 2.1 :
+ils sont proposés « à essayer », avec un avertissement « non commercial » sur le bloc. Ces indications aident à choisir ; elles ne valent pas avis juridique : lire la fiche de chaque modèle
 avant un travail payé.
 
 ---
@@ -251,7 +263,7 @@ recettes marchent pour quel plan.
 ## Licence et crédits
 
 Le code de Mia est publié sous **licence Apache 2.0** ([LICENSE](LICENSE), [NOTICE](NOTICE)). Les logiciels tiers
-gardent leur propre licence et ne sont pas copiés dans ce dépôt, sauf huit graphes ComfyUI tirés d'exemples publiés :
+gardent leur propre licence et ne sont pas copiés dans ce dépôt, sauf onze graphes ComfyUI tirés d'exemples publiés :
 ces fichiers de données gardent la licence de leur source ([NOTICE](NOTICE), [docs/licenses](docs/licenses)) ;
 leurs sources et chaque modification faite pour Mia sont listées dans
 [electron/engine/workflows/NOTICE.md](electron/engine/workflows/NOTICE.md).
@@ -261,7 +273,7 @@ leurs sources et chaque modification faite pour Mia sont listées dans
 | Mia : application, worker, serveur MCP, LUT, logo | ce dépôt | Apache-2.0 | — |
 | `python/vendor/tool` | copie figée des outils de l'auteur | Apache-2.0 | importé par le worker |
 | 2 graphes ComfyUI (`depth_vda`, `seedvr2_node`) | écrits pour Mia | Apache-2.0 | envoyés à ComfyUI par les executors |
-| 4 graphes ComfyUI (`minimax_i2v`, `minimax_r2v`, `qwen_edit_2511`, `wan_animate2`) | tirés de [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates) | [MIT](docs/licenses/Comfy-Org-workflow_templates-MIT.txt) | envoyés à ComfyUI par les executors |
+| 7 graphes ComfyUI (`minimax_i2v`, `minimax_r2v`, `qwen_edit_2511`, `wan_animate2`, `flux2_klein9b_t2i`, `flux2_klein9b_edit`, `qwen_image21_t2i`) | tirés de [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates) | [MIT](docs/licenses/Comfy-Org-workflow_templates-MIT.txt) | envoyés à ComfyUI par les executors |
 | 3 graphes ComfyUI (`ltx_i2v`, `ltx_t2v`, `ltx_layout_single`) | tirés des exemples LTX-2.5 de Lightricks ([ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), [Layout-To-Render](https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render)) | [LTX-2.x Community License](docs/licenses/LTX-2.x-Community-License.txt) ; `ltx_i2v` et `ltx_t2v` aussi [LTX-2 Community License](docs/licenses/LTX-2-Community-License.txt) | envoyés à ComfyUI par les executors |
 | 1 graphe ComfyUI (`seedvr2_native`) | tiré d'un blueprint livré avec [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | [GPL-3.0](docs/licenses/GPL-3.0.txt) | envoyé à ComfyUI par les executors |
 | [Electron](https://www.electronjs.org/) | OpenJS Foundation | MIT | moteur de l'application, inclus dans les versions installables |

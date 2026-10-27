@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![version](https://img.shields.io/badge/version-0.5.1-2E7D32?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.6.0-2E7D32?style=flat-square)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-38-47848F?style=flat-square)](https://www.electronjs.org/)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?style=flat-square)](docs/INSTALL.md)
@@ -14,8 +14,9 @@
 
 **Mia is a node board for AI video and images that runs entirely on your own PC.** Drop images, videos and
 sounds on an infinite black board, wire them to blocks named by what they do (*Animate an image*, *Depth*,
-*Make it photoreal*), pick a model, run, and watch the result play inside the block. No cloud, no account, no
-graph of sixty nodes: Mia drives ComfyUI and a small Python worker for you, one GPU job at a time.
+*Make it photoreal*), pick a model, run, and watch the result play inside the block. No account, no graph of
+sixty nodes: Mia drives ComfyUI and a small Python worker for you, one GPU job at a time. Online models are there
+too, only if you link your own account.
 
 **[Install](docs/INSTALL.md)** · **[Changelog](CHANGELOG.md)** · **[Architecture](docs/ARCHITECTURE.md)** ·
 **[Assistants (MCP)](mcp/README.md)** · **[Skills](skills/README.md)** · **[Français](README.fr.md)**
@@ -25,21 +26,27 @@ graph of sixty nodes: Mia drives ComfyUI and a small Python worker for you, one 
 </div>
 <p align="center"><em>Claude builds the shot through Mia's MCP server, in front of you: a 3D blockout and its retouched first frame, <b>Make it photoreal</b>, wired and run, then a before/after wipe. The one-minute preview is shortened here.</em></p>
 
-### New in 0.5
+### New in 0.6
 
 <div align="center">
   <a href="CHANGELOG.md"><img src="assets/home.webp" alt="Mia home page: projects, then boards, then recipes" width="100%"></a>
 </div>
 <p align="center"><em>Projects hold boards; the tabs of a project stay together, with its colour, like tab groups in Chrome.</em></p>
 
-- **Install it on another PC**: a Windows installer and a portable zip, a script that installs the engine
-  (Python, a pinned ComfyUI, PyTorch for NVIDIA, the extra nodes), and a first-run wizard when no engine is found.
-- **Missing models install from the library**: size shown up front, resumable downloads, pause and cancel,
-  size check, then a rescan.
-- **Motion**: blocks, wires, runs, tabs and menus move with restraint; *reduce animations* is respected.
-- **Versioned file formats**, migrated on open, never destructively (the previous file is kept next to it).
-- And from 0.4: **projects and boards**, **tab groups**, the **Sound** and **Finish** blocks, seven film looks
-  and the **Try looks** contact sheet.
+- **One block per model**: LTX, MiniMax, Wan, Qwen, FLUX.2 Klein… each in a **Model** block that only has the
+  inputs its model takes. What you wire decides what it does: a start image, it animates it; references, it mixes
+  them; nothing, it starts from the text.
+- **Online models, if you want them**: Seedance, Kling, MiniMax 2K and more through your own Higgsfield account
+  (the key stays encrypted on your PC). Each job costs credits and only leaves on your click.
+- **Images on your PC**: FLUX.2 Klein 9B and Qwen-Image 2.1 Turbo (non-commercial licences, offered *to try*). A
+  **Layout** input keeps a composition while your LoRA keeps its style.
+- **Retouch a zone**: paint the zone in a **Mask** block; only that zone is remade, the rest of the image stays
+  identical to the pixel. A small zone (feet, an eye) is enlarged on its own.
+- **Rewrite in English**: a Prompt block can have its text fixed and translated by a model on your PC before the
+  job, and shows what was understood.
+- **4 variations**: one click makes four images with four seeds; star the one you keep.
+- And: **+ Block** sorted by what you make, keyframes (LTX, MiniMax), extend a video and a sound to follow
+  (MiniMax), tooltips on every input. From 0.5: the installer and portable zip, models installed from the library.
 
 [What it does](#what-it-does) · [Blocks](#blocks) · [Models](#models) · [Install](#install) · [Use](#use) ·
 [Assistants](#assistants) · [Licence and credits](#licence-and-credits)
@@ -66,7 +73,8 @@ Mia is for people who make films and images with local AI models and want to thi
 - **Your LoRAs**: drop a `.safetensors` on Mia, name it, set its strength; its trigger word is added for you.
 - **Assistants on the board**: Claude or Codex can build a board through Mia's MCP server while you watch
   their cursor place and wire blocks. Every action can be undone.
-- **Local only.** Mia listens on `127.0.0.1` only and makes no network call, except the model downloads you start.
+- **Local first.** Mia listens on `127.0.0.1` only. It goes online only for the model downloads you start and,
+  if you link a Higgsfield account, for the online jobs you run.
 
 <div align="center">
   <img src="assets/demo-wiring.webp" alt="A block added from the palette, one wire, a prompt, a preview: the grey blockout becomes a sunlit room" width="100%">
@@ -109,7 +117,8 @@ The screenshots and animations use plain 3D blockouts rendered for this page; th
 | Sources | **Media** | An image, a video or a sound from your PC | — |
 | | **Prompt** | A text telling the AI what to show or do | — |
 | Board | **Note** | A note to yourself on the board | — |
-| Create | **Animate an image** | An image becomes a short video; an end image tells where the shot must land | GPU |
+| Create | **Model** | One block per model, on this PC or online: its inputs are the model's, what you wire decides what it does (video, image, retouch a zone…) | GPU, or online |
+| | **Animate an image** | An image becomes a short video; an end image tells where the shot must land | GPU |
 | | **Video from text** | A short video from a plain description | GPU |
 | | **Video from references** | A video with your characters, objects or places, from up to 9 reference images | GPU |
 | | **Make it photoreal** | Repaints a 3D render as filmed footage, keeping camera and motion | GPU |
@@ -119,7 +128,8 @@ The screenshots and animations use plain 3D blockouts rendered for this page; th
 | | **Upscale** | Higher resolution with recreated detail, motion untouched | GPU |
 | Analyse | **Depth** | Per-frame depth without flicker (bright = near) | GPU |
 | | **Cut out** | Separates the main subject from the background | GPU |
-| Tools | **Compare A/B** | Two images or videos side by side, played in sync | — |
+| Tools | **Mask** | Paint on an image the zone to change (or to protect) | CPU |
+| | **Compare A/B** | Two images or videos side by side, played in sync | — |
 | | **Grab a frame** | One exact frame from a video | instant |
 | | **Trim** · **Resize** · **Join clips** | Cut, reframe, put clips end to end in wire order | NVENC, else CPU |
 | | **Composite** | A layer over a background, through a mask | GPU |
@@ -128,9 +138,10 @@ The screenshots and animations use plain 3D blockouts rendered for this page; th
 | | **Try looks** | One frame through every Finish look, as a contact sheet | CPU |
 | | **Export** | Saves the result into the board's review folder, in the right format | NVENC, else CPU |
 
-Five **recipes** start a board already wired: *Make an Unreal render photoreal*, *Animate an image*,
-*Make my character perform*, *Depth pass of a video*, *Cut out a character*. The catalogue lives in
-[`src/catalog/nodes.json`](src/catalog/nodes.json).
+Seven **recipes** start a board already wired: *Make an Unreal render photoreal*, *Animate an image*,
+*Video from my references*, *Make my character perform*, *Depth pass of a video*, *Retouch a zone*, *Cut out a
+character*. A **Prompt** block can rewrite its text in English on your PC first (*Rewrite in English*). The
+catalogue lives in [`src/catalog/nodes.json`](src/catalog/nodes.json).
 
 ---
 
@@ -145,17 +156,21 @@ what is missing can be installed from the library.
 | Animate an image (with sound), video from references, guided video | MiniMax H3, MiniMax H3 References | R&D only | ~21 GB |
 | Animate a character | Wan Animate 2 | Apache-2.0 | ~18 GB |
 | Edit an image | Qwen Image Edit | Apache-2.0 | ~21 GB |
+| Image from text, retouch a zone | FLUX.2 Klein 9B · Qwen-Image 2.1 Turbo | FLUX Non-Commercial · Qwen research licence: offered *to try*, for trials and personal projects | ~22 / ~17 GB |
+| Rewrite a prompt in English | the text reader of Qwen-Image 2.1 (Qwen3-VL 8B), else that of Qwen Image Edit | as its model | ~10 GB |
 | Upscale | SeedVR2 7B (quality), 3B (fast) | Apache-2.0 | 12 / 7 GB |
 | Depth | Video Depth Anything Small | Apache-2.0 | ~3 GB |
 | Cut out | BiRefNet | MIT | ~2 GB |
-| Character or place | Your LoRAs for LTX, Wan or Qwen | yours | — |
+| Character or place | Your LoRAs for LTX, Wan, Qwen, FLUX.2 Klein or Qwen-Image 2.1 | yours | — |
+| Online, optional | Seedance, Kling, MiniMax 2K, Soul… through your Higgsfield account | their terms, paid per job | none |
 
 The two IC-LoRAs used for guided video and for reference sheets (Union-Control, Ingredients) are LTX-2.3 files,
 under the [LTX-2 Community License](docs/licenses/LTX-2-Community-License.txt) of January 2026, with the same
 USD 10 M threshold.
 
 MiniMax H3 is offered with its **R&D only** flag. Models whose licence is non-commercial or excludes the European
-Union are recognised but **never offered** in a block. The flags above are a convenience, not legal advice: read
+Union are recognised but **never offered** in a block, except FLUX.2 Klein 9B and Qwen-Image 2.1: they are offered
+*to try*, with a non-commercial warning on the block. The flags above are a convenience, not legal advice: read
 each model card before paid work.
 
 ---
@@ -242,7 +257,7 @@ which shot.
 ## Licence and credits
 
 Mia's code is released under the **Apache License 2.0** ([LICENSE](LICENSE), [NOTICE](NOTICE)). Third-party
-software keeps its own licence and is not copied into this repository, except eight ComfyUI graphs derived from
+software keeps its own licence and is not copied into this repository, except eleven ComfyUI graphs derived from
 published examples: these data files keep the licence of their source ([NOTICE](NOTICE),
 [docs/licenses](docs/licenses)); their sources and every change made for Mia are listed in
 [electron/engine/workflows/NOTICE.md](electron/engine/workflows/NOTICE.md).
@@ -252,7 +267,7 @@ published examples: these data files keep the licence of their source ([NOTICE](
 | Mia: app, worker, MCP server, LUTs, logo | this repository | Apache-2.0 | — |
 | `python/vendor/tool` | frozen copy of the author's own tools | Apache-2.0 | imported by the worker |
 | 2 ComfyUI graphs (`depth_vda`, `seedvr2_node`) | written for Mia | Apache-2.0 | sent to ComfyUI by the executors |
-| 4 ComfyUI graphs (`minimax_i2v`, `minimax_r2v`, `qwen_edit_2511`, `wan_animate2`) | derived from [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates) | [MIT](docs/licenses/Comfy-Org-workflow_templates-MIT.txt) | sent to ComfyUI by the executors |
+| 7 ComfyUI graphs (`minimax_i2v`, `minimax_r2v`, `qwen_edit_2511`, `wan_animate2`, `flux2_klein9b_t2i`, `flux2_klein9b_edit`, `qwen_image21_t2i`) | derived from [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates) | [MIT](docs/licenses/Comfy-Org-workflow_templates-MIT.txt) | sent to ComfyUI by the executors |
 | 3 ComfyUI graphs (`ltx_i2v`, `ltx_t2v`, `ltx_layout_single`) | derived from Lightricks' LTX-2.5 examples ([ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), [Layout-To-Render](https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render)) | [LTX-2.x Community License](docs/licenses/LTX-2.x-Community-License.txt); `ltx_i2v` and `ltx_t2v` also [LTX-2 Community License](docs/licenses/LTX-2-Community-License.txt) | sent to ComfyUI by the executors |
 | 1 ComfyUI graph (`seedvr2_native`) | derived from a blueprint shipped with [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | [GPL-3.0](docs/licenses/GPL-3.0.txt) | sent to ComfyUI by the executors |
 | [Electron](https://www.electronjs.org/) | OpenJS Foundation | MIT | runtime, bundled in builds |
