@@ -5,8 +5,10 @@
 //   It is checked (a free call), then kept ENCRYPTED with Electron's safeStorage (Windows DPAPI, tied to his
 //   Windows account) in %APPDATA%\Mia\data\cloud.json. It is never written in clear, never logged, never sent to
 //   the window again (the window only learns « linked, since…, key …abcd »), never sent anywhere but Higgsfield.
-// - Only the cloud executor uses it, when Quentin clicks Run on an online Model block: nothing leaves the PC
-//   otherwise (no catalog download, no telemetry).
+// - The cloud executor uses it when Quentin clicks Run on an online Model block; the board's corner reads what the
+//   account spent (GET /models/usage), only while it is linked. Nothing else leaves the PC (no catalog download, no
+//   telemetry). Higgsfield gives no balance to an API key: the « left » figure is Quentin's own top-up amount minus
+//   what was spent since (`topUp` in cloud.json, not a secret).
 // - Hosts: api.higgsfield.ai (calls), the presigned storage URL Higgsfield gives for each upload (PUT of the
 //   file, without our key), the output URLs it returns (GET). MIA_HF_BASE points the calls at a local fake
 //   server in tests (tools/test-cloud.js).
@@ -34,6 +36,7 @@ const STR = {
     busy: 'Trop de calculs en même temps sur ton compte Higgsfield : réessaie dans un instant.',
     down: 'Higgsfield est indisponible pour l’instant ({status}) : réessaie plus tard.',
     notFound: 'Higgsfield ne connaît pas ce modèle pour ton compte ({detail}).',
+    badAmount: 'Indique un montant en dollars, par exemple 50.',
   },
   en: {
     noCrypto: 'Windows cannot encrypt the key on this account: Mia does not keep it.',
@@ -49,8 +52,11 @@ const STR = {
     busy: 'Too many jobs at once on your Higgsfield account: try again in a moment.',
     down: 'Higgsfield is unavailable for now ({status}): try again later.',
     notFound: 'Higgsfield does not know this model for your account ({detail}).',
+    badAmount: 'Give an amount in dollars, for example 50.',
   },
 };
+const DAY = 24 * 3600 * 1000;
+const iso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /**
  * The service, without Electron (tests give a fake `safe`): { file (cloud.json), safe (safeStorage-like:
@@ -192,7 +198,73 @@ function createService({ file, safe, lang: langFn, log, base = BASE }) {
   }
   const checkLinked = async () => (linked() ? check(null) : { ok: false, error: tr('notLinked') });
 
-  return { linked, status, call, upload, download, setKey, removeKey, checkLinked, base, tr };
+  /**
+   * What the account spent between two dates: GET /models/usage, the cost of its completed generations (analytics,
+   * not a billing record: Higgsfield's figures can lag a few minutes). At most 31 days per call: longer spans are
+   * cut into 30-day windows. → { amount, currency }
+   */
+  async function spent(fromMs, toMs, { signal } = {}) {
+    let total = 0;
+    let currency = 'USD';
+    for (let a = fromMs; a < toMs; a += 30 * DAY) {
+      const b = Math.min(toMs, a + 30 * DAY);
+      for (let page = 1; page <= 20; page++) {
+        // to the second (the API's precision): the start rounded down, the end up, so they never meet
+        const q = new URLSearchParams({ start: iso(Math.floor(a / 1000) * 1000), end: iso(Math.ceil(b / 1000) * 1000 + (b % 1000 ? 0 : 1000)),
+          timeframe: 'day', bound_to_timeframe: 'false', page: String(page), limit: '100' });
+        const j = await call('GET', `models/usage?${q}`, null, { signal });
+        for (const bucket of (j && j.time_series) || []) {
+          for (const r of bucket.results || []) {
+            total += Number(r.cost) || 0;
+            if (r.currency) currency = r.currency;
+          }
+        }
+        if (!j || !(Number(j.total) > page * (Number(j.limit) || 100))) break;
+      }
+    }
+    return { amount: Math.round(total * 100) / 100, currency };
+  }
+
+  // the corner of the board asks often: one answer kept a minute
+  let lastBudget = null;
+  /**
+   * The board's corner: spent this month and, from Quentin's last top-up, an estimate of what is left.
+   * → { linked:false } | { linked, currency, month, topUp, sinceTopUp, left, at } | { linked, error, topUp, at, last }
+   */
+  async function budget({ fresh = false } = {}) {
+    if (!linked()) return { linked: false };
+    if (!fresh && lastBudget && Date.now() - lastBudget.at < 60 * 1000) return lastBudget.value;
+    const now = Date.now();
+    const d = new Date(now);
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    const topUp = state.topUp && Number(state.topUp.amount) > 0 ? state.topUp : null;
+    try {
+      const month = await spent(monthStart, now);
+      const since = topUp ? await spent(Math.min(topUp.at, now), now) : null;
+      const value = { linked: true, currency: month.currency, month: month.amount, topUp,
+        sinceTopUp: since ? since.amount : null, left: since ? Math.round((topUp.amount - since.amount) * 100) / 100 : null, at: now };
+      lastBudget = { at: now, value };
+      return value;
+    } catch (e) {
+      return { linked: true, error: e.userMessage || e.message, topUp, at: now, last: lastBudget ? lastBudget.value : null };
+    }
+  }
+
+  /** The amount of Quentin's last top-up, in dollars, from today (or `at`); null forgets it. */
+  async function setTopUp(p) {
+    const next = { ...state };
+    if (p == null) delete next.topUp;
+    else {
+      const amount = Math.round(Number(String(p.amount).replace(',', '.')) * 100) / 100;
+      if (!(amount > 0) || amount > 1e6) return { ok: false, error: tr('badAmount') };
+      next.topUp = { amount, at: Number.isFinite(Number(p.at)) && Number(p.at) > 0 ? Number(p.at) : Date.now() };
+    }
+    await save(next);
+    lastBudget = null;
+    return { ok: true, topUp: next.topUp || null };
+  }
+
+  return { linked, status, call, upload, download, setKey, removeKey, checkLinked, spent, budget, setTopUp, base, tr };
 }
 
 function register(ctx) {
@@ -202,6 +274,8 @@ function register(ctx) {
   ctx.ipcMain.handle('cloud:setKey', (_e, raw) => svc.setKey(raw));
   ctx.ipcMain.handle('cloud:removeKey', () => svc.removeKey());
   ctx.ipcMain.handle('cloud:check', () => svc.checkLinked());
+  ctx.ipcMain.handle('cloud:budget', (_e, o) => svc.budget({ fresh: !!(o && o.fresh) }));
+  ctx.ipcMain.handle('cloud:setTopUp', (_e, p) => svc.setTopUp(p));
   ctx.cloud = svc;
   return svc;
 }

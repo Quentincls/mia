@@ -78,7 +78,8 @@ en plans, pas en graphes.
 - **Des assistants sur la planche** : Claude ou Codex construisent une planche par le serveur MCP de Mia, sous vos
   yeux (un curseur à leur nom pose et relie les blocs). Chaque action s'annule avec Ctrl+Z.
 - **Le local d'abord.** Mia n'écoute que `127.0.0.1`. Elle ne va sur Internet que pour les téléchargements de
-  modèles que vous lancez et, si vous reliez un compte Higgsfield, pour les calculs en ligne que vous lancez.
+  modèles que vous lancez et, si vous reliez un compte Higgsfield, pour les calculs en ligne que vous lancez et pour
+  afficher ce que le compte a dépensé.
 
 <div align="center">
   <img src="assets/demo-wiring.fr.webp" alt="Un bloc ajouté depuis la palette, un fil, une consigne, un aperçu : la maquette grise devient une chambre au soleil" width="100%">

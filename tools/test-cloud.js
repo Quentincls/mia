@@ -24,7 +24,8 @@ const ok = (cond, what, extra = '') => {
 };
 
 // ── le faux Higgsfield ──────────────────────────────────────────────
-const S = { uploads: new Map(), requests: new Map(), lastBody: null, lastPath: null, cancels: 0, submitMode: 'ok', steps: ['queued', 'in_progress', 'completed'] };
+const S = { uploads: new Map(), requests: new Map(), lastBody: null, lastPath: null, cancels: 0, submitMode: 'ok', steps: ['queued', 'in_progress', 'completed'],
+  usage: [], usageCalls: [], usageMode: 'ok' };
 let port = 0;
 const server = http.createServer(async (req, res) => {
   const body = await new Promise((r) => { const c = []; req.on('data', (d) => c.push(d)); req.on('end', () => r(Buffer.concat(c))); });
@@ -40,6 +41,17 @@ const server = http.createServer(async (req, res) => {
     const id = `f${S.uploads.size + 1}_${Date.now()}`;
     return send(200, { public_url: `http://127.0.0.1:${port}/files/${id}`, upload_url: `http://127.0.0.1:${port}/put/${id}`,
       content_type: JSON.parse(body).content_type, upload_headers: { 'x-amz-tagging': 'retention=temporary' } });
+  }
+  if (u.pathname === '/models/usage') {
+    const q = u.searchParams;
+    S.usageCalls.push({ start: q.get('start'), end: q.get('end'), timeframe: q.get('timeframe'), bound: q.get('bound_to_timeframe') });
+    if (S.usageMode === '500') return send(500, { detail: 'down' });
+    const a = Date.parse(q.get('start'));
+    const b = Date.parse(q.get('end'));
+    if (!(b > a) || b - a > 31 * 864e5) return send(400, { detail: 'start/end: at most 31 days' });
+    const results = S.usage.filter((x) => x.at >= a && x.at < b)
+      .map((x) => ({ model: 'kling-video/v2.5-turbo', unit: 'generation', quantity: '1', unit_price: x.cost.toFixed(4), cost: x.cost.toFixed(4), currency: 'USD' }));
+    return send(200, { time_series: results.length ? [{ bucket: q.get('start'), results }] : [], total: results.length ? 1 : 0, page: 1, limit: 100 });
   }
   const st = /^\/requests\/([^/]+)\/(status|cancel)$/.exec(u.pathname);
   if (st) {
@@ -126,6 +138,43 @@ async function main() {
   ok(!JSON.stringify(svc.status()).includes('secret'), 'l’état montré à la fenêtre ne contient pas la clé');
   const svc2 = createService({ file, safe: fake, lang: () => 'fr', base: `http://127.0.0.1:${port}` });
   ok(svc2.linked() && (await svc2.checkLinked()).ok, 'relu au redémarrage, toujours valable');
+
+  console.log('Dépenses et reste estimé (coin de la planche)');
+  const DAY = 864e5;
+  const now = Date.now();
+  const monthStart = new Date(new Date(now).getFullYear(), new Date(now).getMonth(), 1).getTime();
+  // 2,50 $ ce mois-ci (une génération à l'instant), 4 $ il y a 40 jours, 1,25 $ il y a 50 jours
+  S.usage = [{ at: now - 60 * 1000, cost: 2.5 }, { at: now - 40 * DAY, cost: 4 }, { at: now - 50 * DAY, cost: 1.25 }];
+  S.usageCalls = [];
+  let b = await svc.budget({ fresh: true });
+  ok(b.linked && b.month === 2.5 && b.currency === 'USD' && b.left === null && b.topUp === null, 'ce mois-ci : 2,50 $, pas de reste sans recharge', JSON.stringify(b));
+  ok(S.usageCalls.length === 1 && Date.parse(S.usageCalls[0].start) === Math.floor(monthStart / 1000) * 1000 && S.usageCalls[0].bound === 'false',
+    'une seule demande, du 1er du mois à maintenant, bornes exactes', JSON.stringify(S.usageCalls));
+  r = await svc.setTopUp({ amount: 'cinquante' });
+  ok(!r.ok && /montant/.test(r.error), 'montant illisible refusé', JSON.stringify(r));
+  r = await svc.setTopUp({ amount: '50,00', at: now - 45 * DAY });
+  ok(r.ok && r.topUp.amount === 50, 'recharge de 50 $ il y a 45 jours, gardée', JSON.stringify(r));
+  ok(!fs.readFileSync(file, 'utf8').includes(KEY) && JSON.parse(fs.readFileSync(file, 'utf8')).topUp.amount === 50, 'gardée dans cloud.json, la clé toujours chiffrée');
+  S.usageCalls = [];
+  b = await svc.budget();
+  ok(b.sinceTopUp === 6.5 && b.left === 43.5, 'depuis la recharge : 2,50 + 4 = 6,50 $ ; reste ≈ 43,50 $ (la dépense d’avant ne compte pas)', JSON.stringify(b));
+  const spans = S.usageCalls.map((c) => (Date.parse(c.end) - Date.parse(c.start)) / DAY);
+  ok(S.usageCalls.length === 3 && spans.every((d) => d <= 31), '45 jours : coupés en fenêtres de 30 jours au plus (l’API refuse plus de 31)', JSON.stringify(spans));
+  S.usageCalls = [];
+  b = await svc.budget();
+  ok(S.usageCalls.length === 0 && b.left === 43.5, 'redemandé dans la minute : la réponse gardée, aucun appel');
+  S.usageMode = '500';
+  b = await svc.budget({ fresh: true });
+  ok(b.linked && /indisponible/.test(b.error) && b.last && b.last.left === 43.5, 'Higgsfield en panne : erreur claire, dernière valeur gardée', JSON.stringify(b));
+  S.usageMode = 'ok';
+  r = await svc.setTopUp({ amount: 20 });
+  b = await svc.budget();
+  ok(r.ok && !b.error && b.left === 20 && b.sinceTopUp === 0, 'recharge indiquée à l’instant : début et fin ne se confondent pas, reste = 20 $', JSON.stringify(b));
+  r = await svc.setTopUp(null);
+  b = await svc.budget({ fresh: true });
+  ok(r.ok && b.topUp === null && b.left === null && b.month === 2.5, 'recharge oubliée : plus de reste, les dépenses restent');
+  const svcOff = createService({ file: path.join(dir, 'aucun.json'), safe: fake, lang: () => 'fr', base: `http://127.0.0.1:${port}` });
+  ok((await svcOff.budget()).linked === false, 'sans compte relié : rien n’est demandé');
 
   console.log('MiniMax H3 en ligne · références (images + son)');
   let t = xFor(svc, 'hf:minimax-h3', { refs: [{ abs: img, kind: 'image' }, { abs: img, kind: 'image' }], refAudios: [{ abs: snd, kind: 'audio' }] },

@@ -669,6 +669,17 @@
 .zb-btn:hover, .zb-mini:hover, .zb-level:hover { color: var(--txt); background: var(--surface-3); }
 .zb-mini.on { color: var(--txt); background: var(--surface-3); }
 .zb-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line-2); flex: none; }
+/* dépenses Higgsfield (ui/budget.js), seulement avec un compte relié : le reste estimé, sinon le mois */
+.zb-hf {
+  height: 32px; padding: 0 10px; border-radius: 9px;
+  display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  color: var(--txt-2); font-size: 11.5px; font-weight: 550; font-variant-numeric: tabular-nums;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.zb-hf:hover { color: var(--txt); background: var(--surface-3); }
+.zb-hf-name { color: var(--txt-3); font: 500 9.5px/1 var(--font-kicker); letter-spacing: .08em; text-transform: uppercase; }
+.zb-hf.low .zb-hf-amt { color: var(--txt); font-weight: 650; }
+.zb-hf.out .zb-hf-amt { color: var(--state-err); }
 
 #minimap {
   position: absolute; right: 18px; z-index: 19;

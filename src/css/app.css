@@ -641,6 +641,7 @@ body.thumbing [data-thumb-hide], body.thumbing .tb-veil {
 .set-hf-form[hidden] { display: none; }
 .set-hf-form .tf { flex: 1 1 auto; min-width: 0; }
 .set-hf-msg.bad { color: var(--danger, var(--state-err)); }
+.set-hf-top { margin-top: 4px; }
 /* menu « + Ajouter » d'un bloc Modèle : la pastille du genre d'entrée, ce qu'elle permet */
 .pa-dot {
   --pc: var(--t-media);

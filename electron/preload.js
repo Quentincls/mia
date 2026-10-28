@@ -100,7 +100,9 @@ const INVOKE = {
     status: 'cloud:status',          // () → {linked, provider, since, keyTail, crypto}
     setKey: 'cloud:setKey',          // (« ID:SECRET ») → {ok, error?, status?} — checked, then kept encrypted
     removeKey: 'cloud:removeKey',    // () → {ok, status}
-    check: 'cloud:check'             // () → {ok, error?} — a free call to Higgsfield
+    check: 'cloud:check',            // () → {ok, error?} — a free call to Higgsfield
+    budget: 'cloud:budget',          // ({fresh}?) → {linked, currency, month, topUp, sinceTopUp, left, at} | {…, error}
+    setTopUp: 'cloud:setTopUp'       // ({amount, at?} | null) → {ok, topUp?, error?} — the last top-up, for « left »
   }
 };
 /* channels:invoke:end */

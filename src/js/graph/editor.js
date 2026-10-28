@@ -31,6 +31,7 @@ import { createPalette } from './palette.js';
 import { createMinimap } from './minimap.js';
 import { createClipboard } from './clipboard.js';
 import { attachDrop } from './drop.js';
+import { mountBudget } from '../ui/budget.js';
 
 // ── textes ────────────────────────────────────────────────────────────
 register({
@@ -1627,6 +1628,7 @@ function buildZoombar(ed) {
   ed.minimapBtn = mk('zb-mini', icon('g-minimap', 16), `${t('graph.minimap.tip')} · M`, () => ed.minimap.toggle());
   const sep = () => { const s = document.createElement('span'); s.className = 'zb-sep'; return s; };
   z.append(
+    ...mountBudget(),                   // dépenses Higgsfield, seulement avec un compte relié
     mk('zb-btn', icon('zoom-out', 16), t('graph.zoom.out'), () => ed.smooth.by(center(), 1 / 1.25)),
     ed.zoomLevel,
     mk('zb-btn', icon('zoom-in', 16), t('graph.zoom.in'), () => ed.smooth.by(center(), 1.25)),

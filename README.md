@@ -74,7 +74,7 @@ Mia is for people who make films and images with local AI models and want to thi
 - **Assistants on the board**: Claude or Codex can build a board through Mia's MCP server while you watch
   their cursor place and wire blocks. Every action can be undone.
 - **Local first.** Mia listens on `127.0.0.1` only. It goes online only for the model downloads you start and,
-  if you link a Higgsfield account, for the online jobs you run.
+  if you link a Higgsfield account, for the online jobs you run and to show what the account spent.
 
 <div align="center">
   <img src="assets/demo-wiring.webp" alt="A block added from the palette, one wire, a prompt, a preview: the grey blockout becomes a sunlit room" width="100%">

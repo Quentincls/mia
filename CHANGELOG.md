@@ -19,6 +19,10 @@ concerne que les développeurs.
   en recréant le détail fin, fidèle au cadrage et au style (LTX-2.5 Native Resolution : une passe de composition,
   ×2 dans le calcul, puis un affinage par tuiles), en morceaux de quelques secondes fondus entre eux pour tenir en
   mémoire vive. Plus lent que SeedVR2 (≈ 25 à 35 min pour 10 s en 1440p).
+- **Ton budget Higgsfield sur la planche** : avec un compte relié, le coin en bas à droite de chaque planche montre
+  ce qui reste (« reste ≈ 42,30 $ ») ou, sans recharge indiquée, ce qui a été dépensé ce mois-ci. Higgsfield ne donne
+  pas le solde à Mia : indique le montant de ta dernière recharge dans Réglages → Comptes en ligne, Mia en retire
+  ce qui a été dépensé depuis (chiffres de Higgsfield, avec quelques minutes de retard).
 
 ### In short
 - **Fast upscaling with NVIDIA**: “Model › NVIDIA RTX · express” in the Upscale block (RTX Video Super Resolution, on
@@ -26,6 +30,16 @@ concerne que les développeurs.
 - **Upscaling with LTX**: “Model › LTX · details” in the Upscale block takes a video to 1440p or 4K by recreating fine
   detail, true to framing and style (LTX-2.5 Native Resolution), in cross-faded chunks of a few seconds to fit in RAM.
   Slower than SeedVR2 (≈ 25 to 35 min for 10 s at 1440p).
+- **Your Higgsfield budget on the board**: with a linked account, the bottom-right corner of every board shows what
+  is left (“left ≈ $42.30”) or, without a top-up entered, what was spent this month. Higgsfield gives no balance to
+  Mia: enter your last top-up in Settings → Online accounts, Mia takes off what was spent since (Higgsfield’s figures,
+  a few minutes late).
+
+### Pour les développeurs
+- Budget Higgsfield : `electron/cloud.js` lit `GET /models/usage` (fenêtres de 30 jours, à la seconde ; gardé une
+  minute), IPC `cloud:budget` et `cloud:setTopUp` (la recharge dans `cloud.json`, pas un secret) ;
+  `src/js/ui/budget.js` dans la barre de zoom, rafraîchi après un calcul en ligne et toutes les dix minutes ;
+  `tools/test-cloud.js` le vérifie contre un faux Higgsfield.
 
 ## 0.6.0 — 27/10/2026
 

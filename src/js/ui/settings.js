@@ -20,6 +20,7 @@ import { openModal } from './modal.js';
 import { toast } from './toasts.js';
 import { tip } from './tooltip.js';
 import { segmented, toggle, textField, button } from './controls.js';
+import { money, shortDate } from './budget.js';
 
 register({
   fr: {
@@ -89,6 +90,15 @@ register({
     'set.hfOk': 'Compte relié : les modèles en ligne sont prêts.',
     'set.hfStillOk': 'La clé est toujours acceptée.',
     'set.hfGone': 'Compte délié : la clé est effacée de ce PC.',
+    'set.hfTopUp': 'Ta dernière recharge',
+    'set.hfTopUpHint': 'Higgsfield ne donne pas le solde à Mia. Indique le montant de ta dernière recharge, en dollars : Mia en retire ce qui a été dépensé depuis et affiche le reste dans le coin de la planche.',
+    'set.hfTopUpPh': 'ex. 50',
+    'set.hfTopUpSave': 'Garder',
+    'set.hfTopUpClear': 'Oublier',
+    'set.hfTopUpNow': 'Recharge de {amount} le {date} · dépensé depuis : {spent} · reste ≈ {left}',
+    'set.hfTopUpWait': 'Recharge de {amount} le {date}.',
+    'set.hfTopUpNone': 'Aucune recharge indiquée : le coin de la planche ne montre que les dépenses du mois.',
+    'set.hfConsole': 'Voir mon solde sur Higgsfield',
     'set.bridgeOn': 'Actif · port {port}',
     'set.bridgeOnNoPort': 'Actif',
     'set.bridgeOff': 'Inactif',
@@ -189,6 +199,15 @@ register({
     'set.hfOk': 'Account linked: online models are ready.',
     'set.hfStillOk': 'The key is still accepted.',
     'set.hfGone': 'Account unlinked: the key is erased from this PC.',
+    'set.hfTopUp': 'Your last top-up',
+    'set.hfTopUpHint': 'Higgsfield does not give the balance to Mia. Enter the amount of your last top-up, in dollars: Mia takes off what was spent since and shows what is left in the corner of the board.',
+    'set.hfTopUpPh': 'e.g. 50',
+    'set.hfTopUpSave': 'Keep',
+    'set.hfTopUpClear': 'Forget',
+    'set.hfTopUpNow': 'Top-up of {amount} on {date} · spent since: {spent} · left ≈ {left}',
+    'set.hfTopUpWait': 'Top-up of {amount} on {date}.',
+    'set.hfTopUpNone': 'No top-up entered: the corner of the board only shows this month’s spending.',
+    'set.hfConsole': 'See my balance at Higgsfield',
     'set.bridgeOn': 'On · port {port}',
     'set.bridgeOnNoPort': 'On',
     'set.bridgeOff': 'Off',
@@ -591,6 +610,9 @@ export function openSettings(opts = {}) {
     hfState.textContent = linked ? t('set.hfLinked', { tail: s.keyTail || '' }) : t('set.hfOff');
     hfForm.hidden = linked;
     hfLinkedCtl.hidden = !linked;
+    // (always called after the whole section is built: the status comes back from the main process)
+    topRow.hidden = !linked;
+    if (linked) paintTopUp();
   }
   async function refreshHf() {
     let s = null;
@@ -625,9 +647,45 @@ export function openSettings(opts = {}) {
   }
   hfField.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); linkHf(); } });
   refreshHf();
+
+  // last top-up: Higgsfield gives no balance to a key; Mia takes what was spent since off this amount, and the corner
+  // of the board shows it (ui/budget.js)
+  const topField = textField({ value: '', placeholder: t('set.hfTopUpPh') });
+  topField.inputMode = 'decimal';
+  const topSave = button({ label: t('set.hfTopUpSave'), size: 'sm', onClick: () => keepTopUp(topField.value) });
+  const topClear = button({ label: t('set.hfTopUpClear'), size: 'sm', kind: 'ghost', onClick: () => keepTopUp(null) });
+  const topConsole = button({ label: t('set.hfConsole'), size: 'sm', kind: 'ghost', onClick: () => window.open('https://console.higgsfield.ai', '_blank') });
+  const topNow = el('div', { class: 'set-hint' });
+  const topMsg = el('div', { class: 'set-hint set-hf-msg bad', hidden: true });
+  async function paintTopUp(fresh = false) {
+    let b = null;
+    try { b = await window.mia?.cloud?.budget?.({ fresh }); } catch { b = null; }
+    const v = b && (b.month != null ? b : b.last);
+    const top = b && b.topUp;
+    topClear.hidden = !top;
+    if (!top) topNow.textContent = t('set.hfTopUpNone');
+    else if (v && v.left != null) {
+      topNow.textContent = t('set.hfTopUpNow', { amount: money(top.amount, v.currency), date: shortDate(top.at),
+        spent: money(v.sinceTopUp, v.currency), left: money(v.left, v.currency) });
+    } else topNow.textContent = t('set.hfTopUpWait', { amount: money(top.amount), date: shortDate(top.at) });
+  }
+  async function keepTopUp(value) {
+    if (value != null && !String(value).trim()) { topField.focus(); return; }
+    let r = null;
+    try { r = await window.mia?.cloud?.setTopUp?.(value == null ? null : { amount: String(value).trim() }); } catch (e) { r = { ok: false, error: e?.message || '?' }; }
+    topMsg.hidden = !!(r && r.ok);
+    topMsg.textContent = r && r.ok ? '' : (r?.error || '?');
+    if (r && r.ok) { topField.setValue(''); emit('cloud:topup'); paintTopUp(true); }
+  }
+  topField.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); keepTopUp(topField.value); } });
+  const topBox = el('div', { class: 'set-hf' },
+    el('div', { class: 'set-hf-form' }, topField, topSave, topClear), topNow, topMsg, el('div', { class: 'set-hf-form' }, topConsole));
+  const topRow = el('div', { class: 'set-hf-top', hidden: true }, rowEl(t('set.hfTopUp'), t('set.hfTopUpHint')), topBox);
+
   const hfRow = el('div', { class: 'set-cloud' },
     rowEl(t('set.hf'), t('set.hfHint'), hfState),
-    el('div', { class: 'set-hf' }, hfForm, hfLinkedCtl, hfMsg));
+    el('div', { class: 'set-hf' }, hfForm, hfLinkedCtl, hfMsg),
+    topRow);
 
   const bridgeState = el('span', { class: 'set-state' }, t('set.bridgeChecking'));
   const bridgeHint = el('div', { class: 'set-hint' });
