@@ -299,6 +299,7 @@ const DESC_FR = {
 const MARK = { Higgsfield: 'HF', ByteDance: 'BD', Kling: 'KL', Alibaba: 'AL', Lightricks: 'LT', MiniMax: 'MM', PixVerse: 'PV',
   xAI: 'xA', Recraft: 'RC', Ideogram: 'ID', Qwen: 'QW', Wan: 'WA', Tongyi: 'TY' };
 const RAW = path.join(ROOT, '_dev', 'cloud-docs', 'higgsfield-raw.json');
+const STRENGTHS = path.join(ROOT, 'src', 'catalog', 'cloud-strengths.json');
 
 function write(raw) {
   const families = raw.families.map(normalize).filter((f) => f.workflows.length).map((f) => ({
@@ -316,6 +317,13 @@ function write(raw) {
   const wf = families.reduce((n, f) => n + f.workflows.length, 0);
   process.stderr.write(`catalogue de Mia : ${families.length} familles, ${wf} workflows\n`);
   if (!DRY) fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
+  // les points forts sont écrits à la main (« à choisir quand… ») : une famille nouvelle n'en a pas encore
+  let by = {};
+  try { by = JSON.parse(fs.readFileSync(STRENGTHS, 'utf8')).families || {}; } catch { /* fichier absent : tout manque */ }
+  const missing = families.filter((f) => !by[f.key]).map((f) => `${f.name} (${f.key})`);
+  const gone = Object.keys(by).filter((k) => !families.some((f) => f.key === k));
+  if (missing.length) process.stderr.write(`sans points forts dans cloud-strengths.json (à écrire à la main, FR + EN) : ${missing.join(', ')}\n`);
+  if (gone.length) process.stderr.write(`points forts de familles disparues du catalogue (à retirer) : ${gone.join(', ')}\n`);
 }
 
 async function main() {

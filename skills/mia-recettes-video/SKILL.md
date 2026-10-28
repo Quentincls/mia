@@ -1,6 +1,6 @@
 ---
 name: mia-recettes-video
-description: Des méthodes de vidéo IA locale éprouvées, traduites en chaînes de blocs Mia avec les bons réglages - LTX + LoRA (Animer une image), Rendre photoréaliste un rendu 3D (Unreal, Blender), Vidéo guidée, Vidéo à partir de références (MiniMax), Animer un personnage (Wan Animate 2), Finition et looks, Son, montage, passes (profondeur, détourage). À utiliser pour choisir QUELLE méthode et QUELS blocs/réglages proposer pour un plan, avant de construire une planche ; à combiner avec mia-piloter pour la poser.
+description: Des méthodes de vidéo IA locale éprouvées, traduites en chaînes de blocs Mia avec les bons réglages - LTX + LoRA (Animer une image), Rendre photoréaliste un rendu 3D (Unreal, Blender), Vidéo guidée, Vidéo à partir de références (MiniMax), Animer un personnage (Wan Animate 2), Finition et looks, Son, montage, passes (profondeur, détourage), et quel modèle en ligne (Higgsfield : Seedance, Kling, Wan, Hailuo, Ideogram…) choisir pour quoi. À utiliser pour choisir QUELLE méthode et QUELS blocs/réglages proposer pour un plan, avant de construire une planche ; à combiner avec mia-piloter pour la poser.
 ---
 
 # Recettes vidéo dans Mia
@@ -190,6 +190,45 @@ Toutes passent par un bloc Modèle (`type:"gen"`, voir mia-piloter) ; le moteur 
 - **Recette « Vidéo à partir de mes références »** : 2 Médias (Personnage = Image 1, Lieu = Image 2) + une Consigne
   qui les cite + « Vidéo à partir de références » (MiniMax).
 - **MiniMax 768p** : la taille native (1344 × 768) au lieu de 704 px ; si la mémoire manque, revenir en 720p.
+
+## 11. Modèles en ligne : lequel pour quoi (Higgsfield, payant)
+Un bloc Modèle réglé sur une famille `hf:…` (voir mia-piloter) calcule chez Higgsfield : crédits du compte relié
+(Réglages → Comptes en ligne), carte graphique libre. **Seulement quand l'utilisateur le demande**, aperçu d'abord
+(Mia prend la plus petite résolution et la durée la plus courte du modèle). Le local d'abord : ce que le PC fait bien
+(LTX, MiniMax, Wan Animate 2…) reste gratuit et privé ; l'en-ligne sert à ce qu'il ne fait pas (4K, 30 s, visages
+Hailuo…) ou quand la carte graphique est prise.
+Les points forts viennent de la doc de Higgsfield et de son connecteur (`src/catalog/cloud-strengths.json`, aussi
+dans `mia_catalog` : `choices[].strengths`, `bestFor`) ; **rien n'a encore été jugé à l'œil** : le dire, et faire
+deux modèles sur le même plan avant d'en adopter un.
+
+| Besoin | Modèle en ligne à proposer |
+|---|---|
+| Plan long (jusqu'à 30 s) avec le son | Seedance 2.5 (choix par défaut de Higgsfield), Wan 3.0 / Wan 3.0 Prime ; Cinema Studio 4.0 (30 s, 720p) |
+| 4K | Kling 3.0 (qualité « 4K »), Kling O3 (4K + références), Seedance 2.0 (4K + son), LTX-2.5 (4K, 50 i/s en « Rapide ») |
+| Même personnage ou produit d'un plan à l'autre | Seedance 2.0 (9 images, 3 vidéos, 3 sons), Seedance 2.5 (30 / 10 / 10), Kling O3 (10 images + début et fin), Wan 3.0 |
+| Visages expressifs, jeu d'acteur | Hailuo 2.3 (768p, muet), Kling 2.6 (physique crédible, son) |
+| Faire parler ou bouger sur un son | Wan 2.7 (son branché, début et fin), Wan 2.6 |
+| Rejouer le mouvement d'une vidéo avec son personnage | Kling 3.0 Motion Control (le plus récent), Kling 2.6 Motion Control ; plusieurs personnages : Genjutsu |
+| Modifier ou prolonger une vidéo | Seedance 2.5 (modifier, prolonger), Kling O3 / Kling Omni (courte vidéo), Genjutsu (remplacer un objet) |
+| Caméra imposée, plan « réalisé » | LTX-2.5 (travelling, grue, plan fixe), Cinema Studio 4.0 (caméra, objectif, lumière, époque, rythme) |
+| Brouillon rapide | Kling 3.0 « Turbo », PixVerse V6 en 360p, Kling 2.5 Turbo (muet) ; image : Z-Image Turbo |
+| Durée au plus juste | PixVerse V6 (1 à 15 s, à la fraction près) |
+| Image avec du texte lisible (affiche, logo, titre) | Ideogram 4.0 (formats extrêmes aussi), Qwen Image 3, Marketing Studio Image (pub, jusqu'en 4K) |
+| Portrait, mode, photo réaliste de personne | SOUL V2 (SOUL : la version d'avant) |
+| Image au rendu cinéma (image de début à animer) | SOUL Cinema |
+| Illustration, graphisme / produit net, maquette, icône | Recraft V4.1 (1K) ou Pro (2K) / Recraft Utility ou Utility Pro |
+| Retoucher ou mêler des images | Grok Image 2.0 (10 images, rendu contrasté), Qwen Image 3 (3 images, en disant quoi changer) |
+| Une pub depuis un brief | Ads Studio (écrit le concept et rend l'image en 2K) ; Marketing Studio Image (16 photos produit) |
+
+- **Coût** : l'API n'en donne pas d'estimation. Plus de résolution, de durée ou un palier plus haut (Pro, 4K)
+  coûtent plus ; « Enrichir la consigne » de Z-Image aussi.
+- **Pas dans Mia** (champs qu'elle ne sait pas remplir) : Soul ID (apprendre un visage), les styles et presets de
+  Higgsfield (dont Genjutsu « Restyle »), le multi-plans de Kling (`multi_prompt`), les palettes de Recraft. Ne pas
+  les promettre. Multi-plans : aucun modèle ne le fait dans Mia ; Cinema Studio 4.0 a un rythme « Single shot » (un
+  seul plan), les autres rythmes peuvent couper (à vérifier à l'œil).
+- **Nouveau modèle chez Higgsfield** (Kling 4.0 est sur leur site, pas encore dans l'API) : relancer
+  `node tools/build-cloud-catalog.mjs`, puis écrire ses points forts FR + EN dans `cloud-strengths.json` (l'outil et
+  `tools/test-route.js` signalent l'oubli).
 
 ## Durées indicatives (GPU portable de 24 Go, un calcul lourd à la fois)
 Retoucher une image ≈ 15 s (rapide) / ≈ 3 min (qualité) · Animer une image : aperçu ≈ 1 min, final 5-9 min ·

@@ -7,7 +7,8 @@
 //   la même chose (LTX Standard / Rapide) ; MiniMax choisit lui-même entre
 //   Images-clés et Références selon ce qui est branché ;
 // - Cloud : les familles de Higgsfield (catalogue relevé dans leur doc), avec
-//   leur fabricant, leur phrase et ce qu'elles savent faire. Sans compte relié,
+//   leur fabricant, leur phrase, ce qu'elles savent faire et quand les choisir
+//   (points forts tenus à la main, cloud-strengths.json). Sans compte relié,
 //   un bandeau dit où le relier ; le choix reste possible (le bloc le
 //   rappellera au lancement).
 // Valeurs : « fam:<clé> » (une famille locale), l'id d'un modèle de
@@ -194,7 +195,7 @@ export function familyPicker({ param, value, onChange }) {
     return {
       kicker: fam.provider === 'local' ? t('node.fam.tipLocal') : t('node.fam.tipCloud'),
       title: v ? `${fam.def.name} · ${v}` : fam.def.name,
-      body: tl(fam.def.desc || {}),
+      body: [tl(fam.def.desc || {}), tl(fam.def.strengths || {})].filter(Boolean).join(' '),
       meta: familyWords(fam.def).join(' · '),
     };
   });
@@ -237,7 +238,8 @@ export function familyPicker({ param, value, onChange }) {
           el('span', { class: 'mp-line' },
             el('span', { class: 'mp-name' }, sub?.title || def.name),
             words ? el('span', { class: 'mp-fam' }, words) : null),
-          sub?.text ? el('span', { class: 'mp-sub' }, sub.text) : null),
+          sub?.text ? el('span', { class: 'mp-sub' }, sub.text) : null,
+          sub?.pick ? el('span', { class: 'mp-sub mp-pick' }, sub.pick) : null),
         el('span', { class: 'mp-side' },
           note ? el('span', { class: 'mp-note' }, note) : null,
           size ? el('span', { class: 'mp-size' }, size) : null));
@@ -278,8 +280,9 @@ export function familyPicker({ param, value, onChange }) {
         banner.append(el('span', {}, t('node.fam.cloudLink')), btn);
       } else banner.append(el('span', {}, t(linked === null ? 'node.fam.cloudChecking' : 'node.fam.cloudLinked')));
       list.append(banner);
+      // la recherche lit aussi les points forts : « 4K », « visages », « texte » trouvent les modèles qui y excellent
       const fams = (cloudCatalog().families || [])
-        .filter((def) => !q || fold(`${def.name} ${def.maker} ${tl(def.desc || {})}`).includes(q))
+        .filter((def) => !q || fold(`${def.name} ${def.maker} ${tl(def.desc || {})} ${tl(def.strengths || {})}`).includes(q))
         .slice().sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'video' ? -1 : 1) || a.name.localeCompare(b.name));
       let kind = null;
       for (const def of fams) {
@@ -288,7 +291,7 @@ export function familyPicker({ param, value, onChange }) {
           list.append(el('div', { class: 'mp-group' }, t(kind === 'image' ? 'node.fam.image' : 'node.fam.video')));
         }
         list.append(famRow({ value: def.key, def, words: familyWords(def).join(' · '), selected: current === def.key,
-          sub: { text: tl(def.desc || {}) } }));
+          sub: { text: tl(def.desc || {}), pick: tl(def.strengths || {}) } }));
       }
       return fams.length;
     }

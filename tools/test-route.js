@@ -72,5 +72,23 @@ for (const [f, conn, want, exp] of CASES) {
   const label = `${f} [${conn.join(', ')}]`;
   if (why.length) { ko++; console.log(`  ÉCHEC ${label} : ${why.join(' · ')}`); } else { ok++; console.log(`  ok    ${label} → ${want}`); }
 }
+
+// points forts des familles en ligne (cloud-strengths.json, tenus à la main) : chacune a sa phrase FR et EN, ses
+// critères sont de la liste, aucune entrée ne vise une famille disparue ; le moteur les a bien posés sur le catalogue
+const strengths = require('../src/catalog/cloud-strengths.json');
+for (const def of cloud.families || []) {
+  const s = strengths.families[def.key] || {};
+  const why = [];
+  for (const l of ['fr', 'en']) if (!String((s.strengths || {})[l] || '').trim()) why.push(`phrase ${l.toUpperCase()} absente`);
+  if (/[a-zà-ÿ]'[a-zà-ÿ]/i.test((s.strengths || {}).fr || '')) why.push('apostrophe droite en français (’ attendue)');
+  const bad = (s.bestFor || []).filter((c) => !strengths.criteria.includes(c));
+  if (!Array.isArray(s.bestFor) || !s.bestFor.length) why.push('bestFor vide');
+  else if (bad.length) why.push(`critères inconnus [${bad}]`);
+  if (JSON.stringify(def.strengths) !== JSON.stringify(s.strengths)) why.push('non posés par engine/route.js');
+  const label = `points forts ${def.key}`;
+  if (why.length) { ko++; console.log(`  ÉCHEC ${label} : ${why.join(' · ')}`); } else { ok++; console.log(`  ok    ${label}`); }
+}
+const gone = Object.keys(strengths.families).filter((k) => !(cloud.families || []).some((d) => d.key === k));
+if (gone.length) { ko++; console.log(`  ÉCHEC points forts de familles absentes du catalogue : ${gone.join(', ')}`); } else ok++;
 console.log(`\n${ok} contrôles réussis, ${ko} échec(s).`);
 process.exit(ko ? 1 : 0);

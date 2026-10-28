@@ -19,11 +19,21 @@ function load() {
   return rules;
 }
 
-/** { local: model-families.json, cloud: cloud-higgsfield.json } (read once; an unreadable file counts as empty). */
+/**
+ * { local: model-families.json, cloud: cloud-higgsfield.json } (read once; an unreadable file counts as empty). Each
+ * online family also gets its hand-written strengths (cloud-strengths.json → def.strengths, def.bestFor), as on the
+ * board (nodes/profiles.js).
+ */
 function cats() {
   if (catalogs) return catalogs;
   const read = (f, empty) => { try { return JSON.parse(fs.readFileSync(path.join(SRC, 'catalog', f), 'utf8')); } catch { return empty; } };
   catalogs = { local: read('model-families.json', { families: {} }), cloud: read('cloud-higgsfield.json', { families: [] }) };
+  const by = read('cloud-strengths.json', { families: {} }).families || {};
+  for (const def of catalogs.cloud.families || []) {
+    const x = by[def.key];
+    if (x && x.strengths) def.strengths = x.strengths;
+    if (x && Array.isArray(x.bestFor)) def.bestFor = x.bestFor;
+  }
   return catalogs;
 }
 

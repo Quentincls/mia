@@ -19,6 +19,10 @@ concerne que les développeurs.
   en recréant le détail fin, fidèle au cadrage et au style (LTX-2.5 Native Resolution : une passe de composition,
   ×2 dans le calcul, puis un affinage par tuiles), en morceaux de quelques secondes fondus entre eux pour tenir en
   mémoire vive. Plus lent que SeedVR2 (≈ 25 à 35 min pour 10 s en 1440p).
+- **Quel modèle en ligne pour quoi** : dans le choix du modèle, onglet « En ligne », chacun des 35 modèles de
+  Higgsfield dit quand le choisir (plan long avec le son, 4K, visages, texte dans l’image, rapide…). La recherche
+  les lit aussi (« 4K », « visages ») et les assistants les reçoivent. Tirés de la documentation de Higgsfield :
+  à confirmer à l’œil.
 
 ### In short
 - **Fast upscaling with NVIDIA**: “Model › NVIDIA RTX · express” in the Upscale block (RTX Video Super Resolution, on
@@ -26,6 +30,9 @@ concerne que les développeurs.
 - **Upscaling with LTX**: “Model › LTX · details” in the Upscale block takes a video to 1440p or 4K by recreating fine
   detail, true to framing and style (LTX-2.5 Native Resolution), in cross-faded chunks of a few seconds to fit in RAM.
   Slower than SeedVR2 (≈ 25 to 35 min for 10 s at 1440p).
+- **Which online model for what**: in the model picker’s “Online” tab, each of Higgsfield’s 35 models says when to
+  pick it (long shot with sound, 4K, faces, text in the image, fast…). Search reads them too (“4K”, “faces”) and
+  assistants get them. Taken from Higgsfield’s documentation: to be confirmed by eye.
 
 ## 0.6.0 — 27/10/2026
 

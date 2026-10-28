@@ -861,6 +861,8 @@ body {
 /* panneau des familles : variantes sous leur famille, l'aide de MiniMax, le bandeau du compte en ligne */
 .mp-row.mp-indent { padding-left: 37px; }
 .mp-famdesc.mp-hint { color: var(--txt-3); padding-top: 2px; }
+/* modèle en ligne : quand le choisir (cloud-strengths.json), sous sa phrase, un ton plus lisible qu'elle */
+.mp-sub.mp-pick { color: var(--txt-2); margin-top: 1px; }
 .mp-cloudbar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 4px 6px; padding: 9px 10px;
   border-radius: 9px; border: 1px dashed var(--line-2); font-size: 11.5px; line-height: 1.4; color: var(--txt-2);

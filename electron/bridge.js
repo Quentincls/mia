@@ -559,6 +559,7 @@ class Bridge {
     // how to drive a Model block, for assistants (mia_catalog → types[gen].howItWorks)
     const MODEL_BLOCK_HOWTO = [
       'One block per model. Set params.model to a family from params[model].choices: fam:ltx, fam:minimax, fam:wan, fam:qwen, fam:klein, fam:qwen21 (this PC) or hf:<family> (online at Higgsfield, paid: run it only when the user asked).',
+      'Choosing an online family: each one has strengths (when to pick it) and bestFor (criteria it stands out on: quality, motion, faces, text, sound, long, 4k, fast, references, edit, camera, style, product). Match them to what the user wants (a long shot with sound → long + sound; a poster with words → text), then check its ways and settings. They come from Higgsfield\'s docs, not from tests: say so, preview first, let the user judge by eye.',
       'What you WIRE decides what it does (choices[].ways): each way lists needs (must be wired), needsOneOf, takes (inputs and how many) and settings. Nothing wired → from text; a start image → animate it; references → blend them (MiniMax); a guide video (+ a start image) → guided; a 3D render (+ a start image as look) → photoreal; a character sheet alone → LTX video from a sheet (trial); a character + a motion video → animate a character; a video into MiniMax → extend it.',
       'A wired input that no possible way uses alone (an end image, keyframes or a sheet without a start image on LTX…) BLOCKS the block with « Il manque pour « … » : … » — nothing silently starts from text: wire what is missing. mia_get_board → model.connect lists it.',
       'On screen an empty Model block of a family that does several things (LTX, MiniMax, most online ones) shows only its prompt and a « Partir de : » line, one button per starting point (start image, references, 3D render, guide video, character sheet…): nothing is imposed, nothing wired = from the prompt (a family that cannot start from the prompt, like Genjutsu, shows what it needs instead). Wan and Qwen (one way each) show their inputs. You never click those buttons: wire the port directly (mia_get_board → model.startFrom lists them while nothing is wired).',
@@ -608,7 +609,10 @@ class Bridge {
             settings.push(s);
           }
         }
+        // strengths: when to pick this family (hand-written from Higgsfield's docs, cloud-strengths.json; not yet judged by
+        // eye); bestFor: the criteria it stands out on (quality, motion, faces, text, sound, long, 4k, fast…)
         out.push({ value: def.key, label: def.name, maker: def.maker, where: 'online (Higgsfield, paid)', kind: def.kind,
+          about: L(def.desc), ...(def.strengths ? { strengths: L(def.strengths) } : {}), ...(def.bestFor ? { bestFor: def.bestFor } : {}),
           does: (def.workflows || []).map((w) => L(w.label)), inputs: portsOf(fam), ways: waysOf(def), settings });
       }
       return out;

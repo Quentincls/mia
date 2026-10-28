@@ -168,6 +168,10 @@ l'entrée (`start`, `keys`, `refs`, `refAudios`, `video`, `audio`…), même cel
 quoi il se sert (`model.uses`), ce qui manque et ce qui est ignoré ; sur un bloc encore vide, `model.startFrom`
 donne les points de départ de la ligne « Partir de : » (entrée et ce qu'elle ferait). Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p) sont signalées comme telles : juge le résultat à l'œil. Prolonger une vidéo et les images-clés de MiniMax
 sont validés (essais du 24/10).
+Pour choisir un modèle en ligne, chaque famille `hf:…` donne aussi `strengths` (quand la choisir, la même phrase
+que le panneau « En ligne ») et `bestFor` (où elle se distingue : `quality`, `motion`, `faces`, `text`, `sound`,
+`long`, `4k`, `fast`, `references`, `edit`, `camera`, `style`, `product`). Ces points forts sont tenus à la main
+dans `src/catalog/cloud-strengths.json`, d'après la documentation de Higgsfield : rien n'y a encore été jugé à l'œil.
 
 ## Sécurité
 
