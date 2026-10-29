@@ -99,9 +99,12 @@ function fmt(v) {
 }
 function log(...args) {
   const line = `${new Date().toISOString()} ${args.map(fmt).join(' ')}`;
-  console.log(line);
+  try { console.log(line); } catch { /* no console: the file still has it */ }
   try { fs.appendFileSync(LOG_FILE, line + '\n'); } catch { /* disk full: the console still has it */ }
 }
+// A console whose reader is gone (parent closed its pipe) reports EPIPE as an error event: unheard,
+// it became an uncaught exception, logged to that same console, in a loop (40 MB of log in 15 s).
+for (const s of [process.stdout, process.stderr]) s.on('error', () => {});
 const logger = (scope) => (...args) => log(`[${scope}]`, ...args);
 
 process.on('uncaughtException', (e) => log('[uncaught]', e));

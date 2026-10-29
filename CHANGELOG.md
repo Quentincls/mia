@@ -17,6 +17,7 @@ concerne que les développeurs.
   propre copie privée, où un vieux `bridge.json` (d’une Mia qu’ils avaient lancée eux-mêmes) cachait celui de la
   Mia ouverte : « Mia ne répond pas » à chaque appel. Mia écrit maintenant aussi `%TEMP%\Mia\bridge.json`, que
   le serveur MCP lit en premier (jamais par une instance de test).
+- Une Mia lancée depuis une console fermée ensuite ne remplit plus son journal en boucle (EPIPE : 40 Mo en 15 s).
 
 ## 0.7.0 — 29/10/2026
 
