@@ -83,16 +83,19 @@ export function attachInteract(ed) {
     ? hitSection(ed.doc.groups, cam, p, { lod: ed.lod, titleW: (gr) => ed.sect.widths.get(gr.id) ?? 80 })
     : null);
 
+  /** Ce qu'il y a sous le pointeur, l'écran du curseur mis à part (il couvre la scène pendant un geste ou Espace). */
+  const under = (x, y) => document.elementsFromPoint(x, y).find((el) => el !== ed.shield) || null;
+
   // ── pointeur ──────────────────────────────────────────────────────
 
   stage.addEventListener('pointerdown', (e) => {
     if (!ed.project || g) return;
-    let target = e.target;
+    let target = e.target === ed.shield ? under(e.clientX, e.clientY) || e.target : e.target;
     // juste après un geste de caméra, le monde ignore encore le pointeur
     // (#world.moving) : on lui rend la main et on retrouve ce qui est vraiment visé
     if (ed.world.classList.contains('moving')) {
       ed.world.classList.remove('moving');
-      target = document.elementFromPoint(e.clientX, e.clientY) || target;
+      target = under(e.clientX, e.clientY) || target;
     }
     if (target.closest('.w-cut, .g-title-input')) return;
     if (!cutBtn.hidden && !target.classList?.contains('w-hit')) hideCut();   // le fil va bouger : la pastille part
@@ -174,6 +177,7 @@ export function attachInteract(ed) {
     stopAutoPan();
     if (cur.captured) { try { stage.releasePointerCapture(cur.pid); } catch { /* déjà relâché */ } }
     stage.classList.remove('panning', 'dragging', 'connecting-cursor', 'resizing');
+    ed.shield.style.cursor = '';
     // un fil dont le pointeur a été perdu est annulé (rien ne se branche au hasard) ; les autres gestes finissent
     finish(cur, e?.type === 'pointercancel' || (e?.type === 'lostpointercapture' && cur.kind === 'connect'));
   };
@@ -189,7 +193,7 @@ export function attachInteract(ed) {
     if (!ed.project) return;
     rect = stage.getBoundingClientRect();
     // la vraie cible, au cas où un geste aurait encore la capture
-    const target = document.elementFromPoint(e.clientX, e.clientY) || e.target;
+    const target = under(e.clientX, e.clientY) || e.target;
     if (target.closest('.w-cut, .g-title-input, .n-title-input')) return;
     const nodeEl = target.closest('.node');
     if (nodeEl) {
@@ -558,8 +562,8 @@ export function attachInteract(ed) {
       const d = Math.hypot(s.x - p.x, s.y - p.y);
       if (d < bd) { bd = d; best = c; }
     }
-    // un seul test de position par mouvement : ce qu'il y a sous le pointeur
-    const hit = document.elementFromPoint(g.client.x, g.client.y);
+    // un seul test de position par mouvement : ce qu'il y a sous le pointeur (sous l'écran du curseur)
+    const hit = under(g.client.x, g.client.y);
     if (!best) {
       // tout le corps d'un bloc aimante, mais seulement vers un port compatible
       // *libre* : remplacer un fil existant demande de viser son port
@@ -732,7 +736,9 @@ export function attachInteract(ed) {
       const hs = sectionUnder(p);
       if (hs) { cursor = CURSORS[hs.part] || ''; hot = hs.id; }
     }
-    if (stage.style.cursor !== cursor) stage.style.cursor = cursor;
+    // sur le canevas de la grille (la planche nue), jamais sur #stage : le curseur s'hérite, et le changer
+    // sur la scène restylait tous les éléments des cartes (~100 ms sur une planche de 110 blocs, 28/10)
+    if (ed.grid.style.cursor !== cursor) ed.grid.style.cursor = cursor;
     if (hot !== ed.sect.hot) { ed.sect.hot = hot; ed.requestDraw(); }
   }
 
@@ -799,7 +805,7 @@ export function attachInteract(ed) {
       if (!started(p)) return;
       ed.history.begin('group-resize');
       stage.classList.add('resizing');
-      stage.style.cursor = CURSORS[g.part] || '';
+      ed.shield.style.cursor = CURSORS[g.part] || '';     // le bord tenu (l'écran du curseur couvre la scène)
     }
     const grp = ed.doc.group(g.id);
     if (!grp) return;
@@ -826,7 +832,7 @@ export function attachInteract(ed) {
   function setTool(tool) {
     ed.tool = tool && !ed.readonly ? tool : null;
     ed.syncTool();
-    stage.style.cursor = ed.tool === 'section' ? 'crosshair' : '';
+    ed.grid.style.cursor = ed.tool === 'section' ? 'crosshair' : '';
   }
   function toggleSectionTool() { setTool(ed.tool === 'section' ? null : 'section'); }
 
@@ -1069,7 +1075,7 @@ export function attachInteract(ed) {
     const done = () => { e.preventDefault(); e.stopPropagation(); };
 
     if (k === 'Escape') {
-      if (g) { const cur = g; g = null; stopAutoPan(); finish(cur, true); stage.classList.remove('panning', 'dragging', 'connecting-cursor', 'resizing'); return done(); }
+      if (g) { const cur = g; g = null; stopAutoPan(); finish(cur, true); stage.classList.remove('panning', 'dragging', 'connecting-cursor', 'resizing'); ed.shield.style.cursor = ''; return done(); }
       if (ed.tool) { setTool(null); return done(); }
       if (sel().nodes.size || sel().edge || sel().group) { ed.setSelection({ nodes: [] }); return done(); }
       return;
@@ -1211,7 +1217,6 @@ export function attachInteract(ed) {
     if (!sel().nodes.has(id)) ed.setSelection({ nodes: [id] });
     const ids = [...sel().nodes];
     const many = ids.length > 1;
-    const def = typeOf(node.type);
     const ro = ed.readonly;
     const out = resultOf(node);
     const items = [];
@@ -1221,10 +1226,10 @@ export function attachInteract(ed) {
           .sort((a, b) => ed.doc.node(a).x - ed.doc.node(b).x);
         for (const k of list) emit('node:run', { nodeId: k, mode: mode ?? null });
       };
-      if (def?.modes?.length) {
-        items.push({ label: t('graph.menu.runPreview'), icon: 'play', disabled: ro || node.bypass, action: () => run('preview') });
-        items.push({ label: t('graph.menu.runFinal'), icon: 'play', disabled: ro || node.bypass, action: () => run('final') });
-      } else items.push({ label: t('graph.menu.run'), icon: 'play', disabled: ro || node.bypass, action: () => run(null) });
+      // un seul « Générer », comme le bouton du bloc (les réglages décident de la durée)
+      const cat = typeOf(node.type);
+      const verb = cat?.id === 'export' ? 'graph.menu.export' : cat?.category === 'tools' ? 'graph.menu.apply' : 'graph.menu.run';
+      items.push({ label: t(verb), icon: 'play', disabled: ro || node.bypass, action: () => run(null) });
       items.push('sep');
     }
     items.push(
@@ -1360,6 +1365,7 @@ export function attachInteract(ed) {
       g = null;
       stopAutoPan();
       stage.classList.remove('panning', 'dragging', 'connecting-cursor', 'resizing');
+      ed.shield.style.cursor = '';
       finish(cur, true);
     },
     /** La caméra a bougé : le calque écran suit. */

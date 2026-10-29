@@ -278,13 +278,9 @@ function renderActions() {
     const problem = type ? modelProblem(type, editor()?.getNode?.(nodeId)) : null;
     const off = !!problem;
     const wrap = (b) => (off ? el('span', { class: 'nb-act-off', 'data-tip': t('node.model.cantRun', { why: problem.sub || problem.title }) }, b) : b);
-    if (type?.modes?.includes('preview')) {
-      btns.append(
-        wrap(button({ label: t('node.final'), kind: 'ghost', size: 'sm', disabled: off, onClick: () => emit('node:run', { nodeId, mode: 'final' }) })),
-        wrap(button({ label: t('node.preview'), icon: 'play', kind: off ? 'ghost' : 'shiny', size: 'sm', disabled: off, onClick: () => emit('node:run', { nodeId, mode: 'preview' }) })));
-    } else {
-      btns.append(wrap(button({ label: t('node.launch'), icon: 'play', kind: off ? 'ghost' : 'shiny', size: 'sm', disabled: off, onClick: () => emit('node:run', { nodeId, mode: null }) })));
-    }
+    // un seul « Générer », comme dans la carte : les réglages du bloc décident de la durée
+    const verb = type?.id === 'export' ? 'node.export' : type?.category === 'tools' ? 'node.apply' : 'node.generate';   // comme la carte (body.js runVerbKey)
+    btns.append(wrap(button({ label: t(verb), icon: 'play', kind: off ? 'ghost' : 'shiny', size: 'sm', disabled: off, onClick: () => emit('node:run', { nodeId, mode: null }) })));
     if (problem) btns.prepend(el('span', { class: 'insp-run-why' }, problem.title));
     // et de quoi l'installer (SPEC §21.4) : la bibliothèque s'ouvre sur ce qu'il faut pour ce bloc
     if (problem) install = linkBtn(t('node.model.install'), 'node-dl', () => emit('installer:open', { caps: problem.caps || [] }));

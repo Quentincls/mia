@@ -1,0 +1,253 @@
+{
+ "version": 1,
+ "_doc": "Points forts des modèles en ligne de Higgsfield (SPEC §23), tenus à la main : pour chaque famille de cloud-higgsfield.json (clé hf:…), « à choisir quand… » en une ou deux phrases FR/EN (strengths) et les critères où elle se distingue (bestFor, mots de la liste criteria). Écrits d’après docs.higgsfield.ai (pages des familles et de leurs workflows) et le connecteur Higgsfield (models_explore : descriptions, tags), sans aucun calcul : rien n’a encore été jugé à l’œil. Ne parler que de ce que Mia sait envoyer (pas de styles, de Soul ID ni de multi-plans). Une famille du catalogue sans entrée ici : tools/build-cloud-catalog.mjs et tools/test-route.js le signalent.",
+ "checked": "2026-10-28",
+ "criteria": ["quality", "motion", "faces", "text", "sound", "long", "4k", "fast", "references", "edit", "camera", "style", "product"],
+ "families": {
+  "hf:genjutsu": {
+   "strengths": {
+    "fr": "À choisir pour transformer une vidéo que tu as (4 à 30 s) : remplacer un objet par celui de tes images, ou faire rejouer son mouvement par tes personnages (8 images au plus).",
+    "en": "Pick it to transform a video you have (4 to 30 s): swap an object for the one in your images, or have your characters replay its motion (up to 8 images)."
+   },
+   "bestFor": ["edit", "motion", "references"]
+  },
+  "hf:seedance-2-0": {
+   "strengths": {
+    "fr": "À choisir pour garder le même personnage ou produit d’un plan à l’autre grâce aux références (9 images, 3 vidéos, 3 sons), et pour la 4K avec le son. Jusqu’à 15 s.",
+    "en": "Pick it to keep the same character or product from shot to shot with references (9 images, 3 videos, 3 sounds), and for 4K with sound. Up to 15 s."
+   },
+   "bestFor": ["references", "faces", "4k", "sound"]
+  },
+  "hf:seedance-2-5": {
+   "strengths": {
+    "fr": "Le choix par défaut de Higgsfield : un plan long (jusqu’à 30 s) avec le son, beaucoup de références (30 images, 10 vidéos, 10 sons), ou modifier et prolonger une vidéo. 1080p au plus.",
+    "en": "Higgsfield’s default pick: a long shot (up to 30 s) with sound, many references (30 images, 10 videos, 10 sounds), or editing and extending a video. 1080p at most."
+   },
+   "bestFor": ["long", "sound", "references", "edit"]
+  },
+  "hf:kling-2-5-turbo": {
+   "strengths": {
+    "fr": "Ancienne génération rapide de Kling : à choisir pour un plan muet de 5 ou 10 s depuis un texte ou une image. Ni son ni choix du format : Kling 3.0 fait mieux sur ces points.",
+    "en": "Kling’s older fast generation: pick it for a silent 5 or 10 s shot from text or an image. No sound and no aspect-ratio choice: Kling 3.0 does better there."
+   },
+   "bestFor": ["fast"]
+  },
+  "hf:kling-2-6": {
+   "strengths": {
+    "fr": "À choisir pour un mouvement de cinéma et une physique crédible, avec le son, sur 5 ou 10 s, depuis un texte ou une image de début.",
+    "en": "Pick it for cinematic motion and believable physics, with sound, over 5 or 10 s, from text or a start image."
+   },
+   "bestFor": ["motion", "sound"]
+  },
+  "hf:kling-2-6-motion-control": {
+   "strengths": {
+    "fr": "À choisir pour faire jouer ton personnage (une image) avec le mouvement exact d’une vidéo de 3 à 30 s : danse, geste, jeu d’acteur. Kling 3.0 Motion Control est plus récent.",
+    "en": "Pick it to make your character (one image) perform the exact motion of a 3 to 30 s video: dance, gesture, acting. Kling 3.0 Motion Control is newer."
+   },
+   "bestFor": ["motion"]
+  },
+  "hf:kling-3-0": {
+   "strengths": {
+    "fr": "À choisir pour la 4K (qualité « 4K ») ou un rendu cinéma avec le son, de 3 à 15 s, avec image de début et de fin. En « Turbo » : des essais rapides, sans son ni image de fin.",
+    "en": "Pick it for 4K (“4K” quality) or a cinematic look with sound, 3 to 15 s, with start and end images. In “Turbo”: quick tries, without sound or end image."
+   },
+   "bestFor": ["4k", "quality", "sound", "fast"]
+  },
+  "hf:kling-3-0-motion-control": {
+   "strengths": {
+    "fr": "À choisir pour faire jouer ton personnage (une image) avec le mouvement d’une vidéo de 3 à 30 s, en gardant son son si tu veux : la version la plus récente de Kling pour ça.",
+    "en": "Pick it to make your character (one image) perform the motion of a 3 to 30 s video, keeping its sound if you like: Kling’s newest take on it."
+   },
+   "bestFor": ["motion"]
+  },
+  "hf:kling-o3": {
+   "strengths": {
+    "fr": "À choisir pour mêler jusqu’à 10 images de référence avec une image de début et de fin, en 4K et avec le son (3 à 15 s), ou pour modifier une courte vidéo en disant quoi changer.",
+    "en": "Pick it to mix up to 10 reference images with start and end images, in 4K with sound (3 to 15 s), or to edit a short video by saying what to change."
+   },
+   "bestFor": ["references", "4k", "sound", "edit"]
+  },
+  "hf:kling-omni": {
+   "strengths": {
+    "fr": "À choisir pour mêler jusqu’à 10 images de référence, ou modifier ou suivre une courte vidéo (3 à 10 s), sans son. Kling O3 fait la même chose avec le son, en plus défini et jusqu’à 15 s.",
+    "en": "Pick it to mix up to 10 reference images, or to edit or follow a short video (3 to 10 s), without sound. Kling O3 does the same with sound, sharper and up to 15 s."
+   },
+   "bestFor": ["references", "edit"]
+  },
+  "hf:happy-horse-1-0": {
+   "strengths": {
+    "fr": "À choisir pour une vidéo simple en 1080p, sans son, depuis un texte, une image de début ou jusqu’à 9 images de référence (2 à 15 s). HappyHorse 1.1 en est la version plus récente.",
+    "en": "Pick it for a simple 1080p video without sound, from text, a start image or up to 9 reference images (2 to 15 s). HappyHorse 1.1 is its newer version."
+   },
+   "bestFor": ["references"]
+  },
+  "hf:happyhorse-1-1": {
+   "strengths": {
+    "fr": "Même usage que Happy Horse 1.0, en plus récent : une vidéo simple en 1080p, sans son, depuis un texte, une image de début ou jusqu’à 9 images de référence (2 à 15 s).",
+    "en": "Same use as Happy Horse 1.0, newer: a simple 1080p video without sound, from text, a start image or up to 9 reference images (2 to 15 s)."
+   },
+   "bestFor": ["references"]
+  },
+  "hf:wan-3-0": {
+   "strengths": {
+    "fr": "À choisir pour un plan long (jusqu’à 30 s) avec le son, depuis des références variées (10 images, 5 vidéos, 5 sons). « Réfléchir avant » suit mieux une consigne compliquée, en plus lent.",
+    "en": "Pick it for a long shot (up to 30 s) with sound, from varied references (10 images, 5 videos, 5 sounds). “Think first” follows a complex prompt better, but slower."
+   },
+   "bestFor": ["long", "sound", "references"]
+  },
+  "hf:wan-3-0-prime": {
+   "strengths": {
+    "fr": "La version haut de gamme de Wan 3.0, mêmes entrées et mêmes limites (30 s, son, 1080p) : à choisir quand Wan 3.0 convient et que tu vises plus haut en qualité.",
+    "en": "The premium version of Wan 3.0, same inputs and limits (30 s, sound, 1080p): pick it when Wan 3.0 fits and you aim higher on quality."
+   },
+   "bestFor": ["quality", "long", "sound", "references"]
+  },
+  "hf:cinema-studio-4-0": {
+   "strengths": {
+    "fr": "À choisir pour un plan « réalisé » : caméra, objectif, lumière, époque, genre et rythme au choix, ou laissés au réalisateur automatique ; jusqu’à 30 s, avec références. 720p au plus.",
+    "en": "Pick it for a “directed” shot: camera, lens, light, era, genre and pacing of your choice, or left to the automatic director; up to 30 s, with references. 720p at most."
+   },
+   "bestFor": ["camera", "long", "references"]
+  },
+  "hf:ltx-2-5": {
+   "strengths": {
+    "fr": "À choisir pour la 4K ou 50 images/s (qualité « Rapide »), ou pour imposer un mouvement de caméra (travelling, grue, plan fixe). 6 à 10 s, avec le son, sans occuper ta carte graphique.",
+    "en": "Pick it for 4K or 50 fps (“Fast” quality), or to set a camera move (dolly, jib, static shot). 6 to 10 s, with sound, without tying up your graphics card."
+   },
+   "bestFor": ["4k", "camera", "sound"]
+  },
+  "hf:minimax-h3": {
+   "strengths": {
+    "fr": "À choisir pour la 2K, avec image de début et de fin, ou pour mêler des références (9 images, 3 vidéos, 3 sons ; un son jamais seul), de 5 à 15 s, sans occuper ta carte graphique.",
+    "en": "Pick it for 2K, with start and end images, or to blend references (9 images, 3 videos, 3 sounds; never a sound alone), 5 to 15 s, without tying up your graphics card."
+   },
+   "bestFor": ["quality", "references"]
+  },
+  "hf:hailuo-2-3": {
+   "strengths": {
+    "fr": "À choisir pour des visages expressifs et des mouvements naturels, depuis un texte ou une image, sur 6 ou 10 s. En 768p seulement et sans son.",
+    "en": "Pick it for expressive faces and natural motion, from text or an image, over 6 or 10 s. 768p only, no sound."
+   },
+   "bestFor": ["faces", "motion"]
+  },
+  "hf:pixverse-v6": {
+   "strengths": {
+    "fr": "À choisir pour une durée au plus juste (de 1 à 15 s, à la fraction près) avec le son, depuis un texte ou une image de début et de fin ; 360p pour un brouillon rapide.",
+    "en": "Pick it for an exact length (1 to 15 s, fractions allowed) with sound, from text or start and end images; 360p for a quick draft."
+   },
+   "bestFor": ["sound", "fast"]
+  },
+  "hf:wan-2-6": {
+   "strengths": {
+    "fr": "À choisir pour un rendu stylisé ou expérimental, ou pour reprendre 1 à 3 vidéos de référence ; un son branché (voix, musique) guide la vidéo. 5, 10 ou 15 s.",
+    "en": "Pick it for a stylized or experimental look, or to draw on 1 to 3 reference videos; a connected sound (voice, music) drives the video. 5, 10 or 15 s."
+   },
+   "bestFor": ["style", "sound", "references"]
+  },
+  "hf:wan-2-7": {
+   "strengths": {
+    "fr": "À choisir pour faire parler ou bouger un personnage sur un son branché (voix, musique), 2 à 15 s, avec image de début et de fin ; ou pour le garder d’un plan à l’autre (5 références, 10 s).",
+    "en": "Pick it to make a character speak or move to a connected sound (voice, music), 2 to 15 s, with start and end images; or to keep them consistent across shots (5 references, 10 s)."
+   },
+   "bestFor": ["sound", "faces", "references"]
+  },
+  "hf:grok-imagine-video-1-5": {
+   "strengths": {
+    "fr": "À choisir pour une vidéo avec le son et une physique crédible, depuis un texte, une image de début, ou 7 images de référence et un son ; 1 à 15 s (720p avec des références).",
+    "en": "Pick it for a video with sound and believable physics, from text, a start image, or 7 reference images plus a sound; 1 to 15 s (720p with references)."
+   },
+   "bestFor": ["sound", "motion", "references"]
+  },
+  "hf:soul": {
+   "strengths": {
+    "fr": "À choisir pour une photo réaliste de personne, façon réseaux sociaux, depuis un texte ; une image branchée guide la consigne. SOUL V2 en est la version plus récente.",
+    "en": "Pick it for a realistic photo of a person, social-media style, from text; a connected image guides the prompt. SOUL V2 is its newer version."
+   },
+   "bestFor": ["faces"]
+  },
+  "hf:soul-v2": {
+   "strengths": {
+    "fr": "À choisir pour des portraits et des photos de mode ou d’éditorial très réalistes, façon smartphone ou magazine, depuis un texte. 1080p au plus.",
+    "en": "Pick it for very realistic portraits and fashion or editorial photos, smartphone or magazine style, from text. 1080p at most."
+   },
+   "bestFor": ["faces", "quality"]
+  },
+  "hf:soul-cinema": {
+   "strengths": {
+    "fr": "À choisir pour une image fixe au rendu cinéma (lumière dramatique, photogramme de film, concept art), par exemple une image de début à animer ensuite. 1080p au plus.",
+    "en": "Pick it for a still with a cinema look (dramatic light, film frame, concept art), for instance a start image to animate next. 1080p at most."
+   },
+   "bestFor": ["quality", "style"]
+  },
+  "hf:marketing-studio-image": {
+   "strengths": {
+    "fr": "À choisir pour un visuel publicitaire avec un texte lisible, ou pour retoucher tes photos de produit (16 au plus), jusqu’en 4K, avec plusieurs moteurs au choix.",
+    "en": "Pick it for an ad visual with legible text, or to edit your product photos (up to 16), up to 4K, with several engines to choose from."
+   },
+   "bestFor": ["product", "text", "edit", "4k"]
+  },
+  "hf:ads-studio": {
+   "strengths": {
+    "fr": "À choisir pour passer d’un brief marketing (et de 10 photos de ton produit au plus) à une idée de pub mise en image : l’outil écrit le concept et rend l’image en 2K.",
+    "en": "Pick it to turn a marketing brief (and up to 10 photos of your product) into an ad idea rendered as an image: it writes the concept and renders it in 2K."
+   },
+   "bestFor": ["product", "text", "references"]
+  },
+  "hf:grok-image-2-0": {
+   "strengths": {
+    "fr": "À choisir pour une image expressive et contrastée, ou pour retoucher et mêler jusqu’à 10 images de référence. 2K au plus.",
+    "en": "Pick it for an expressive, high-contrast image, or to edit and blend up to 10 reference images. 2K at most."
+   },
+   "bestFor": ["style", "references", "edit"]
+  },
+  "hf:recraft-v4-1": {
+   "strengths": {
+    "fr": "À choisir pour une illustration, une affiche ou un visuel graphique depuis un texte, en 1K. Recraft V4.1 Pro fait la même chose en 2K.",
+    "en": "Pick it for an illustration, poster or graphic visual from text, in 1K. Recraft V4.1 Pro does the same in 2K."
+   },
+   "bestFor": ["style", "text"]
+  },
+  "hf:recraft-v4-1-pro": {
+   "strengths": {
+    "fr": "Comme Recraft V4.1, en 2K : pour une illustration ou un visuel graphique à imprimer ou à montrer en grand.",
+    "en": "Like Recraft V4.1, in 2K: for an illustration or graphic visual to print or show large."
+   },
+   "bestFor": ["style", "text", "quality"]
+  },
+  "hf:recraft-v4-1-utility": {
+   "strengths": {
+    "fr": "À choisir pour une image nette et prévisible : produit de face, maquette, icône, fond uni ; en 1K. Utility Pro fait la même chose en 2K.",
+    "en": "Pick it for a clean, predictable image: front-facing product, mockup, icon, plain background; in 1K. Utility Pro does the same in 2K."
+   },
+   "bestFor": ["product"]
+  },
+  "hf:recraft-v4-1-utility-pro": {
+   "strengths": {
+    "fr": "Comme Recraft V4.1 Utility, en 2K : produit de face, maquette ou icône nets, pour un usage en grand.",
+    "en": "Like Recraft V4.1 Utility, in 2K: clean front-facing products, mockups or icons, for large use."
+   },
+   "bestFor": ["product", "quality"]
+  },
+  "hf:qwen-image-3": {
+   "strengths": {
+    "fr": "À choisir pour une consigne longue et précise (il y réfléchit avant de dessiner), du texte dans l’image, ou pour retoucher jusqu’à 3 images en disant quoi changer. 2K au plus.",
+    "en": "Pick it for a long, precise prompt (it thinks it over before drawing), text in the image, or to edit up to 3 images by saying what to change. 2K at most."
+   },
+   "bestFor": ["text", "edit"]
+  },
+  "hf:ideogram-4-0": {
+   "strengths": {
+    "fr": "À choisir pour du texte bien écrit dans l’image (affiche, logo, titre) et les formats extrêmes (bannière 3:1, très vertical). Une image branchée sert de base à remixer.",
+    "en": "Pick it for well-spelled text in the image (poster, logo, title) and extreme formats (3:1 banner, very tall). A connected image is used as a base to remix."
+   },
+   "bestFor": ["text", "fast"]
+  },
+  "hf:z-image-turbo": {
+   "strengths": {
+    "fr": "À choisir pour des essais très rapides et bon marché depuis une consigne courte (800 caractères au plus), en 1K ou 2K. « Enrichir la consigne » coûte plus cher.",
+    "en": "Pick it for very fast, cheap tries from a short prompt (800 characters at most), in 1K or 2K. “Expand the prompt” costs more."
+   },
+   "bestFor": ["fast"]
+  }
+ }
+}

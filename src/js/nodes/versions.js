@@ -11,7 +11,7 @@
 import { play, flip, rects } from '../ui/motion.js';
 import { t, tl } from '../i18n.js';
 import { icon } from '../icons.js';
-import { el, relTime } from '../util.js';
+import { el, relTime, measureLater } from '../util.js';
 import { openMenu } from '../ui/menu.js';
 import { confirm as confirmModal } from '../ui/modal.js';
 import { tip } from '../ui/tooltip.js';
@@ -29,7 +29,6 @@ strings({
   'node.ver.mode.preview': 'Aperçu',
   'node.ver.mode.final': 'Rendu final',
   'node.ver.short.preview': 'Aperçu',
-  'node.ver.short.final': 'Final',
   'node.ver.tipClick': 'Clic : la regarder · ★ : la garder pour la suite',
   'node.ver.show': 'Regarder cette version',
   'node.ver.pin': 'Garder cette version',
@@ -52,7 +51,6 @@ strings({
   'node.ver.mode.preview': 'Preview',
   'node.ver.mode.final': 'Final render',
   'node.ver.short.preview': 'Preview',
-  'node.ver.short.final': 'Final',
   'node.ver.tipClick': 'Click: view it · ★: keep it for what follows',
   'node.ver.show': 'View this version',
   'node.ver.pin': 'Keep this version',
@@ -172,7 +170,8 @@ export function mountVersions(host, opts) {
     el('span', { class: 'nb-ver-thumb' }, thumb ? el('img', { src: thumb, alt: '', draggable: 'false', decoding: 'async' }) : null),
     el('span', { class: 'nb-ver-txt' },
       el('span', { class: 'nb-ver-n' }, t('node.ver.label', { n })),
-      run.mode ? el('span', { class: `nb-ver-mode is-${run.mode}` }, t(`node.ver.short.${run.mode}`)) : null),
+      // seul un aperçu est marqué : « Générer » calcule les réglages tels quels, c'est le cas ordinaire
+      run.mode === 'preview' ? el('span', { class: 'nb-ver-mode is-preview' }, t('node.ver.short.preview')) : null),
     star);
     c.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -195,6 +194,35 @@ export function mountVersions(host, opts) {
 
   let sig = null;
   let quiet = false;          // relance après un changement de largeur : pas d'animation
+  // Les puces que la bande tient : les plus anciennes passent dans « +N ». Une marge garde la place de l'étoile qui
+  // apparaît au survol d'une puce. Lectures (largeurs) puis écritures (puces retirées), jamais mêlées.
+  let fit = null;
+  function readFit() {
+    const s = fit;
+    const room = root.clientWidth;
+    if (!s || !room || root.hidden) return null;
+    const widths = new Map();
+    for (const [id, c] of s.chips) widths.set(id, c.offsetWidth);
+    return { s, room, gap: parseFloat(getComputedStyle(root).columnGap) || 0, widths, moreW: s.more.isConnected ? s.more.offsetWidth : 0 };
+  }
+  function applyFit(m) {
+    if (!m || m.s !== fit) { fit?.paintMore(); return; }
+    const { s, room, gap, widths, moreW } = m;
+    const total = s.shown.length + (versionsCount() - s.shown.length > 0 ? 1 : 0);
+    let used = s.shown.reduce((w, r) => w + (widths.get(r.runId) || 0), 0) + (total > s.shown.length ? moreW : 0) + gap * Math.max(0, total - 1);
+    while (used > room - 20) {
+      const drop = s.shown.find((r) => !s.keep.has(r.runId));
+      if (!drop || s.shown.length <= 1) break;
+      const hadMore = versionsCount() - s.shown.length > 0;
+      s.shown = s.shown.filter((r) => r !== drop);
+      s.chips.get(drop.runId)?.remove();
+      used -= (widths.get(drop.runId) || 0) + gap;
+      if (!hadMore) used += moreW + gap;          // « +N » apparaît
+    }
+    s.paintMore();
+  }
+  const fitJob = { read: readFit, write: applyFit };
+  const versionsCount = () => runs.list(nodeId).length;
   function refresh() {
     const versions = runs.list(nodeId);           // plus récentes d'abord
     const cur = runs.current(nodeId);
@@ -213,7 +241,7 @@ export function mountVersions(host, opts) {
     root.hidden = false;
     // Candidates : les plus récentes (au plus MAX_CHIPS), plus la version courante, épinglée ou
     // regardée si elle est plus ancienne — elle reste toujours visible.
-    const max = versions.some((r) => r.mode) ? MAX_CHIPS_MODES : MAX_CHIPS;
+    const max = versions.some((r) => r.mode === 'preview') ? MAX_CHIPS_MODES : MAX_CHIPS;   // seul un aperçu porte une marque
     const keep = new Set([cur?.runId, pinnedId, viewed].filter(Boolean));
     let shown = versions.slice(0, max);
     for (const r of versions) if (keep.has(r.runId) && !shown.includes(r)) shown.push(r);
@@ -233,22 +261,14 @@ export function mountVersions(host, opts) {
       if (hidden <= 0) more.remove();
     };
     root.append(...chips.values());
-    paintMore();
-    // Autant de puces que la bande en tient (largeur mesurée) : les plus anciennes passent dans « +N ».
-    // Une marge garde la place de l'étoile qui apparaît au survol d'une puce.
-    const room = root.clientWidth;
-    if (room > 0) {
-      const gap = parseFloat(getComputedStyle(root).columnGap) || 0;
-      const slack = 20;
-      const used = () => [...root.children].reduce((w, n) => w + n.offsetWidth, 0) + gap * Math.max(0, root.children.length - 1);
-      while (used() > room - slack) {
-        const drop = shown.find((r) => !keep.has(r.runId));
-        if (!drop || shown.length <= 1) break;
-        shown = shown.filter((r) => r !== drop);
-        chips.get(drop.runId)?.remove();
-        paintMore();
-      }
-    }
+    // « +N » mesuré avec les puces (il prend sa place dès qu'une puce passe dedans), retiré ensuite s'il ne sert pas
+    more.textContent = t('node.ver.more', { n: Math.max(1, versions.length - shown.length) });
+    root.prepend(more);
+    fit = { shown, chips, keep, more, paintMore: () => { shown = fit.shown; paintMore(); } };
+    // Autant de puces que la bande en tient : mesuré avec les autres blocs (util.measureLater), sauf quand une
+    // version neuve arrive (une seule bande, animée tout de suite)
+    if (first && first.size) applyFit(readFit());
+    else measureLater(fitJob);
     if (first && first.size) {
       flip(first, items(), {
         dur: 'enter', easing: 'out',
@@ -260,8 +280,8 @@ export function mountVersions(host, opts) {
 
   // la carte change de largeur (poignée) : on recompte les puces, sans animation
   let lastW = 0;
-  const ro = new ResizeObserver(() => {
-    const w = root.clientWidth;
+  const ro = new ResizeObserver((entries) => {
+    const w = entries[entries.length - 1]?.contentRect?.width || 0;
     if (!w || Math.abs(w - lastW) < 0.5) return;
     lastW = w;
     sig = null;

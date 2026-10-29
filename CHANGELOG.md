@@ -10,7 +10,7 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
-## Prochaine version — en cours (pas encore publiée)
+## 0.7.0 — 29/10/2026
 
 ### En bref
 - **Agrandir vite avec NVIDIA** : « Modèle › NVIDIA RTX · express » dans le bloc Agrandir (RTX Video Super Resolution,
@@ -23,6 +23,30 @@ concerne que les développeurs.
   ce qui reste (« reste ≈ 42,30 $ ») ou, sans recharge indiquée, ce qui a été dépensé ce mois-ci. Higgsfield ne donne
   pas le solde à Mia : indique le montant de ta dernière recharge dans Réglages → Comptes en ligne, Mia en retire
   ce qui a été dépensé depuis (chiffres de Higgsfield, avec quelques minutes de retard).
+- **Un seul bouton « Générer »** sur chaque bloc, à la place d’« Aperçu » et « Rendu final » (« Appliquer » sur les
+  outils comme Couper ou Son, « Exporter » sur Exporter) : il calcule les réglages du bloc tels quels. Ce sont eux (définition, durée, étapes) qui décident du temps, affiché à côté du
+  bouton (« ≈ 4 min ») et ajusté d’après tes propres calculs sur ce PC.
+- **Le prix avant de lancer** : un bloc en ligne affiche aussi son prix à côté de « Générer ». « + Bloc » montre
+  « dès … $ » pour chaque modèle en ligne. Les prix viennent de Higgsfield, pour ton compte ; quand il n’en donne
+  pas, le bloc affiche « prix ? » et sa raison au survol.
+- **Choisir un modèle, refait** : un grand panneau avec la recherche, des filtres par usage (Vidéo, Image, Texte,
+  Animer, Références…), une colonne Tout · Favoris · Sur ce PC · En ligne, une ligne courte par modèle avec la
+  couleur de son fabricant et son prix « dès … », l’étoile des favoris, les derniers choisis en tête, et la
+  description complète du modèle survolé en bas.
+- **« + Bloc » refait** : tes favoris (l’étoile au bout d’une ligne, ou Ctrl+D ; Alt+1 à 9 en pose un tout de
+  suite) et les derniers blocs posés en tête ; un choix « Tout · Sur ce PC · En ligne » gardé d’une fois sur
+  l’autre ; des titres qui disent ce qu’on regarde (modèles sur ce PC, modèles en ligne, tâches prêtes) ; une ligne
+  courte par entrée, deux fois plus d’entrées à l’écran ; à droite, l’entrée parcourue en entier : sa phrase, quand
+  choisir un modèle en ligne, ce qu’elle prend et ce qu’elle donne, les blocs d’une recette. Les modèles favoris
+  sont les mêmes que dans le choix du modèle.
+- **Mia plus rapide sur les grandes planches** : taper dans une consigne ne redessine plus tous les blocs (sur une
+  planche de 110 blocs, chaque lettre passait de ≈ 0,6 s à quelques millisecondes) ; une planche s’ouvre deux fois
+  plus vite ; annuler une saisie est immédiat.
+- **Se déplacer sur une grande planche, plus fluide** : attraper la planche (clic du milieu, Espace ou clic
+  droit glissé), tirer un fil ou élargir un bloc ne fige plus l’écran au début et à la fin du geste (≈ 0,1 s
+  chaque fois sur une planche de 110 blocs) ; pendant le déplacement, plus aucune image ne traîne, à tous les
+  zooms ; le zoom à la molette saccade moins. Survoler le bord ou le titre d’une section et appuyer
+  sur Espace ne figent plus non plus.
 
 ### In short
 - **Fast upscaling with NVIDIA**: “Model › NVIDIA RTX · express” in the Upscale block (RTX Video Super Resolution, on
@@ -34,12 +58,78 @@ concerne que les développeurs.
   is left (“left ≈ $42.30”) or, without a top-up entered, what was spent this month. Higgsfield gives no balance to
   Mia: enter your last top-up in Settings → Online accounts, Mia takes off what was spent since (Higgsfield’s figures,
   a few minutes late).
+- **A single “Generate” button** on every block, instead of “Preview” and “Final render” (“Apply” on tools such as
+  Trim or Sound, “Export” on Export): it computes the block’s settings as they are. They (resolution, length, steps) decide the time, shown next to the button (“≈ 4 min”) and
+  adjusted from your own jobs on this PC.
+- **The price before running**: an online block also shows its price next to “Generate”. “+ Block” shows “from … $”
+  for each online model. Prices come from Higgsfield, for your account.
+- **Choosing a model, redone**: a large panel with search, filters by use (Video, Image, Text, Animate,
+  References…), an All · Favourites · On this PC · Online column, one short row per model with its maker’s colour
+  and its “from …” price, a star for favourites, recent picks first, and the full description of the hovered model.
+- **“+ Block” redone**: your favourites (the star at the end of a row, or Ctrl+D; Alt+1 to 9 places one at once) and
+  the last blocks you placed come first; an “All · On this PC · Online” choice kept from one time to the next;
+  headings that say what you are looking at (models on this PC, online models, ready-made tasks); one short row per
+  entry, twice as many on screen; on the right, the browsed entry in full: its sentence, when to pick an online
+  model, what it takes and gives, a recipe’s blocks. Favourite models are the same as in the model picker.
+- **Mia faster on big boards**: typing in a prompt no longer redraws every block (on a 110-block board, each letter
+  went from ≈ 0.6 s to a few milliseconds); a board opens twice as fast; undoing typing is instant.
+- **Moving around a big board, smoother**: grabbing the board (middle click, Space or right-drag), drawing a wire
+  or widening a block no longer freezes the screen at the start and end of the gesture (≈ 0.1 s each time on a
+  110-block board); while moving, no frame lags any more, at every zoom; wheel zooming stutters less.
+  Hovering a section’s edge or title and pressing Space no longer freeze either.
+
+### Corrigé
+- « Agrandir · LTX détails » : sur un PC qui ne les a pas, la bibliothèque sait maintenant installer ses deux
+  fichiers (le mode détails et l’agrandisseur ×2 de LTX, 2,3 Go) ; elle ne les connaissait pas.
+- « + Bloc » : un onglet au libellé long (« Médias et consignes ») débordait sur le suivant ; il passe sur deux lignes.
+- Lancer un bloc sans réglage de mode (Finition, Son…) calculait en aperçu un bloc de génération en amont jamais
+  calculé : il calcule maintenant ses réglages tels quels.
+- Les raisons données par Higgsfield quand il refuse un prix se perdaient quand plusieurs prix arrivaient en même
+  temps (« + Bloc » en demande trois à la fois) : `cloud.json` est maintenant écrit une fois à la fois.
+- Un bloc Kling 3.0 en ligne dont on n’avait pas touché la qualité affichait « Pro » mais partait en 4K (le premier
+  niveau de la liste) ; LTX-2.5 en ligne, en « Rapide » au lieu de « Pro ». Une qualité jamais touchée est
+  maintenant celle que montre le bloc.
 
 ### Pour les développeurs
 - Budget Higgsfield : `electron/cloud.js` lit `GET /models/usage` (fenêtres de 30 jours, à la seconde ; gardé une
   minute), IPC `cloud:budget` et `cloud:setTopUp` (la recharge dans `cloud.json`, pas un secret) ;
   `src/js/ui/budget.js` dans la barre de zoom, rafraîchi après un calcul en ligne et toutes les dix minutes ;
   `tools/test-cloud.js` le vérifie contre un faux Higgsfield.
+- Prix : `POST /estimate/<endpoint>` (gratuit, doc « Billing and retention ») avec la demande que ferait
+  l’exécuteur en ligne, des adresses factices à la place des médias (`electron/engine/cloudprice.js`) ; IPC
+  `cloud:price` (prix d’un bloc, gardé 10 min) et `cloud:fromPrices` (« dès » : 1re façon de faire, plus petite
+  définition, durée la plus courte, le plus bas de ses niveaux ; gardé un jour dans `cloud.json`). Bloc en ligne :
+  un seul bouton (mode `final`) ; `mia_run` le lance en `final` par défaut. `executors/cloud.js` : `endpointOf`
+  prend le niveau par défaut du catalogue quand `hf.tier` n’est pas réglé.
+- Un seul « Générer » : `pickMode` (moteur) prend `final` quand aucun mode n’est demandé ; `engine:estimate`
+  (`engine.estimate`, preload `estimate`) donne la durée prévue d’un bloc sans rien mettre en file (estimation de
+  l’exécuteur × rapport appris dans `timings.json`, une consigne vide ne compte pas) ; le pied des blocs la demande
+  (deux questions à la fois au plus, seul l’amont du bloc part au moteur). `mia_run` part en `final` par défaut,
+  `preview` reste possible.
+- Choix du modèle : `src/js/nodes/familypicker.js` refait, favoris et récents dans `prefs.favModels` et
+  `prefs.recentModels`, couleur du fabricant `makerColor()` (aussi sur les pastilles de « + Bloc ») ; prix « dès »
+  partagés par `src/js/ui/fromprices.js`.
+- « + Bloc » (`src/js/graph/palette.js`, `graph.css`) : panneau de 880 px en trois colonnes (catégories, liste,
+  détail) ; favoris `prefs.favModels` (modèles, partagés avec le choix du modèle) et `prefs.favBlocks` (blocs,
+  `recipe:<id>` pour une recette), récents `prefs.recentBlocks` (8 au plus ; un modèle posé compte aussi dans
+  `prefs.recentModels`), filtre `prefs.palWhere` (`all` | `pc` | `online`) ; la recherche avance les favoris puis
+  les récents et lit les points forts des modèles en ligne ; la bulle de la phrase coupée disparaît (le détail la
+  montre). Alt+chiffre lu par `e.code` (claviers AZERTY).
+- Performances : `graph:changed` porte `ids` pour un réglage changé et un retour en arrière (les blocs hors de
+  l’aval ne se redessinent plus ; un retour qui n’a fait que déplacer s’annonce `move`) ; mesures de mise en page
+  groupées par image (`util.measureLater`, `measureOnResize` : lectures puis écritures) pour les puits, le pied,
+  les versions, les choix segmentés, les rangées de réglages et les consignes ; largeurs des choix segmentés
+  mémorisées par libellés ; `route.js` mémorise `portsOfWorkflow`, `portsOfFamily` et `chooseWorkflow` ; glyphes
+  mesurés au démarrage (`warmIcons`).
+- Navigation dans la planche (mesuré sur une copie de « F1 300 km/h », 110 blocs, `_dev/claude-1028/perf`) :
+  aucun curseur n’est plus posé sur `#stage` (le curseur s’hérite : le changer restylait les ~8 000 éléments des
+  cartes) ; pendant un geste ou Espace, `#cursor-shield` couvre la scène et porte le curseur, `under()`
+  (interact.js) cherche ce qui est dessous ; survol des sections sur le canevas `#grid`. `.nb-badge` et la
+  pastille du lecteur cachés aussi par `visibility` au repos (à opacité nulle, ils faisaient 101 calques au lieu
+  de 22). `#wires` a sa propre couche (`will-change`, rendue après un zoom comme `#world`). `--zl` déclaré
+  `@property` non hérité, écrit sur `#nodes` ; `--wire-sw` des vues lointaines sur `#wires`. Le relevé des
+  vidéos (`media.js` `poll`) ne mesure plus pendant un geste de caméra et lit avant d’écrire ; la remesure de
+  secours des cartes (`view.js`) attend une image de plus après une image longue.
 
 ## 0.6.0 — 27/10/2026
 

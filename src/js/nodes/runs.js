@@ -901,6 +901,9 @@ export async function cancelJob(jobId) {
 
 // Le bouton « Lancer » d'un bloc émet node:run ; c'est ici qu'on parle au moteur.
 async function handleRun({ nodeId, mode } = {}) {
+  // un seul « Générer » : sans mode demandé, un bloc à deux modes calcule ses réglages tels quels (« final ») ;
+  // l'aperçu (petite définition, plus court) ne part que quand un assistant le demande
+  if (mode == null && typeOf(nodeId)?.modes?.includes('final')) mode = 'final';
   const ed = editor();
   const projectId = curPid();          // la planche ne montre qu'un projet
   if (!projectId || !ed) { toast(t('run.err.noProject'), { kind: 'error' }); return; }

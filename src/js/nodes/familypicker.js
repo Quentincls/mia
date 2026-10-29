@@ -1,17 +1,21 @@
 // ── Choix du modèle d'un bloc Modèle (SPEC §23) ──────────────────────
-// Carte en tête du bloc : la pastille et le nom de la famille (« MiniMax H3 »,
-// « Seedance 2.5 »), puis ce qu'elle sait faire en mots courts (« TEXTE ·
-// IMAGE · RÉFÉRENCES »). Au clic, un panneau Local | Cloud :
-// - Local : les familles du PC qui ont des façons de faire (LTX, MiniMax, Wan,
-//   Qwen), leur phrase « à quoi ça sert », et les variantes quand elles font
-//   la même chose (LTX Standard / Rapide) ; MiniMax choisit lui-même entre
-//   Images-clés et Références selon ce qui est branché ;
-// - Cloud : les familles de Higgsfield (catalogue relevé dans leur doc), avec
-//   leur fabricant, leur phrase et ce qu'elles savent faire. Sans compte relié,
-//   un bandeau dit où le relier ; le choix reste possible (le bloc le
-//   rappellera au lancement).
+// Carte en tête du bloc : la pastille du fabricant (sa couleur) et le nom de la
+// famille (« MiniMax H3 », « Seedance 2.5 »), puis ce qu'elle sait faire en mots
+// courts (« TEXTE · IMAGE · RÉFÉRENCES »). Au clic, un panneau (refait le 28/10,
+// demande de Quentin : favoris, couleur, navigation) :
+// - en haut, la recherche, puis ce qu'on veut faire (Vidéo, Image, Animer,
+//   Références…) en puces qui filtrent ;
+// - à gauche, où chercher : Tout, Favoris, Récents, Sur ce PC, En ligne ;
+// - au milieu, une ligne courte par famille : pastille colorée, nom, fabricant,
+//   ce qu'elle sait faire, « dès … $ » en ligne, l'étoile des favoris ; les
+//   variantes du PC (LTX Standard / Rapide) sous leur famille ;
+// - en bas, la phrase entière de la famille survolée (une seule fois, plutôt
+//   qu'un paragraphe par ligne qui ne laissait voir que cinq modèles).
+// Sans compte Higgsfield relié, un bandeau dit où le relier ; le choix reste
+// possible (le bloc le rappellera au lancement).
 // Valeurs : « fam:<clé> » (une famille locale), l'id d'un modèle de
 // l'inventaire (une variante précise), « hf:<famille> » (en ligne).
+// Favoris et récents : prefs.favModels, prefs.recentModels (clés de famille).
 
 import { t, tl } from '../i18n.js';
 import { icon } from '../icons.js';
@@ -19,7 +23,9 @@ import { el, fmtGB } from '../util.js';
 import { on, emit } from '../bus.js';
 import { state } from '../state.js';
 import { tip } from '../ui/tooltip.js';
-import { segmented } from '../ui/controls.js';
+import { setPrefs } from '../ui/settings.js';
+import { money } from '../ui/budget.js';
+import { fromPrice, askFromPrices } from '../ui/fromprices.js';
 import { strings } from './media.js';
 import { localCatalog, cloudCatalog, variantOf } from './profiles.js';
 import { familyOf, localKeyOf } from './route.js';
@@ -28,10 +34,21 @@ import { modelName } from './modelpicker.js';
 strings({
   'node.fam.local': 'Sur ce PC',
   'node.fam.cloud': 'En ligne',
+  'node.fam.all': 'Tout',
+  'node.fam.favs': 'Favoris',
+  'node.fam.recent': 'Récents',
   'node.fam.search': 'Chercher un modèle (LTX, Seedance, Kling…)',
   'node.fam.noMatch': 'Aucun modèle ne correspond à « {q} ».',
+  'node.fam.noFilter': 'Aucun modèle ne fait ça ici. Essaie « Tout ».',
+  'node.fam.favEmpty': 'Pas encore de favori : l’étoile au bout d’une ligne en ajoute un.',
+  'node.fam.fav': 'Ajouter aux favoris',
+  'node.fam.unfav': 'Retirer des favoris',
+  'node.fam.from': 'dès {price}',
+  'node.fam.priceTip': 'Le moins cher de ce modèle (plus petite définition, plus courte durée), donné par Higgsfield.',
   'node.fam.onPc': 'Sur ce PC',
   'node.fam.notInstalled': 'Non installé',
+  'node.fam.install': 'Installer',
+  'node.fam.installTip': 'Ouvre la bibliothèque sur ce qu’il faut télécharger pour ce modèle.',
   'node.fam.unknown': 'Modèle introuvable',
   'node.fam.unknownTip': 'Ce modèle n’existe plus dans Mia. Choisis-en un autre.',
   'node.fam.byWires': 'MiniMax prend lui-même le bon modèle selon ce que tu branches : références, image de début, vidéo à prolonger, vidéo guide ou texte seul.',
@@ -45,6 +62,9 @@ strings({
   'node.fam.cloudLinked': 'Compte Higgsfield relié · chaque calcul coûte des crédits.',
   'node.fam.video': 'Vidéo',
   'node.fam.image': 'Image',
+  'node.fam.videoOnline': 'En ligne · vidéo',
+  'node.fam.imageOnline': 'En ligne · image',
+  'node.fam.keys': '↑ ↓ pour parcourir · Entrée pour choisir · Échap pour fermer',
   'node.fam.w.text': 'Texte',
   'node.fam.w.image': 'Animer',
   'node.fam.w.refs': 'Références',
@@ -62,10 +82,21 @@ strings({
 }, {
   'node.fam.local': 'On this PC',
   'node.fam.cloud': 'Online',
+  'node.fam.all': 'All',
+  'node.fam.favs': 'Favourites',
+  'node.fam.recent': 'Recent',
   'node.fam.search': 'Search a model (LTX, Seedance, Kling…)',
   'node.fam.noMatch': 'No model matches “{q}”.',
+  'node.fam.noFilter': 'No model does that here. Try “All”.',
+  'node.fam.favEmpty': 'No favourite yet: the star at the end of a row adds one.',
+  'node.fam.fav': 'Add to favourites',
+  'node.fam.unfav': 'Remove from favourites',
+  'node.fam.from': 'from {price}',
+  'node.fam.priceTip': 'This model’s cheapest run (smallest resolution, shortest length), as priced by Higgsfield.',
   'node.fam.onPc': 'On this PC',
   'node.fam.notInstalled': 'Not installed',
+  'node.fam.install': 'Install',
+  'node.fam.installTip': 'Opens the library on what to download for this model.',
   'node.fam.unknown': 'Model not found',
   'node.fam.unknownTip': 'This model no longer exists in Mia. Choose another one.',
   'node.fam.byWires': 'MiniMax picks the right model itself from what you connect: references, a start image, a video to extend, a guide video or text alone.',
@@ -79,6 +110,9 @@ strings({
   'node.fam.cloudLinked': 'Higgsfield account linked · each job costs credits.',
   'node.fam.video': 'Video',
   'node.fam.image': 'Image',
+  'node.fam.videoOnline': 'Online · video',
+  'node.fam.imageOnline': 'Online · image',
+  'node.fam.keys': '↑ ↓ to browse · Enter to choose · Esc to close',
   'node.fam.w.text': 'Text',
   'node.fam.w.image': 'Animate',
   'node.fam.w.refs': 'References',
@@ -113,10 +147,25 @@ function wordKey(wf) {
 
 /** Ce que sait faire une famille, en mots courts, sans doublon, toujours dans le même ordre (texte, image…). */
 const WORD_ORDER = ['text', 'image', 'refs', 'sheet', 'guided', 'real', 'act', 'edit', 'vedit', 'extend', 'follow', 'swap', 'restyle', 'cinema'];
+const wordKeys = (def) => [...new Set((def?.workflows || []).map((wf) => wordKey(wf) || `=${tl(wf.label || {})}`))]
+  .sort((a, b) => (WORD_ORDER.indexOf(a) + 1 || 99) - (WORD_ORDER.indexOf(b) + 1 || 99));
 export function familyWords(def) {
-  const keys = (def?.workflows || []).map((wf) => wordKey(wf) || `=${tl(wf.label || {})}`);
-  const uniq = [...new Set(keys)].sort((a, b) => (WORD_ORDER.indexOf(a) + 1 || 99) - (WORD_ORDER.indexOf(b) + 1 || 99));
-  return uniq.map((k) => (k.startsWith('=') ? k.slice(1) : t(`node.fam.w.${k}`)));
+  return wordKeys(def).map((k) => (k.startsWith('=') ? k.slice(1) : t(`node.fam.w.${k}`)));
+}
+
+/**
+ * La couleur d'un fabricant (sa pastille) : elle dit d'où vient un modèle d'un coup d'œil, à petite dose (la pastille
+ * seule, teinte sourde). Demande de Quentin du 28/10 (« amener de la couleur ») ; jusque-là, tout était gris.
+ */
+const MAKER_HUE = [
+  [/lightricks/i, '#8f7cf7'], [/minimax|hailuo/i, '#f06b93'], [/kling/i, '#3cc28f'], [/bytedance/i, '#4c9dff'],
+  [/qwen/i, '#e9b23e'], [/alibaba|wan|happy ?horse/i, '#f0883e'], [/higgsfield/i, '#b9cf45'], [/black forest/i, '#a3adbf'],
+  [/xai/i, '#c2c3cc'], [/pixverse/i, '#c879e3'], [/recraft/i, '#ef6352'], [/ideogram/i, '#dcc44b'], [/google/i, '#5b8def'],
+  [/openai/i, '#5fc7b2'],
+];
+export function makerColor(def) {
+  const who = `${def?.maker || ''} ${def?.name || ''}`;
+  return (MAKER_HUE.find(([re]) => re.test(who)) || [null, '#9aa0aa'])[1];
 }
 
 /** Familles locales qui ont des façons de faire, avec leurs modèles prêts sur ce PC. */
@@ -132,6 +181,24 @@ function localFamilies() {
   });
 }
 
+/** Toutes les familles en une liste : { fam (« fam:ltx » | « hf:… »), def, cloud, kind, words, installed, variants, hay } */
+function allFamilies() {
+  const local = localFamilies().map((f) => ({
+    fam: `fam:${f.key}`, def: f.def, cloud: false, kind: f.def.kind === 'image' ? 'image' : 'video',
+    installed: f.installed, variants: f.variants, models: f.models,
+  }));
+  const cloud = (cloudCatalog().families || []).map((def) => ({
+    fam: def.key, def, cloud: true, kind: def.kind === 'image' ? 'image' : 'video', installed: true, variants: [], models: [],
+  })).sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'video' ? -1 : 1) || a.def.name.localeCompare(b.def.name));
+  return [...local, ...cloud].map((e) => ({
+    ...e, keys: wordKeys(e.def), words: familyWords(e.def),
+    hay: fold(`${e.def.name} ${e.def.maker || ''} ${familyWords(e.def).join(' ')} ${tl(e.def.desc || {})}`),
+  }));
+}
+
+const favList = () => (Array.isArray(state.prefs?.favModels) ? state.prefs.favModels : []);
+const recentList = () => (Array.isArray(state.prefs?.recentModels) ? state.prefs.recentModels : []);
+
 let openPop = null;
 function closePop() {
   if (!openPop) return;
@@ -142,6 +209,7 @@ function closePop() {
 }
 
 const markOfDef = (def) => def.mark || String(def.maker || def.name || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase();
+const markEl = (def, size = '') => el('span', { class: `mp-mark${size ? ` ${size}` : ''}`, style: `--mk:${makerColor(def)}`, 'aria-hidden': 'true' }, markOfDef(def));
 
 /**
  * Sélecteur de famille d'un bloc Modèle. opts : { param, value, onChange(v) }.
@@ -151,7 +219,6 @@ export function familyPicker({ param, value, onChange }) {
   let current = value ?? param.default ?? 'fam:ltx';
   let disabled = false;
   let disabledWhy = '';
-  let tab = String(current).startsWith('hf:') ? 'cloud' : 'local';
   let linked = null;                          // compte Higgsfield relié ? (demandé à l'ouverture)
 
   const mark = el('span', { class: 'mp-mark lg', 'aria-hidden': 'true' });
@@ -164,12 +231,19 @@ export function familyPicker({ param, value, onChange }) {
   const root = el('div', { class: 'mp mp-lead mp-famcard' }, trigger);
 
   const famNow = () => familyOf(current, localCatalog(), cloudCatalog(), state.inventory);
+  /** La famille d'une valeur (une variante du PC compte pour sa famille) : sa clé de favori. */
+  const famKeyOf = (v) => {
+    if (String(v).startsWith('hf:') || String(v).startsWith('fam:')) return String(v);
+    const f = familyOf(v, localCatalog(), cloudCatalog(), state.inventory);
+    return f ? (f.provider === 'local' ? `fam:${f.key}` : f.def.key) : String(v);
+  };
 
   function paint() {
     const fam = famNow();
     if (!fam) {
       txt.textContent = t('node.fam.unknown');
       mark.textContent = '·';
+      mark.style.removeProperty('--mk');
       chips.textContent = '';
       where.hidden = true;
       trigger.classList.add('warn');
@@ -179,6 +253,7 @@ export function familyPicker({ param, value, onChange }) {
     const def = fam.def;
     txt.textContent = def.name;
     mark.textContent = markOfDef(def);
+    mark.style.setProperty('--mk', makerColor(def));
     const words = familyWords(def);
     const v = fam.variant ? variantOf(fam.variant)?.tag : '';
     chips.textContent = [v, ...words].filter(Boolean).join(' · ');
@@ -188,6 +263,7 @@ export function familyPicker({ param, value, onChange }) {
   // au survol : où il calcule, son nom, à quoi il sert, ce qu'il sait faire (infobulle riche)
   tip(trigger, () => {
     if (disabled && disabledWhy) return disabledWhy;
+    if (openPop?.owner === root) return '';
     const fam = famNow();
     if (!fam) return t('node.fam.unknownTip');
     const v = fam.variant ? variantOf(fam.variant)?.tag : '';
@@ -209,6 +285,10 @@ export function familyPicker({ param, value, onChange }) {
 
   function choose(v) {
     closePop();
+    // récents : les cinq dernières familles choisies, la plus récente d'abord
+    const key = famKeyOf(v);
+    const rec = [key, ...recentList().filter((k) => k !== key)].slice(0, 5);
+    if (rec.join() !== recentList().join()) setPrefs({ recentModels: rec }).catch?.(() => {});
     if (v === current) return;
     current = v;
     paint();
@@ -217,111 +297,238 @@ export function familyPicker({ param, value, onChange }) {
 
   function open() {
     closePop();
-    const search = el('input', { class: 'mp-search-in', type: 'text', spellcheck: 'false', autocomplete: 'off', placeholder: t('node.fam.search') });
-    const head = el('div', { class: 'mp-head' },
-      el('label', { class: 'mp-search' }, el('span', { class: 'mp-search-ico', html: icon('search', 14) }), search));
-    const tabs = segmented({
-      options: [{ value: 'local', label: t('node.fam.local') }, { value: 'cloud', label: t('node.fam.cloud') }],
-      value: tab, size: 'sm', full: true,
-      onChange: (v) => { tab = v; render(); search.focus(); },
-    });
-    head.append(el('div', { class: 'mp-tabs' }, tabs));
-    const list = el('div', { class: 'mp-list', role: 'listbox' });
-    const pop = el('div', { class: 'mp-pop mp-panel' }, head, list);
+    const fams = allFamilies();
+    // où chercher (colonne de gauche) et ce qu'on veut faire (puces) ; les dernières vues retenues pour la session
+    const view = { scope: openView.scope, kind: null, task: null };
+    if (view.scope === 'favs' && !favList().length) view.scope = 'all';
 
-    const famRow = ({ value: v, def, sub, words, selected, greyed, note, size, indent }) => {
-      const r = el('div', { class: `mp-row mp-var${selected ? ' sel' : ''}${greyed ? ' greyed' : ''}${indent ? ' mp-indent' : ''}`, role: 'option', tabindex: '-1' },
-        el('span', { class: 'mp-check', html: selected ? icon('check', 13) : '' }),
-        indent ? null : el('span', { class: 'mp-mark sm', 'aria-hidden': 'true' }, markOfDef(def)),
-        el('span', { class: 'mp-main' },
-          el('span', { class: 'mp-line' },
-            el('span', { class: 'mp-name' }, sub?.title || def.name),
-            words ? el('span', { class: 'mp-fam' }, words) : null),
-          sub?.text ? el('span', { class: 'mp-sub' }, sub.text) : null),
-        el('span', { class: 'mp-side' },
-          note ? el('span', { class: 'mp-note' }, note) : null,
-          size ? el('span', { class: 'mp-size' }, size) : null));
-      if (!greyed && v) {
+    const search = el('input', { class: 'mp-search-in', type: 'text', spellcheck: 'false', autocomplete: 'off', placeholder: t('node.fam.search') });
+    const head = el('div', { class: 'fp-head' },
+      el('label', { class: 'mp-search' }, el('span', { class: 'mp-search-ico', html: icon('search', 14) }), search));
+
+    // ce qu'on veut faire : Vidéo, Image, puis les façons de faire que plusieurs modèles savent (Texte, Animer,
+    // Références…) ; celles d'un seul modèle (Plan de cinéma…) se trouvent par la recherche
+    const taskKeys = WORD_ORDER.filter((k) => fams.filter((f) => f.keys.includes(k)).length >= 2).slice(0, 8);
+    const chipRow = el('div', { class: 'fp-chips', role: 'toolbar' });
+    const chipEls = [];
+    const addChip = (label, isOn, toggle, extra = '') => {
+      const c = el('button', { class: `fp-chip${extra}`, type: 'button' }, label);
+      c.addEventListener('pointerdown', (e) => e.stopPropagation());
+      c.addEventListener('click', (e) => { e.stopPropagation(); toggle(); renderAll(); search.focus(); });
+      chipEls.push([c, isOn]);
+      chipRow.append(c);
+    };
+    addChip(t('node.fam.video'), () => view.kind === 'video', () => { view.kind = view.kind === 'video' ? null : 'video'; }, ' fp-kind');
+    addChip(t('node.fam.image'), () => view.kind === 'image', () => { view.kind = view.kind === 'image' ? null : 'image'; }, ' fp-kind');
+    chipRow.append(el('span', { class: 'fp-chip-sep', 'aria-hidden': 'true' }));
+    for (const k of taskKeys) addChip(t(`node.fam.w.${k}`), () => view.task === k, () => { view.task = view.task === k ? null : k; });
+    head.append(chipRow);
+
+    const nav = el('div', { class: 'fp-nav', role: 'tablist' });
+    const list = el('div', { class: 'fp-list', role: 'listbox' });
+    const detail = el('div', { class: 'fp-detail' });
+    const pop = el('div', { class: 'mp-pop fp' }, head, el('div', { class: 'fp-body' }, nav, list), detail);
+
+    const matches = (f, q) => (!q || f.hay.includes(q)) && (!view.kind || f.kind === view.kind) && (!view.task || f.keys.includes(view.task));
+    const isSel = (f) => current === f.fam || famKeyOf(current) === f.fam;
+
+    function renderNav(q) {
+      nav.replaceChildren();
+      const favs = new Set(favList());
+      const count = (pred) => fams.filter((f) => pred(f) && matches(f, q)).length;
+      const items = [
+        ['all', t('node.fam.all'), count(() => true), 'grid'],
+        ['favs', t('node.fam.favs'), count((f) => favs.has(f.fam)), 'star'],
+        ['local', t('node.fam.local'), count((f) => !f.cloud), 'gpu'],
+        ['cloud', t('node.fam.cloud'), count((f) => f.cloud), 'globe'],
+      ];
+      for (const [id, label, n, ico] of items) {
+        const b = el('button', { class: `fp-nav-it${view.scope === id ? ' on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(view.scope === id) },
+          el('span', { class: 'fp-nav-ico', html: icon(ico, 14) }), el('span', { class: 'fp-nav-lbl' }, label), el('span', { class: 'fp-nav-n' }, String(n)));
+        b.addEventListener('pointerdown', (e) => e.stopPropagation());
+        b.addEventListener('click', (e) => { e.stopPropagation(); view.scope = id; openView.scope = id; renderAll(); search.focus(); });
+        nav.append(b);
+      }
+    }
+
+    function row(f, { variant = null } = {}) {
+      const v = variant ? variant.id : (f.installed ? f.fam : null);
+      const sel = variant ? current === variant.id : (isSel(f) && !f.variants.some((m) => m.id === current));
+      const fav = favList().includes(f.fam);
+      const r = el('div', { class: `fp-row${sel ? ' sel' : ''}${!f.installed ? ' greyed' : ''}${variant ? ' fp-variant' : ''}`, role: 'option',
+        'aria-selected': String(sel) });
+      if (variant) {
+        const vv = variantOf(variant);
+        r.append(el('span', { class: 'fp-name' }, vv?.tag || modelName(variant)),
+          el('span', { class: 'fp-meta' }, vv?.desc || ''),
+          el('span', { class: 'fp-side' }, variant.sizeGB ? fmtGB(variant.sizeGB) : ''));
+      } else {
+        const side = el('span', { class: 'fp-side' });
+        if (f.cloud) {
+          side.dataset.fam = f.fam;
+          side.dataset.tip = t('node.fam.priceTip');
+          const p = fromPrice(f.fam);
+          side.textContent = p != null ? t('node.fam.from', { price: money(p) }) : '';
+        } else if (!f.installed) {
+          const caps = (f.def.workflows || []).map((w) => w.cap).filter(Boolean);
+          const inst = el('button', { class: 'fp-install', type: 'button', 'data-tip': t('node.fam.installTip') }, t('node.fam.install'));
+          inst.addEventListener('pointerdown', (e) => e.stopPropagation());
+          inst.addEventListener('click', (e) => { e.stopPropagation(); closePop(); emit('installer:open', { caps }); });
+          side.append(el('span', { class: 'fp-note' }, t('node.fam.notInstalled')), inst);
+        }
+        const star = el('button', { class: `fp-star${fav ? ' on' : ''}`, type: 'button', html: icon(fav ? 'star-fill' : 'star', 14),
+          'aria-label': t(fav ? 'node.fam.unfav' : 'node.fam.fav'), 'data-tip': t(fav ? 'node.fam.unfav' : 'node.fam.fav') });
+        star.addEventListener('pointerdown', (e) => e.stopPropagation());
+        star.addEventListener('click', (e) => { e.stopPropagation(); toggleFav(f.fam); });
+        r.append(markEl(f.def),
+          el('span', { class: 'fp-main' },
+            el('span', { class: 'fp-line' }, el('span', { class: 'fp-name' }, f.def.name), el('span', { class: 'fp-maker' }, f.def.maker || '')),
+            el('span', { class: 'fp-words' }, f.words.join(' · '))),
+          side, star);
+      }
+      r.append(el('span', { class: 'fp-check', html: sel ? icon('check', 13) : '' }));
+      r._fam = f;
+      if (v) {
         r.dataset.value = v;
         r.addEventListener('click', (e) => { e.stopPropagation(); choose(v); });
       }
+      r.addEventListener('pointerenter', () => { if (mouseMoved) showDetail(f, variant); });
       return r;
-    };
-
-    function renderLocal(q) {
-      const fams = localFamilies().filter(({ def }) => !q || fold(`${def.name} ${def.maker} ${tl(def.desc || {})}`).includes(q));
-      const famNowKey = famNow()?.provider === 'local' ? famNow().key : null;
-      for (const f of fams) {
-        const words = familyWords(f.def).join(' · ');
-        const famSel = current === `fam:${f.key}` || (famNowKey === f.key && !f.variants.some((m) => m.id === current));
-        const box = el('div', { class: 'mp-family' });
-        box.append(famRow({ value: f.installed ? `fam:${f.key}` : null, def: f.def, words, selected: famSel,
-          greyed: !f.installed, note: f.installed ? '' : t('node.fam.notInstalled'),
-          sub: { text: tl(f.def.desc || {}) } }));
-        for (const m of f.variants) {
-          const v = variantOf(m);
-          box.append(famRow({ value: m.id, def: f.def, indent: true, selected: current === m.id,
-            sub: { title: v?.tag || modelName(m), text: v?.desc || '' }, size: m.sizeGB ? fmtGB(m.sizeGB) : '' }));
-        }
-        if (f.key === 'minimax' && f.installed) box.append(el('div', { class: 'mp-famdesc mp-hint' }, t('node.fam.byWires')));
-        list.append(box);
-      }
-      return fams.length;
     }
 
-    function renderCloud(q) {
+    const group = (label, extra = null) => el('div', { class: 'fp-group' }, label, extra);
+    function section(label, items, { banner = null, variants = false } = {}) {
+      if (!items.length && !banner) return 0;
+      list.append(group(label));
+      if (banner) list.append(banner);
+      for (const f of items) {
+        list.append(row(f));
+        // les variantes d'une famille du PC (LTX Standard / Rapide), sous elle (dans « Sur ce PC » seulement)
+        if (variants) for (const m of f.variants) list.append(row(f, { variant: m }));
+      }
+      return items.length;
+    }
+    function cloudBanner() {
       const banner = el('div', { class: 'mp-cloudbar' });
       if (linked === false) {
         const btn = el('button', { class: 'mp-cloud-btn on', type: 'button' }, t('node.fam.cloudLinkBtn'));
         btn.addEventListener('pointerdown', (e) => e.stopPropagation());
         btn.addEventListener('click', (e) => { e.stopPropagation(); closePop(); emit('settings:open', { section: 'cloud' }); });
         banner.append(el('span', {}, t('node.fam.cloudLink')), btn);
-      } else banner.append(el('span', {}, t(linked === null ? 'node.fam.cloudChecking' : 'node.fam.cloudLinked')));
-      list.append(banner);
-      const fams = (cloudCatalog().families || [])
-        .filter((def) => !q || fold(`${def.name} ${def.maker} ${tl(def.desc || {})}`).includes(q))
-        .slice().sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'video' ? -1 : 1) || a.name.localeCompare(b.name));
-      let kind = null;
-      for (const def of fams) {
-        if (def.kind !== kind) {
-          kind = def.kind;
-          list.append(el('div', { class: 'mp-group' }, t(kind === 'image' ? 'node.fam.image' : 'node.fam.video')));
-        }
-        list.append(famRow({ value: def.key, def, words: familyWords(def).join(' · '), selected: current === def.key,
-          sub: { text: tl(def.desc || {}) } }));
+        return banner;
       }
-      return fams.length;
+      return null;                              // relié : rien à dire de plus (le prix est sur chaque ligne)
     }
 
-    function render() {
-      const q = fold(search.value.trim());
+    function renderList(q) {
       list.replaceChildren();
-      const n = tab === 'cloud' ? renderCloud(q) : renderLocal(q);
-      if (q && !n) list.append(el('div', { class: 'mp-empty' }, t('node.fam.noMatch', { q: search.value.trim() })));
-      paintFocus();
+      const shown = fams.filter((f) => matches(f, q));
+      const favs = favList();
+      const byFav = (f) => favs.includes(f.fam);
+      const local = shown.filter((f) => !f.cloud);
+      const cloudV = shown.filter((f) => f.cloud && f.kind === 'video');
+      const cloudI = shown.filter((f) => f.cloud && f.kind === 'image');
+      let n = 0;
+      if (view.scope === 'favs') {
+        const mine = favs.map((k) => shown.find((f) => f.fam === k)).filter(Boolean);
+        n += section(t('node.fam.favs'), mine);
+        if (!favs.length) list.append(el('div', { class: 'mp-empty' }, t('node.fam.favEmpty')));
+      } else if (view.scope === 'local') {
+        n += section(t('node.fam.local'), local, { variants: true });
+      } else if (view.scope === 'cloud') {
+        const b = cloudBanner();
+        n += section(t('node.fam.videoOnline'), cloudV, { banner: b });
+        n += section(t('node.fam.imageOnline'), cloudI);
+      } else {
+        // Tout : les favoris et les derniers choisis d'abord (sans recherche ni filtre), puis le PC, puis en ligne
+        if (!q && !view.kind && !view.task) {
+          section(t('node.fam.favs'), favs.map((k) => shown.find((f) => f.fam === k)).filter(Boolean));
+          section(t('node.fam.recent'), recentList().filter((k) => !byFav({ fam: k }))
+            .map((k) => shown.find((f) => f.fam === k)).filter(Boolean).slice(0, 4));
+        }
+        n += section(t('node.fam.local'), local, { variants: true });
+        n += section(t('node.fam.videoOnline'), cloudV, { banner: cloudV.length ? cloudBanner() : null });
+        n += section(t('node.fam.imageOnline'), cloudI);
+      }
+      if (!n && view.scope !== 'favs') {
+        list.append(el('div', { class: 'mp-empty' }, q ? t('node.fam.noMatch', { q: search.value.trim() }) : t('node.fam.noFilter')));
+      }
+    }
+
+    function renderAll({ keepScroll = false } = {}) {
+      const q = fold(search.value.trim());
+      const top = list.scrollTop;
+      renderNav(q);
+      for (const [c, isOn] of chipEls) c.classList.toggle('on', isOn());
+      renderList(q);
+      if (keepScroll) list.scrollTop = top;
+      focus = -1;
+      paintFocus(false);
+      // les prix « dès » des familles en ligne montrées : demandés une fois, puis posés sur leur ligne
+      const cloudShown = [...list.querySelectorAll('.fp-side[data-fam]')].map((s) => s.dataset.fam);
+      if (cloudShown.length && linked !== false) askFromPrices(cloudShown).then((fresh) => { if (fresh && pop.isConnected) paintPrices(); });
+    }
+    function paintPrices() {
+      for (const s of list.querySelectorAll('.fp-side[data-fam]')) {
+        const p = fromPrice(s.dataset.fam);
+        s.textContent = p != null ? t('node.fam.from', { price: money(p) }) : '';
+      }
+    }
+
+    async function toggleFav(key) {
+      const favs = favList();
+      const next = favs.includes(key) ? favs.filter((k) => k !== key) : [...favs, key];
+      await setPrefs({ favModels: next });
+      if (pop.isConnected) renderAll({ keepScroll: true });
+    }
+
+    // la phrase entière : de la ligne survolée ou parcourue au clavier, sinon du modèle du bloc
+    function showDetail(f, variant = null) {
+      detail.replaceChildren();
+      if (!f) { detail.append(el('div', { class: 'fp-keys' }, t('node.fam.keys'))); return; }
+      const price = f.cloud ? fromPrice(f.fam) : undefined;
+      const whereTxt = f.cloud ? [t('node.fam.cloud'), price != null ? t('node.fam.from', { price: money(price) }) : ''].filter(Boolean).join(' · ')
+        : (f.installed ? t('node.fam.onPc') : t('node.fam.notInstalled'));
+      const vv = variant ? variantOf(variant) : null;
+      detail.append(markEl(f.def, 'lg'), el('div', { class: 'fp-d-main' },
+        el('div', { class: 'fp-d-title' },
+          el('span', { class: 'fp-d-name' }, vv ? `${f.def.name} · ${vv.tag || modelName(variant)}` : f.def.name),
+          el('span', { class: 'fp-d-where' }, [f.def.maker, whereTxt].filter(Boolean).join(' · '))),
+        el('div', { class: 'fp-d-desc' }, (vv && vv.desc) || tl(f.def.desc || {})),
+        f.fam === 'fam:minimax' ? el('div', { class: 'fp-d-hint' }, t('node.fam.byWires')) : null,
+        el('div', { class: 'fp-d-words' }, f.words.join(' · '))));
     }
 
     let focus = -1;
-    const rows = () => [...list.querySelectorAll('.mp-row[data-value]')];
-    function paintFocus() {
+    const rows = () => [...list.querySelectorAll('.fp-row[data-value]')];
+    function paintFocus(scroll = true) {
       const all = rows();
       if (focus < 0 || focus >= all.length) focus = Math.max(0, all.findIndex((r) => r.classList.contains('sel')));
       all.forEach((r, i) => r.classList.toggle('focus', i === focus));
+      const r = all[focus];
+      if (r && scroll) r.scrollIntoView({ block: 'nearest' });
+      if (r) showDetail(r._fam, r.classList.contains('fp-variant') ? r._fam.variants.find((m) => m.id === r.dataset.value) : null);
+      else showDetail(null);
     }
-    search.addEventListener('input', () => { focus = 0; render(); });
+    // la souris ne prend la main qu'une fois bougée : le panneau ouvert sous un pointeur immobile garde le modèle du bloc
+    let mouseMoved = false;
+    pop.addEventListener('pointermove', () => { mouseMoved = true; }, { once: true });
+    search.addEventListener('input', () => renderAll());
     search.addEventListener('keydown', (e) => {
       if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) return;
       e.stopPropagation();
     });
 
-    render();
+    renderAll();
     document.body.append(pop);
     place(pop, trigger);
-    // le compte en ligne : demandé une fois, puis l'onglet Cloud se redessine s'il est montré
+    // le modèle du bloc, visible dès l'ouverture
+    list.querySelector('.fp-row.sel')?.scrollIntoView({ block: 'center' });
+    // le compte en ligne : demandé une fois, puis la liste se redessine (bandeau, prix)
     Promise.resolve(window.mia?.cloud?.status?.()).then((s) => {
       linked = !!(s && s.linked);
-      if (tab === 'cloud' && openPop?.owner === root) render();
-    }).catch(() => { linked = false; if (tab === 'cloud' && openPop?.owner === root) render(); });
+      if (openPop?.owner === root) renderAll({ keepScroll: true });
+    }).catch(() => { linked = false; if (openPop?.owner === root) renderAll({ keepScroll: true }); });
 
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); trigger.focus(); }
@@ -330,7 +537,6 @@ export function familyPicker({ param, value, onChange }) {
         const n = rows().length;
         focus = (focus + (e.key === 'ArrowDown' ? 1 : -1) + n) % Math.max(n, 1);
         paintFocus();
-        rows()[focus]?.scrollIntoView({ block: 'nearest' });
       } else if (e.key === 'Enter') {
         e.preventDefault(); e.stopPropagation();
         const r = rows()[focus];
@@ -372,11 +578,15 @@ export function familyPicker({ param, value, onChange }) {
   return root;
 }
 
+// où le panneau s'était arrêté (Tout, Favoris, Sur ce PC, En ligne) : il rouvre au même endroit pendant la session
+const openView = { scope: 'all' };
+
 function place(pop, anchor) {
   const r = anchor.getBoundingClientRect();
   const vw = window.innerWidth, vh = window.innerHeight;
-  const w = Math.min(vw - 16, 440);
+  const w = Math.min(vw - 16, 720);
   pop.style.width = `${w}px`;
+  pop.classList.toggle('narrow', w < 600);
   const h = pop.offsetHeight;
   const left = Math.min(Math.max(8, r.left), vw - w - 8);
   let top = r.bottom + 6;

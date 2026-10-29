@@ -124,7 +124,10 @@ function bodyOf(x, urls, preview) {
 function endpointOf(x) {
   const g = x.gen;
   const eps = g.endpoints || {};
-  const tier = x.params['hf.tier'];
+  // an untouched « Qualité » is its default, the one the block shows — never the first endpoint listed (Kling 3.0's
+  // first is 4K: shown « Pro », billed 4K, audit 28/10)
+  const tierP = (g.params || []).find((p) => p.id === 'hf.tier');
+  const tier = x.params['hf.tier'] ?? (tierP ? tierP.default : undefined);
   return eps[tier] || eps.default || Object.values(eps)[0];
 }
 

@@ -19,7 +19,7 @@ aggregated with Mia, not linked into its code.
 | `ltx_i2v.api.json` | Lightricks, ComfyUI-LTXVideo, `example_workflows/2.5/LTX-2.5_T2V_I2V_Single_Stage_Distilled.json` | LTX-2.x Community License Agreement **and** LTX-2 Community License Agreement (5 January 2026) |
 | `ltx_t2v.api.json` | same example | LTX-2.x Community License Agreement **and** LTX-2 Community License Agreement (5 January 2026) |
 | `rtx_vsr.api.json` | Comfy-Org, `ComfyUI_Nvidia_VFX_Nodes` `example_workflows/rtx_video_upscale.json` | Apache-2.0 |
-| `ltx_upscale.api.json` | Lightricks, ComfyUI-LTXVideo `example_workflows/2.5/LTX-2.5_V2V_TiledFusion_Native_4K_8K.json` | LTX-2.x Community License Agreement |
+| `ltx_upscale.api.json` | Lightricks, ComfyUI-LTXVideo `example_workflows/2.5/LTX-2.5_V2V_TiledFusion_Native_4K_8K.json` | LTX-2.x Community License Agreement **and** LTX-2 Community License Agreement (5 January 2026) |
 | `ltx_layout_single.api.json` | Lightricks, Hugging Face `Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render`, `LTX-2.5_ICLoRA_Layout_To_Render_Two_Stage_Distilled.json` | LTX-2.x Community License Agreement |
 | `minimax_i2v.api.json` | Comfy-Org/workflow_templates, `templates/video_minimax_h3_i2v.json` | MIT |
 | `minimax_r2v.api.json` | Comfy-Org/workflow_templates, `templates/video_minimax_h3_r2v.json` | MIT |
@@ -109,6 +109,14 @@ Source: the same example, image-to-video path, rewritten by hand with new node i
 ### `ltx_upscale.api.json` (block « Agrandir », LTX · détails)
 
 Subgraphs flattened; IC-LoRA Refine Details on both stages; int8 UNET and Gemma, no prompt enhancer nor Gemma API branch; audio removed (Mia muxes the source sound back); canvas sizes set by the executor instead of LTXVGetTilingSizes; SaveVideo replaced by SaveImage.
+
+### `rtx_vsr.api.json` (block « Agrandir », NVIDIA RTX · express)
+
+Source: Comfy-Org, `ComfyUI_Nvidia_VFX_Nodes`, `example_workflows/rtx_video_upscale.json` (Apache License 2.0).
+
+- Rewritten in API format: `LoadVideo` → `GetVideoComponents` → `RTXVideoSuperResolution` kept.
+- `CreateVideo` + `SaveVideo` → `9990` `SaveImage` (numbered frames; Mia puts them back into a video).
+- Input file and target size (`resize_type.width`, `resize_type.height`) set by the executor at run time.
 
 ### `ltx_layout_single.api.json` (blocks « Rendre photoréaliste » and « Vidéo guidée », LTX model)
 

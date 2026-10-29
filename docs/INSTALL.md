@@ -19,9 +19,9 @@ téléchargement. Ensuite, tout marche sans Internet.
 
 Deux façons, au choix :
 
-- **L'installateur** `Mia-0.5.1-installation.exe` : double-clic, choisir le dossier, c'est tout. Mia s'installe pour
+- **L'installateur** `Mia-0.7.0-installation.exe` : double-clic, choisir le dossier, c'est tout. Mia s'installe pour
   l'utilisateur seul (pas besoin d'être administrateur), avec un raccourci sur le Bureau et dans le menu Démarrer.
-- **La version portable** `Mia-0.5.1-portable.zip` : la décompresser où l'on veut (par exemple `D:\Mia`), puis lancer
+- **La version portable** `Mia-0.7.0-portable.zip` : la décompresser où l'on veut (par exemple `D:\Mia`), puis lancer
   `Mia.exe`. Rien n'est installé dans Windows.
 
 ### « Windows a protégé votre ordinateur »

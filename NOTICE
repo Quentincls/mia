@@ -56,25 +56,35 @@ Derived from example workflows published by Lightricks for LTX-2.5:
                               example_workflows/2.5/
   ltx_i2v.api.json            from the same example (image-to-video path),
                               rewritten with new node ids
+  ltx_upscale.api.json        from "LTX-2.5_V2V_TiledFusion_Native_4K_8K.json",
+                              in Lightricks/ComfyUI-LTXVideo, example_workflows/2.5/
   ltx_layout_single.api.json  from "LTX-2.5_ICLoRA_Layout_To_Render_Two_Stage_
                               Distilled.json" (first stage only), in the
                               Hugging Face repository
                               Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render
                               (https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render)
-  These three files are modified Complementary Materials of LTX-2.x, hence
+  These four files are modified Complementary Materials of LTX-2.x, hence
   Derivatives of LTX-2.x. They are distributed under the LTX-2.x Community
   License Agreement of August 11, 2026 (complete copy in
   docs/licenses/LTX-2.x-Community-License.txt), not under Apache-2.0. Its
   use-based restrictions (Section 4 and Attachment A, which incorporates
   Lightricks' Acceptable Use Policy) apply to these files, to their use and to
   their outputs, and are part of the terms under which they are distributed.
-  ltx_t2v.api.json and ltx_i2v.api.json come from ComfyUI-LTXVideo, whose
-  LICENSE file is the LTX-2 Community License Agreement of January 5, 2026
-  (complete copy in docs/licenses/LTX-2-Community-License.txt): they are
-  distributed under both agreements, whose terms add up.
+  ltx_t2v.api.json, ltx_i2v.api.json and ltx_upscale.api.json come from
+  ComfyUI-LTXVideo, whose LICENSE file is the LTX-2 Community License
+  Agreement of January 5, 2026 (complete copy in
+  docs/licenses/LTX-2-Community-License.txt): they are distributed under both
+  agreements, whose terms add up.
   Changed for Mia: int8 weights, prompt enhancer and cloud text-encoder branch
-  removed, second stage removed (layout), euler sampler, frames saved as PNG
-  and sound as FLAC; every change is listed in electron/engine/workflows/NOTICE.md.
+  removed, second stage removed (layout), subgraphs flattened and sound removed
+  (upscale), euler sampler, frames saved as PNG and sound as FLAC; every change
+  is listed in electron/engine/workflows/NOTICE.md.
+
+Derived from Comfy-Org/ComfyUI_Nvidia_VFX_Nodes
+(https://github.com/Comfy-Org/ComfyUI_Nvidia_VFX_Nodes), Apache License 2.0:
+  rtx_vsr.api.json  from example_workflows/rtx_video_upscale.json (frames saved
+                    as PNG instead of a video file; every change is listed in
+                    electron/engine/workflows/NOTICE.md)
 
 Derived from Comfy-Org/workflow_templates
 (https://github.com/Comfy-Org/workflow_templates), MIT License,

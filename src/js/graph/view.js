@@ -666,14 +666,17 @@ export class Views {
     this.lod = 0;
     // une seule observation pour toutes les cartes ; le rappel arrive après la
     // mise en page, les lectures d'offset y sont gratuites
+    // (toutes les cartes mesurées d'abord, puis leurs fils retracés : retracer entre deux mesures obligeait à refaire
+    // la mise en page de la planche entière carte par carte, 28/10)
     this.ro = new ResizeObserver((entries) => {
+      const done = [];
       for (const en of entries) {
         const v = this.nodes.get(en.target.dataset.id);
         if (!v) continue;
         const h0 = v.h;
-        const moved = v.measure();
-        ed.onNodeResized(v.id, moved, h0);
+        done.push([v, v.measure(), h0]);
       }
+      for (const [v, moved, h0] of done) ed.onNodeResized(v.id, moved, h0);
     });
 
     // Le ResizeObserver ne passe qu'au rendu d'une image, et une fenêtre qui ne
@@ -724,13 +727,30 @@ export class Views {
    */
   _schedule() {
     if (this.flushT) return;
-    this.flushT = setTimeout(() => this._flush(), 80);
+    this.flushT = setTimeout(() => this._late(), 80);
     this.flushRaf = requestAnimationFrame(() => {
       this.flushRaf = 0;
       clearTimeout(this.flushT);
       this.flushT = 0;
+      this.waited = false;
       this.dirty.clear();
     });
+  }
+
+  /**
+   * 80 ms sans image : la fenêtre ne peint pas, ou l'image d'avant a été longue (changement de
+   * niveau de détail, cadrage) et la suivante arrive. On lui laisse une fois 80 ms de plus avant de
+   * remesurer nous-mêmes : une mise en page forcée par carte touchée, juste après une image déjà
+   * longue (jusqu'à 160 ms mesurées pendant un « tout cadrer », 28/10).
+   */
+  _late() {
+    if (this.flushRaf && !this.waited) {
+      this.waited = true;
+      this.flushT = setTimeout(() => this._late(), 80);
+      return;
+    }
+    this.waited = false;
+    this._flush();
   }
 
   /** Remesure les cartes touchées (fenêtre qui ne peint pas). */
@@ -740,13 +760,14 @@ export class Views {
     if (!this.dirty.size) return;
     const ids = [...this.dirty];
     this.dirty.clear();
+    const done = [];
     for (const id of ids) {
       const v = this.nodes.get(id);
       if (!v || !v.el.isConnected) continue;
       const h0 = v.h;
-      const moved = v.measure();
-      if (moved || v.h !== h0) this.ed.onNodeResized(v.id, moved, h0);
+      done.push([v, v.measure(), h0]);
     }
+    for (const [v, moved, h0] of done) if (moved || v.h !== h0) this.ed.onNodeResized(v.id, moved, h0);
   }
 
   get(id) { return this.nodes.get(id) || null; }
@@ -759,6 +780,7 @@ export class Views {
     clearTimeout(this.flushT);
     if (this.flushRaf) cancelAnimationFrame(this.flushRaf);
     this.flushT = this.flushRaf = 0;
+    this.waited = false;
   }
 
   add(node, opts) {
@@ -950,14 +972,11 @@ function minimalBody(node, type, slots, api) {
       const foot = h('div', 'mb-foot');
       const est = h('span', 'mb-est');
       const e = type.estimate;
-      est.textContent = e ? tl(e.preview || e) : '';
-      foot.append(est);
-      for (const mode of type.modes || [null]) {
-        const b = h('button', `mb-btn${mode === 'final' ? ' ghost' : ''}`, { type: 'button' });
-        b.textContent = mode === 'final' ? t('graph.body.final') : mode === 'preview' ? t('graph.body.preview') : t('graph.body.run');
-        b.addEventListener('click', () => api.run(mode));
-        foot.append(b);
-      }
+      est.textContent = e ? tl(e.final || e) : '';
+      const b = h('button', 'mb-btn', { type: 'button' });
+      b.textContent = t('graph.body.run');
+      b.addEventListener('click', () => api.run(null));
+      foot.append(est, b);
       slots.controls.append(foot);
     }
   };

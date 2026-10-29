@@ -78,8 +78,15 @@ body {
   font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   pointer-events: none;
 }
-.nb-badge { left: 6px; opacity: 0; transition: opacity var(--nb-dur) var(--nb-ease); }
-.nb-well:hover .nb-badge { opacity: 1; }
+/* Caché au repos par la visibilité, pas seulement l'opacité : des dizaines de badges (et de pastilles de
+   lecteur, plus bas) à opacité nulle obligeaient Chromium à recomposer toute la planche à chaque image
+   d'un déplacement (101 calques au lieu de 22, ~9 ms de plus par image, 28/10). La visibilité revient
+   tout de suite au survol et repart à la fin du fondu. */
+.nb-badge {
+  left: 6px; opacity: 0; visibility: hidden;
+  transition: opacity var(--nb-dur) var(--nb-ease), visibility 0s linear var(--nb-dur);
+}
+.nb-well:hover .nb-badge { opacity: 1; visibility: visible; transition-delay: 0s; }
 .nb-badge[hidden] { display: none; }
 .nb-tag { right: 6px; transition: opacity var(--nb-dur) var(--nb-ease); }
 /* pas la place pour les deux (media.js) : l'étiquette s'efface pendant que le badge est montré */
@@ -115,13 +122,15 @@ body {
 }
 .nb-well > .media-ctl.pl, .cmp > .media-ctl.pl {
   position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 4;
-  opacity: 0; transform: translateY(4px); pointer-events: none;
-  transition: opacity var(--nb-dur) var(--nb-ease), transform var(--dur-enter) var(--nb-ease-out);
+  opacity: 0; visibility: hidden; transform: translateY(4px); pointer-events: none;
+  transition: opacity var(--nb-dur) var(--nb-ease), transform var(--dur-enter) var(--nb-ease-out),
+    visibility 0s linear var(--nb-dur);
 }
-/* lecteur complet au survol, et tant que le bloc est sélectionné (SPEC §14) */
+/* lecteur complet au survol, et tant que le bloc est sélectionné (SPEC §14) ; une fois créée (premier
+   survol), la pastille reste dans la carte : cachée par la visibilité au repos, comme .nb-badge */
 .nb-well:hover > .media-ctl.pl, .cmp:hover > .media-ctl.pl, .media-ctl.pl.scrubbing,
 .node.sel .nb-well > .media-ctl.pl, .node.sel .cmp > .media-ctl.pl {
-  opacity: 1; transform: none; pointer-events: auto;
+  opacity: 1; visibility: visible; transform: none; pointer-events: auto; transition-delay: 0s;
 }
 .pl-btn {
   width: 24px; height: 24px; flex: none; display: grid; place-items: center;
@@ -175,9 +184,9 @@ body {
    puis le pas à pas, puis l'appareil photo, tant que la piste n'a pas 60 px ; les raccourcis restent */
 .pl-compact.pl-no-speed .pl-speed, .pl-compact.pl-no-mute .pl-mute, .pl-compact.pl-no-step .pl-step,
 .pl-compact.pl-no-snap .pl-snap, .pl-compact.pl-no-count .pl-count { display: none; }
-/* vue d'ensemble (zoom arrière) : pas de barre de lecture minuscule sur les cartes */
+/* vue d'ensemble (zoom arrière) : pas de barre de lecture minuscule sur les cartes, même sélectionnées */
 .lod-2 .nb-well > .media-ctl.pl, .lod-3 .nb-well > .media-ctl.pl,
-.lod-2 .cmp > .media-ctl.pl, .lod-3 .cmp > .media-ctl.pl { visibility: hidden; }
+.lod-2 .cmp > .media-ctl.pl, .lod-3 .cmp > .media-ctl.pl { visibility: hidden !important; }
 /* pastille plein écran : plus grande, centrée sous l'image */
 .media-ctl.pl-full { gap: 6px; padding: 5px 14px 5px 6px; min-width: min(760px, 92vw); }
 .pl-full .pl-btn { width: 30px; height: 30px; }
@@ -417,12 +426,19 @@ body {
 /* ── carte de modèle (tête d'un bloc de génération, SPEC §22) ────────── */
 .np-row.np-lead { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 2px 0 6px; }
 .np-row.np-lead > .np-note { padding: 0 2px; }
-/* pastille du fabricant : monogramme mono, jamais de couleur de marque */
+/* pastille du fabricant : monogramme mono, teinté de la couleur sourde de son fabricant (--mk, makerColor) : la couleur
+   dit d'où vient un modèle, à petite dose (demande de Quentin du 28/10) ; sans --mk, grise comme avant */
 .mp-mark {
   flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px;
   background: var(--surface-2); border: 1px solid var(--line-2); color: var(--txt-2);
   font: 600 9.5px/1 var(--nb-mono); letter-spacing: .02em;
 }
+.mp-mark[style*="--mk"] {
+  background: color-mix(in srgb, var(--mk) 16%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--mk) 38%, transparent);
+  color: color-mix(in srgb, var(--mk) 78%, #fff);
+}
+.theme-light .mp-mark[style*="--mk"] { color: color-mix(in srgb, var(--mk) 72%, #000); background: color-mix(in srgb, var(--mk) 14%, #fff); }
 .mp-mark.lg { width: 28px; height: 28px; border-radius: 7px; font-size: 10.5px; }
 .mp-mark.sm { width: 20px; height: 20px; border-radius: 5px; font-size: 8.5px; margin-top: -1px; }
 .mp-trigger.mp-card { height: auto; min-height: 44px; padding: 7px 8px 7px 8px; gap: 9px; border-radius: 9px; }
@@ -904,3 +920,95 @@ body {
 .mz-cursor[hidden] { display: none; }
 .mz-msg { padding: 9px 18px 11px; font-size: 12px; color: var(--txt-3); border-top: 1px solid var(--line); }
 .mz-msg.warn { color: var(--danger); }
+
+/* ── panneau du choix du modèle (familypicker.js, refait le 28/10) ────── */
+.mp-pop.fp { max-height: min(620px, calc(100vh - 72px)); }
+.fp-head { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 9px 9px 8px; border-bottom: 1px solid var(--line); }
+.fp-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.fp-chip {
+  height: 22px; padding: 0 8px; border-radius: 11px; border: 1px solid var(--line-2); background: transparent; color: var(--txt-2);
+  font: 500 9.5px/1 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), border-color var(--nb-dur) var(--nb-ease);
+}
+.fp-chip:hover { color: var(--txt); background: var(--wash); }
+.fp-chip.on { color: var(--surface); background: var(--txt); border-color: var(--txt); }
+.fp-chip-sep { width: 1px; height: 14px; background: var(--line-2); margin: 0 3px; }
+.fp-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 148px minmax(0, 1fr); }
+.fp-nav { display: flex; flex-direction: column; gap: 2px; padding: 7px 6px; border-right: 1px solid var(--line); overflow: auto; }
+.fp-nav-it {
+  display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; border: 0; background: transparent;
+  color: var(--txt-2); font-size: 12.5px; text-align: left; cursor: pointer;
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.fp-nav-it:hover { background: var(--wash); color: var(--txt); }
+.fp-nav-it.on { background: var(--wash-3); color: var(--txt); }
+.fp-nav-ico { display: grid; color: var(--txt-3); }
+.fp-nav-it.on .fp-nav-ico { color: var(--txt); }
+.fp-nav-ico svg { width: 14px; height: 14px; }
+.fp-nav-lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-nav-n { font: 10.5px/1 var(--nb-mono); font-variant-numeric: tabular-nums; color: var(--txt-3); }
+.fp-list { min-height: 0; overflow: auto; padding: 0 6px 8px; }
+.fp-group {
+  position: sticky; top: 0; z-index: 1; padding: 11px 8px 6px; background: var(--surface);
+  font: 500 9.5px/1 var(--nb-kicker); letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3);
+}
+.fp-row {
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 5px 8px; border-radius: 8px;
+  transition: background var(--nb-dur) var(--nb-ease);
+}
+.fp-row[data-value] { cursor: pointer; }
+.fp-row[data-value]:hover, .fp-row.focus { background: var(--wash-2); }
+/* le modèle du bloc : une coche et un trait d'accent net, pas une ligne entière en bleu */
+.fp-row.sel { background: var(--wash); }
+.fp-row.sel::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 2px; border-radius: 2px; background: var(--accent); }
+.fp-row.greyed .mp-mark, .fp-row.greyed .fp-main { opacity: .5; }
+.fp-row .mp-mark { width: 28px; height: 28px; border-radius: 7px; font-size: 10px; }
+.fp-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fp-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.fp-name { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 600; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-maker { flex: 0 100 auto; min-width: 0; font-size: 11px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-words, .fp-meta {
+  min-width: 0; font: 500 9.5px/1.3 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; color: var(--txt-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fp-side {
+  flex: none; display: flex; align-items: center; gap: 6px; font: 11px/1 var(--nb-mono); font-variant-numeric: tabular-nums;
+  color: var(--txt-2); white-space: nowrap;
+}
+.fp-note { font: 500 9px/1 var(--nb-kicker); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); }
+.fp-install {
+  height: 22px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line-2); background: transparent; color: var(--txt);
+  font-size: 11.5px; cursor: pointer; transition: background var(--nb-dur) var(--nb-ease);
+}
+.fp-install:hover { background: var(--wash-2); }
+.fp-star {
+  flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px; border: 0; background: transparent;
+  color: var(--txt-3); opacity: 0; cursor: pointer;
+  transition: opacity var(--nb-dur) var(--nb-ease), background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+}
+.fp-star svg { width: 14px; height: 14px; }
+.fp-row:hover .fp-star, .fp-row.focus .fp-star, .fp-star.on { opacity: 1; }
+.fp-star:hover { background: var(--wash-3); color: var(--txt); }
+.fp-star.on { color: #e9b949; }
+.fp-check { flex: none; width: 14px; display: grid; place-items: center; color: var(--accent); }
+.fp-check svg { width: 13px; height: 13px; }
+/* variantes du PC (LTX Standard / Rapide) : sous leur famille, alignées sur son nom */
+.fp-row.fp-variant { min-height: 30px; padding-left: 46px; gap: 8px; }
+.fp-row.fp-variant .fp-name { font-size: 12px; font-weight: 550; color: var(--txt-2); }
+.fp-row.fp-variant .fp-meta { flex: 1 1 auto; text-transform: none; letter-spacing: 0; font: 11px/1.3 inherit; }
+.fp-detail {
+  flex: none; display: flex; gap: 12px; min-height: 84px; padding: 11px 14px 12px; border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.fp-d-main { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.fp-d-title { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+.fp-d-name { font-size: 13.5px; font-weight: 650; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-d-where { font-size: 11px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-d-desc { font-size: 12px; line-height: 1.45; color: var(--txt-2); }
+.fp-d-hint { font-size: 11.5px; line-height: 1.4; color: var(--txt-3); }
+.fp-d-words { font: 500 9.5px/1.3 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; color: var(--txt-3); }
+.fp-keys { align-self: center; font-size: 11.5px; color: var(--txt-3); }
+/* fenêtre étroite : la colonne des endroits passe au-dessus, en ligne */
+.mp-pop.fp.narrow .fp-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+.mp-pop.fp.narrow .fp-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 5px 6px; }
+.mp-pop.fp.narrow .fp-nav-it { flex: none; height: 26px; }

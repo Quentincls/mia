@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-25",
+  "updated": "2026-10-29",
   "about": {
     "fr": "Ce que Mia sait installer, capacité par capacité : fichiers exacts, dépôt Hugging Face figé sur une version, taille, empreinte, licence. Mis à jour depuis setup/models.yaml du labo et les gabarits officiels de ComfyUI.",
     "en": "What Mia can install, capability by capability: exact files, Hugging Face repository pinned to a version, size, checksum, license. Built from the lab's setup/models.yaml and ComfyUI's official templates."
@@ -144,6 +144,40 @@
       "sizeGB": 1.31,
       "gated": true,
       "license": "ltx"
+    },
+    {
+      "key": "ltx-refine",
+      "model": "ltx-refine",
+      "label": {
+        "fr": "Mode Agrandir · détails",
+        "en": "Upscale · details mode"
+      },
+      "repo": "Lightricks/LTX-2.5-22b-IC-LoRA-Refine-Details",
+      "revision": "4912c478b35dd96b6cdcc5f7c7ff9d72c2c57929",
+      "path": "ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors",
+      "dest": "loras",
+      "bytes": 1308787534,
+      "sizeGB": 1.31,
+      "gated": true,
+      "license": "ltx",
+      "sha256": "771a84f70e143af89867fc714ebbf7bd6edcaa4974c0360cba4a2d292a99f0e6"
+    },
+    {
+      "key": "ltx-upscaler-x2",
+      "model": "ltx-upscaler-x2",
+      "label": {
+        "fr": "Agrandisseur ×2 de LTX",
+        "en": "LTX ×2 upscaler"
+      },
+      "repo": "Lightricks/LTX-2.5",
+      "revision": "49b093a39c19169a8a81721dcc541e07e945232f",
+      "path": "latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+      "dest": "latent_upscale_models",
+      "bytes": 995778752,
+      "sizeGB": 1,
+      "gated": true,
+      "license": "ltx",
+      "sha256": "eb5a71fe4068ee87ccdb1c3aa635e547ca76bd2d30ae20ae889f2c325c0677e8"
     },
     {
       "key": "ltx-union",
@@ -890,6 +924,25 @@
           },
           "keys": [
             "seedvr2-3b"
+          ]
+        },
+        {
+          "id": "ltx",
+          "label": {
+            "fr": "LTX · détails",
+            "en": "LTX · details"
+          },
+          "desc": {
+            "fr": "Une vidéo en 1440p ou en 4K, le détail fin recréé, fidèle au cadrage et au style (avec LTX 2.5).",
+            "en": "A video in 1440p or 4K, fine detail recreated, true to framing and style (with LTX 2.5)."
+          },
+          "keys": [
+            "ltx",
+            "ltx-te",
+            "ltx-vae",
+            "ltx-audio-vae",
+            "ltx-refine",
+            "ltx-upscaler-x2"
           ]
         }
       ]

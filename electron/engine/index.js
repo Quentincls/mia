@@ -276,8 +276,10 @@ function portAccepts(expected, got) {
   return expected === got;
 }
 
+// no mode asked (the single « Générer », a Finition run that needs its upstream): the block's settings as they are,
+// « final » ; « preview » (smaller, shorter) only when asked for
 const pickMode = (type, mode) => (Array.isArray(type.modes) && type.modes.length
-  ? (type.modes.includes(mode) ? mode : type.modes[0]) : null);
+  ? (type.modes.includes(mode) ? mode : type.modes.includes('final') ? 'final' : type.modes[0]) : null);
 
 /** Is a Prompt block's text rewritten first (REWRITE)? Only a ticked box with something written. */
 const rewriteOn = (params) => params.rewrite === true && !!String(params.text ?? '').trim();
@@ -612,7 +614,10 @@ class Planner {
       params[p.id] = below.length ? below[below.length - 1] : allowed[0];
     }
 
-    if (missing.length) {
+    // estimate (the « ≈ 4 min » next to « Générer ») : a prompt still to write or an account still to link do not
+    // change how long the job takes
+    const blocking = this.lenient ? missing.filter((m) => m.kind !== 'param' && m.kind !== 'cloud') : missing;
+    if (blocking.length) {
       const msgs = [...new Set(missing.map((m) => m.message))];
       return { error: msgs.slice(0, 2).join(' · ') + (msgs.length > 2 ? ` (+${msgs.length - 2})` : ''), missing };
     }
@@ -2048,6 +2053,39 @@ class Engine extends EventEmitter {
     return { ok: true, jobId: res.job.jobId, ...(notes.length ? { notes } : {}) };
   }
 
+  /**
+   * How long a block would take with these settings, before running: the « ≈ 4 min » next to « Générer ». The
+   * planner's spec (no job queued), then expectedSeconds: the executor's estimate for these settings and inputs ×
+   * what this PC learned (timings.json), else the mean of past runs, else the catalog's first-run figure.
+   * → { ok, seconds, learned } | { ok:false }
+   */
+  async estimate(payload) {
+    const { projectId, nodeId, graph, mode } = payload || {};
+    if (!projectId || !nodeId || !graph || !Array.isArray(graph.nodes)) return { ok: false };
+    const project = await this.project(projectId);
+    if (!project) return { ok: false };
+    const planner = new Planner(this, project, graph, this.lang());
+    planner.lenient = true;
+    const node = planner.nodes.get(nodeId);
+    let type = node && this.types.get(node.type);
+    if (type && type.id === 'text') type = rewriteOn(this.fullParams(type, node.params)) ? rewriteType(type) : null;
+    if (!type || !type.engine || !type.engine.executor) return { ok: false };
+    let spec;
+    try { spec = await planner.spec(node, type, pickMode(type, mode), []); } catch (err) { return { ok: false, why: String(err && err.message || err) }; }
+    if (!spec || spec.error) return { ok: false, why: spec ? spec.error : 'spec' };
+    // what timingKey and expectedSeconds read of a job; the inputs as files when their upstream is computed
+    const probe = { type: type.id, mode: spec.mode, _: { spec, type, project } };
+    let exec = null;
+    try { exec = this.loadExecutor(type.engine.executor); } catch { exec = null; }
+    let inputs = {};
+    try { inputs = await this.materialize(probe); } catch { inputs = {}; }
+    let seconds = null;
+    let why = 'no estimate';
+    try { seconds = await this.expectedSeconds(probe, exec, inputs); } catch (err) { why = String(err && err.message || err); }
+    const t = this.timings[this.timingKey(probe)];
+    return seconds > 0 ? { ok: true, seconds: Math.round(seconds), learned: !!(t && t.n > 0) } : { ok: false, why };
+  }
+
   cancel(jobId) {
     if (jobId && typeof jobId === 'object') jobId = jobId.jobId;
     const job = this.jobs.get(jobId) || this.finished.find((j) => j.jobId === jobId);
@@ -2302,6 +2340,7 @@ class Engine extends EventEmitter {
       const ids = (a, b, c) => (a && typeof a === 'object' ? [a.projectId, a.nodeId, a.runId] : [a, b, c]);
       handle('engine:status', () => this.status(), () => this.statusNow());
       handle('engine:run', (p) => this.run(p), (e) => ({ ok: false, error: this.tr('internal', { msg: e.message }), missing: [] }));
+      handle('engine:estimate', (p) => this.estimate(p), { ok: false });
       handle('engine:cancel', (id) => this.cancel(id && typeof id === 'object' ? id.jobId : id), (e) => ({ ok: false, error: e.message }));
       handle('engine:jobs', () => this.jobList(), []);
       handle('engine:startComfy', () => this.startComfy(), (e) => ({ ok: false, error: e.message, state: this.comfy.state }));

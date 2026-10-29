@@ -62,9 +62,9 @@ register({
     'graph.menu.fitAll': 'Tout cadrer',
     'graph.menu.snap': 'Aimanter à la grille',
     'graph.menu.minimap': 'Minicarte',
-    'graph.menu.run': 'Lancer',
-    'graph.menu.runPreview': 'Lancer l’aperçu',
-    'graph.menu.runFinal': 'Lancer le rendu final',
+    'graph.menu.run': 'Générer',
+    'graph.menu.apply': 'Appliquer',
+    'graph.menu.export': 'Exporter',
     'graph.menu.rename': 'Renommer',
     'graph.menu.duplicate': 'Dupliquer',
     'graph.menu.copy': 'Copier',
@@ -163,9 +163,7 @@ register({
     'graph.toast.noResult': 'Ce bloc n’a pas encore de résultat.',
     'graph.toast.readonly': 'Planche en lecture seule : rien n’est modifié.',
     'graph.toast.pasteFailed': 'Rien à coller.',
-    'graph.body.run': 'Lancer',
-    'graph.body.preview': 'Aperçu',
-    'graph.body.final': 'Rendu final',
+    'graph.body.run': 'Générer',
     'graph.body.fromWire': 'Vient du fil',
     'graph.fps': 'i/s',
     'graph.yes': 'Oui',
@@ -207,9 +205,9 @@ register({
     'graph.menu.fitAll': 'Fit all',
     'graph.menu.snap': 'Snap to grid',
     'graph.menu.minimap': 'Minimap',
-    'graph.menu.run': 'Run',
-    'graph.menu.runPreview': 'Run preview',
-    'graph.menu.runFinal': 'Run final render',
+    'graph.menu.run': 'Generate',
+    'graph.menu.apply': 'Apply',
+    'graph.menu.export': 'Export',
     'graph.menu.rename': 'Rename',
     'graph.menu.duplicate': 'Duplicate',
     'graph.menu.copy': 'Copy',
@@ -308,9 +306,7 @@ register({
     'graph.toast.noResult': 'This block has no result yet.',
     'graph.toast.readonly': 'Read-only board: nothing is changed.',
     'graph.toast.pasteFailed': 'Nothing to paste.',
-    'graph.body.run': 'Run',
-    'graph.body.preview': 'Preview',
-    'graph.body.final': 'Final render',
+    'graph.body.run': 'Generate',
     'graph.body.fromWire': 'From the wire',
     'graph.fps': 'fps',
     'graph.yes': 'Yes',
@@ -438,6 +434,8 @@ export function mountEditor(stageEl) {
   const ovSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   ovSvg.setAttribute('class', 'ov-svg');
   overlay.append(ovSvg);
+  // écran transparent montré pendant un geste (main, fil, largeur) : il porte le curseur (graph.css)
+  const shield = ensure('cursor-shield', 'div', stage);
   const dock = ensure('dock', 'div', board, 'dock');
   const zoombar = ensure('zoombar', 'div', board, 'zoombar');
   const minimapEl = ensure('minimap', 'div', board);
@@ -449,7 +447,7 @@ export function mountEditor(stageEl) {
 
   const cam = new Camera();
   ed = {
-    stage, board, world, grid, wiresSvg, nodesEl, groupsEl, marquee, overlay, ovSvg,
+    stage, board, world, grid, wiresSvg, nodesEl, groupsEl, marquee, overlay, ovSvg, shield,
     dock, zoombar, minimapEl, emptyEl, paletteEl,
     cam, smooth: new SmoothZoom(cam),
     doc: new GraphDoc({}), project: null, readonly: false,
@@ -722,14 +720,32 @@ function unload(keepSession = true) {
 
 function captureContent() { return JSON.stringify(ed.doc.content()); }
 
-/** Annuler / rétablir : on remplace le contenu et on ne prévient que les cartes qui ont changé. */
+/**
+ * Annuler / rétablir : on remplace le contenu et on ne prévient que les cartes qui ont changé. Un retour qui n'a fait
+ * que déplacer des blocs s'annonce comme un déplacement ; sinon les blocs touchés (et ceux des fils changés) sont
+ * nommés : les autres blocs d'une grande planche ne se redessinent plus tous (0,37 s sur 110 blocs, 28/10).
+ */
 function restoreContent(snap) {
   ed.interact.cancel();
-  const before = new Map(ed.doc.nodes.map((n) => [n.id, JSON.stringify(plain(n))]));
+  const where = (n) => { const { x, y, ...rest } = plain(n); return JSON.stringify(rest); };
+  const before = new Map(ed.doc.nodes.map((n) => [n.id, [JSON.stringify(plain(n)), where(n)]]));
+  const edgeSig = (e) => `${e.from.node}.${e.from.port}>${e.to.node}.${e.to.port}`;
+  const edgesBefore = new Map(ed.doc.edges.map((e) => [edgeSig(e), e]));
   ed.doc.restore(JSON.parse(snap), false);
   const changed = new Set();
-  for (const n of ed.doc.nodes) if (before.get(n.id) !== JSON.stringify(plain(n))) changed.add(n.id);
-  afterChange({ changed, animateNew: false, reason: 'undo', history: true });
+  let movedOnly = before.size === ed.doc.nodes.length;
+  for (const n of ed.doc.nodes) {
+    const b = before.get(n.id);
+    if (b && b[0] === JSON.stringify(plain(n))) continue;
+    changed.add(n.id);
+    if (!b || b[1] !== where(n)) movedOnly = false;
+  }
+  const touched = new Set(changed);
+  const edgesAfter = new Map(ed.doc.edges.map((e) => [edgeSig(e), e]));
+  for (const [k, e] of edgesBefore) if (!edgesAfter.has(k)) { touched.add(e.from.node); touched.add(e.to.node); }
+  for (const [k, e] of edgesAfter) if (!edgesBefore.has(k)) { touched.add(e.from.node); touched.add(e.to.node); }
+  movedOnly = movedOnly && touched.size === changed.size;
+  afterChange({ changed, animateNew: false, reason: movedOnly ? 'move' : 'undo', history: true, touched: movedOnly ? null : touched });
 }
 
 // ── mutations ─────────────────────────────────────────────────────────
@@ -739,14 +755,14 @@ function restoreContent(snap) {
  * modification, mise à jour des cartes et des fils, puis `graph:changed`
  * (D sauvegarde 800 ms plus tard).
  */
-function mutate(reason, fn, { history = true, key = null, changed = null, animateNew = false, system = false } = {}) {
+function mutate(reason, fn, { history = true, key = null, changed = null, animateNew = false, system = false, touched = null } = {}) {
   // une mise à jour « système » (proxy arrivé en tâche de fond) passe toujours,
   // sans toast : Quentin n'a rien fait
   if (ed.readonly && !system) { toast(t('graph.toast.readonly'), { kind: 'info' }); return undefined; }
   if (history) ed.history.begin(reason, key);
   let r;
   try { r = fn(); } finally { if (history) ed.history.commit(); }
-  afterChange({ changed, animateNew, reason, history });
+  afterChange({ changed, animateNew, reason, history, touched });
   return r;
 }
 
@@ -765,14 +781,16 @@ function batch(reason, fn) {
  * `graph:changed` *avant* de relire les états de calcul : runs.js (F) vide
  * son cache « périmé » sur cet évènement, et l'anneau doit lire la valeur neuve.
  */
-function afterChange({ changed = null, animateNew = false, reason = null, history = true } = {}) {
+function afterChange({ changed = null, animateNew = false, reason = null, history = true, touched = null } = {}) {
   ed.views.sync({ changed, animateNew });
   ed.wires.sync();
   pruneSelection();
   updateEmpty();
   ed.minimap.request();
   requestDraw();                 // sections et titres lointains sont peints sur le canevas
-  if (reason) emit('graph:changed', { reason, history });
+  // ids : les blocs dont seuls les réglages ont changé (une lettre tapée) ; les autres blocs savent alors s'ils sont
+  // concernés (en aval) au lieu de tous se redessiner (28/10)
+  if (reason) emit('graph:changed', touched ? { reason, history, ids: [...touched] } : { reason, history });
   refreshAllRuns();
 }
 
@@ -819,7 +837,8 @@ function setParam(id, key, value, fromBody = false) {
   if (node.params[key] === value) return true;
   mutate('param', () => { node.params[key] = value; }, {
     key: `param:${id}:${key}`,
-    changed: new Set(fromBody ? [] : [id])
+    changed: new Set(fromBody ? [] : [id]),
+    touched: [id]
   });
   return true;
 }
@@ -1270,10 +1289,14 @@ function settle() {
   // will-change garde l'échelle à laquelle elle a été peinte, Chromium ne la repeint pas après un zoom. On la rend
   // le temps d'une image (repeinte nette dans la page), puis on la reprend : repeinte à l'échelle actuelle. Deux
   // repeintures seulement quand le zoom a changé, jamais pendant le geste ni pour un simple déplacement.
+  // Les fils ont leur propre couche (graph.css) : même traitement.
   if (ed.rasterZ !== ed.cam.z) {
     ed.rasterZ = ed.cam.z;
     ed.world.style.willChange = 'auto';
-    requestAnimationFrame(() => requestAnimationFrame(() => { if (ed) ed.world.style.willChange = ''; }));
+    ed.wiresSvg.style.willChange = 'auto';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (ed) { ed.world.style.willChange = ''; ed.wiresSvg.style.willChange = ''; }
+    }));
   }
   updateZoomLabel();
   const lod = ed.lod;
@@ -1313,9 +1336,9 @@ function setLod(z) {
   ed.lod = l;
   ed.views.lod = l;
   ed.world.classList.add(`lod-${l}`);
-  // l'anneau de sélection des vues lointaines garde son épaisseur à l'écran ;
-  // écrit en même temps que la classe (qui restyle déjà toutes les cartes)
-  ed.world.style.setProperty('--zl', String(z));
+  // l'anneau de sélection des vues lointaines garde son épaisseur à l'écran ; sur #nodes, non hérité
+  // (graph.css) : seules les cartes le reprennent, pas leurs descendants
+  ed.nodesEl.style.setProperty('--zl', String(z));
   ed.stage.dataset.lod = String(l);
 }
 

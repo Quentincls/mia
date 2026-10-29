@@ -114,6 +114,16 @@ export function icon(name, size = 16) {
 export const hasIcon = (name) => name in RAW;
 
 /**
+ * Fit every known glyph now, while the page is small (the home page, at start). Fitting measures the glyph
+ * (getBBox), which lays the whole page out first: a glyph used for the first time while a 110-block board was being
+ * built cost ~0,15 s when it opened (28/10).
+ */
+export function warmIcons() {
+  if (!document.body) return;
+  for (const name of Object.keys(RAW)) if (!fitted.has(name)) icon(name);
+}
+
+/**
  * Add glyphs: `{ name: '<path d="…"/>' }` (inner markup of a 24 box, drawn
  * with the shared head: 1.7 stroke, round ends) or a full `<svg>` string.
  * Registering an existing name replaces it.

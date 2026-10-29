@@ -14,11 +14,26 @@ import { readJSON } from '../catalog.js';
 
 const URL_FAMILIES = new URL('../../catalog/model-families.json', import.meta.url);
 const URL_CLOUD = new URL('../../catalog/cloud-higgsfield.json', import.meta.url);
+const URL_STRENGTHS = new URL('../../catalog/cloud-strengths.json', import.meta.url);
 
 let data = { families: {}, makers: {}, cloud: {} };
 let cloudCat = { families: [] };
 let loading = null;
 let ready = false;
+
+/**
+ * Les points forts des familles en ligne, tenus à la main (cloud-strengths.json : « à choisir quand… »), posés sur
+ * chaque famille du catalogue relevé : def.strengths {fr,en} et def.bestFor. Même chose côté moteur (engine/route.js).
+ */
+function withStrengths(cat, s) {
+  const by = (s && s.families) || {};
+  for (const def of cat.families) {
+    const x = by[def.key];
+    if (x && x.strengths) def.strengths = x.strengths;
+    if (x && Array.isArray(x.bestFor)) def.bestFor = x.bestFor;
+  }
+  return cat;
+}
 
 /** Charge les profils (et le catalogue en ligne, SPEC §23) une seule fois. */
 export function loadProfiles() {
@@ -26,8 +41,9 @@ export function loadProfiles() {
     const local = readJSON(URL_FAMILIES)
       .then((d) => { data = { families: d.families || {}, makers: d.makers || {}, cloud: d.cloud || {} }; })
       .catch((e) => { console.warn('[profiles] model-families.json illisible', e); });
-    const cloud = readJSON(URL_CLOUD)
-      .then((d) => { cloudCat = d && Array.isArray(d.families) ? d : { families: [] }; })
+    const strengths = readJSON(URL_STRENGTHS).catch((e) => { console.warn('[profiles] cloud-strengths.json illisible', e); return null; });
+    const cloud = Promise.all([readJSON(URL_CLOUD), strengths])
+      .then(([d, s]) => { cloudCat = withStrengths(d && Array.isArray(d.families) ? d : { families: [] }, s); })
       .catch((e) => { console.warn('[profiles] cloud-higgsfield.json illisible', e); });
     loading = Promise.all([local, cloud]).then(() => { ready = true; return data; });
   }

@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![version](https://img.shields.io/badge/version-0.6.0-2E7D32?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.7.0-2E7D32?style=flat-square)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-38-47848F?style=flat-square)](https://www.electronjs.org/)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?style=flat-square)](docs/INSTALL.md)
@@ -26,27 +26,25 @@ too, only if you link your own account.
 </div>
 <p align="center"><em>Claude builds the shot through Mia's MCP server, in front of you: a 3D blockout and its retouched first frame, <b>Make it photoreal</b>, wired and run, then a before/after wipe. The one-minute preview is shortened here.</em></p>
 
-### New in 0.6
+### New in 0.7
 
 <div align="center">
   <a href="CHANGELOG.md"><img src="assets/home.webp" alt="Mia home page: projects, then boards, then recipes" width="100%"></a>
 </div>
 <p align="center"><em>Projects hold boards; the tabs of a project stay together, with its colour, like tab groups in Chrome.</em></p>
 
-- **One block per model**: LTX, MiniMax, Wan, Qwen, FLUX.2 Klein… each in a **Model** block that only has the
-  inputs its model takes. What you wire decides what it does: a start image, it animates it; references, it mixes
-  them; nothing, it starts from the text.
-- **Online models, if you want them**: Seedance, Kling, MiniMax 2K and more through your own Higgsfield account
-  (the key stays encrypted on your PC). Each job costs credits and only leaves on your click.
-- **Images on your PC**: FLUX.2 Klein 9B and Qwen-Image 2.1 Turbo (non-commercial licences, offered *to try*). A
-  **Layout** input keeps a composition while your LoRA keeps its style.
-- **Retouch a zone**: paint the zone in a **Mask** block; only that zone is remade, the rest of the image stays
-  identical to the pixel. A small zone (feet, an eye) is enlarged on its own.
-- **Rewrite in English**: a Prompt block can have its text fixed and translated by a model on your PC before the
-  job, and shows what was understood.
-- **4 variations**: one click makes four images with four seeds; star the one you keep.
-- And: **+ Block** sorted by what you make, keyframes (LTX, MiniMax), extend a video and a sound to follow
-  (MiniMax), tooltips on every input. From 0.5: the installer and portable zip, models installed from the library.
+- **Smooth on big boards**: on a 110-block board, typing in a prompt, opening the board, moving around and wiring
+  no longer lag; wheel zooming stutters less.
+- **A single “Generate” button** on every block, with the expected time next to it, learned from your own jobs on
+  this PC.
+- **Upscale, two new ways**: “NVIDIA RTX · express” (seconds to minutes, nothing invented) and “LTX · details”
+  (1440p or 4K, fine detail recreated, true to framing and style).
+- **Online models: the price before you run**: each online block shows its price, “+ Block” shows “from … $”, and the
+  corner of the board shows what is left of your Higgsfield budget.
+- **Choosing a model and “+ Block”, redone**: search, favourites (a star, Ctrl+D, Alt+1 to 9), recent picks first,
+  one short row per entry, the full description of the one you browse, and when to pick each online model.
+- From 0.6: one block per model, online models through your own Higgsfield account, images on your PC (FLUX.2
+  Klein 9B, Qwen-Image 2.1 Turbo), zone retouching in a **Mask** block, prompts rewritten in English, 4 variations.
 
 [What it does](#what-it-does) · [Blocks](#blocks) · [Models](#models) · [Install](#install) · [Use](#use) ·
 [Assistants](#assistants) · [Licence and credits](#licence-and-credits)

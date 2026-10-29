@@ -15,7 +15,7 @@
  * Each returns its element, with `.setValue(v)` (silent: no callback),
  * `.getValue()`, `.setDisabled(b)`, and `.setItems(items)` for the dropdown.
  */
-import { el, clamp } from '../util.js';
+import { el, clamp, measureLater } from '../util.js';
 import { icon } from '../icons.js';
 import { t, tl, register, locale } from '../i18n.js';
 import { openMenu, closeMenu } from './menu.js';
@@ -58,6 +58,7 @@ const withUnit = (txt, unit) => {
 };
 
 // ── segmented ─────────────────────────────────────────────────────────
+const NEEDS = new Map();      // options (taille + libellés) → { max, min } : mesurées une fois pour toute la page
 // Trop large pour sa place (carte étroite, libellés longs, français plus long que l'anglais…), le
 // choix s'adapte au lieu de déborder — `adapt()`, posé par la rangée qui le loge :
 //   'inline' sa largeur naturelle · 'fill' pleine largeur, options à parts égales (la rangée passe
@@ -91,21 +92,28 @@ export function segmented({ options = [], value, onChange, size = 'md', full = f
     }
     dd?.setItems(ddItems());
     need = null;
-    if (fit) refit();
-    place();
+    if (fit) measureLater(fitJob);
+    measureLater(placeJob);
   }
 
-  function place() {
+  // la pastille sous l'option choisie : lue puis posée (placeJob passe avec les autres contrôles, util.measureLater)
+  function readPlace() {
     const i = opts.findIndex((o) => o.value === current);
     const b = root.querySelectorAll('.seg-opt')[i];
-    if (!b || !b.offsetWidth) { pill.style.opacity = i < 0 ? '0' : ''; return; }
-    pill.style.opacity = '';
-    pill.style.width = b.offsetWidth + 'px';
-    pill.style.transform = `translateX(${b.offsetLeft}px)`;
+    return { i, w: b ? b.offsetWidth : 0, x: b ? b.offsetLeft : 0 };
   }
+  function writePlace(m) {
+    if (!m) return;
+    if (!m.w) { pill.style.opacity = m.i < 0 ? '0' : ''; return; }
+    pill.style.opacity = '';
+    pill.style.width = m.w + 'px';
+    pill.style.transform = `translateX(${m.x}px)`;
+  }
+  const place = () => writePlace(readPlace());
+  const placeJob = { read: readPlace, write: writePlace };
 
   function pick(v, user) {
-    if (v === current && user) return;
+    if (v === current && (user || root.querySelector('.seg-opt.on'))) return;
     current = v;
     root.querySelectorAll('.seg-opt').forEach((n, i) => {
       const on = opts[i]?.value === v;
@@ -122,15 +130,22 @@ export function segmented({ options = [], value, onChange, size = 'md', full = f
   // ── adaptation à la place ──
   const ddItems = () => opts.map((o) => ({ value: o.value, label: o.label != null ? tl(o.label) : tl(o.tip) }));
 
-  /** Largeurs voulues, indépendantes de la place et du niveau : une ligne (max) et mots seuls (min). */
+  /**
+   * Largeurs voulues, indépendantes de la place et du niveau : une ligne (max) et mots seuls (min). Les mêmes
+   * options (« 540p · 720p · 1080p » de cent blocs) ont les mêmes largeurs : mesurées une fois (NEEDS).
+   */
   function measure() {
+    const key = size + '|' + opts.map((o) => (o.icon || '') + ':' + (o.label != null ? tl(o.label) : '')).join('|');
+    if (NEEDS.has(key)) return NEEDS.get(key);
     if (!root.isConnected || !root.offsetParent) return null;
     root.classList.add('seg-measure');
     const max = root.offsetWidth;
     root.classList.add('min');
     const min = root.offsetWidth;
     root.classList.remove('seg-measure', 'min');
-    return max ? { max, min: Math.min(min || max, max) } : null;
+    const out = max ? { max, min: Math.min(min || max, max) } : null;
+    if (out) NEEDS.set(key, out);
+    return out;
   }
 
   function setLevel(next) {
@@ -148,11 +163,17 @@ export function segmented({ options = [], value, onChange, size = 'md', full = f
     call(fit?.onLevel, next);
   }
 
-  function refit() {
-    if (!fit) return;
-    if (!need) need = measure();
-    const room = need && call(fit.room);
-    if (!need || !room || !(room.stacked > 0)) return;
+  // lectures (largeurs voulues, place) puis écritures (niveau), avec les autres contrôles
+  const fitJob = {
+    read() {
+      if (!fit) return null;
+      if (!need) need = measure();
+      const room = need && call(fit.room);
+      return need && room && room.stacked > 0 ? room : null;
+    },
+    write(room) { if (room) applyRoom(room); },
+  };
+  function applyRoom(room) {
     const tol = 0.5;
     const next = need.max <= room.inline + tol ? 'inline'
       : need.max <= room.stacked + tol ? 'fill'
@@ -161,8 +182,8 @@ export function segmented({ options = [], value, onChange, size = 'md', full = f
     const anim = !root.classList.contains('no-anim');
     root.classList.add('no-anim');
     setLevel(next);
-    place();
-    if (anim) requestAnimationFrame(() => root.classList.remove('no-anim'));
+    measureLater(placeJob);
+    if (anim) requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('no-anim')));
   }
 
   /**
@@ -172,10 +193,10 @@ export function segmented({ options = [], value, onChange, size = 'md', full = f
    */
   root.adapt = ({ watch, room, onLevel } = {}) => {
     fit = { room, onLevel };
-    const ro = new ResizeObserver(() => refit());
+    const ro = new ResizeObserver(() => measureLater(fitJob));
     ro.observe(watch || root);
     // une police arrivée après coup change les largeurs voulues
-    if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(() => { need = null; refit(); }).catch(() => {});
+    if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(() => { NEEDS.clear(); need = null; measureLater(fitJob); }).catch(() => {});
     return root;
   };
   root.getLevel = () => level;
@@ -193,8 +214,8 @@ export function segmented({ options = [], value, onChange, size = 'md', full = f
   const ro = new ResizeObserver(() => {
     const anim = !root.classList.contains('no-anim');
     root.classList.add('no-anim');
-    place();
-    if (anim) requestAnimationFrame(() => root.classList.remove('no-anim'));
+    measureLater(placeJob);
+    if (anim) requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('no-anim')));
   });
   ro.observe(root);
 
@@ -475,11 +496,39 @@ export function textField({
     if (e.key === 'Enter' && multiline && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commit(); root.blur(); }
   });
   if (multiline) {
-    new ResizeObserver(() => grow()).observe(root);
-    requestAnimationFrame(grow);
+    // première mise à la hauteur avec les autres champs (util.measureLater) : lire scrollHeight sans rien changer
+    // suffit pour grandir (le champ part de sa plus petite hauteur) ; ensuite, une largeur qui change le redemande
+    let first = true;
+    const firstGrow = {
+      read() {
+        if (!root.isConnected) return null;
+        const cs = getComputedStyle(root);
+        const line = parseFloat(cs.lineHeight) || 18;
+        const borders = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+        const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + borders;
+        return { sh: root.scrollHeight, ch: root.clientHeight, line, pad, borders };
+      },
+      write(m) {
+        if (!m) return;
+        const min = rows * m.line + m.pad;
+        const max = maxRows * m.line + m.pad;
+        if (m.sh > m.ch + 1) {
+          root.style.height = clamp(m.sh + m.borders, min, max) + 'px';
+          root.classList.toggle('scroll', m.sh + 2 > max);
+        } else root.style.height = min + 'px';
+      },
+    };
+    const later = { read: () => null, write: () => grow() };
+    new ResizeObserver(() => { if (first) { first = false; measureLater(firstGrow); } else measureLater(later); }).observe(root);
   }
 
-  root.setValue = (v) => { root.value = v ?? ''; committed = root.value; grow(); };
+  root.setValue = (v) => {
+    const next = v ?? '';
+    if (root.value === next) { committed = next; return; }       // rien à remesurer
+    root.value = next;
+    committed = next;
+    measureLater({ read: () => null, write: () => grow() });
+  };
   root.getValue = () => root.value;
   root.setDisabled = disabler(root);
   if (disabled) root.setDisabled(true);

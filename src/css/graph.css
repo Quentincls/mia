@@ -95,11 +95,14 @@
   transform-origin: 0 0;
   /* le zoom n'est jamais écrit ici : un changement de --z restylait les milliers
      d'éléments des cartes. Il vit sur #wires et sur les barres de calcul (écrit à
-     l'arrêt du geste) ; --zl (zoom au dernier changement de niveau de détail)
-     sert aux vues lointaines. */
+     l'arrêt du geste). */
   --z: 1;
-  --zl: 1;
 }
+/* --zl : zoom au dernier changement de niveau de détail (anneau de sélection et coins des vues
+   lointaines). Écrit sur #nodes et non hérité : chaque carte le reprend, ses milliers de descendants
+   ne sont pas restylés (écrit sur #world, il coûtait ~110 ms à chaque seuil franchi, 28/10). */
+@property --zl { syntax: "<number>"; inherits: false; initial-value: 1; }
+.node, .node > .n-prog { --zl: inherit; }
 
 /* Couche composée en permanence : la promouvoir au début de chaque geste et la
    rendre à la fin coûtait deux repeintures complètes (≈ 40 ms chacune, mesuré).
@@ -109,9 +112,13 @@
 #world { will-change: transform; }
 #stage.tool-section, #stage.tool-section * { cursor: crosshair !important; }
 #groups { position: absolute; left: 0; top: 0; z-index: 0; }
+/* Les fils ont leur propre couche composée : sans elle, leur dessin (débordant d'une boîte de 1 px)
+   faisait recomposer toute la planche à chaque image d'un déplacement, ~10 ms par image au zoom 0,3 sur
+   une planche de 110 blocs (28/10). Rendue puis reprise après un zoom, comme #world (settle). */
 #wires {
   position: absolute; left: 0; top: 0; width: 1px; height: 1px;
   overflow: visible; pointer-events: none; z-index: 1;
+  will-change: transform;
 }
 #nodes { position: absolute; left: 0; top: 0; z-index: 2; }
 
@@ -128,10 +135,17 @@
   border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 2px;
 }
 
-#stage.space { cursor: grab; }
-#stage.panning, #stage.panning * { cursor: grabbing !important; }
-#stage.connecting-cursor, #stage.connecting-cursor * { cursor: crosshair !important; }
-#stage.resizing, #stage.resizing * { cursor: nwse-resize !important; }
+/* Le curseur d'un geste (Espace, main, fil, largeur) n'est jamais posé sur #stage : il s'hérite, et le
+   changer sur la scène (ou le forcer sur chaque élément, `#stage.panning *`) restylait tous les éléments
+   des cartes au début et à la fin de chaque geste, 100 à 150 ms figées sur une planche de 110 blocs
+   (28/10). Un écran transparent couvre la scène le temps du geste et porte le curseur ; les cartes
+   dessous ne changent plus de survol. Le bord d'une section tenu donne le sien (style en ligne,
+   interact.js). */
+#cursor-shield { position: absolute; inset: 0; z-index: 6; display: none; }
+#stage.space > #cursor-shield { display: block; cursor: grab; }
+#stage.panning > #cursor-shield { display: block; cursor: grabbing; }
+#stage.connecting-cursor > #cursor-shield { display: block; cursor: crosshair; }
+#stage.resizing > #cursor-shield { display: block; cursor: nwse-resize; }
 
 /* ── carte de bloc (da.md §4.2) ──────────────────────────────────────── */
 .node {
@@ -572,7 +586,8 @@
 .lod-1 .n-more, .lod-1 .n-title { visibility: hidden; }
 
 /* 0,10 – 0,22 : carte pleine + vignette ; titre à taille écran au-dessus (canevas) ; ports cachés */
-.lod-2 { --wire-sw: 1.25px; }
+/* sur #wires seulement : une variable posée sur #world s'hérite dans toutes les cartes */
+.lod-2 #wires { --wire-sw: 1.25px; }
 .lod-2 .node { background: var(--lod-card); box-shadow: none; }
 .lod-2 .n-head { background: transparent; border-bottom-color: transparent; }
 .lod-2 .n-head > * { visibility: hidden; }
@@ -585,8 +600,7 @@
 .lod-2 .node.sel, .lod-3 .node.sel { box-shadow: 0 0 0 calc(1.5px / var(--zl)) var(--node-sel); }
 
 /* < 0,10 : des rectangles ; seuls les blocs en calcul gardent leur barre */
-.lod-3 { --wire-sw: 1px; }
-.lod-3 #wires { opacity: 0.5; }
+.lod-3 #wires { --wire-sw: 1px; opacity: 0.5; }
 .lod-3 .node { background: var(--lod-card); box-shadow: none; border-radius: calc(4px / var(--zl)); }
 .lod-3 .node > :not(.n-prog) { visibility: hidden; }
 .lod-3 .n-prog { border-radius: calc(4px / var(--zl)) calc(4px / var(--zl)) 0 0; }
@@ -698,9 +712,10 @@
 /* ── palette « Ajouter un bloc » (da.md §4.9) ────────────────────────── */
 #palette { position: fixed; inset: 0; z-index: 300; }
 .pal-catcher { position: absolute; inset: 0; }
+/* 880 px depuis le 28/10 : la liste en lignes courtes et, à droite, le détail de l'entrée parcourue */
 .pal-panel {
   position: absolute; left: 50%; top: 13vh;
-  width: min(560px, calc(100vw - 32px));
+  width: min(880px, calc(100vw - 32px));
   display: flex; flex-direction: column;
   transform: translateX(-50%);
   border-radius: var(--r-lg, 14px);
@@ -749,20 +764,32 @@
   padding: 3px 5px; border-radius: 5px;
   background: var(--surface-3); border: 1px solid var(--line-2); color: var(--txt-3);
 }
-.pal-body { display: flex; height: min(400px, 56vh); border-top: 1px solid var(--line); }
+/* « Tout · Sur ce PC · En ligne », à droite de la recherche */
+.pal-where { flex: none; display: flex; }
+.pal-body {
+  display: grid; grid-template-columns: 156px minmax(0, 1fr) 292px;
+  height: min(440px, 58vh); border-top: 1px solid var(--line);
+}
 .pal-cats {
   flex: none; width: 156px; padding: 8px;
   display: flex; flex-direction: column; gap: 1px;
   border-right: 1px solid var(--line);
   overflow: auto;
 }
+/* un libellé long (« Médias et consignes ») passe sur deux lignes et l’onglet grandit : à 30 px fixes, il
+   débordait sur l’onglet suivant (check-overflow, 28/10) */
 .pal-cat {
-  height: 30px; padding: 0 10px; border-radius: 8px; flex: none;
+  min-height: 30px; padding: 6px 10px; border-radius: 8px; flex: none; line-height: 1.3;
+  display: flex; align-items: center; gap: 7px;
   text-align: left; font-size: 12.5px; color: var(--txt-2);
   transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 .pal-cat:hover { color: var(--txt); background: var(--wash); }
 .pal-cat.on { color: var(--txt); background: var(--wash-2); }
+.pal-cat-ico { display: grid; color: var(--txt-3); }
+.pal-cat-ico svg { width: 13px; height: 13px; }
+.pal-cat-lbl { flex: 1 1 auto; min-width: 0; }
+.pal-cat-n { font: 10.5px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--txt-3); }
 /* « FABRIQUER », « PRÉPARER », « RETRAVAILLER » : petits titres des groupes d'onglets */
 .pal-catgroup {
   flex: none; padding: 12px 10px 5px;
@@ -783,31 +810,25 @@
   letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--txt-3);
 }
+/* une ligne par entrée : pastille, nom, à droite en mono gris le modèle (ou le port qui recevra le fil), le prix,
+   l'étoile ; la phrase entière est dans le détail (.pal-detail) */
 .pal-item {
   position: relative; z-index: 1;
-  width: 100%; display: flex; align-items: center; gap: 11px;
-  padding: 7px 8px; border-radius: 10px;
+  width: 100%; min-height: 36px; display: flex; align-items: center; gap: 10px;
+  padding: 4px 6px 4px 8px; border-radius: 9px;
   text-align: left;
 }
 .pal-item.on { background: transparent; }
 .pal-glyph {
-  flex: none; width: 30px; height: 30px; border-radius: 8px;
+  flex: none; width: 26px; height: 26px; border-radius: 7px;
   display: grid; place-items: center;
   background: var(--surface-3); border: 1px solid var(--line);
   color: var(--txt-2);
 }
-.pal-glyph svg { width: 16px; height: 16px; }
+.pal-glyph svg { width: 15px; height: 15px; }
 .pal-item.on .pal-glyph { color: var(--txt); border-color: var(--line-2); }
-.pal-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-/* 1re ligne : le nom, et à droite en mono gris le modèle (ou le port qui recevra le fil) */
-.pal-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .pal-name { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* la phrase entière sur toute la largeur, 2 lignes au plus (au-delà : infobulle, palette.js) */
-.pal-desc {
-  font-size: 11.5px; line-height: 1.38; color: var(--txt-3);
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-  overflow-wrap: break-word;
-}
+.pal-item.missing .pal-name, .pal-item.missing .pal-glyph { opacity: .55; }
 .pal-meta {
   flex: 0 1 auto; margin-left: auto; min-width: 0; max-width: 55%;
   /* 1,4 et non 1 : une boîte de 10 px rognait les accents des capitales (« VIDÉO ») */
@@ -817,13 +838,60 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .pal-meta.missing { opacity: 0.55; }
+/* « dès 0,40 $ » d'un modèle en ligne (palette.js, fillPrices), après sa méta */
+.pal-price { flex: none; font-size: 11.5px; font-weight: 550; color: var(--txt-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pal-price:empty { display: none; }
 /* le modèle déborde de la carte graphique : le seul mot de la méta, en avertissement */
 .pal-meta.over { color: var(--danger, var(--state-err)); }
-/* la phrase entière d'une description coupée, à côté du panneau (palette.js) */
-.pal-side { max-width: 300px; white-space: normal; }
-.pal-side[hidden] { display: none; }
 .pal-meta.port { color: var(--txt-2); }
-.pal-empty { padding: 36px 12px; text-align: center; color: var(--txt-3); font-size: 12.5px; }
+/* l'étoile des favoris : au survol de la ligne, sur la ligne parcourue, et toujours pour un favori (même or que le
+   choix du modèle, .fp-star) */
+.pal-star {
+  flex: none; width: 24px; height: 24px; margin-left: 2px; border-radius: 6px;
+  display: grid; place-items: center; color: var(--txt-3); opacity: 0; cursor: pointer;
+  transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.pal-star svg { width: 14px; height: 14px; }
+.pal-item:hover .pal-star, .pal-item.on .pal-star, .pal-star.on { opacity: 1; }
+.pal-star:hover { background: var(--wash-3); color: var(--txt); }
+.pal-star.on { color: #e9b949; }
+.pal-empty { padding: 36px 12px; text-align: center; color: var(--txt-3); font-size: 12.5px; line-height: 1.5; }
+.pal-empty .pal-seeall { display: flex; margin: 12px auto 0; }
+/* le détail de l'entrée parcourue : la phrase entière, quand la choisir, ce qu'elle prend et donne */
+.pal-detail {
+  min-width: 0; min-height: 0; overflow: hidden;
+  border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+}
+.pal-d-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.pal-d-head { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.pal-glyph.lg { width: 34px; height: 34px; border-radius: 9px; color: var(--txt); }
+.pal-glyph.lg svg { width: 18px; height: 18px; }
+.pal-glyph.pal-mark.lg { font-size: 11px; }
+.pal-d-title { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pal-d-name { font-size: 14.5px; font-weight: 600; color: var(--txt); line-height: 1.2; }
+.pal-d-where {
+  font-family: var(--font-kicker); font-size: 10px; line-height: 1.4; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--txt-3);
+}
+.pal-d-desc { font-size: 12.5px; line-height: 1.5; color: var(--txt-2); }
+.pal-d-sec { display: flex; flex-direction: column; gap: 6px; }
+.pal-d-label {
+  font-family: var(--font-kicker); font-size: 10px; font-weight: 500; line-height: 1; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--txt-3);
+}
+.pal-d-pick { font-size: 12.5px; line-height: 1.5; color: var(--txt); }
+.pal-d-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.pal-d-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 7px;
+  border: 1px solid var(--line); border-radius: 6px;
+  font-size: 11.5px; color: var(--txt-2); white-space: nowrap;
+}
+.pal-d-chip b { font-weight: 500; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+/* « Poser » et l'étoile, sous le contenu qui défile (LTX : 9 entrées) : toujours visibles */
+.pal-d-acts { flex: none; display: flex; align-items: center; gap: 6px; padding: 10px 16px 12px; border-top: 1px solid var(--line); }
+.pal-d-fav svg { width: 13px; height: 13px; }
+.pal-d-fav.on svg { color: #e9b949; }
 .pal-foot {
   display: flex; align-items: center; gap: 18px;
   padding: 9px 16px;
@@ -1004,6 +1072,12 @@
 .n-port.unused .dot { opacity: .5; }
 /* palette : la pastille d'un modèle (monogramme), à la place du glyphe d'un bloc */
 .pal-glyph.pal-mark { font: 600 9.5px/1 var(--font-mono); letter-spacing: .02em; color: var(--txt-2); }
+/* la couleur sourde du fabricant, comme dans le choix du modèle (makerColor) */
+.pal-glyph.pal-mark[style*="--mk"] {
+  background: color-mix(in srgb, var(--mk) 16%, transparent); border-color: color-mix(in srgb, var(--mk) 38%, transparent);
+  color: color-mix(in srgb, var(--mk) 78%, #fff);
+}
+.theme-light .pal-glyph.pal-mark[style*="--mk"] { color: color-mix(in srgb, var(--mk) 72%, #000); }
 .pal-meta.online { color: var(--txt-2); }
 /* bloc Modèle : « + Ajouter » une entrée rangée, × pour la ranger, entrée montrée le temps d'un fil (SPEC §23) */
 .n-addrow { padding-left: 6px; }

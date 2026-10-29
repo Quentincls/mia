@@ -1,6 +1,6 @@
 ---
 name: mia-piloter
-description: Piloter Mia, la planche nodale d'IA vidéo/image LOCALE (app Windows), par son serveur MCP (outils mia_*) - créer projets et planches, importer des fichiers, poser, relier et régler des blocs, lancer aperçu puis rendu final, lire et montrer les résultats. À utiliser dès que l'utilisateur demande de faire quelque chose « dans Mia » (planche, projet, blocs, Animer une image, Rendre photoréaliste, Finition…) ou quand des outils mia_* sont disponibles. Pour choisir la méthode vidéo, voir mia-recettes-video ; pour modifier le code de Mia, voir mia-developper.
+description: Piloter Mia, la planche nodale d'IA vidéo/image LOCALE (app Windows), par son serveur MCP (outils mia_*) - créer projets et planches, importer des fichiers, poser, relier et régler des blocs, lancer « Générer », lire et montrer les résultats. À utiliser dès que l'utilisateur demande de faire quelque chose « dans Mia » (planche, projet, blocs, Animer une image, Rendre photoréaliste, Finition…) ou quand des outils mia_* sont disponibles. Pour choisir la méthode vidéo, voir mia-recettes-video ; pour modifier le code de Mia, voir mia-developper.
 ---
 
 # Piloter Mia par MCP
@@ -45,12 +45,11 @@ mia_import_media {paths:["C:\\Users\\<toi>\\Videos\\plan05_lighting.mp4"]}   // 
 mia_add_block {type:"real", near:"<id du Média>", title:"Repeinte du plan 05"}
 mia_connect {from:{node:"<Média>", port:"out"}, to:{node:"<real>", port:"video"}}
 mia_set_params {nodeId:"<real>", params:{prompt:"photoreal, cinematic, natural skin", keepBlacks:true}}
-mia_run {nodeId:"<real>", mode:"preview"}  →  jobId
+mia_run {nodeId:"<real>"}  →  jobId             // « Générer » : ses réglages tels quels
 mia_wait {jobId, timeoutS:600}               // timedOut:true → rappeler mia_wait
 mia_get_output {nodeId:"<real>"}             // chemins absolus, méta
 mia_snapshot {nodeId:"<real>"}               // regarder ; puis montrer à l'utilisateur
-mia_say {text:"Aperçu prêt : regarde le bloc « Repeinte du plan 05 »."}
-… si validé : mia_run {nodeId, mode:"final"} → mia_wait …
+mia_say {text:"C’est prêt : regarde le bloc « Repeinte du plan 05 »."}
 ```
 
 ## Les outils (paramètres exacts)
@@ -108,12 +107,13 @@ mia_say {text:"Aperçu prêt : regarde le bloc « Repeinte du plan 05 »."}
   à l'utilisateur dans sa langue.
 
 ## Calculs
-- Blocs de génération (`i2v`, `t2v`, `ref2v`, `real`, `guided`, `perform`) : **toujours `preview` d'abord**
-  (basse définition, ~3 s), montrer, puis `final` si l'utilisateur valide. Les autres blocs n'ont pas de mode.
+- Chaque bloc a **un seul bouton « Générer »** à l'écran (demande de Quentin du 28/10) : `mia_run` sans mode
+  calcule ses réglages tels quels (`final`) ; ce sont eux (définition, durée, étapes) qui décident du temps, affiché
+  à côté du bouton. Les blocs de génération acceptent aussi `mode:"preview"` (basse définition, plus court) : l'essai
+  rapide de mia-recettes-video avant un long calcul vidéo, pour juger le mouvement.
 - `mia_run` calcule aussi l'amont périmé. Un bloc en aval prend la **version courante** de l'amont : étoile ›
-  dernier rendu final › dernier aperçu ; sans version, l'amont est calculé dans le mode demandé, donc **en
-  aperçu** quand le bloc lancé n'a pas de mode (Finition, Son, Exporter…). Donc : rendu final du bloc de génération
-  d'abord, puis Finition / Son / Exporter. (Pas d'outil pour épingler : l'utilisateur met l'étoile.)
+  dernier rendu final › dernier aperçu ; sans version, l'amont est calculé avec ses réglages
+  tels quels (`final`), même depuis Finition, Son ou Exporter ; en aperçu seulement si tu demandes `preview`. (Pas d'outil pour épingler : l'utilisateur met l'étoile.)
 - Lourds (GPU, verrou partagé, un seul à la fois) : tous les blocs IA + `finish`, `composite`, `cutout`.
   Légers : `frame`, `trim`, `resize`, `sequence`, `sound`, `looks`, `export`. Un job peut attendre le GPU
   (`waiting-gpu`, `waitingFor` = qui le tient) : ne force rien, préviens l'utilisateur.
@@ -223,5 +223,7 @@ de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…)
   pas encore été validés à l'œil au labo (prolonger et images-clés de MiniMax : validés le 24/10). Utilise-les quand on te le demande, dis-le, et fais juger
   le résultat à l'œil (côte à côte avec la source).
 - Un modèle en ligne ne se lance **que si l'utilisateur l'a demandé** (crédits) ; son compte se relie dans Réglages →
-  Comptes en ligne (jamais par l'assistant : la clé ne passe pas par toi). L'aperçu en ligne coûte moins
-  (plus petite résolution, durée la plus courte).
+  Comptes en ligne (jamais par l'assistant : la clé ne passe pas par toi). Un bloc en ligne n'a qu'un bouton
+  « Générer » (ses réglages tels quels) et affiche son prix, donné par Higgsfield ; « + Bloc » montre « dès … $ ».
+  `mia_run` le lance en `final` par défaut ; `mode: "preview"` (plus petite résolution, durée la plus courte, moins
+  cher) seulement si l'utilisateur veut un essai.

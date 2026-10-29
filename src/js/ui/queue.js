@@ -30,7 +30,6 @@ strings({
   'queue.expand': 'Voir les calculs',
   'queue.otherBoard': 'Planche « {name} »',
   'queue.preview': 'Aperçu',
-  'queue.final': 'Rendu final',
   'gpu.chip': 'GPU {used} / {total} Go',
   'gpu.chipNoTotal': 'GPU',
   'gpu.free': 'GPU libre',
@@ -67,7 +66,6 @@ strings({
   'queue.expand': 'Show jobs',
   'queue.otherBoard': 'Board “{name}”',
   'queue.preview': 'Preview',
-  'queue.final': 'Final render',
   'gpu.chip': 'GPU {used} / {total} GB',
   'gpu.chipNoTotal': 'GPU',
   'gpu.free': 'GPU free',
@@ -344,7 +342,7 @@ function jobRow(j0) {
       const lbl = j.label || (other ? '' : runs.nodeLabel(j.nodeId)) || '…';
       if (label.textContent !== lbl) label.textContent = lbl;
       const s = [
-        j.mode ? t(j.mode === 'final' ? 'queue.final' : 'queue.preview') : '',
+        j.mode === 'preview' ? t('queue.preview') : '',
         other ? t('queue.otherBoard', { name: runs.projectName(j.projectId) || j.projectName || '…' }) : runs.projectName(j.projectId),
       ].filter(Boolean).join(' · ');
       if (sub.textContent !== s) sub.textContent = s;

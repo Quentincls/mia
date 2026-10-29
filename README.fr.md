@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![version](https://img.shields.io/badge/version-0.6.0-2E7D32?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.7.0-2E7D32?style=flat-square)](CHANGELOG.md)
 [![licence](https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-38-47848F?style=flat-square)](https://www.electronjs.org/)
 [![plateforme](https://img.shields.io/badge/plateforme-Windows%2010%20%7C%2011-0078D4?style=flat-square)](docs/INSTALL.md)
@@ -26,28 +26,27 @@ un calcul GPU à la fois. Des modèles en ligne sont là aussi, seulement si vou
 </div>
 <p align="center"><em>Claude monte le plan par le serveur MCP de Mia, sous vos yeux : une maquette 3D et sa première image retouchée, <b>Rendre photoréaliste</b>, câblage, lancement, puis un volet avant/après. L'aperçu d'une minute est raccourci ici.</em></p>
 
-### Nouveau dans la 0.6
+### Nouveau dans la 0.7
 
 <div align="center">
   <a href="CHANGELOG.md"><img src="assets/home.fr.webp" alt="Accueil de Mia : projets, planches, recettes" width="100%"></a>
 </div>
 <p align="center"><em>Un projet range des planches ; ses onglets restent ensemble, à sa couleur, comme les groupes d'onglets de Chrome.</em></p>
 
-- **Un bloc par modèle** : LTX, MiniMax, Wan, Qwen, FLUX.2 Klein… chacun dans un bloc **Modèle** qui n'a que les
-  entrées que son modèle sait prendre. Ce qu'on branche décide de ce qu'il fait : une image de début, il l'anime ;
-  des références, il les mélange ; rien, il part du texte.
-- **Des modèles en ligne, si on le veut** : Seedance, Kling, MiniMax 2K et d'autres par votre propre compte
-  Higgsfield (la clé reste chiffrée sur votre PC). Chaque calcul coûte des crédits et ne part qu'à votre clic.
-- **Des images sur votre PC** : FLUX.2 Klein 9B et Qwen-Image 2.1 Turbo (licences non commerciales, proposés « à
-  essayer »). Une entrée **Cadrage** garde une composition pendant que votre LoRA garde son style.
-- **Retoucher une zone** : on peint la zone dans un bloc **Masque** ; seule cette zone est refaite, le reste de
-  l'image reste identique au pixel. Une petite zone (des pieds, un œil) est agrandie toute seule.
-- **Réécrire en anglais** : une Consigne peut faire corriger et traduire son texte par un modèle de votre PC avant
-  le calcul, et montre ce qui a été compris.
-- **4 variantes** : un clic fait quatre images avec quatre graines ; l'étoile garde celle qu'on choisit.
-- Et : **+ Bloc** rangé par ce qu'on fabrique, images-clés (LTX, MiniMax), prolonger une vidéo et un son à suivre
-  (MiniMax), une infobulle sur chaque entrée. Depuis la 0.5 : l'installateur et la version portable, les modèles
-  installés depuis la bibliothèque.
+- **Fluide sur les grandes planches** : sur une planche de 110 blocs, taper une consigne, ouvrir la planche, s'y
+  déplacer et tirer des fils ne traînent plus ; le zoom à la molette saccade moins.
+- **Un seul bouton « Générer »** sur chaque bloc, avec à côté le temps prévu, appris de vos propres calculs sur ce
+  PC.
+- **Agrandir, deux nouvelles façons** : « NVIDIA RTX · express » (quelques secondes à quelques minutes, rien
+  d'inventé) et « LTX · détails » (1440p ou 4K, le détail fin recréé, fidèle au cadrage et au style).
+- **Modèles en ligne : le prix avant de lancer** : chaque bloc en ligne affiche son prix, « + Bloc » montre « dès
+  … $ », et le coin de la planche ce qui reste de votre budget Higgsfield.
+- **Choisir un modèle et « + Bloc », refaits** : recherche, favoris (une étoile, Ctrl+D, Alt+1 à 9), derniers
+  choisis en tête, une ligne courte par entrée, la description complète de celle qu'on parcourt, et quand choisir
+  chaque modèle en ligne.
+- Depuis la 0.6 : un bloc par modèle, des modèles en ligne par votre propre compte Higgsfield, des images sur votre
+  PC (FLUX.2 Klein 9B, Qwen-Image 2.1 Turbo), retoucher une zone dans un bloc **Masque**, réécrire une consigne en
+  anglais, 4 variantes.
 
 [Ce que fait Mia](#ce-que-fait-mia) · [Blocs](#blocs) · [Modèles](#modèles) · [Installer](#installer) ·
 [Utiliser](#utiliser) · [Assistants](#assistants) · [Licence et crédits](#licence-et-crédits)
