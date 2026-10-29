@@ -6,6 +6,12 @@
  * drive Mia through mcp/mia-mcp.js. Every request carries the random token written, with the port, in
  * <data>\bridge.json; the file is removed when Mia quits.
  *
+ * A copy goes to %TEMP%\Mia\bridge.json (the mirror): an assistant installed from the Store (Claude,
+ * Codex… packaged MSIX) sees %APPDATA% through its own private copy, where a bridge.json written by a
+ * Mia it once launched itself stays forever and hides the real one. %TEMP% is not redirected. Only the
+ * real profile writes it: a test instance (MIA_USERDATA, MIA_BRIDGE_FILE) never takes it over, unless
+ * MIA_BRIDGE_MIRROR names another path (tests of the mirror).
+ *
  *   POST /call  { method, params, client }   Authorization: Bearer <token>
  *     → { ok:true, result } | { ok:false, error:"phrase française lisible" }
  *
@@ -26,6 +32,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const places = require('./places');
 
 const PORT_FIRST = 8777;
@@ -87,6 +94,14 @@ const FINAL = new Set(['done', 'error', 'cancelled']);
 
 /** A client name fit for a label: « Claude », « Codex »… never a long or odd string. */
 /** A board's folder id, whatever the store calls it (folderId, or a folder object). */
+/** Written whole or not at all: the MCP server may read it at any moment. */
+function writeJson(file, obj) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
+  fs.renameSync(tmp, file);
+}
+
 function folderIdOf(b) {
   const v = b ? (b.folderId ?? b.folder ?? null) : null;
   return v && typeof v === 'object' ? v.id ?? null : v || null;
@@ -112,6 +127,8 @@ class Bridge {
     this.watched = null;               // the webContents whose reloads we follow
     this.file = process.env.MIA_BRIDGE_FILE
       || path.join((ctx.paths && ctx.paths.data) || path.join(ctx.app.getPath('userData'), 'data'), 'bridge.json');
+    this.mirror = process.env.MIA_BRIDGE_MIRROR
+      || (process.env.MIA_USERDATA || process.env.MIA_BRIDGE_FILE ? null : path.join(os.tmpdir(), 'Mia', 'bridge.json'));
     this.version = (() => { try { return ctx.app.getVersion(); } catch { return '0'; } })();
     this.log = typeof ctx.logger === 'function' ? ctx.logger('bridge') : (...a) => { if (typeof ctx.log === 'function') ctx.log('[bridge]', ...a); };
   }
@@ -171,19 +188,31 @@ class Bridge {
   }
 
   writeFile() {
-    const info = { port: this.port, token: this.token, pid: process.pid, version: this.version, started: Date.now() };
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    const tmp = `${this.file}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(info, null, 2));
-    fs.renameSync(tmp, this.file);
+    this.info = { port: this.port, token: this.token, pid: process.pid, version: this.version, started: Date.now() };
+    writeJson(this.file, this.info);
+    if (!this.mirror) return;
+    try {
+      writeJson(this.mirror, this.info);
+    } catch (e) {
+      this.log('mirror not written:', e && e.message);
+    }
+    // a temp cleaner (Storage Sense) may take it away while Mia stays open for days
+    this.mirrorTimer = setInterval(() => {
+      try { if (!fs.existsSync(this.mirror)) writeJson(this.mirror, this.info); } catch { /* next round */ }
+    }, 10 * 60 * 1000);
+    this.mirrorTimer.unref();
   }
 
-  /** Only our own file: another Mia (tests, another profile) may have written its own since. */
+  /** Only our own files: another Mia (tests, another profile) may have written its own since. */
   removeFile() {
-    try {
-      const cur = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      if (cur && cur.pid === process.pid) fs.unlinkSync(this.file);
-    } catch { /* already gone */ }
+    clearInterval(this.mirrorTimer);
+    for (const file of [this.file, this.mirror]) {
+      if (!file) continue;
+      try {
+        const cur = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (cur && cur.pid === process.pid) fs.unlinkSync(file);
+      } catch { /* already gone */ }
+    }
   }
 
   stop() {

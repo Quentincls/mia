@@ -5,11 +5,12 @@
  *
  * JSON-RPC 2.0, one JSON message per line on stdin/stdout (logs go to stderr only). It forwards every tool
  * call to Mia's local bridge (electron/bridge.js) whose port and token are in
- *   %APPDATA%\Mia\data\bridge.json      (MIA_BRIDGE_FILE overrides it — tests)
+ *   %TEMP%\Mia\bridge.json, then %APPDATA%\Mia\data\bridge.json   (MIA_BRIDGE_FILE overrides them — tests)
  * and starts Mia (wscript.exe Mia.vbs) when it is not running, waiting up to 25 s.
  *
  * Environment:
  *   MIA_BRIDGE_FILE=<path>   bridge.json to read (tests use their own Mia profile)
+ *   MIA_BRIDGE_MIRROR=<path> the %TEMP%\Mia\bridge.json copy to read first (tests of that copy)
  *   MIA_NO_LAUNCH=1          never start Mia (tests)
  *   MIA_CLIENT_NAME=<name>   name shown on the presence cursor, instead of the client's own
  */
@@ -22,6 +23,11 @@ const { spawn } = require('node:child_process');
 const MIA_ROOT = path.resolve(__dirname, '..');
 const BRIDGE_FILE = process.env.MIA_BRIDGE_FILE
   || path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Mia', 'data', 'bridge.json');
+// Mia's copy in %TEMP% first: under an assistant installed from the Store (MSIX), %APPDATA% is seen through
+// a private copy where a stale bridge.json can hide the real one; %TEMP% is not redirected (bridge.js)
+const BRIDGE_FILES = process.env.MIA_BRIDGE_FILE && !process.env.MIA_BRIDGE_MIRROR
+  ? [BRIDGE_FILE]
+  : [process.env.MIA_BRIDGE_MIRROR || path.join(os.tmpdir(), 'Mia', 'bridge.json'), BRIDGE_FILE];
 const NO_LAUNCH = process.env.MIA_NO_LAUNCH === '1';
 const LAUNCH_WAIT_MS = 25000;
 const CALL_TIMEOUT_MS = 90000;
@@ -301,11 +307,25 @@ function displayName(raw) {
   return word ? (word[0].toUpperCase() + word.slice(1)).slice(0, 20) : 'Assistant';
 }
 
-function readBridge() {
-  try {
-    const b = JSON.parse(fs.readFileSync(BRIDGE_FILE, 'utf8'));
-    if (b && b.port && b.token) return b;
-  } catch { /* missing or partial */ }
+/** Every bridge.json found, the %TEMP% copy first. */
+function readBridges() {
+  const out = [];
+  for (const file of BRIDGE_FILES) {
+    try {
+      const b = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (b && b.port && b.token && !out.some((o) => o.token === b.token)) out.push(b);
+    } catch { /* missing or partial */ }
+  }
+  return out;
+}
+
+/** The first bridge that answers, with its ping. */
+async function liveBridge() {
+  for (const b of readBridges()) {
+    if (!alive(b.pid)) continue;
+    const p = await ping(b);
+    if (p) return { b, p };
+  }
   return null;
 }
 
@@ -361,29 +381,23 @@ function launchMia() {
 
 /** The bridge of a running Mia, Mia started if needed. */
 async function connect() {
-  const info = readBridge();
-  if (info && alive(info.pid)) {
-    const p = await ping(info);
-    if (p) { bridge = info; return info; }
-  }
+  const found = await liveBridge();
+  if (found) { bridge = found.b; return found.b; }
   if (NO_LAUNCH) throw new UserError('Mia n’est pas ouverte (ou son pont ne répond pas). Ouvre Mia puis réessaie.');
   if (!launched || Date.now() - launched > 60000) launchMia();
   const until = Date.now() + LAUNCH_WAIT_MS;
   while (Date.now() < until) {
     await new Promise((r) => setTimeout(r, 400));
-    const b = readBridge();
-    if (b && alive(b.pid)) {
-      const p = await ping(b);
-      if (p) {
-        // give the interface a moment to come up: the bridge itself waits for it too
-        for (let i = 0; i < 30 && !p.ui; i++) {
-          await new Promise((r) => setTimeout(r, 300));
-          const q = await ping(b);
-          if (q && q.ui) break;
-        }
-        bridge = b;
-        return b;
+    const up = await liveBridge();
+    if (up) {
+      // give the interface a moment to come up: the bridge itself waits for it too
+      for (let i = 0; i < 30 && !up.p.ui; i++) {
+        await new Promise((r) => setTimeout(r, 300));
+        const q = await ping(up.b);
+        if (q && q.ui) break;
       }
+      bridge = up.b;
+      return up.b;
     }
   }
   throw new UserError('Mia ne répond pas. Si elle est déjà ouverte, ferme-la et relance-la (une version sans pont des assistants tourne peut-être encore).');
@@ -521,7 +535,7 @@ function start() {
   process.stdin.on('end', () => { ended = true; maybeExit(); });
   process.on('uncaughtException', (e) => log('uncaught:', e && e.stack ? e.stack : e));
   process.on('unhandledRejection', (e) => log('unhandled:', e && e.stack ? e.stack : e));
-  log(`ready (bridge file: ${BRIDGE_FILE})`);
+  log(`ready (bridge files: ${BRIDGE_FILES.join(", ")})`);
 }
 
 if (require.main === module) start();

@@ -10,6 +10,14 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## À venir
+
+### Corrigé
+- **Claude et Codex retrouvent Mia** : installés depuis le Microsoft Store, ils voient `%APPDATA%` à travers leur
+  propre copie privée, où un vieux `bridge.json` (d’une Mia qu’ils avaient lancée eux-mêmes) cachait celui de la
+  Mia ouverte : « Mia ne répond pas » à chaque appel. Mia écrit maintenant aussi `%TEMP%\Mia\bridge.json`, que
+  le serveur MCP lit en premier (jamais par une instance de test).
+
 ## 0.7.0 — 29/10/2026
 
 ### En bref
