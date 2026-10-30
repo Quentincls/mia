@@ -16,6 +16,7 @@
  * selection while its menu is open.
  */
 import { el, clamp } from '../util.js';
+import { ghostOut } from './motion.js';
 import { icon } from '../icons.js';
 import { t, register } from '../i18n.js';
 
@@ -53,6 +54,7 @@ export function closeMenu() {
   clearTimeout(subTimer);
   const onClose = opts.onClose;
   for (const p of stack) {
+    ghostOut(p.el);   // une copie s'efface à sa place (SPEC §20.1), le menu, lui, est déjà fermé
     if (p.el.id === 'contextmenu') { p.el.hidden = true; p.el.innerHTML = ''; p.el.className = 'ctxmenu'; p.el.removeAttribute('style'); }
     else p.el.remove();
   }
@@ -171,7 +173,7 @@ function row(it, rich) {
     );
   }
   const node = el('button', {
-    class: ['ctx-item', rich && 'rich', it.danger && 'danger', it.disabled && 'is-disabled'],
+    class: ['ctx-item', rich && 'rich', it.danger && 'danger', it.disabled && 'is-disabled', it.dim && 'dim'],
     type: 'button',
     tabindex: '-1',
     'aria-disabled': it.disabled ? 'true' : null,

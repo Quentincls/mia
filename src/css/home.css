@@ -69,7 +69,7 @@
 .card-folder + .card-when::before { content: '·'; color: var(--txt-3); margin: 0 6px 0 4px; }
 .card-more {
   width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto;
-  color: var(--txt-3); opacity: 0; transition: opacity var(--dur), background var(--dur), color var(--dur);
+  color: var(--txt-3); opacity: 0; transition: opacity var(--dur), background var(--dur), color var(--dur), scale var(--dur-pop) var(--ease-out);
 }
 .card:hover .card-more, .card-more:focus-visible, .card-more.on { opacity: 1; }
 .card-more:hover, .card-more.on { background: var(--surface-3); color: var(--txt); }

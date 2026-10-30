@@ -138,11 +138,25 @@ function chooseWorkflowNow(fam, connected, choice) {
     };
   });
   const ok = scored.filter((s) => s.eligible);
+  // modèle en ligne (30/10, rapport cloud-ui) : un mode choisi par Quentin passe devant le score, même s'il ne va
+  // pas avec les fils actuels — le bloc dit alors ce qui lui manque, et ignore avec une note ce qui ne lui sert pas.
+  // `auto` : ce que Mia aurait choisi seule (pour proposer d'y revenir). Sur ce PC, le choix ne départage toujours
+  // que deux façons qui vont aussi bien (planches d'avant inchangées).
+  const forced = choice && choice !== 'auto' && fam && fam.provider && fam.provider !== 'local'
+    ? scored.find((s) => s.wf.id === choice) : null;
+  if (forced) {
+    const auto = chooseWorkflowNow(fam, connected, null);
+    const lack = forced.missing.length > 0;
+    return {
+      workflow: forced.wf, ties: [], unused: forced.unused, missing: lack ? forced.missing : [], blocked: lack,
+      forced: true, auto: auto ? auto.workflow : null,
+    };
+  }
   if (!ok.length) {
     // rien ne va : la plus proche, d'abord parmi celles qui se servent de ce qui est branché, pour dire quoi brancher
     const near = scored.slice().sort((a, b) => (b.used > 0) - (a.used > 0) || a.missing.length - b.missing.length
       || b.used - a.used || a.i - b.i)[0];
-    return near ? { workflow: near.wf, ties: [], unused: near.unused, missing: near.missing, blocked: true } : null;
+    return near ? { workflow: near.wf, ties: [], unused: near.unused, missing: near.missing, blocked: true, forced: false, auto: near.wf } : null;
   }
   ok.sort((a, b) => b.score - a.score || b.need - a.need || a.size - b.size || a.i - b.i);
   const best = ok[0];
@@ -151,7 +165,24 @@ function chooseWorkflowNow(fam, connected, choice) {
   const ties = on.size ? ok.filter((s) => s.score === best.score && s.need === best.need).map((s) => s.wf) : [best.wf];
   const picked = (choice && ties.find((w) => w.id === choice)) || best.wf;
   const s = scored.find((x) => x.wf === picked);
-  return { workflow: picked, ties: ties.length > 1 ? ties : [], unused: s.unused, missing: [], blocked: false };
+  return { workflow: picked, ties: ties.length > 1 ? ties : [], unused: s.unused, missing: [], blocked: false, forced: false, auto: best.wf };
+}
+
+/**
+ * Palier choisi d'un bloc en ligne pour une façon de faire (`hf.tier`, Kling 3.0 Turbo / Pro…) : la valeur posée si
+ * le réglage existe et la permet, sinon son défaut ; null quand la façon de faire n'a pas de paliers.
+ */
+export function tierOf(wf, params) {
+  const p = ((wf && wf.params) || []).find((x) => x && x.id === 'hf.tier');
+  if (!p) return null;
+  const v = params ? params['hf.tier'] : undefined;
+  const ok = (p.options || []).some((o) => String(o.value) === String(v));
+  return ok ? String(v) : (p.default != null ? String(p.default) : null);
+}
+
+/** Le réglage ou l'entrée existe-t-il pour ce palier ? (`onlyTiers` du catalogue en ligne ; sans palier : oui) */
+export function tierAllows(def, tier) {
+  return !(def && Array.isArray(def.onlyTiers) && tier != null && !def.onlyTiers.includes(tier));
 }
 
 /** Ce qu'exige une façon de faire, en ids d'entrées : ses obligatoires, puis la 1re de chaque groupe « l'une ou l'autre ». */

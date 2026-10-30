@@ -11,6 +11,11 @@
 //   keepBlacks: tool.composite.dark_guard_sequence redone in ffmpeg (no GPU): where the render is near black,
 //            the render wins, through a blurred, time-smoothed mask (Layout-To-Render "relights" blacks).
 //   LoRA:     the character / place LoRA (SPEC §12) goes after the Layout-To-Render IC-LoRA, at its strength.
+//   passes:   auto | 1 | 2 (catalog `passes`); auto = 1 pass here (the « clean de fou » recipe). 2 passes (final only,
+//            in every window) = tool.recipes.ltx_v2v without single_stage, as the lab: size on a 64-px grid, pass 1 at
+//            half size guided by the render scaled to half size, latent ×2 (LTX latent upscaler), pass 2 guided by the
+//            render at FULL size (latent_downscale_factor 1, as the lab's 9034:9039), the look at -1 and the
+//            continuity key again, 3 refining steps (sigmas 0.909375, 0.725, 0.421875, 0), guides cropped, decoded.
 // windows(), geometry() and join() are shared with the « Vidéo guidée » block (guided.js).
 const fsp = require('node:fs/promises');
 const path = require('node:path');
@@ -107,7 +112,8 @@ function plan(x, meta) {
   const F = preview ? Math.min(n, PREVIEW_FRAMES) : n;
   const starts = F <= WINDOW ? [0] : windows(F);
   const L = F <= WINDOW ? E.ceil8k1(F) : WINDOW;        // LTX wants 8k+1: the tail frame is cloned, then dropped
-  return { preview, n, F, L, starts, geo: geometry(meta, preview) };
+  const passes = E.ltxPasses(x, { autoTwo: false, preview });
+  return { preview, n, F, L, starts, passes, twoPass: passes.two, geo: geometry(meta, preview, { mult: passes.two ? 64 : 32 }) };
 }
 
 async function run(x) {
@@ -176,6 +182,7 @@ async function run(x) {
         guide.inputs.image = ['9800', 0];
         P.insertAfter(g, upLook ? '9002:9042' : '9002:5012', '980a', guide, GUIDE_PASSTHROUGH);
       }
+      if (pl.twoPass) twoPasses(g, geo, { look: !!upLook, key: k > 0, seed });
       P.set(g, '9990', 'filename_prefix', E.prefix(x, `w${k}`, 'frame'));
 
       const res = await E.submit(x, g, { range: [a + span * 0.05, a + span],
@@ -209,6 +216,9 @@ async function run(x) {
       await E.framesToVideo(x, seq, dst, { fps, vf: geo.crop, count: F, range: [0.92, 1], msg: E.t('encoding') });
     }
 
+    if (pl.twoPass) notes.push(E.t('twoPass', { w1: geo.W / 2, h1: geo.H / 2 }));
+    const passNote = E.ltxPassesNote(pl.passes);
+    if (passNote) notes.push(passNote);
     notes.unshift(pl.preview
       ? E.t(TXT.preview, { w: geo.ow, h: geo.oh, frames: F })
       : E.t(TXT.final, { w: geo.ow, h: geo.oh, frames: F, n: starts.length }));
@@ -221,6 +231,39 @@ async function run(x) {
   } finally {
     await E.cleanup(temps);
   }
+}
+
+/**
+ * 2 passes on one window's graph (ltx_layout_single): pass 1 at half size (empty latent and the render guide scaled
+ * to W/2 × H/2), its latent ×2, then pass 2 guided by the render at full size, the look (-1) and the continuity key
+ * (0), 3 refining steps, guides cropped before the decode. Ids 9600-9610.
+ */
+function twoPasses(g, geo, { look, key, seed }) {
+  const W2 = geo.W / 2;
+  const H2 = geo.H / 2;
+  P.setInputs(g, '9002:3059', { width: W2, height: H2 });
+  P.addNode(g, 'ImageScale', { upscale_method: 'lanczos', width: W2, height: H2, crop: 'disabled', image: ['5548:9006', 0] }, '9610');
+  P.set(g, '9002:5012', 'image', ['9610', 0]);
+  P.addNode(g, 'LatentUpscaleModelLoader', { model_name: E.LTX_UPSCALER }, '9600');
+  P.addNode(g, 'LTXVLatentUpsampler', { samples: ['5516:5000', 2], upscale_model: ['9600', 0], vae: ['5004:5601', 0] }, '9601');
+  let tail = null;
+  const guide = (id, image, frame, crop) => {
+    P.addNode(g, 'LTXAddVideoICLoRAGuide', { frame_idx: frame, strength: 1, latent_downscale_factor: 1, crop,
+      use_tiled_encode: false, tile_size: 256, tile_overlap: 64, use_streaming: false, tile_frames: 97,
+      positive: tail ? [tail, 0] : ['9002:9005', 0], negative: tail ? [tail, 1] : ['9002:9005', 1],
+      vae: ['5004:5601', 0], latent: tail ? [tail, 2] : ['9601', 0], image }, id);
+    tail = id;
+  };
+  guide('9602', ['5548:9006', 0], 0, 'disabled');      // the render at FULL size
+  if (look) guide('9603', ['9009', 0], -1, 'center');
+  if (key) guide('9604', ['9800', 0], 0, 'center');     // continuity key of a later window
+  P.addNode(g, 'RandomNoise', { noise_seed: seed + 1 }, '9605');
+  P.addNode(g, 'CFGGuider', { cfg: 1, model: g['5516:4828'].inputs.model, positive: [tail, 0], negative: [tail, 1] }, '9606');
+  P.addNode(g, 'ManualSigmas', { sigmas: E.LTX_STAGE2_SIGMAS }, '9607');
+  P.addNode(g, 'SamplerCustomAdvanced', { noise: ['9605', 0], guider: ['9606', 0], sampler: ['5516:4831', 0],
+    sigmas: ['9607', 0], latent_image: [tail, 2] }, '9608');
+  P.addNode(g, 'LTXVCropGuides', { positive: [tail, 0], negative: [tail, 1], latent: ['9608', 0] }, '9609');
+  P.set(g, '5518:5538', 'samples', ['9609', 2]);
 }
 
 /**
@@ -320,8 +363,9 @@ function estimate(x) {
     const pl = plan(x, { w: meta.w || 1080, h: meta.h || 1920, frames: meta.frames || 97 });
     if (pl.preview) return 2;
     const px = (pl.geo.W * pl.geo.H) / (1088 * 1920);
-    // lab: 6–10 min per 97-frame window at 1088×1920
-    return 0.5 + pl.starts.length * (1 + 8 * Math.max(0.25, px));
+    // lab: 6–10 min per 97-frame window at 1088×1920; 2 passes: half size, then the ×2 pass weighs ~half (lab 30/10)
+    const win = (p) => 1 + 8 * Math.max(0.25, p);
+    return 0.5 + pl.starts.length * (pl.twoPass ? win(px / 4) + 0.5 * win(px) + 0.3 : win(px));
   } catch { return x && x.mode === 'preview' ? 2 : 9; }
 }
 

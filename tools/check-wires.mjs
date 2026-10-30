@@ -303,6 +303,11 @@ function report(label, r) {
 
 async function widthSteps() {
   let good = true, said = false;
+  // une planche sans aucun fil (des blocs seuls) : rien à mesurer, ce n'est pas un échec
+  if (!(await ev(`(window.__mia.editor.getGraph().edges || []).length`))) {
+    report(`pendant l'élargissement`, { skip: 'aucun fil sur cette planche' });
+    return true;
+  }
   const mode = async () => {
     const p = await paints();
     if (!p && !said) { said = true; console.log('       (fenêtre qui ne peint pas : poignée tirée en événements de la page, relevé à chaque pas)'); }

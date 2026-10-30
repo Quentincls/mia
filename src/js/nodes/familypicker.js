@@ -24,10 +24,11 @@ import { on, emit } from '../bus.js';
 import { state } from '../state.js';
 import { tip } from '../ui/tooltip.js';
 import { setPrefs } from '../ui/settings.js';
-import { money } from '../ui/budget.js';
-import { fromPrice, askFromPrices } from '../ui/fromprices.js';
+import { fromText, askFromPrices } from '../ui/fromprices.js';
+import { wordKey } from './waywords.js';
 import { strings } from './media.js';
 import { localCatalog, cloudCatalog, variantOf } from './profiles.js';
+import { ghostOut } from '../ui/motion.js';
 import { familyOf, localKeyOf } from './route.js';
 import { modelName } from './modelpicker.js';
 
@@ -43,8 +44,8 @@ strings({
   'node.fam.favEmpty': 'Pas encore de favori : l’étoile au bout d’une ligne en ajoute un.',
   'node.fam.fav': 'Ajouter aux favoris',
   'node.fam.unfav': 'Retirer des favoris',
-  'node.fam.from': 'dès {price}',
-  'node.fam.priceTip': 'Le moins cher de ce modèle (plus petite définition, plus courte durée), donné par Higgsfield.',
+  'node.fam.from': 'dès {price}',
+  'node.fam.priceTip': 'Le moins cher de ce modèle (plus petite définition, plus courte durée), donné par Higgsfield. « ≈ » : tarif public (sans compte relié), le prix exact est connu au lancement.',
   'node.fam.onPc': 'Sur ce PC',
   'node.fam.notInstalled': 'Non installé',
   'node.fam.install': 'Installer',
@@ -57,9 +58,9 @@ strings({
   'node.fam.tipLocal': 'Modèle · sur ce PC',
   'node.fam.tipCloud': 'Modèle · en ligne, payant',
   'node.fam.paid': 'Payant',
-  'node.fam.cloudLink': 'Ces modèles calculent chez Higgsfield (crédits). Relie ton compte pour les lancer.',
+  'node.fam.cloudLink': 'Ces modèles calculent chez Higgsfield : payants, en $. Relie ton compte pour les lancer.',
   'node.fam.cloudLinkBtn': 'Relier mon compte',
-  'node.fam.cloudLinked': 'Compte Higgsfield relié · chaque calcul coûte des crédits.',
+  'node.fam.cloudLinked': 'Compte Higgsfield relié · chaque calcul est payant, en $.',
   'node.fam.video': 'Vidéo',
   'node.fam.image': 'Image',
   'node.fam.videoOnline': 'En ligne · vidéo',
@@ -91,8 +92,8 @@ strings({
   'node.fam.favEmpty': 'No favourite yet: the star at the end of a row adds one.',
   'node.fam.fav': 'Add to favourites',
   'node.fam.unfav': 'Remove from favourites',
-  'node.fam.from': 'from {price}',
-  'node.fam.priceTip': 'This model’s cheapest run (smallest resolution, shortest length), as priced by Higgsfield.',
+  'node.fam.from': 'from {price}',
+  'node.fam.priceTip': 'This model’s cheapest run (smallest resolution, shortest length), as priced by Higgsfield. “≈”: public rate (no linked account); the exact price is known when it runs.',
   'node.fam.onPc': 'On this PC',
   'node.fam.notInstalled': 'Not installed',
   'node.fam.install': 'Install',
@@ -105,9 +106,9 @@ strings({
   'node.fam.tipLocal': 'Model · on this PC',
   'node.fam.tipCloud': 'Model · online, paid',
   'node.fam.paid': 'Paid',
-  'node.fam.cloudLink': 'These models run at Higgsfield (credits). Link your account to run them.',
+  'node.fam.cloudLink': 'These models run at Higgsfield: paid, in $. Link your account to run them.',
   'node.fam.cloudLinkBtn': 'Link my account',
-  'node.fam.cloudLinked': 'Higgsfield account linked · each job costs credits.',
+  'node.fam.cloudLinked': 'Higgsfield account linked · each job is paid, in $.',
   'node.fam.video': 'Video',
   'node.fam.image': 'Image',
   'node.fam.videoOnline': 'Online · video',
@@ -131,18 +132,10 @@ strings({
 
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-/** Clé du mot court d'une façon de faire (workflow) : « text », « image », « refs »… (null si inconnue). */
-function wordKey(wf) {
-  const id = String(wf.id || '');
-  const rules = [
-    [/^t2v$|^t2i$|text-to-video/, 'text'], [/^i2v$|image-to-video|first-last-frame/, 'image'],
-    [/^refs$|reference-to-video|image-reference|custom-references/, 'refs'], [/^guided$/, 'guided'], [/^real$/, 'real'],
-    [/^perform$|motion-control|motion-transfer/, 'act'], [/video-edit/, 'vedit'], [/^extend$|video-extend/, 'extend'], [/^sheet$/, 'sheet'],
-    [/video-reference/, 'follow'], [/object-swap/, 'swap'], [/restyle/, 'restyle'], [/cinema-studio/, 'cinema'],
-    [/^edit$|\/edit$/, 'edit'], [/text-to-image|soul|ideogram|z-image|recraft|grok-imagine-image|ads-studio|marketing-studio/, 'text'],
-  ];
-  const r = rules.find(([re]) => re.test(id));
-  return r ? r[1] : null;
+/** Le mot court d'une façon de faire (« Animer », « Modifier »…), sinon son libellé entier. */
+export function wayWord(wf) {
+  const k = wf ? wordKey(wf) : null;
+  return k ? t(`node.fam.w.${k}`) : tl((wf && wf.label) || {});
 }
 
 /** Ce que sait faire une famille, en mots courts, sans doublon, toujours dans le même ordre (texte, image…). */
@@ -158,9 +151,9 @@ export function familyWords(def) {
  * seule, teinte sourde). Demande de Quentin du 28/10 (« amener de la couleur ») ; jusque-là, tout était gris.
  */
 const MAKER_HUE = [
-  [/lightricks/i, '#8f7cf7'], [/minimax|hailuo/i, '#f06b93'], [/kling/i, '#3cc28f'], [/bytedance/i, '#4c9dff'],
+  [/lightricks/i, '#8f7cf7'], [/minimax|hailuo/i, '#f06b93'], [/kling/i, '#3cc28f'], [/bytedance/i, '#5fb4c9'],
   [/qwen/i, '#e9b23e'], [/alibaba|wan|happy ?horse/i, '#f0883e'], [/higgsfield/i, '#b9cf45'], [/black forest/i, '#a3adbf'],
-  [/xai/i, '#c2c3cc'], [/pixverse/i, '#c879e3'], [/recraft/i, '#ef6352'], [/ideogram/i, '#dcc44b'], [/google/i, '#5b8def'],
+  [/xai/i, '#c2c3cc'], [/pixverse/i, '#c879e3'], [/recraft/i, '#ef6352'], [/ideogram/i, '#dcc44b'], [/google/i, '#7c8fb0'],
   [/openai/i, '#5fc7b2'],
 ];
 export function makerColor(def) {
@@ -205,8 +198,12 @@ function closePop() {
   const p = openPop;
   openPop = null;
   p.cleanup();
+  ghostOut(p.el);   // la liste s'efface à sa place (SPEC §20.1)
   p.el.remove();
 }
+
+/** Un mot qui ne se coupe pas (espaces insécables). */
+const nb = (w) => String(w).replace(/ /g, '\u00a0');
 
 const markOfDef = (def) => def.mark || String(def.maker || def.name || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase();
 const markEl = (def, size = '') => el('span', { class: `mp-mark${size ? ` ${size}` : ''}`, style: `--mk:${makerColor(def)}`, 'aria-hidden': 'true' }, markOfDef(def));
@@ -256,7 +253,8 @@ export function familyPicker({ param, value, onChange }) {
     mark.style.setProperty('--mk', makerColor(def));
     const words = familyWords(def);
     const v = fam.variant ? variantOf(fam.variant)?.tag : '';
-    chips.textContent = [v, ...words].filter(Boolean).join(' · ');
+    // espaces insécables dans chaque mot et devant « · » : « 3D → réel » ne se coupe plus en « 3D → » / « RÉEL »
+    chips.textContent = [v, ...words].filter(Boolean).map(nb).join('\u00a0· ');
     where.hidden = fam.provider === 'local';
     where.textContent = t('node.fam.online');
   }
@@ -367,8 +365,8 @@ export function familyPicker({ param, value, onChange }) {
         if (f.cloud) {
           side.dataset.fam = f.fam;
           side.dataset.tip = t('node.fam.priceTip');
-          const p = fromPrice(f.fam);
-          side.textContent = p != null ? t('node.fam.from', { price: money(p) }) : '';
+          const p = fromText(f.fam);
+          side.textContent = p != null ? t('node.fam.from', { price: p }) : '';
         } else if (!f.installed) {
           const caps = (f.def.workflows || []).map((w) => w.cap).filter(Boolean);
           const inst = el('button', { class: 'fp-install', type: 'button', 'data-tip': t('node.fam.installTip') }, t('node.fam.install'));
@@ -466,12 +464,12 @@ export function familyPicker({ param, value, onChange }) {
       paintFocus(false);
       // les prix « dès » des familles en ligne montrées : demandés une fois, puis posés sur leur ligne
       const cloudShown = [...list.querySelectorAll('.fp-side[data-fam]')].map((s) => s.dataset.fam);
-      if (cloudShown.length && linked !== false) askFromPrices(cloudShown).then((fresh) => { if (fresh && pop.isConnected) paintPrices(); });
+      if (cloudShown.length) askFromPrices(cloudShown).then((fresh) => { if (fresh && pop.isConnected) paintPrices(); });
     }
     function paintPrices() {
       for (const s of list.querySelectorAll('.fp-side[data-fam]')) {
-        const p = fromPrice(s.dataset.fam);
-        s.textContent = p != null ? t('node.fam.from', { price: money(p) }) : '';
+        const p = fromText(s.dataset.fam);
+        s.textContent = p != null ? t('node.fam.from', { price: p }) : '';
       }
     }
 
@@ -486,8 +484,8 @@ export function familyPicker({ param, value, onChange }) {
     function showDetail(f, variant = null) {
       detail.replaceChildren();
       if (!f) { detail.append(el('div', { class: 'fp-keys' }, t('node.fam.keys'))); return; }
-      const price = f.cloud ? fromPrice(f.fam) : undefined;
-      const whereTxt = f.cloud ? [t('node.fam.cloud'), price != null ? t('node.fam.from', { price: money(price) }) : ''].filter(Boolean).join(' · ')
+      const price = f.cloud ? fromText(f.fam) : undefined;
+      const whereTxt = f.cloud ? [t('node.fam.cloud'), price != null ? t('node.fam.from', { price }) : ''].filter(Boolean).join(' · ')
         : (f.installed ? t('node.fam.onPc') : t('node.fam.notInstalled'));
       const vv = variant ? variantOf(variant) : null;
       detail.append(markEl(f.def, 'lg'), el('div', { class: 'fp-d-main' },

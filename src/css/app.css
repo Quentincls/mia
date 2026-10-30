@@ -142,7 +142,7 @@ body.on-board .tb-veil { background: var(--bg-canvas); }
 .tb-tab-close {
   width: 15px; height: 15px; flex: 0 0 auto; border-radius: 4px; margin-right: -2px;
   display: grid; place-items: center; color: var(--txt-3);
-  opacity: .45; transition: opacity var(--dur), background var(--dur), color var(--dur);
+  opacity: .45; transition: opacity var(--dur), background var(--dur), color var(--dur), scale var(--dur-pop) var(--ease-out);
 }
 .tb-tab:hover .tb-tab-close { opacity: .85; }
 .tb-tab-close:hover { opacity: 1; background: var(--wash-2); color: var(--txt); }
@@ -150,16 +150,43 @@ body.on-board .tb-veil { background: var(--bg-canvas); }
 .tb-tab-add {
   width: 24px; height: 24px; flex: 0 0 auto; border-radius: 7px; margin-left: 2px;
   display: grid; place-items: center; color: var(--txt-3);
-  transition: background var(--dur), color var(--dur);
+  transition: background var(--dur), color var(--dur), scale var(--dur-pop) var(--ease-out);
 }
 .tb-tab-add:hover { background: var(--wash); color: var(--txt-2); }
+
+/* The tabs live in a scroller: home, the arrows, the list and « + » stay put around it.
+   No limit on the number of tabs: past the floor width the strip scrolls (tabs.js) — wheel,
+   arrows, the active tab always brought into view — and its edges fade where tabs wait. */
+.tb-scroll {
+  display: flex; align-items: center; gap: 2px; min-width: 0; flex: 0 1 auto;
+  overflow: hidden; padding-block: 5px; margin-block: -5px;   /* the group line under the tabs */
+  scrollbar-width: none;
+}
+.tb-scroll::-webkit-scrollbar { display: none; }
+.tb-tabs.scroll .tb-scroll { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+.tb-scroll.fade-l { -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px); mask-image: linear-gradient(90deg, transparent, #000 24px); }
+.tb-scroll.fade-r, .tb-scroll.clip { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+.tb-scroll.fade-l.fade-r {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+.tb-arrow, .tb-list {
+  display: none; place-items: center; flex: 0 0 auto; height: 26px; border-radius: 7px; color: var(--txt-3);
+  transition: background var(--dur), color var(--dur), opacity var(--dur), scale var(--dur-pop) var(--ease-out);
+}
+.tb-arrow { width: 20px; }
+.tb-list { width: 24px; }
+.tb-tabs.scroll .tb-arrow, .tb-tabs.listed .tb-list { display: grid; }
+.tb-arrow:hover, .tb-list:hover, .tb-list.on { background: var(--wash); color: var(--txt-2); }
+.tb-arrow:disabled { opacity: .3; pointer-events: none; }
+.tb-arrow svg, .tb-list svg { display: block; }
 
 /* ── chips & buttons in the bar ─────────────────────────────────────── */
 .tb-actions { display: flex; align-items: center; gap: 4px; }
 .tb-chip {
   width: 28px; height: 28px; flex: 0 0 auto; border-radius: 8px;
   display: grid; place-items: center; font-size: 13px; font-weight: 600;
-  color: var(--txt-2); transition: background var(--dur), color var(--dur);
+  color: var(--txt-2); transition: background var(--dur), color var(--dur), scale var(--dur-pop) var(--ease-out);
 }
 .tb-chip:hover { background: var(--surface-3); color: var(--txt); }
 .tb-chip.on { background: var(--wash-2); color: var(--txt); }
@@ -169,7 +196,7 @@ body.on-board .tb-veil { background: var(--bg-canvas); }
   display: inline-flex; align-items: center; gap: 7px;
   height: 28px; padding: 0 12px; border-radius: 8px;
   font-size: 12.5px; font-weight: 550; color: var(--txt-2);
-  transition: background var(--dur), color var(--dur);
+  transition: background var(--dur), color var(--dur), scale var(--dur-pop) var(--ease-out);
 }
 .tb-btn:hover { background: var(--surface-3); color: var(--txt); }
 
@@ -210,6 +237,13 @@ body.kbd .win-btn:focus-visible::before { box-shadow: inset 0 0 0 1.5px var(--ac
 /* pressed: the button gives a little (0,98), and comes back as it is released */
 .btn:active { transform: scale(0.98); }
 .btn[disabled], .btn.is-disabled { opacity: .4; pointer-events: none; }
+/* the same give on every small control (SPEC §20.1): an icon button sinks a little more than a
+   word button, so both move by about one pixel. `scale` (not transform) composes with any transform
+   the control already has; each base rule carries `scale var(--dur-pop) var(--ease-out)` in its
+   transition, so the control comes back as smoothly as it went. */
+:is(.tb-tab-close, .tb-tab-add, .tb-arrow, .tb-list, .tb-chip, .set-close, .zb-btn, .zb-mini, .pl-btn,
+    .np-icon-btn, .vw-btn, .insp-star, .insp-more, .insp-x, .card-more, .lib-chip-x):active { scale: .9; }
+:is(.tb-btn, .toast-action, .g-dock-btn, .g-ro-btn, .zb-level, .mb-btn, .fp-chip, .fp-install, .gpu-chip):active { scale: .96; }
 .btn svg { display: block; flex: 0 0 auto; }
 
 /* the primary action: Slate's night-blue pill, static */
@@ -318,6 +352,8 @@ kbd {
 .ctx-item.hot .ctx-key, .ctx-item.hot .ctx-meta, .ctx-item.hot .ctx-hint { color: rgba(255,255,255,.72); }
 .ctx-item.hot .ctx-badge { color: #fff; border-color: rgba(255,255,255,.4); }
 .ctx-item.is-disabled { opacity: .32; }
+/* une entrée possible mais à qui il manque quelque chose (un mode sans ses entrées) : estompée, toujours cliquable */
+.ctx-item.dim:not(.hot) .ctx-label { color: var(--txt-3); }
 .ctx-item.danger { color: var(--danger); }
 .ctx-item.danger.hot { background: var(--danger); color: #fff; }
 .ctx-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
@@ -406,13 +442,14 @@ body.on-board .toasts { transform: translate(-50%, -58px); }
 .toast-action {
   margin: -4px -9px -4px 2px; height: 26px; padding: 0 10px; border-radius: var(--r-full);
   font-size: 12px; font-weight: 600; color: var(--txt);
-  background: var(--wash-2); transition: background var(--dur);
+  background: var(--wash-2); transition: background var(--dur), scale var(--dur-pop) var(--ease-out);
   flex: 0 0 auto;
 }
 .toast-action:hover { background: var(--wash-3); }
 .toast.out { animation: toast-out var(--dur-exit) var(--ease-in) forwards; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
-@keyframes toast-out { to { opacity: 0; transform: translateY(6px); } }
+/* translate (et non transform) : le FLIP des toasts qui se resserrent joue sur transform, les deux s'ajoutent */
+@keyframes toast-out { to { opacity: 0; translate: 0 6px; } }
 
 /* ── modal ──────────────────────────────────────────────────────────── */
 .modal-scrim {
@@ -431,6 +468,11 @@ body.on-board .toasts { transform: translate(-50%, -58px); }
 }
 .modal-scrim.out .modal { animation: modal-out var(--dur-menu) var(--ease-in) forwards; }
 @keyframes modal-out { to { opacity: 0; transform: scale(.985); } }
+
+/* a panel that closes at once (menu, model list, palette, inspector, queue): its inert copy fades
+   where it stood (motion.js ghostOut). The copy replays nothing and takes no click. */
+.mo-ghost, .mo-ghost * { animation: none !important; transition: none !important; pointer-events: none !important; }
+.mo-ghost { user-select: none; }
 .modal h2 { font-size: 16px; font-weight: 620; margin-bottom: 6px; font-family: var(--font-display); }
 .modal p { font-size: 13px; color: var(--txt-2); margin-bottom: 18px; white-space: pre-line; }
 .modal-field {
@@ -449,7 +491,7 @@ body.on-board .toasts { transform: translate(-50%, -58px); }
 .set-head h2 { margin: 0; }
 .set-close {
   width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--txt-3);
-  transition: background var(--dur), color var(--dur);
+  transition: background var(--dur), color var(--dur), scale var(--dur-pop) var(--ease-out);
 }
 .set-close:hover { background: var(--surface-3); color: var(--txt); }
 .set-body { padding: 4px 22px 22px; overflow: auto; min-height: 0; }
@@ -498,9 +540,12 @@ body.on-board .toasts { transform: translate(-50%, -58px); }
   font-family: var(--font-mono); font-size: 11px; color: var(--txt-2); white-space: nowrap;
 }
 .set-state::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--txt-3); }
-.set-state.on::before { background: var(--ok); }
-.set-text { font-size: 12px; line-height: 1.5; color: var(--txt-2); padding: 4px 0 10px; }
-.set-text p { margin: 0 0 6px; }
+/* “on” stays neutral (da.md §4.5: only red speaks): the dot turns white, never green */
+.set-state.on { color: var(--txt); }
+.set-state.on::before { background: var(--txt); }
+/* the assistants' help: the size and colour of every other help line (.set-hint) */
+.set-text { font-size: 11.5px; line-height: 1.5; color: var(--txt-3); padding: 4px 0 10px; }
+.set-text p { margin: 0 0 6px; font-size: inherit; color: inherit; }   /* not .modal p (13 px): a help text */
 .set-text em { font-style: normal; color: var(--txt); }
 .set-cmd {
   display: flex; align-items: center; gap: 6px; margin: 2px 0 12px; padding: 0 4px 0 10px; min-height: 32px;

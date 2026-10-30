@@ -9,14 +9,18 @@
 //     The sheet is ignored with MiniMax (note).
 //   Keyframes (« Images-clés », Model block): up to 4 images the shot passes through, spread evenly between the first
 //     and the last frame in wire order — MiniMaxH3AddGuide (MiniMax, checked on the GPU 24/10: same framing as the
-//     start image or the shot cuts to it) / LTXVAddGuide (LTX, « à essayer »).
+//     start image or the shot cuts to it) / LTXVAddGuide (LTX: imposed at strength 1 in 1 pass, « à essayer » ;
+//     advised at 0.6, on a multiple of 8, in 2 passes — the recipe validated 30/10).
 //   MiniMax only (Model block): a sound to follow (MiniMaxH3AddGuide audio at frame 0, « à essayer ») and
 //     « Prolonger une vidéo » (checked on the GPU 24/10: invisible join): the last 39 frames of the video (with their sound) are anchored at frame 0, the model
 //     carries the shot on, and the result is the whole video made longer (original + what comes after).
-//   LTX extras (Model block, « à essayer »). « Deux passes » is hidden (not in the catalog: the 24/10 GPU test was
-//     less sharp than one pass) but kept for later tuning: for final renders = the shot made at half size, its video
-//     latent enlarged ×2 by the LTX latent upscaler, the start image and guides put back at full size and 3 refining
-//     steps (the official distilled second stage); « Enrichir la consigne » = Gemma rewrites the prompt first.
+//   « Passes » (LTX, catalog `passes`: auto | 1 | 2; old hidden `twoPass: true` = 2). 2 passes = the recipe validated
+//     30/10 (the author's lab recipe): the shot made at half size in 8 steps (the
+//     motion is decided there), start image imposed, end image and keyframes LTXVPreprocess-ed and ADVISED (0.7 / 0.6,
+//     keyframes on a multiple of 8); its video latent enlarged ×2 by the LTX latent upscaler; start image and the same
+//     guides again at full size; 3 refining steps (sigmas 0.909375, 0.725, 0.421875, 0). Auto = 2 passes as soon as an
+//     end image or keyframes are wired. Previews, a reference sheet and MiniMax stay in 1 pass (note).
+//     « Enrichir la consigne » (Model block, « à essayer ») = Gemma rewrites the prompt first.
 //   Character / place LoRA (SPEC §12): after the technical LoRAs, its trigger word put first in the prompt.
 // Preview = low resolution and at most 3 s; final = full size. Frames come back as PNG and are encoded once.
 const path = require('node:path');
@@ -64,6 +68,10 @@ const TXT = {
   durCapped: { fr: '{name} va jusqu’à {n} s : vidéo de {n} s.', en: '{name} goes up to {n} s: a {n} s video.' },
   textOnly: { fr: 'MiniMax H3 à partir du texte seul, sans image de début.', en: 'MiniMax H3 from text alone, no start image.' },
   keys: { fr: '{n} image(s)-clé(s) aux images {list}.', en: '{n} keyframe(s) at frames {list}.' },
+  keysAdvised: {
+    fr: '{n} image(s)-clé(s) conseillée(s) aux images {list} (force 0,6).',
+    en: '{n} keyframe(s) advised at frames {list} (strength 0.6).',
+  },
   keysTrial: {
     fr: '{n} image(s)-clé(s) aux images {list} (à essayer : regarde si le plan passe bien par elles).',
     en: '{n} keyframe(s) at frames {list} (to try: check that the shot really passes through them).',
@@ -95,9 +103,17 @@ function tailOf(meta) {
   return { n24, tail: tail >= 5 ? tail : 0 };
 }
 
-/** Keyframe positions: evenly spread strictly between the first and the last frame. */
-function keyFrames(frames, n) {
-  return Array.from({ length: n }, (_, i) => Math.round(((i + 1) * (frames - 1)) / (n + 1)));
+/**
+ * Keyframe positions: evenly spread strictly between the first and the last frame. `grid8` (2 passes, as the
+ * validated recipe): each on the nearest multiple of 8, kept inside the shot.
+ */
+function keyFrames(frames, n, grid8 = false) {
+  return Array.from({ length: n }, (_, i) => {
+    const f = ((i + 1) * (frames - 1)) / (n + 1);
+    if (!grid8) return Math.round(f);
+    const top = Math.max(8, Math.floor((frames - 2) / 8) * 8);
+    return Math.min(top, Math.max(8, Math.round(f / 8) * 8));
+  });
 }
 
 function plan(x, vmeta = null) {
@@ -108,9 +124,12 @@ function plan(x, vmeta = null) {
   const video = mm && x.inputs && x.inputs.video && x.inputs.video.abs ? x.inputs.video : null;
   const vm = video ? (vmeta || video.meta || {}) : null;
   const sheet = !mm && !!(x.inputs && x.inputs.sheet && x.inputs.sheet.abs);
-  // two passes: final LTX renders without a sheet; both stages on LTX's grid, so the full size is a multiple of 64
-  const twoPassAsked = !mm && !preview && x.params.twoPass === true;
-  const twoPass = twoPassAsked && !sheet;
+  const keys = Math.min(MAX_KEYS, listOf(x.inputs && x.inputs.keys).length);
+  // « Passes »: auto = 2 with an end image or keyframes; final LTX renders without a sheet only. Both stages on
+  // LTX's grid, so the full size is a multiple of 64
+  const hasEnd = !!(x.inputs && x.inputs.end && x.inputs.end.abs);
+  const passes = E.ltxPasses(x, { autoTwo: hasEnd || keys > 0, preview, sheet, minimax: mm });
+  const twoPass = passes.two;
   // an extension keeps the video's own frame shape
   const ratio = vm && vm.w > 0 && vm.h > 0 ? vm.w / vm.h : E.formatRatio(x.params.format, start && start.meta);
   // the longest shot the model is trusted with (SPEC §22: LTX 10 s, MiniMax H3 15 s); the block shows the same bound
@@ -123,7 +142,6 @@ function plan(x, vmeta = null) {
   const ext = video ? tailOf(vm) : null;
   const newS = ext ? Math.max(1, Math.min(seconds, durMax - ext.tail / 24)) : seconds;
   const frames = mm ? E.minimaxLength(ext ? ext.tail / 24 + newS : seconds, preview) : E.ltxFrames(fps, seconds);
-  const keys = Math.min(MAX_KEYS, listOf(x.inputs && x.inputs.keys).length);
   const askedShort = E.shortSide(x, { preview, previewCap: mm ? 448 : 576 });
   const mmc = mm ? E.minimaxCanvas(x, { preview, previewCap: 448 }) : null;
   const short = mm ? mmc.short : askedShort;
@@ -134,7 +152,7 @@ function plan(x, vmeta = null) {
   const { w, h } = size;
   const free = E.videoSize({ ratio, short, exact: !mm, maxPixels: mm ? mmc.maxPixels : LTX_MAX_PIXELS });
   return { m, mm, preview, sheet, w, h, ow: size.ow, oh: size.oh, crop: size.crop, fps, frames, asked, durMax, ext, keys,
-    twoPass, twoPassSheet: twoPassAsked && sheet, enhance: !mm && x.params.enhance === true,
+    twoPass, passes, enhance: !mm && x.params.enhance === true,
     durCapped: (Number(x.params.duration) || 5) > durMax,
     capped: mm && mmc.capped, native: mm && mmc.native, sheetCapped: sheet && free.w * free.h > w * h };
 }
@@ -176,8 +194,13 @@ async function animate(x, temps) {
   if (sheet && sheet.abs && mm) notes.push(E.t(TXT.sheetSkipped));
   const upKeys = [];
   for (const k of keys) upKeys.push(await E.upload(x, k.abs));
-  const at = keyFrames(frames, upKeys.length);
-  if (upKeys.length) notes.push(E.t(mm ? TXT.keys : TXT.keysTrial, { n: upKeys.length, list: at.join(', ') }));
+  const at = keyFrames(frames, upKeys.length, pl.twoPass);
+  if (upKeys.length) {
+    notes.push(E.t(mm ? TXT.keys : pl.twoPass ? TXT.keysAdvised : TXT.keysTrial, { n: upKeys.length, list: at.join(', ') }));
+  }
+  // guide strengths: imposed (1) in 1 pass; advised in 2 passes, the same in both (recipe of 30/10)
+  const endStrength = pl.twoPass ? E.LTX_END_STRENGTH : 1;
+  const keyStrength = pl.twoPass ? E.LTX_KEY_STRENGTH : 1;
   // the sound to follow, cut to the shot's length; the video to extend, at 24 fps and the shot's size, and its tail
   let upFollow = null;
   if (follow) {
@@ -284,14 +307,19 @@ async function animate(x, temps) {
       // essai_sortie_ecran.py: the end image guides the latent at frame -1, guides cropped before decoding
       P.addNode(g, 'LoadImage', { image: upEnd }, '30');
       P.addNode(g, 'ImageScale', { upscale_method: 'lanczos', width: w, height: h, crop: 'center', image: ['30', 0] }, '33');
-      chain('31', { class_type: 'LTXVAddGuide', inputs: { vae: ['3', 0], image: ['33', 0], frame_idx: -1, strength: 1 } });
+      // 2 passes: the end image prepared like the start one (LTXVPreprocess, as the recipe)
+      if (pl.twoPass) P.addNode(g, 'LTXVPreprocess', { img_compression: 18, image: ['33', 0] }, '39');
+      chain('31', { class_type: 'LTXVAddGuide', inputs: { vae: ['3', 0], image: [pl.twoPass ? '39' : '33', 0], frame_idx: -1,
+        strength: endStrength } });
     }
     upKeys.forEach((name, i) => {
       // a keyframe: the same guide as the end image, at its frame (a single image may sit on any frame)
       P.addNode(g, 'LoadImage', { image: name }, String(50 + i));
       P.addNode(g, 'ImageScale', { upscale_method: 'lanczos', width: w, height: h, crop: 'center', image: [String(50 + i), 0] },
         String(55 + i));
-      chain(String(60 + i), { class_type: 'LTXVAddGuide', inputs: { vae: ['3', 0], image: [String(55 + i), 0], frame_idx: at[i], strength: 1 } });
+      if (pl.twoPass) P.addNode(g, 'LTXVPreprocess', { img_compression: 18, image: [String(55 + i), 0] }, String(65 + i));
+      chain(String(60 + i), { class_type: 'LTXVAddGuide', inputs: { vae: ['3', 0], image: [String((pl.twoPass ? 65 : 55) + i), 0],
+        frame_idx: at[i], strength: keyStrength } });
     });
     if (upSheet) {
       // official Ingredients workflow: sheet fitted (padded black) to the frame, looped over the clip, guide at 0
@@ -318,13 +346,13 @@ async function animate(x, temps) {
       P.addNode(g, 'LTXVLatentUpsampler', { samples: guide ? ['32', 2] : ['19', 0], upscale_model: ['90', 0], vae: ['3', 0] }, '91');
       P.addNode(g, 'LTXVImgToVideoInplace', { strength: 1, bypass: false, vae: ['3', 0], image: ['9', 0], latent: ['91', 0] }, '92');
       let g2 = null;
-      const chain2 = (id, image, frame) => {
+      const chain2 = (id, image, frame, strength) => {
         P.addNode(g, 'LTXVAddGuide', { positive: g2 ? [g2, 0] : ['7', 0], negative: g2 ? [g2, 1] : ['7', 1],
-          latent: g2 ? [g2, 2] : ['92', 0], vae: ['3', 0], image, frame_idx: frame, strength: 1 }, id);
+          latent: g2 ? [g2, 2] : ['92', 0], vae: ['3', 0], image, frame_idx: frame, strength }, id);
         g2 = id;
       };
-      if (upEnd) chain2('93', ['33', 0], -1);
-      upKeys.forEach((_, i) => chain2(String(110 + i), [String(55 + i), 0], at[i]));
+      if (upEnd) chain2('93', ['39', 0], -1, endStrength);
+      upKeys.forEach((_, i) => chain2(String(110 + i), [String(65 + i), 0], at[i], keyStrength));
       P.addNode(g, 'LTXVConcatAVLatent', { video_latent: g2 ? [g2, 2] : ['92', 0], audio_latent: ['19', 1] }, '96');
       P.addNode(g, 'RandomNoise', { noise_seed: E.seedOf(x) + 1 }, '97');
       P.addNode(g, 'CFGGuider', { cfg: 1, model: g['15'].inputs.model, positive: g2 ? [g2, 0] : ['7', 0],
@@ -342,8 +370,9 @@ async function animate(x, temps) {
       P.set(g, '21', 'samples', ['102', 1]);
       notes.push(E.t('twoPass', { w1: w / 2, h1: h / 2 }));
     }
-    if (pl.twoPassSheet) notes.push(E.t('twoPassSheet'));
   }
+  const passNote = E.ltxPassesNote(pl.passes);
+  if (passNote) notes.push(passNote);
   if (upEnd && !mm) notes.push(E.t(TXT.endTip));
   if (pl.durCapped) notes.push(E.t(TXT.durCapped, { name: E.t(mm ? TXT.minimax : TXT.ltx), n: pl.durMax }));
   P.set(g, '9990', 'filename_prefix', E.prefix(x, '', 'frame'));
@@ -401,8 +430,8 @@ function estimate(x) {
     const { mm, preview, sheet, w, h, frames, twoPass, enhance } = plan(x);
     // MiniMax: 704×1248×56 in ~2 min, ×124 in ~5 min 17 (lab)
     if (mm) return preview ? 1.5 : 0.6 + 2.2 * (frames / 56) * ((w * h) / (704 * 1248));
-    // two passes: 8 steps at a quarter of the pixels, then 3 at full size; Gemma's rewrite ~ half a minute
-    if (twoPass) return E.ltxMinutes(w / 2, h / 2, frames) + E.ltxMinutes(w, h, frames) * (3 / 8) + (enhance ? 0.5 : 0);
+    // two passes: 8 steps at a quarter of the pixels, then the ×2 refining pass; Gemma's rewrite ~ half a minute
+    if (twoPass) return E.ltxTwoPassMinutes(w, h, frames) + (enhance ? 0.5 : 0);
     // a looped sheet doubles the tokens: attention grows ~ tokens^1.5
     return E.ltxMinutes(w, h, frames) * (sheet ? 2.8 : 1);
   } catch { return x && x.mode === 'preview' ? 1 : 7; }

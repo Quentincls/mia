@@ -77,9 +77,12 @@ export function toast(msg, { kind = 'info', action = null, ms, icon: glyph = nul
   return { close };
 }
 
-/** The toasts on screen, for the FLIP. */
+/**
+ * The toasts on screen, for the FLIP, those fading out included: left out, one that is leaving jumped 46 px down when
+ * the one under it was removed. Its exit slides with `translate` (app.css), the FLIP with `transform`: both add up.
+ */
 function stack(host) {
-  return [...host.children].filter((n) => !n.classList.contains('out')).map((n, i) => ({ key: n, el: n }));
+  return [...host.children].map((n) => ({ key: n, el: n }));
 }
 
 export default toast;

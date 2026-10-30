@@ -78,8 +78,8 @@ const INSTRUCTIONS = [
   'Organising work: one project per film or subject, one board per shot or idea inside it (project « Mon film » → boards « Plan 01 », « Plan 02 »…); inside one board, mia_add_section frames related blocks. When the user names a project, put the new boards in it (folder). Never move, rename or empty the user\'s boards unless asked.',
   'Heavy GPU jobs go through the same queue and GPU lock as the user\'s own clicks (one at a time); a job may wait for the GPU. Never delete blocks you did not create unless asked.',
   'Ports: image→image|media, video→video|media, text→text, audio→audio (import a wav/mp3/m4a/flac with mia_import_media, wire it into the Son block, or into a Model block\'s sound inputs: MiniMax reference sounds, a sound to follow). Settings marked "overriddenByInput" are replaced by a wired text block (Consigne).',
-  'MODEL BLOCK (type "gen", « Modèle »): when the user names a model (LTX, MiniMax, Wan, Qwen, Seedance, Kling…), add ONE gen block with params.model = its family (mia_catalog → types[gen].params[model].choices: fam:ltx, fam:minimax, fam:wan, fam:qwen, fam:klein, fam:qwen21, or hf:… online). Its inputs are its model\'s; what you wire picks what it does (choices[].ways: needs, takes, settings) — read types[gen].howItWorks once. mia_get_board shows each Model block\'s model.does, model.uses (wired inputs it uses), model.connect (what is missing), model.ignored, model.trial and, while nothing is wired, model.startFrom (the inputs it can start from — the « Partir de : » buttons of the screen; wire the port, no click needed). The task blocks (i2v « Animer une image », ref2v…) and recipes still exist and stay fine for their one job.',
-  'Local model abilities (this PC): LTX 2.5 — from text, animate a start image (+ end image, + up to 4 keyframes in between, + a character sheet), guided video and 3D render → photoreal (both take the start image as their look), video from a character sheet alone (one image with the cast/props side by side; trial). LTX does NOT blend several separate references: use MiniMax for that. MiniMax H3 — from text, animate (start/end, keyframes, a sound to follow), references (up to 9 images, 3 videos, 3 sounds, named « Image n », « Vidéo n », « Son n » in the prompt), guided video, extend a video (the result is the whole video made longer), up to 15 s, 768p. Wan Animate 2 — a character + a motion video (settings motionFidelity, likeness). Qwen Image Edit — edit an image with up to 2 helper images. FLUX.2 Klein 9B (fam:klein) — an image from text in seconds (format, resolution 1K/1.5K), or wire an image to edit it keeping its framing. Qwen-Image 2.1 Turbo (fam:qwen21) — an image from text, very good at text written in the image (up to 2K); wire an image into its « layout » input (Cadrage) to keep the composition of that image through its depth while the LoRA keeps its style (setting layoutFollow strict / balanced / loose; with a layout wired, format is ignored: the result takes the shape of the layout image). Retouch a zone (Qwen-Image 2.1): wire the image into « image » and a Mask block (type mask, its « image » input = the same image) into « mask »; the user paints the zone with the « Dessiner la zone » button of the Mask block (you cannot paint: ask the user, or set params.drawing to the absolute path of a black and white PNG you made, white = the zone; mode change or protect, feather in px). Only the zone is remade (zoneStrength 0.3 to 1, default 0.7: how much it changes) and pasted back, the rest of the image stays identical to the pixel; a small zone (under 300 px) is zoomed on automatically. Recipe retouch-zone. A LoRA may come with advice and a suggested strength (mia_catalog → types[gen].params[lora].choices[].advice / .strength): follow them. Both: non-commercial licenses (trials, personal projects), new (trial); a LoRA is offered only on the model it was trained for. Keyframes: keep the start image\'s framing, a keyframe framed differently makes the shot cut. Features marked trial are new: tell the user to judge them by eye.'
+  'MODEL BLOCK (type "gen", « Modèle »): when the user names a model (LTX, MiniMax, Wan, Qwen, Seedance, Kling…), add ONE gen block with params.model = its family (mia_catalog → types[gen].params[model].choices: fam:ltx, fam:minimax, fam:wan, fam:qwen, fam:klein, fam:qwen21, or hf:… online). Its inputs are its model\'s; what you wire picks what it does (choices[].ways: needs, takes, settings) — read types[gen].howItWorks once. mia_get_board shows each Model block\'s model.does, model.uses (wired inputs it uses), model.connect (what is missing), model.ignored, model.trial and, while nothing is wired, model.startFrom (the inputs it can start from — the « Partir de : » buttons of the screen; wire the port, no click needed). An ONLINE family (hf:…) shows its mode on screen: params.workflow = a way id forces that mode (it then says what it lacks and ignores the rest), "auto" lets the wires decide; its settings, bounds and tiers are per mode (choices[].ways[].settings), with the provider\'s notes, prompt tokens (cite: Kling 4.0 @image_1, @video_1…) and a public price. The task blocks (i2v « Animer une image », ref2v…) and recipes still exist and stay fine for their one job.',
+  'Local model abilities (this PC): LTX 2.5 — from text, animate a start image (+ end image, + up to 4 keyframes in between, + a character sheet), guided video and 3D render → photoreal (both take the start image as their look), video from a character sheet alone (one image with the cast/props side by side; trial). Setting passes (auto | 1 | 2): 2 passes = motion decided at half resolution, latent enlarged ×2 then refined, end image and keyframes advised (0.7 / 0.6) instead of imposed; auto = 2 passes when an end image or keyframes are wired, else 1 (text and 3D render → photoreal: auto = 1; guided video and previews: always 1). LTX does NOT blend several separate references: use MiniMax for that. MiniMax H3 — from text, animate (start/end, keyframes, a sound to follow), references (up to 9 images, 3 videos, 3 sounds, named « Image n », « Vidéo n », « Son n » in the prompt), guided video, extend a video (the result is the whole video made longer), up to 15 s, 768p. Wan Animate 2 — a character + a motion video (settings motionFidelity, likeness). Qwen Image Edit — edit an image with up to 2 helper images. FLUX.2 Klein 9B (fam:klein) — an image from text in seconds (format, resolution 1K/1.5K), or wire an image to edit it keeping its framing. Qwen-Image 2.1 Turbo (fam:qwen21) — an image from text, very good at text written in the image (up to 2K); wire an image into its « layout » input (Cadrage) to keep the composition of that image through its depth while the LoRA keeps its style (setting layoutFollow strict / balanced / loose; with a layout wired, format is ignored: the result takes the shape of the layout image). Retouch a zone (Qwen-Image 2.1): wire the image into « image » and a Mask block (type mask, its « image » input = the same image) into « mask »; the user paints the zone with the « Dessiner la zone » button of the Mask block (you cannot paint: ask the user, or set params.drawing to the absolute path of a black and white PNG you made, white = the zone; mode change or protect, feather in px). Only the zone is remade (zoneStrength 0.3 to 1, default 0.7: how much it changes) and pasted back, the rest of the image stays identical to the pixel; a small zone (under 300 px) is zoomed on automatically. Recipe retouch-zone. A LoRA may come with advice and a suggested strength (mia_catalog → types[gen].params[lora].choices[].advice / .strength): follow them. Both: non-commercial licenses (trials, personal projects), new (trial); a LoRA is offered only on the model it was trained for. Keyframes: keep the start image\'s framing, a keyframe framed differently makes the shot cut. Features marked trial are new: tell the user to judge them by eye.'
 ].join('\n');
 
 const nodeRef = {
@@ -109,7 +109,7 @@ const projectIdAlias = { type: 'string', deprecated: true, description: 'Depreca
 const TOOLS = [
   {
     name: 'mia_status', method: 'status', annotations: { title: 'Mia: status', ...RO },
-    description: 'Is Mia open, the language of its interface (mia.lang: write to the user in it), which view is shown (home page or a board), which board is open (id, name) and in which project (folder), how many blocks, the ComfyUI engine state, the GPU (VRAM, who holds it) and the job queue, and which capabilities (image-to-video, depth, cutout…) have a model installed. Call it first.',
+    description: 'Is Mia open, the language of its interface (mia.lang: write to the user in it), which view is shown (home page or a board), which board is open (id, name) and in which project (folder), how many blocks, the ComfyUI engine state, the GPU (VRAM, who holds it) and the job queue (engine.queue: running/waiting overall, local {running, waiting} and online {running, waiting, atHiggsfield, max} apart: online jobs run in parallel, up to the « Calculs en ligne simultanés » setting, and never wait for the GPU), and which capabilities (image-to-video, depth, cutout…) have a model installed. Call it first.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }
   },
   {
@@ -166,7 +166,7 @@ const TOOLS = [
   },
   {
     name: 'mia_get_board', method: 'get_board', annotations: { title: 'Mia: read the board', ...RO },
-    description: 'The open board (id, name, its project): every block (id, type, name in Mia\'s language, title, position/size, all settings, inputs with what is wired into them, outputs with their concrete type, computation state, whether its result is out of date, and its current result with ABSOLUTE file paths), the wires and the sections. A Model block also has model {family, does, workflow, otherWays, uses (wired inputs it uses), connect (inputs still needed), ignored (wired but unused), trial, startFrom (nothing wired yet: the ports it can start from, each with what it would then do)}. Use it to find ids and check your work.',
+    description: 'The open board (id, name, its project): every block (id, type, name in Mia\'s language, title, position/size, its settings, inputs with what is wired into them, outputs with their concrete type, computation state, whether its result is out of date, and its current result with ABSOLUTE file paths), the wires and the sections. A Model block also has model {family, does, workflow, otherWays, uses (wired inputs it uses), connect (inputs still needed), ignored (wired but unused), trial, startFrom (nothing wired yet: the ports it can start from, each with what it would then do)}; an online one adds mode (chosen or auto), modes (each way and what it lacks), accepts (inputs of the current mode at its tier), tier, price (public rate: min/max per second, run or image), cite (prompt tokens), unsupported, and its params are those of the current mode with their defaults (hf.*). Use it to find ids and check your work.',
     inputSchema: { type: 'object', properties: { boardId: boardIdProp('Optional: open this board (p_…) first'), projectId: projectIdAlias }, additionalProperties: false }
   },
   {
@@ -187,12 +187,12 @@ const TOOLS = [
   },
   {
     name: 'mia_connect', method: 'connect', annotations: { title: 'Mia: wire two blocks', ...EDIT },
-    description: 'Wire an output of one block into an input of another (the cursor draws it). Ports may be omitted: the first compatible output/input is picked (a required empty input first) — on a Model block, name the input port (start, end, keys, refs, refVideos, refAudios, video, audio, guide…): the port chooses what the block does. Every input of a Model block\'s model can be wired, even one the UI keeps behind « Partir de » or « + Ajouter »; without a port, its model\'s main input comes first while it has room, then an input that works on its own. A single input that is already wired is replaced; a multi input adds the wire (numbered by the vertical order of the sources). Errors list the compatible ports.',
+    description: 'Wire an output of one block into an input of another (the cursor draws it). Ports may be omitted: the first compatible output/input is picked (a required empty input first) — on a Model block, name the input port (start, end, keys, refs, refVideos, refAudios, video, audio, guide…): the port chooses what the block does. Every input of a Model block\'s model can be wired, even one the UI keeps behind « Partir de » or « + Ajouter »; without a port, its model\'s main input comes first while it has room, then an input that works on its own. When the block\'s current mode does not use that input, the answer says ignored:true with a note (and, online, the mode that uses it: set params.workflow). A single input that is already wired is replaced only when you named it in to.port (a guessed port never replaces a wire: the answer then asks you to name it); a multi input adds the wire (numbered by the vertical order of the sources). Errors list the compatible ports.',
     inputSchema: { type: 'object', properties: { from: nodeRef, to: nodeRef }, required: ['from', 'to'], additionalProperties: false }
   },
   {
     name: 'mia_set_params', method: 'set_params', annotations: { title: 'Mia: change settings', ...EDIT, idempotentHint: true },
-    description: 'Change settings of a block in one undoable step. Values are validated against the catalog: select/seg take one of the listed values, sliders a number in range, model settings "auto", "none" (when allowed) or a model id/name from mia_catalog, prompts free text (LTX prompts work best in English; the user\'s own text may be in another language).',
+    description: 'Change settings of a block in one undoable step. Values are validated against the catalog: select/seg take one of the listed values (or their label), sliders a number in range, model settings "auto", "none" (when allowed) or a model id/name from mia_catalog, prompts free text (LTX prompts work best in English; the user\'s own text may be in another language). An online Model block checks hf.* against its CURRENT mode and tier (params.workflow in the same call counts; "auto" goes back to the wires): a value only another mode allows is kept with a note, a setting of another tier is kept with a note. The answer lists the settings the block shows now, notes, and model (what it does now).',
     inputSchema: {
       type: 'object',
       properties: { nodeId: { type: 'string' }, params: { type: 'object', additionalProperties: true, description: '{settingId: value}' } },
@@ -250,7 +250,7 @@ const TOOLS = [
   },
   {
     name: 'mia_jobs', method: 'jobs', annotations: { title: 'Mia: job queue', ...RO },
-    description: 'The job queue (running, waiting, recently finished): block, board (boardId; projectId is the same id under its old, deprecated name), state, progress, ETA, and who holds the GPU if it waits.',
+    description: 'The job queue (running, waiting, recently finished): block, board (boardId; projectId is the same id under its old, deprecated name), state, progress, ETA, and who holds the GPU if it waits. Online jobs carry online:true and remote (queued | running at Higgsfield, full = the Higgsfield queue is full and Mia retries by itself, same Idempotency-Key: never charged twice).',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }
   },
   {
@@ -424,10 +424,52 @@ async function call(method, params, timeoutMs = CALL_TIMEOUT_MS) {
 // ---------------------------------------------------------------- tools/call
 const textContent = (obj) => [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 1) }];
 
+// Arguments checked against the tool's inputSchema before anything reaches Mia: an unknown field (« toPort »
+// instead of to:{node, port}) or a wrong shape is an error, never a silent guess that edits the board.
+// (enum not checked here: some fields also take a name, e.g. a block type in Mia's language.)
+const fieldList = (schema) => Object.entries(schema.properties || {}).filter(([, s]) => !(s && s.deprecated))
+  .map(([k, s]) => (s && s.type === 'object' && s.properties ? `${k} {${Object.keys(s.properties).join(', ')}}` : k)).join(', ');
+function typeOk(v, type) {
+  if (!type) return true;
+  if (type === 'object') return !!v && typeof v === 'object' && !Array.isArray(v);
+  if (type === 'array') return Array.isArray(v);
+  if (type === 'integer') return Number.isInteger(v);
+  if (type === 'number') return typeof v === 'number' && Number.isFinite(v);
+  return typeof v === type;   // string, boolean
+}
+function argError(toolName, schema, value, where) {
+  if (!schema || schema.type !== 'object' || !value || typeof value !== 'object') return null;
+  const props = schema.properties || {};
+  const at = where ? ` dans « ${where} »` : '';
+  if (schema.additionalProperties === false) {
+    const extra = Object.keys(value).filter((k) => !(k in props) && !(k === 'projectId' && !where && 'boardId' in props));
+    if (extra.length) {
+      const s = extra.length > 1 ? 's' : '';
+      return `${toolName} : champ${s} inconnu${s}${at} : ${extra.map((k) => `« ${k} »`).join(', ')}. Champs : ${fieldList(schema)}.`;
+    }
+  }
+  for (const k of schema.required || []) {
+    if (value[k] == null) return `${toolName} : champ « ${where ? `${where}.` : ''}${k} » manquant. Champs : ${fieldList(schema)}.`;
+  }
+  for (const [k, s] of Object.entries(props)) {
+    const v = value[k];
+    if (v == null || !s) continue;
+    const name = where ? `${where}.${k}` : k;
+    if (!typeOk(v, s.type)) {
+      const shape = s.type === 'object' && s.properties ? ` {${Object.keys(s.properties).join(', ')}}` : '';
+      return `${toolName} : « ${name} » doit être de type ${s.type}${shape}.`;
+    }
+    if (s.type === 'object') { const err = argError(toolName, s, v, name); if (err) return err; }
+  }
+  return null;
+}
+
 async function callTool(name, args) {
   const tool = TOOL_BY_NAME.get(name);
   if (!tool) return { content: textContent(`Outil inconnu : « ${name} ». Outils : ${TOOLS.map((t) => t.name).join(', ')}.`), isError: true };
   const params = args && typeof args === 'object' ? { ...args } : {};
+  const bad = argError(name, tool.inputSchema, params, '');
+  if (bad) return { content: textContent(bad), isError: true };
   // deprecated alias: projectId (a board id before SPEC §18) still works as boardId
   if (params.projectId != null && params.boardId == null) params.boardId = params.projectId;
   let timeout = CALL_TIMEOUT_MS;

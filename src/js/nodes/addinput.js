@@ -11,7 +11,7 @@
 import { t, tl, register } from '../i18n.js';
 import { el } from '../util.js';
 import { openMenu } from '../ui/menu.js';
-import { blockFamily, portLabels } from './ports.js';
+import { blockFamily, portLabels, blockWorkflow } from './ports.js';
 import { portsOfWorkflow, needsOf } from './route.js';
 import { inputDefs } from '../catalog.js';
 import { portTip } from './porthelp.js';
@@ -23,6 +23,9 @@ register({
     'addinput.uses': 'Pour : {list}',
     'addinput.upTo': 'jusqu’à {n}',
     'addinput.with': '{what} (avec {needs})',
+    'addinput.titleMode': 'Pour « {mode} »',
+    'addinput.otherMode': 'Dans un autre mode',
+    'addinput.switchTo': 'Passe le bloc en « {mode} »',
     'addinput.toMiniMax': 'Partir de références ? Passe ce bloc sur MiniMax H3',
     'addinput.toMiniMaxHint': 'LTX ne mélange pas plusieurs images de référence séparées ; MiniMax H3 le fait (jusqu’à 9 images, 3 vidéos, 3 sons). Les fils restent branchés.',
   },
@@ -32,6 +35,9 @@ register({
     'addinput.uses': 'For: {list}',
     'addinput.upTo': 'up to {n}',
     'addinput.with': '{what} (with {needs})',
+    'addinput.titleMode': 'For “{mode}”',
+    'addinput.otherMode': 'In another mode',
+    'addinput.switchTo': 'Switches the block to “{mode}”',
     'addinput.toMiniMax': 'Starting from references? Switch this block to MiniMax H3',
     'addinput.toMiniMaxHint': 'LTX does not blend several separate reference images; MiniMax H3 does (up to 9 images, 3 videos, 3 sounds). The wires stay connected.',
   },
@@ -49,13 +55,22 @@ function usesOf(fam, id) {
 export function openAddInput(node, anchor, defs, onPick, onModel = null) {
   if (!node || !defs?.length) return null;
   const fam = blockFamily(node);
-  const items = [{ group: t('addinput.title', { family: fam?.def?.name || '' }) }];
+  const online = !!fam && fam.provider !== 'local';
   const names = portLabels(fam);
   const word = (pid) => tl(names[pid] || inputDefs(node.type).find((i) => i.id === pid)?.label || { fr: pid });
-  for (const d of defs) {
+  // modèle en ligne (30/10) : d'abord ce que prend le mode retenu, puis « Dans un autre mode » (un clic y passe)
+  const here = defs.filter((d) => !d.other);
+  const elsewhere = online ? defs.filter((d) => d.other && d.other.length) : [];
+  const items = [];
+  if (here.length) {
+    const plan = online ? blockWorkflow(node, connectedOf(node)) : null;
+    items.push({ group: plan ? t('addinput.titleMode', { mode: tl(plan.workflow.label || {}) }) : t('addinput.title', { family: fam?.def?.name || '' }) });
+  }
+  for (const d of here) {
     const uses = usesOf(fam, d.id);
     const tipInfo = portTip(node, d, 'in', d.type) || {};
-    const labels = [...new Set(uses.map((wf) => {
+    // en ligne, l'entrée sert au mode retenu : « Pour : … » n'apprendrait rien
+    const labels = online ? [] : [...new Set(uses.map((wf) => {
       const needs = needsOf(wf).filter((pid) => pid !== d.id);
       return needs.length ? t('addinput.with', { what: tl(wf.label || {}), needs: needs.map(word).join(', ') }) : tl(wf.label || {});
     }).filter(Boolean))];
@@ -71,6 +86,26 @@ export function openAddInput(node, anchor, defs, onPick, onModel = null) {
       action: () => onPick(d.id),
     });
   }
+  if (elsewhere.length) {
+    if (items.length) items.push('sep');
+    items.push({ group: t('addinput.otherMode') });
+    for (const d of elsewhere) {
+      // le mode qui l'exige d'abord (Image de début → Animer une image), sinon le premier qui la prend
+      const wf = d.other.find((w) => needsOf(w).includes(d.id)) || d.other[0];
+      items.push({
+        value: `mode:${d.id}`,
+        label: tl(d.label),
+        hint: '',
+        uses: t('addinput.switchTo', { mode: tl(wf.label || {}) }),
+        icon: `<span class="pa-dot" data-t="${d.type}"></span>`,
+        badge: d.trial || wf.trial ? t('addinput.trial') : '',
+        action: () => {
+          try { window.__mia?.editor?.setParam?.(node.id, 'workflow', wf.id); } catch { /* planche en lecture seule */ }
+          onPick(d.id);
+        },
+      });
+    }
+  }
   // LTX ne part pas de références : le dire là où on les cherche, et proposer MiniMax d'un clic
   if (onModel && fam?.provider === 'local' && fam.key === 'ltx') {
     items.push('sep', {
@@ -85,6 +120,13 @@ export function openAddInput(node, anchor, defs, onPick, onModel = null) {
     renderItem: (it) => el('div', { class: 'ctx-text' },
       el('span', { class: 'ctx-label' }, it.label),
       it.hint ? el('span', { class: 'ctx-hint' }, it.hint) : null,
-      it.uses ? el('span', { class: 'pa-uses' }, it.uses) : null),
+      it.uses ? el('span', { class: 'ai-uses' }, it.uses) : null),
   });
+}
+
+/** Entrées reliées d'un bloc (ids), lues sur la planche. */
+function connectedOf(node) {
+  let m = {};
+  try { m = window.__mia?.editor?.inputsOf?.(node.id) || {}; } catch { m = {}; }
+  return Object.keys(m).filter((k) => m[k] && m[k].length);
 }

@@ -34,6 +34,7 @@ const STR = {
     reused: 'Higgsfield a déjà reçu ce calcul avec d’autres réglages : relance-le.',
     blocked: 'Ce modèle est momentanément bloqué chez Higgsfield : réessaie plus tard.',
     busy: 'Trop de calculs en même temps sur ton compte Higgsfield : réessaie dans un instant.',
+    queueFull: 'File Higgsfield pleine pour ton compte : rien n’a été créé ni facturé.',
     down: 'Higgsfield est indisponible pour l’instant ({status}) : réessaie plus tard.',
     notFound: 'Higgsfield ne connaît pas ce modèle pour ton compte ({detail}).',
     badAmount: 'Indique un montant en dollars, par exemple 50.',
@@ -51,6 +52,7 @@ const STR = {
     reused: 'Higgsfield already received this job with other settings: run it again.',
     blocked: 'This model is blocked at Higgsfield for now: try again later.',
     busy: 'Too many jobs at once on your Higgsfield account: try again in a moment.',
+    queueFull: 'Higgsfield queue full for your account: nothing was created or charged.',
     down: 'Higgsfield is unavailable for now ({status}): try again later.',
     notFound: 'Higgsfield does not know this model for your account ({detail}).',
     badAmount: 'Give an amount in dollars, for example 50.',
@@ -58,6 +60,23 @@ const STR = {
   },
 };
 const DAY = 24 * 3600 * 1000;
+
+/**
+ * Seconds to wait from a 429: the Retry-After header (seconds, or an HTTP date), else the body's
+ * retry_after_seconds, else 10 s; bounded to 1 s – 10 min.
+ */
+function retryAfter(header, bodySeconds) {
+  let s = NaN;
+  const h = header == null ? '' : String(header).trim();
+  if (/^\d+(\.\d+)?$/.test(h)) s = Number(h);
+  else if (h) {
+    const at = Date.parse(h);
+    if (Number.isFinite(at)) s = (at - Date.now()) / 1000;
+  }
+  if (!(s >= 0) && Number.isFinite(bodySeconds) && bodySeconds >= 0) s = bodySeconds;
+  if (!Number.isFinite(s) || s < 0) s = 10;
+  return Math.max(1, Math.min(600, Math.ceil(s)));
+}
 const iso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /**
@@ -98,19 +117,32 @@ function createService({ file, safe, lang: langFn, log, base = BASE }) {
   /** Readable error from an HTTP answer of Higgsfield (status codes of docs.higgsfield.ai/docs/concepts/errors). */
   async function failure(res) {
     let detail = '';
+    let code = null;
+    let bodyRetry = null;
     try {
       const j = await res.json();
-      detail = Array.isArray(j.detail) ? j.detail.map((d) => d.msg || JSON.stringify(d)).join(' ; ') : String(j.detail || j.error || '');
+      const d = j && j.detail;
+      if (Array.isArray(d)) detail = d.map((x) => x.msg || JSON.stringify(x)).join(' ; ');
+      else if (d && typeof d === 'object') {
+        // 429 « account_queue_full »: detail = { code, message, retryable, limit, retry_after_seconds } (docs: rate-limits)
+        detail = String(d.message || d.code || '');
+        code = d.code ? String(d.code) : null;
+        bodyRetry = Number(d.retry_after_seconds);
+      } else detail = String(d || j.error || '');
+      if (!code && j && typeof j.code === 'string') code = j.code;
     } catch { /* no JSON */ }
     detail = detail.slice(0, 300);
     const s = res.status;
+    if (s === 429) {
+      const retry = retryAfter(res.headers.get('retry-after'), bodyRetry);
+      return userError(code === 'account_queue_full' ? 'queueFull' : 'busy', null, { status: s, retry, code });
+    }
     if (s === 401) return userError('refused', null, { status: s });
     if (s === 403) return userError('noBalance', null, { status: s });
     if (s === 404) return userError('notFound', { detail }, { status: s });
     if (s === 400) return userError('invalid', { detail: detail || s }, { status: s });
     if (s === 422) return /idempot/i.test(detail) ? userError('reused', null, { status: s }) : userError('invalid', { detail: detail || s }, { status: s });
     if (s === 423) return userError('blocked', null, { status: s });
-    if (s === 429) return userError('busy', null, { status: s, retry: Number(res.headers.get('retry-after')) || 10 });
     if (s >= 500) return userError('down', { status: s }, { status: s, retry: 5 });
     return userError('unexpected', { status: s }, { status: s });
   }
@@ -209,13 +241,15 @@ function createService({ file, safe, lang: langFn, log, base = BASE }) {
   /**
    * What the account spent between two dates: GET /models/usage, the cost of its completed generations (analytics,
    * not a billing record: Higgsfield's figures can lag a few minutes). At most 31 days per call: longer spans are
-   * cut into 30-day windows. → { amount, currency }
+   * cut into windows just under 31 days (a whole month of 31 days, up to now, stays ONE call: with 30-day windows the
+   * last evening of October needed two). → { amount, currency }
    */
   async function spent(fromMs, toMs, { signal } = {}) {
     let total = 0;
     let currency = 'USD';
-    for (let a = fromMs; a < toMs; a += 30 * DAY) {
-      const b = Math.min(toMs, a + 30 * DAY);
+    const SPAN = 31 * DAY - 2000;   // the end is rounded up to the second (+1 s): never over 31 days
+    for (let a = fromMs; a < toMs; a += SPAN) {
+      const b = Math.min(toMs, a + SPAN);
       for (let page = 1; page <= 20; page++) {
         // to the second (the API's precision): the start rounded down, the end up, so they never meet
         const q = new URLSearchParams({ start: iso(Math.floor(a / 1000) * 1000), end: iso(Math.ceil(b / 1000) * 1000 + (b % 1000 ? 0 : 1000)),
@@ -321,4 +355,4 @@ function register(ctx) {
   return svc;
 }
 
-module.exports = { register, createService };
+module.exports = { register, createService, retryAfter };

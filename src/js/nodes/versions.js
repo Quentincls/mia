@@ -18,7 +18,7 @@ import { tip } from '../ui/tooltip.js';
 import { emit } from '../bus.js';
 import { state } from '../state.js';
 import * as runs from './runs.js';
-import { strings, urlFor, fmtDur, shellDo } from './media.js';
+import { strings, urlFor, fmtDur, shellDo, lightImageUrl } from './media.js';
 
 strings({
   'node.ver.label': 'v{n}',
@@ -77,14 +77,26 @@ export function runDir(nodeId, run) {
   return `outputs/${nodeId}/${run?.runId || ''}`;
 }
 
-/** Vignette d'une version : poster de vidéo, sinon l'image elle-même. */
-export function runThumb(run) {
+/**
+ * Vignette d'une version : poster de vidéo, sinon la vignette de 640 px de l'image (l'original tant qu'elle n'est pas
+ * faite : 60 originaux décodés pesaient 68 Mpx sur Plan 01). `onLite(url)` : la vignette, quand elle arrive.
+ */
+export function runThumb(run, onLite = null) {
   const outs = run?.outputs ? Object.values(run.outputs) : [];
   for (const o of outs) {
     if (o.poster) return urlFor(o.poster);
-    if (o.kind === 'image' && o.path) return urlFor(o.path);
+    if (o.kind === 'image' && o.path) return lightImageUrl({ rel: o.path, kind: 'image', meta: o.meta }, onLite);
   }
   return '';
+}
+
+/** La vignette d'une version en <img> (null sans vignette), qui passe sur la petite image dès qu'elle est faite. */
+export function runThumbImg(run, attrs = {}) {
+  let img = null;
+  const src = runThumb(run, (u) => { if (img) img.src = u; });
+  if (!src) return null;
+  img = el('img', { src, alt: '', draggable: 'false', ...attrs });
+  return img;
 }
 
 /** Ligne de détail : « il y a 5 min · Aperçu · 38 s ». */
@@ -153,7 +165,7 @@ export function mountVersions(host, opts) {
   host?.append(root);
 
   function chip(run, n, isCurrent, isViewed, pinned) {
-    const thumb = runThumb(run);
+    const thumb = runThumbImg(run, { decoding: 'async' });
     const star = el('button', {
       class: `nb-ver-star ${pinned ? 'on' : ''}`,
       html: icon(pinned ? 'star-fill' : 'star', 12),
@@ -167,7 +179,7 @@ export function mountVersions(host, opts) {
       class: `nb-ver${isCurrent ? ' is-current' : ''}${isViewed ? ' is-viewed' : ''}${pinned ? ' is-pinned' : ''}`,
       role: 'button', dataset: { run: run.runId },
     },
-    el('span', { class: 'nb-ver-thumb' }, thumb ? el('img', { src: thumb, alt: '', draggable: 'false', decoding: 'async' }) : null),
+    el('span', { class: 'nb-ver-thumb' }, thumb),
     el('span', { class: 'nb-ver-txt' },
       el('span', { class: 'nb-ver-n' }, t('node.ver.label', { n })),
       // seul un aperçu est marqué : « Générer » calcule les réglages tels quels, c'est le cas ordinaire

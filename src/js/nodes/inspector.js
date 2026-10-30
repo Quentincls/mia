@@ -16,7 +16,8 @@ import { openMenu } from '../ui/menu.js';
 import { button } from '../ui/controls.js';
 import * as runs from './runs.js';
 import { mountParams } from './params.js';
-import { runThumb, runDetail, runDir, versionMenuItems, askDelete } from './versions.js';
+import { ghostOut } from '../ui/motion.js';
+import { runThumbImg, runDetail, runDir, versionMenuItems, askDelete } from './versions.js';
 import { strings, metaText, baseName, shellDo } from './media.js';
 import { modelName, modelProblem } from './modelpicker.js';
 
@@ -93,8 +94,11 @@ function host() {
 export function mountInspector() { host(); }
 
 export function closeInspector() {
-  teardown();
   const r = host();
+  // la copie d'abord, puis le démontage : démonté avant, le formulaire des Réglages manquait à la copie (saut de
+  // ~330 px de la liste des versions pendant qu'elle s'efface)
+  ghostOut(r, { dur: 'exit', to: { translate: '10px 0' } });   // repart vers son bord (SPEC §20.1)
+  teardown();
   r.hidden = true;
   r.replaceChildren();
 }
@@ -209,7 +213,7 @@ function renderVersions() {
   for (const r of all) {
     const ok = r.status === 'done' || !r.status;
     const n = ok ? runs.versionNumber(nodeId, r.runId) : 0;
-    const thumb = ok ? runThumb(r) : '';
+    const thumb = ok ? runThumbImg(r) : null;
     const isPinned = pinned === r.runId;
     const isCurrent = current?.runId === r.runId;
     const star = ok ? el('button', {
@@ -233,7 +237,7 @@ function renderVersions() {
     if (r.status === 'error') tags.push(el('span', { class: 'insp-tag err' }, t('insp.failed')));
     if (r.status === 'cancelled') tags.push(el('span', { class: 'insp-tag' }, t('insp.cancelled')));
     const row = el('div', { class: `insp-ver${isCurrent ? ' is-current' : ''}${ok ? '' : ' is-failed'}` },
-      el('span', { class: 'insp-ver-thumb' }, thumb ? el('img', { src: thumb, alt: '', draggable: 'false' }) : el('span', { html: icon(ok ? 'file' : 'warn', 14) })),
+      el('span', { class: 'insp-ver-thumb' }, thumb || el('span', { html: icon(ok ? 'file' : 'warn', 14) })),
       el('div', { class: 'insp-ver-body' },
         el('div', { class: 'insp-ver-line' },
           el('span', { class: 'insp-ver-n' }, ok ? t('node.ver.label', { n }) : '—'), ...tags),

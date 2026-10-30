@@ -1,7 +1,7 @@
 {
   "name": "mia",
   "productName": "Mia",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Mia — planche nodale pour l'IA locale",
   "main": "electron/main.js",

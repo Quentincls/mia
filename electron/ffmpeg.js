@@ -597,7 +597,9 @@ function encodeArgs(o = {}) {
  * timestamps from 0, faststart. NVENC first, libx264 if NVENC is missing or fails.
  * The original is never touched: the proxy only serves the display.
  * @param {object} o { maxSide:1920, gop:12, meta (a probe() result, saves a probe),
- *                     onProgress, signal, encoder:'nvenc'|'x264' (force) }
+ *                     onProgress, signal, encoder:'nvenc'|'x264' (force),
+ *                     audio:false (no sound track), fpsMode:'passthrough' (every frame kept with its
+ *                     own timestamp: the board's light copy keeps the original's frame numbers) }
  */
 async function proxy(src, dst, o = {}) {
   const info = o.meta && o.meta.w ? o.meta : await probe(src, { signal: o.signal });
@@ -607,15 +609,16 @@ async function proxy(src, dst, o = {}) {
   const tmp = partName(dst);
 
   const scale = W && H ? `scale=${W}:${H}:flags=lanczos,format=yuv420p` : 'format=yuv420p';
+  const audio = o.audio === false ? ['-an'] : ['-c:a', 'aac', '-b:a', '160k'];
   const base = (codec) => [
     '-y', ...inputOpts(src), '-i', src,
-    '-map', '0:v:0', '-map', '0:a:0?',
+    '-map', '0:v:0', ...(o.audio === false ? [] : ['-map', '0:a:0?']),
     '-vf', scale,
     ...codec,
     '-pix_fmt', 'yuv420p', '-profile:v', 'high',
     '-g', gop, '-bf', '0',
-    '-fps_mode', 'cfr', '-avoid_negative_ts', 'make_zero',
-    '-c:a', 'aac', '-b:a', '160k',
+    '-fps_mode', o.fpsMode === 'passthrough' ? 'passthrough' : 'cfr', '-avoid_negative_ts', 'make_zero',
+    ...audio,
     '-movflags', '+faststart',
     tmp
   ];

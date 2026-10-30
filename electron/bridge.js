@@ -83,6 +83,21 @@ const STR = {
   catalogFailed: { fr: 'Catalogue illisible : {msg}', en: 'Unreadable catalog: {msg}' }
 };
 
+/**
+ * Corps d'une requête en texte. UTF-8 d'abord ; un corps qui n'en est pas (une console Windows en cp1252 qui envoie
+ * « Wan 3.0 — drone de loin » : le tiret devient l'octet 0x97) est relu en windows-1252 au lieu de laisser des « � »
+ * dans les titres (vu le 30/10). La table est écrite ici : le TextDecoder('windows-1252') de Node lit en fait du
+ * latin-1 (0x80-0x9F y deviennent des caractères de contrôle invisibles).
+ */
+const CP1252_HIGH = '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ';
+function decodeBody(buf) {
+  if (!buf || !buf.length) return '';
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch { /* pas de l'UTF-8 */ }
+  let out = '';
+  for (const b of buf) out += b >= 0x80 && b <= 0x9f ? CP1252_HIGH[b - 0x80] : String.fromCharCode(b);
+  return out;
+}
+
 class BridgeError extends Error {}
 
 function fill(s, vars) {
@@ -389,7 +404,7 @@ class Bridge {
     req.on('end', async () => {
       if (tooBig) return;
       let msg;
-      try { msg = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'); } catch { send(400, { ok: false, error: this.tr('badRequest') }); return; }
+      try { msg = JSON.parse(decodeBody(Buffer.concat(chunks)) || '{}'); } catch { send(400, { ok: false, error: this.tr('badRequest') }); return; }
       if (!msg || typeof msg.method !== 'string') { send(400, { ok: false, error: this.tr('badRequest') }); return; }
       let out;
       try {
@@ -591,8 +606,9 @@ class Bridge {
       'What you WIRE decides what it does (choices[].ways): each way lists needs (must be wired), needsOneOf, takes (inputs and how many) and settings. Nothing wired → from text; a start image → animate it; references → blend them (MiniMax); a guide video (+ a start image) → guided; a 3D render (+ a start image as look) → photoreal; a character sheet alone → LTX video from a sheet (trial); a character + a motion video → animate a character; a video into MiniMax → extend it.',
       'A wired input that no possible way uses alone (an end image, keyframes or a sheet without a start image on LTX…) BLOCKS the block with « Il manque pour « … » : … » — nothing silently starts from text: wire what is missing. mia_get_board → model.connect lists it.',
       'On screen an empty Model block of a family that does several things (LTX, MiniMax, most online ones) shows only its prompt and a « Partir de : » line, one button per starting point (start image, references, 3D render, guide video, character sheet…): nothing is imposed, nothing wired = from the prompt (a family that cannot start from the prompt, like Genjutsu, shows what it needs instead). Wan and Qwen (one way each) show their inputs. You never click those buttons: wire the port directly (mia_get_board → model.startFrom lists them while nothing is wired).',
-      'Wire with mia_connect giving the input port id: every input the family takes can be wired, even those the UI keeps behind « Partir de » or « + Ajouter » (wiring shows them). Without a port: the family\'s main input while it has room (MiniMax: refs, also for the 2nd and 3rd image; LTX: start), then an input that works on its own (a sound into MiniMax → audio, the sound to follow). An input the chosen way does not take is ignored with a note. When two ways fit equally, params.workflow picks one (mia_get_board → model.otherWays).',
-      'Several images into one multi input are numbered by the vertical order of their source blocks (top first). Name them in the prompt: MiniMax references « Image 1 », « Vidéo 2 », « Son 1 » (Son = the reference sounds input, counted on their own); Qwen edit: the image to edit is « image 1 », helper images « image 2 », « image 3 ». Keyframes (keys) are spread evenly between the first and the last frame, in that order.',
+      'Wire with mia_connect giving the input port id: every input the family takes can be wired, even those the UI keeps behind « Partir de » or « + Ajouter » (wiring shows them). Without a port: the family\'s main input while it has room (MiniMax: refs, also for the 2nd and 3rd image; LTX: start), then an input that works on its own (a sound into MiniMax → audio, the sound to follow). An input the chosen way does not take is ignored: mia_connect then answers ignored:true with a note naming the mode that uses it. On this PC, when two ways fit equally, params.workflow picks one (mia_get_board → model.otherWays).',
+      'ONLINE families (hf:…) show their MODE on screen (Auto · Texte · Animer · Références · Modifier…): params.workflow = a way id (or its label) FORCES that mode even if the wires say otherwise — the block then lists what it lacks (model.connect) and ignores what it does not use (model.ignored); "auto" (or "") goes back to choosing from the wires. mia_get_board → model.mode, model.modes (each with what it lacks), model.accepts (inputs of the current mode at its tier), model.price (public rate), model.cite. Settings are checked against the CURRENT mode and tier (ways[].settings: bounds, options, onlyTiers, tierOptions); a value valid only in another mode is kept with a note. hf.tier picks the tier (Kling 3.0 Turbo has no sound, no end image, no prompt adherence, and needs a prompt). In an edit mode with durationFromSource, hf.duration left unset follows the connected video (bounded); ways[].minSeconds is the shortest source accepted. ways[].notes are the provider\'s own rules; ways[].unsupported lists fields Mia does not send yet.',
+      'Several images into one multi input are numbered by the vertical order of their source blocks (top first). Name them in the prompt: MiniMax references « Image 1 », « Vidéo 2 », « Son 1 » (Son = the reference sounds input, counted on their own); Qwen edit: the image to edit is « image 1 », helper images « image 2 », « image 3 ». An online way with ways[].cite uses ITS tokens: Kling 4.0 references @image_1… and @video_1…; Kling 4.0 edit: the source video is @video_1, reference videos start at @video_2 (cite.videoFrom), images at @image_1 — « Image n » / « Vidéo n » are rewritten to those tokens before sending. Keyframes (keys) are spread evenly between the first and the last frame on this PC; online, the model places them itself, in wire order.',
       'Inputs or ways marked trial are new and not yet checked by the user at the lab: use them when asked, and tell the user to judge the result by eye. Settings of a way not in the list are ignored.',
       'Prompts: English works best for LTX and MiniMax. Preview first (low resolution, short), then final.',
     ].join(' ');
@@ -608,16 +624,44 @@ class Bridge {
       const portsOf = (fam) => Object.fromEntries(Object.entries(R.portsOfFamily(fam)).map(([k, v]) => [k, v.multi ? `${v.max} max` : '1']));
       // each way of working: what it does, what must be wired, what it takes (how many; « trial » = not yet checked
       // at the lab: say so to the user), its settings — the assistant wires exactly what the way it wants needs
-      const waysOf = (def) => (def.workflows || []).map((wf) => {
+      const waysOf = (def, online = false) => (def.workflows || []).map((wf) => {
         const ports = R.portsOfWorkflow(wf);
         const w = { workflow: wf.id, does: L(wf.label), needs: wf.required || [] };
         if (Array.isArray(wf.oneOf) && wf.oneOf.length) w.needsOneOf = wf.oneOf;
         w.takes = Object.fromEntries(Object.entries(ports).map(([k, v]) => [k, `${v.multi ? `${v.max} max` : '1'}${v.trial ? ' (trial)' : ''}`]));
-        w.settings = (wf.params || []).map((p) => (typeof p === 'string' ? p : p.id));
+        if (online) {
+          // en ligne (30/10) : chaque mode a SES réglages (Kling Omni : durée 5/10 en « Animer », 3-10 en
+          // « Références »), ses paliers, ses notes de doc, ses jetons de citation, son tarif public, ce que Mia n'envoie pas
+          w.settings = (wf.params || []).map(settingDef);
+          for (const [k, v] of Object.entries(wf.ports || {})) {
+            if (v && v.minSeconds) (w.minSeconds = w.minSeconds || {})[k] = v.minSeconds;
+            if (v && v.maxSeconds) (w.maxSeconds = w.maxSeconds || {})[k] = v.maxSeconds;
+            if (v && Array.isArray(v.onlyTiers)) (w.portTiers = w.portTiers || {})[k] = v.onlyTiers;
+            if (v && v.help) (w.portHelp = w.portHelp || {})[k] = L(v.help);
+          }
+          if (wf.cite) w.cite = wf.cite;
+          if (wf.durationFromSource) w.durationFromSource = wf.durationFromSource;
+          if (Array.isArray(wf.promptRequiredTiers) && wf.promptRequiredTiers.length) w.promptRequiredTiers = wf.promptRequiredTiers;
+          if (wf.price) w.price = wf.price;
+          if (Array.isArray(wf.notes) && wf.notes.length) w.notes = wf.notes;
+          if (Array.isArray(wf.unsupported) && wf.unsupported.length) w.unsupported = wf.unsupported.map((u) => ({ field: u.field, why: L(u.reason) }));
+        } else w.settings = (wf.params || []).map((p) => (typeof p === 'string' ? p : p.id));
         if (wf.promptRequired) w.promptRequired = true;
         if (wf.trial) w.trial = true;
         return w;
       });
+      // un réglage en ligne tel que le donne le catalogue (bornes, choix, paliers, aide)
+      function settingDef(p) {
+        const o = { id: p.id, kind: p.kind, label: L(p.label), default: p.default };
+        if (Array.isArray(p.options)) o.options = p.options.map((x) => ({ value: x.value, label: L(x.label) }));
+        for (const k of ['min', 'max', 'step', 'unit', 'format', 'maxItems']) if (p[k] !== undefined && p[k] !== '') o[k] = p[k];
+        if (p.advanced) o.advanced = true;
+        if (Array.isArray(p.onlyTiers)) o.onlyTiers = p.onlyTiers;
+        if (p.tierOptions) o.tierOptions = p.tierOptions;
+        if (p.hint) o.hint = L(p.hint);
+        if (p.id === 'hf.output_format') o.hiddenInMia = true;
+        return o;
+      }
       for (const [key, def] of Object.entries(local.families || {})) {
         if (!Array.isArray(def.workflows) || !def.workflows.length) continue;
         const fam = R.familyOf(`fam:${key}`, local, cloud, inv);
@@ -638,7 +682,8 @@ class Bridge {
           }
         }
         out.push({ value: def.key, label: def.name, maker: def.maker, where: 'online (Higgsfield, paid)', kind: def.kind,
-          does: (def.workflows || []).map((w) => L(w.label)), inputs: portsOf(fam), ways: waysOf(def), settings });
+          does: (def.workflows || []).map((w) => L(w.label)), inputs: portsOf(fam), ways: waysOf(def, true), settings,
+          settingsNote: 'Union of all modes (first definition): each mode\'s own settings, bounds, tiers and notes are in ways[].settings.' });
       }
       return out;
     };
@@ -738,7 +783,9 @@ class Bridge {
     return (Array.isArray(list) ? list : []).map((j) => ({
       jobId: j.jobId, boardId: j.projectId, projectId: j.projectId /* deprecated alias of boardId, kept one version */, board: j.projectName || null, nodeId: j.nodeId, block: j.label, type: j.type,
       mode: j.mode, state: j.state, progress: j.progress, etaS: j.eta ?? null, message: j.message || null,
-      waitingFor: j.who || null
+      waitingFor: j.who || null,
+      // online job (Model block hf:…): its own lane, never waits for the GPU; remote = queued | running | full at Higgsfield
+      ...(j.online ? { online: true, remote: j.remote || null } : {})
     }));
   }
 

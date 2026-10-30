@@ -10,8 +10,9 @@
 
 import { typeOf, typeLabel, inputDefs, outputDefs, portDef } from '../catalog.js';
 import { state } from '../state.js';
-import { familyOf, portsOfFamily, chooseWorkflow, needsOf } from './route.js';
+import { familyOf, portsOfFamily, portsOfWorkflow, chooseWorkflow, needsOf, tierOf, tierAllows } from './route.js';
 import { localCatalog, cloudCatalog } from './profiles.js';
+import { tl } from '../i18n.js';
 
 /** Le bloc a-t-il des ports qui suivent son modèle ? */
 export const isModelBlock = (node) => typeOf(node?.type)?.ports === 'model';
@@ -56,11 +57,18 @@ export function nodeInputs(node, connected = [], { all = false, extra = [], hold
   // principale : c'est elle qui reçoit un fil lâché sur sa barre de titre.
   const main = new Set(isMultiWay(fam) && !node.collapsed ? [] : mainPorts(fam));
   for (const id of hold) main.add(id);
-  const shown = new Set(Array.isArray(node.data?.shown) ? node.data.shown : []);
   // ce qui manque à la façon de faire retenue se montre toujours (on ne demande jamais de brancher une entrée cachée)
   const plan = fam ? chooseWorkflow(fam, connected, node.params?.workflow || null) : null;
+  // modèle en ligne (30/10) : seules les entrées du mode retenu (et de son palier) se montrent ; une entrée ajoutée
+  // pour un autre mode se range tant qu'elle est vide, une entrée branchée reste là, grisée (« ignorée »)
+  // En mode auto (rien d'imposé), une entrée ajoutée reste visible si un mode de ce palier la prend : une fois
+  // branchée, l'auto bascule de lui-même (« Partir de : Image de début » sur un bloc vide, en « texte → vidéo »)
+  const mode = fam && fam.provider !== 'local' && plan ? modePorts(node, plan.workflow) : null;
+  const keeps = mode && !plan.forced ? anyModeTakes(node, fam) : mode;
+  const shown = new Set((Array.isArray(node.data?.shown) ? node.data.shown : []).filter((id) => !keeps || keeps.has(id)));
   for (const id of plan?.blocked ? plan.missing : []) main.add(id);
   const ignored = new Set(plan?.unused || []);
+  if (mode) for (const id of connected) if (id !== 'prompt' && ports[id] && !mode.has(id)) ignored.add(id);
   const labels = portLabels(fam);
   const visible = (id) => all || id === 'prompt' || main.has(id) || shown.has(id) || connected.includes(id) || extra.includes(id);
   const list = inputDefs(node.type)
@@ -81,6 +89,13 @@ export function nodeInputs(node, connected = [], { all = false, extra = [], hold
     });
   // les entrées montrées le temps d'un fil vont tout en bas : rien ne bouge sous le pointeur (audit 25/10, LIVE-1)
   return [...list.filter((d) => !d.peek), ...list.filter((d) => d.peek)];
+}
+
+/** Entrées qu'au moins une façon de faire de la famille prend au palier choisi du bloc → Set d'ids. */
+function anyModeTakes(node, fam) {
+  const out = new Set(['prompt']);
+  for (const wf of (fam?.def?.workflows) || []) for (const id of modePorts(node, wf)) out.add(id);
+  return out;
 }
 
 /** La famille sait-elle faire plusieurs choses (plusieurs façons de faire) ? */
@@ -153,11 +168,57 @@ export function usefulInputs(node, connected = []) {
   });
 }
 
-/** Entrées que la famille sait prendre et que le bloc ne montre pas encore (le menu « + Ajouter »). */
+/**
+ * Entrées que prend une façon de faire au palier choisi du bloc (`onlyTiers` du catalogue en ligne : pas d'image de
+ * fin en Kling 3.0 Turbo), la Consigne comprise → Set d'ids.
+ */
+export function modePorts(node, wf) {
+  const tier = tierOf(wf, node?.params || {});
+  const out = new Set(['prompt']);
+  for (const [id, v] of Object.entries((wf && wf.ports) || {})) if (tierAllows(v, tier)) out.add(id);
+  return out;
+}
+
+/**
+ * L'entrée `id` est-elle dans la façon de faire `wf` mais exclue par le palier choisi (`onlyTiers` : pas d'image de
+ * fin en Kling 3.0 Turbo) ? → { tier, tierName, tiers:[noms], first } ; null sinon. La raison est alors le palier, pas
+ * le mode (l'aide disait « Pas utilisée pour Animer une image · Sert à : Animer une image »).
+ */
+export function tierExclusion(node, wf, id) {
+  const def = ((wf && wf.ports) || {})[id];
+  if (!def || !Array.isArray(def.onlyTiers)) return null;
+  const tier = tierOf(wf, node?.params || {});
+  if (tierAllows(def, tier)) return null;
+  const tdef = ((wf && wf.params) || []).find((x) => x && x.id === 'hf.tier');
+  const name = (v) => {
+    const o = ((tdef && tdef.options) || []).find((x) => String(x.value) === String(v));
+    return (o && tl(o.label || {})) || String(v);
+  };
+  return { tier, tierName: name(tier), tiers: def.onlyTiers.map(name), first: def.onlyTiers[0] };
+}
+
+/**
+ * Entrées que la famille sait prendre et que le bloc ne montre pas encore (le menu « + Ajouter »). Modèle en ligne :
+ * celles qu'un autre mode seulement prend portent `other` = [façons de faire qui les prennent] (le menu les range
+ * sous « Dans un autre mode », un clic y passe le bloc).
+ */
 export function hiddenInputs(node, connected = []) {
   if (!isModelBlock(node)) return [];
   const seen = new Set(nodeInputs(node, connected).map((d) => d.id));
-  return nodeInputs(node, connected, { all: true }).filter((d) => !d.unused && !seen.has(d.id));
+  const list = nodeInputs(node, connected, { all: true }).filter((d) => !d.unused && !seen.has(d.id));
+  const fam = blockFamily(node);
+  if (!fam || fam.provider === 'local') return list;
+  const plan = chooseWorkflow(fam, connected, node.params?.workflow || null);
+  const mode = plan ? modePorts(node, plan.workflow) : new Set();
+  // en mode auto, l'entrée ajoutée se montre et, branchée, choisit le mode : rien à ranger « dans un autre mode »
+  const auto = !plan?.forced;
+  const anyTakes = auto ? anyModeTakes(node, fam) : null;
+  return list.map((d) => {
+    if (mode.has(d.id)) return d;
+    if (auto) return anyTakes.has(d.id) ? d : { ...d, other: [] };
+    const other = (fam.def.workflows || []).filter((wf) => wf !== plan?.workflow && portsOfWorkflow(wf)[d.id] && modePorts(node, wf).has(d.id));
+    return { ...d, other };
+  }).filter((d) => !d.other || d.other.length);      // rien qui la prenne à ce palier (image de fin en Turbo) : rien à proposer
 }
 
 /** Sorties d'un bloc : celle du bloc Modèle prend le type de ce que fait sa famille. */

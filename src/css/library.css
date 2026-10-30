@@ -68,7 +68,7 @@
 }
 .lib-chip-x {
   width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: var(--txt-2);
-  transition: background var(--dur), color var(--dur);
+  transition: background var(--dur), color var(--dur), scale var(--dur-pop) var(--ease-out);
 }
 .lib-chip-x:hover { background: var(--wash-3); color: var(--txt); }
 

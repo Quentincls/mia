@@ -1,7 +1,8 @@
 /**
  * The title-bar tab strip (Slate's, slate-ui §4): a home button, one tab per
- * open board (8 at most), a "+" for a new one. Quiet by design — no border,
- * no fill until you hover; the active tab barely lifts.
+ * open board (as many as Quentin wants: there is no limit), a "+" for a new
+ * one. Quiet by design — no border, no fill until you hover; the active tab
+ * barely lifts.
  *
  * Boards of the same project are grouped the way Chrome groups tabs (SPEC
  * §18.4): contiguous, led by a chip in the project's colour (its name; its
@@ -14,12 +15,15 @@
  *
  * Room is measured, never guessed (Slate's roomNeeded, slate-ui §2.3): tabs
  * keep their natural width while they fit; then folded groups shrink to their
- * coloured count, then the names share the room equally down to a floor; then
- * the groups that do not hold the active tab fold to their count for as long as
- * room is short (never remembered: a wider window gives them back); below that
- * the strip fades away (Slate's fade) and one chip — « Planche  8 ▾ » — lists
- * the tabs, with « Replier / Déplier » per project to win the room back. The
- * window's own buttons, the GPU chip and the gear never give way.
+ * coloured count, then the names share the room equally down to a floor; below
+ * that the tabs keep the floor width and the strip SCROLLS: the wheel (vertical
+ * or horizontal) and two arrows move it smoothly, its edges fade where more
+ * tabs wait, and the active tab is always brought into view. From the moment
+ * names are cut, a list button (▾) lists every open tab, with a search field
+ * once they are many, « Replier / Déplier » per project and « Fermer les
+ * autres ». Only a window too narrow for even one tab folds the strip into one
+ * chip (Slate's fade). The window's own buttons, the GPU chip and the gear
+ * never give way.
  */
 import { el, $ } from '../util.js';
 import { t, tn, register } from '../i18n.js';
@@ -55,7 +59,9 @@ register({
     'tabs.group.tipFolded': '{name} · {count} — clic pour déplier',
     'tabs.group.tipAuto': '{name} · {count} — replié faute de place, clic pour choisir un onglet',
     'tabs.group.collapseGroup': 'Replier le groupe',
-    'tabs.group.expandGroup': 'Déplier le groupe'
+    'tabs.group.expandGroup': 'Déplier le groupe',
+    'tabs.prev': 'Onglets précédents',
+    'tabs.next': 'Onglets suivants'
   },
   en: {
     'tabs.home': 'Home',
@@ -82,27 +88,34 @@ register({
     'tabs.group.tipFolded': '{name} · {count} — click to unfold',
     'tabs.group.tipAuto': '{name} · {count} — folded for lack of room, click to pick a tab',
     'tabs.group.collapseGroup': 'Fold the group',
-    'tabs.group.expandGroup': 'Unfold the group'
+    'tabs.group.expandGroup': 'Unfold the group',
+    'tabs.prev': 'Previous tabs',
+    'tabs.next': 'Next tabs'
   }
 });
 
-export const MAX_TABS = 8;
 const NAME_MAX = 120;      // the same limit as the main process (store.js cleanDisplayName)
 
-// measured layout (px) — see .tb-tab and .tb-gchip in app.css
+// measured layout (px) — see .tb-tab, .tb-gchip, .tb-arrow and .tb-list in app.css
 const TAB_MAX = 200;       // a tab never grows past this…
-const TAB_FLOOR = 84;      // …nor shrinks under this: below, the strip folds into one chip
+const TAB_FLOOR = 100;     // …nor shrinks under this: below, the strip scrolls
 const TAB_CHROME = 37;     // padding 9 + 9, gap 6, close 15, its -2 px margin
 const CHIP_TIGHT = 92;     // an unfolded group's chip, once the names have to shorten
 const CHIP_NAME_MIN = 40;  // a folded chip shows its name (cut) only with this much more than its bare count
 const GAP = 2;             // between every piece of the strip (and inside a group)
 const DRAG_MIN = 40;       // the window can always be grabbed between the tabs and the actions
+const LIST_W = 24;         // the list button (▾), shown once the names are cut
+const ARROW_W = 20;        // each scroll arrow, shown while the strip scrolls
+const EDGE = 28;           // the active tab keeps this much room from a scrolling edge (its fade)
+const SEARCH_FROM = 9;     // the list gets a search field from this many tabs
 
 // Slate's inline glyphs, kept as they are: they are part of the look
 const HOME_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.4" y="4.2" width="7" height="7" rx="1.6"/><rect x="13.6" y="4.2" width="7" height="7" rx="1.6"/><rect x="3.4" y="13.6" width="7" height="7" rx="1.6"/><rect x="13.6" y="13.6" width="7" height="7" rx="1.6"/></svg>';
 const CLOSE_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13"/></svg>';
 const ADD_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>';
 const CHEV_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>';
+const LEFT_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg>';
+const RIGHT_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg>';
 
 /**
  * @param {{ onSelect(id), onClose(id), onNew(), onHome(), onRename(id, name), onReveal(id), onCloseOthers(id),
@@ -127,6 +140,23 @@ export function initTabs(cb) {
   el('span', { class: 'tb-switch-chev', html: CHEV_SVG }));
   tip(switchBtn, () => t('tabs.switch'));
   strip.after(switchBtn);
+  // the tabs themselves scroll inside the strip; home, the arrows, the list and « + » stay put around them
+  const scroller = el('div', { class: 'tb-scroll' });
+  const prevBtn = el('button', {
+    class: 'tb-arrow', type: 'button', html: LEFT_SVG, tabindex: '-1', 'aria-label': t('tabs.prev'),
+    onclick: () => nudge(-1)
+  });
+  const nextBtn = el('button', {
+    class: 'tb-arrow', type: 'button', html: RIGHT_SVG, tabindex: '-1', 'aria-label': t('tabs.next'),
+    onclick: () => nudge(1)
+  });
+  const listBtn = el('button', {
+    class: 'tb-list', type: 'button', html: CHEV_SVG, 'aria-haspopup': 'menu', 'aria-label': t('tabs.switch'),
+    onclick: () => openSwitch(listBtn)
+  });
+  tip(prevBtn, () => t('tabs.prev'), { placement: 'bottom' });
+  tip(nextBtn, () => t('tabs.next'), { placement: 'bottom' });
+  tip(listBtn, () => `${t('tabs.switch')} · ${tn('tabs.count', tabs.length)}`, { placement: 'bottom' });
   let tabs = [];              // [{ id, name, folderId }] in strip order, groups contiguous
   let folders = new Map();    // folderId → { id, name, color }
   let collapsed = new Set();  // folded groups (prefs.collapsedGroups)
@@ -222,18 +252,16 @@ export function initTabs(cb) {
 
   function groupNode(f, list) {
     const folded = collapsed.has(f.id);
-    // folded by the layout for lack of room (not by Quentin): the chip lists its tabs instead
-    const isAuto = () => !!chip.parentElement?.classList.contains('auto');
     const chip = el('button', {
       class: 'tb-gchip', type: 'button', 'aria-expanded': folded ? 'false' : 'true',
       onpointerdown: (e) => e.stopPropagation(),
-      onclick: () => (isAuto() ? autoMenu(f, chip) : toggleGroup(f.id)),
+      onclick: () => toggleGroup(f.id),
       oncontextmenu: (e) => { e.preventDefault(); e.stopPropagation(); groupMenu(f, chip); }
     },
     el('span', { class: 'tb-gname' }, f.name),
     el('span', { class: 'tb-gcount' }, String(list.length)));
     tip(chip, () => {
-      const key = collapsed.has(f.id) ? 'tabs.group.tipFolded' : isAuto() ? 'tabs.group.tipAuto' : 'tabs.group.tipOpen';
+      const key = collapsed.has(f.id) ? 'tabs.group.tipFolded' : 'tabs.group.tipOpen';
       return t(key, { name: f.name, count: tn('tabs.count', list.length) });
     }, { placement: 'bottom' });
     const group = el('div', {
@@ -262,10 +290,11 @@ export function initTabs(cb) {
    * closes fades where it stood; a group that folds pulls its tabs under its chip, and one
    * that unfolds lets them slide out from under it (Chrome). Transform, opacity, clip-path only.
    */
-  function animateStrip(first, olds, fold) {
+  function animateStrip(first, olds, fold, view = null) {
     if (!first || !first.size || reduced() || document.body.classList.contains('compact')) return;
     const items = stripItems();
     const now = new Map(items.map((i) => [i.key, i.el]));
+    const after = rects(items);                // where each piece lands, before the FLIP moves it back
     const chipOf = (fid) => strip.querySelector(`.tb-group[data-folder="${CSS.escape(fid || '')}"] > .tb-gchip`);
     // the group's coloured line unrolls with its tabs
     if (fold?.open) strip.querySelector(`.tb-group[data-folder="${CSS.escape(fold.fid)}"]`)?.classList.add('tb-unfold');
@@ -293,14 +322,26 @@ export function initTabs(cb) {
       if (now.has(key) || !key.startsWith('t:')) continue;
       const old = olds.get(key);
       if (!old || r.width < 2) continue;
+      // a tab scrolled out of sight leaves without a ghost (it would float over the arrows or the bar)
+      if (view && (r.right <= view.left + 2 || r.left >= view.right - 2)) continue;
       const ghost = old.cloneNode(true);
       ghost.classList.add('tb-ghost');
       ghost.removeAttribute('data-id');
       Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       document.body.append(ghost);
       const fid = old.dataset.group || null;
-      // closed: it is wiped from its right edge at the pace its right neighbour slides over it
-      let frames = [{ opacity: 1, clipPath: 'inset(0 0 0 0)' }, { opacity: 0, clipPath: 'inset(0 100% 0 0)' }];
+      // closed: it is wiped from its right edge at the pace its right neighbour slides over it; when the strip
+      // scrolls back, its LEFT neighbour slides right over it instead (+80 px measured): wiped from the left then,
+      // or both labels showed on top of each other (« Essai de lTests »)
+      let leftDx = 0, leftBest = -Infinity;
+      for (const [k2, r2] of first) {
+        if (k2 === key || !now.has(k2) || r2.right > r.left + 2 || r2.right <= leftBest) continue;
+        leftBest = r2.right;
+        leftDx = (after.get(k2)?.left ?? r2.left) - r2.left;
+      }
+      let frames = leftDx > 0.5
+        ? [{ opacity: 1, clipPath: 'inset(0 0 0 0)' }, { opacity: 0, clipPath: 'inset(0 0 0 100%)' }]
+        : [{ opacity: 1, clipPath: 'inset(0 0 0 0)' }, { opacity: 0, clipPath: 'inset(0 100% 0 0)' }];
       if (fold && !fold.open && fid === fold.fid) {
         // folded: it slides under its chip, clipped at the chip's right edge all the way
         const c = chipOf(fid)?.getBoundingClientRect();
@@ -324,10 +365,14 @@ export function initTabs(cb) {
     const before = strip.isConnected ? stripItems() : [];
     const first = before.length ? rects(before) : null;
     const olds = new Map(before.map((i) => [i.key, i.el]));
+    // what the scroller showed, and how far it had scrolled: a render never makes it jump
+    const view = scroller.isConnected && strip.classList.contains('scroll') ? scroller.getBoundingClientRect() : null;
+    const keep = scroller.scrollLeft;
     const fold = pendingFold;
     pendingFold = null;
     strip.innerHTML = '';
-    if (!tabs.length) { layout(); animateStrip(first, olds, fold); return; }
+    scroller.innerHTML = '';
+    if (!tabs.length) { layout(); animateStrip(first, olds, fold, view); return; }
 
     const home = el('button', {
       class: 'tb-home' + (activeId ? '' : ' active'), type: 'button',
@@ -335,11 +380,11 @@ export function initTabs(cb) {
       onclick: () => cb.onHome?.()
     });
     tip(home, () => t('tabs.home'));
-    strip.append(home);
+    strip.append(home, prevBtn, scroller, nextBtn, listBtn);
 
     for (const run of runs()) {
-      if (run.folder) strip.append(groupNode(run.folder, run.tabs));
-      else strip.append(tabNode(run.tabs[0], false));
+      if (run.folder) scroller.append(groupNode(run.folder, run.tabs));
+      else scroller.append(tabNode(run.tabs[0], false));
     }
 
     const add = el('button', {
@@ -351,31 +396,20 @@ export function initTabs(cb) {
       return f ? t('tabs.newIn', { name: f.name }) : t('tabs.new');
     }, { key: t('app.key.ctrl') + ' N' });
     strip.append(add);
-    layout();
-    animateStrip(first, olds, fold);
+    layout({ keep });
+    animateStrip(first, olds, fold, view);
   }
 
   // ── room ──
-  /** A group folded by the layout (never by Quentin, never remembered): only its coloured count shows. */
-  function setAuto(g, on) {
-    if (!on && !g.classList.contains('auto')) return;
-    const folded = on || collapsed.has(g.dataset.folder);
-    g.classList.toggle('auto', on);
-    g.classList.toggle('collapsed', folded);
-    const inner = $('.tb-gtabs', g);
-    if (inner) inner.style.display = on ? 'none' : '';
-    $('.tb-gchip', g)?.setAttribute('aria-expanded', folded ? 'false' : 'true');
-  }
-
   /**
    * Natural widths while they fit; then the folded groups shrink to their
-   * coloured count and the unfolded groups' names shorten; then equal shares
-   * down to TAB_FLOOR; then the groups away from the active tab fold to their
-   * count; then the folded chip. Arithmetic on measured pieces, so the answer
-   * never depends on the state it is about to change (no flicker at the
-   * threshold).
+   * coloured count and the unfolded groups' names shorten (the list button
+   * comes in); then equal shares down to TAB_FLOOR; then the tabs keep the
+   * floor and the strip scrolls between two arrows. Arithmetic on measured
+   * pieces, so the answer never depends on the state it is about to change (no
+   * flicker at the threshold). `keep` = the scroll a render must give back.
    */
-  function layout() {
+  function layout({ keep = null } = {}) {
     const bar = $('#titlebar');
     const right = bar && $('.tb-right', bar);
     if (!bar || !right) return;
@@ -385,10 +419,8 @@ export function initTabs(cb) {
     const room = bar.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0)
       - right.offsetWidth - DRAG_MIN - (mark ? mark.offsetWidth + 6 : 0) - 4;
 
-    const groups = [...strip.querySelectorAll('.tb-group')];
-    // measured in their own state, whatever the last layout did to them
-    groups.forEach((g) => setAuto(g, false));
-    const tabNodes = [...strip.querySelectorAll('.tb-tab')];
+    const groups = [...scroller.querySelectorAll('.tb-group')];
+    const tabNodes = [...scroller.querySelectorAll('.tb-tab')];
     const chips = groups.map((g) => $('.tb-gchip', g));
     const inner = groups.map((g) => $('.tb-gtabs', g));
     const folded = groups.map((g) => g.classList.contains('collapsed'));
@@ -407,51 +439,56 @@ export function initTabs(cb) {
       if (!folded[i]) g.classList.remove('collapsed');
       return w;
     });
-    // the groups the layout may fold: open ones that do not hold the active tab
-    const foldable = groups.map((g, i) => !folded[i] && !!inner[i] && !g.querySelector('.tb-tab.active'));
     const groupOfTab = tabNodes.map((tab) => groups.indexOf(tab.closest('.tb-group')));
     const nat = tabNodes.map((tab) => Math.min(TAB_MAX, Math.ceil($('.tb-title', tab)?.scrollWidth || 0) + TAB_CHROME + 1));
     // home 26, « + » 24 and its 2 px margin, a 2 px gap between every piece (and inside an open group)
-    const base = n ? 26 + 26 + GAP * Math.max(0, strip.children.length - 1) : 0;
+    const base = n ? 26 + 26 + GAP * (scroller.children.length + 1) : 0;
     const innerGaps = (i) => (inner[i] ? GAP + GAP * Math.max(0, inner[i].children.length - 1) : 0);
 
-    /** Stage 0 natural, 1 folded chips to their count, 2 open chips shortened, 3 + groups away from the active tab folded. */
-    function measure(stage) {
-      const off = (i) => folded[i] || (stage >= 3 && foldable[i]);
-      let used = base;
+    /** Stage 0 natural, 1 folded chips to their count, 2 open chips shortened. `extra` = the list button. */
+    function measure(stage, extra) {
+      let used = base + extra;
       groups.forEach((g, i) => {
-        if (!off(i)) used += innerGaps(i);
-        used += stage === 0 ? chipFull[i] : off(i) ? chipMini[i] : stage >= 2 ? Math.min(chipFull[i], CHIP_TIGHT) : chipFull[i];
+        if (!folded[i]) used += innerGaps(i);
+        used += stage === 0 ? chipFull[i] : folded[i] ? chipMini[i] : stage >= 2 ? Math.min(chipFull[i], CHIP_TIGHT) : chipFull[i];
       });
-      const shown = tabNodes.map((_, k) => groupOfTab[k] < 0 || !off(groupOfTab[k]));
+      const shown = tabNodes.map((_, k) => groupOfTab[k] < 0 || !folded[groupOfTab[k]]);
       return { avail: room - used, shown };
     }
     const sumOf = (m, cap) => nat.reduce((a, w, k) => a + (m.shown[k] ? Math.min(w, cap) : 0), 0);
 
     let stage = 0;
-    let m = measure(0);
-    while (stage < 2 && sumOf(m, TAB_MAX) > m.avail) m = measure(++stage);
-    // not even at the floor: before the single chip, the groups away from the active tab fold to their count
-    if (stage === 2 && foldable.some(Boolean) && sumOf(m, TAB_FLOOR) > m.avail) m = measure(stage = 3);
+    let m = measure(0, 0);
+    // everything fits as it is: no list button, nothing cut
+    const roomy = sumOf(m, TAB_MAX) <= m.avail;
+    const extra = roomy ? 0 : LIST_W + GAP;
+    if (!roomy) {
+      m = measure(stage = 1, extra);
+      while (stage < 2 && sumOf(m, TAB_MAX) > m.avail) m = measure(++stage, extra);
+    }
     const avail = m.avail;
     // a short name is never padded up to the floor; only the names that must be cut are cut
-    const compact = n > 0 && sumOf(m, TAB_FLOOR) > avail;
-    const tight = !compact && n > 0 && sumOf(m, TAB_MAX) > avail;
-    let cap = TAB_MAX;
+    const scroll = n > 0 && sumOf(m, TAB_FLOOR) > avail;
+    const tight = !scroll && n > 0 && sumOf(m, TAB_MAX) > avail;
+    let cap = scroll ? TAB_FLOOR : TAB_MAX;
     if (tight) {
       // the largest cap that fits (water filling): short names keep their width, long ones share the rest
       let lo = TAB_FLOOR, hi = TAB_MAX;
       for (let i = 0; i < 16; i++) { const mid = (lo + hi) / 2; if (sumOf(m, mid) <= avail) lo = mid; else hi = mid; }
       cap = Math.floor(lo);
     }
+    // the scroller's width (chips and tabs scroll together): the room minus home, « + », the list and
+    // the two arrows; a window too narrow for one tab folds into the chip
+    const view = Math.floor(room - (26 + 26 + 2 * GAP) - extra - 2 * (ARROW_W + GAP));
+    const compact = scroll && view < TAB_FLOOR + 2 * EDGE;
     // Room left once every tab has its width: a chip folded to its bare count gets its name back,
     // shortened if need be (« Dernière s… 4 »), never wider than its folded look. The count alone
     // (it reads like a notification badge) stays the last resort.
     const named = groups.map(() => 0);
-    if (!compact && !tight) {
+    if (!scroll && !tight) {
       let spare = avail - sumOf(m, TAB_MAX);
       groups.forEach((g, i) => {
-        const mini = (stage >= 1 && folded[i]) || (stage >= 3 && foldable[i]);
+        const mini = stage >= 1 && folded[i];
         const give = Math.min(chipFold[i] - chipMini[i], spare);
         if (!mini || give < CHIP_NAME_MIN) return;
         named[i] = chipMini[i] + Math.floor(give);
@@ -459,17 +496,26 @@ export function initTabs(cb) {
       });
     }
     groups.forEach((g, i) => {
-      const auto = !compact && stage >= 3 && foldable[i];
-      setAuto(g, auto);
-      chips[i].classList.toggle('mini', ((stage >= 1 && folded[i]) || auto) && !named[i]);
-      chips[i].classList.toggle('tight', stage >= 2 && !folded[i] && !auto && chipFull[i] > CHIP_TIGHT);
+      chips[i].classList.toggle('mini', stage >= 1 && folded[i] && !named[i]);
+      chips[i].classList.toggle('tight', stage >= 2 && !folded[i] && chipFull[i] > CHIP_TIGHT);
       chips[i].style.maxWidth = named[i] && named[i] < chipFold[i] ? named[i] + 'px' : '';
     });
-    strip.classList.toggle('tight', tight);
-    tabNodes.forEach((tab, i) => { tab.style.width = tight && m.shown[i] ? Math.min(nat[i], cap) + 'px' : ''; });
+    const scrolling = scroll && !compact;
+    strip.classList.toggle('tight', tight || scroll);
+    strip.classList.toggle('scroll', scrolling);
+    strip.classList.toggle('listed', !roomy && !compact);
+    scroller.style.maxWidth = scrolling ? `${view}px` : '';
+    tabNodes.forEach((tab, i) => { tab.style.width = (tight || scroll) && m.shown[i] ? Math.min(nat[i], cap) + 'px' : ''; });
     document.body.classList.toggle('compact', compact);
     // the folded chip gets all the room the tabs had (never a fixed 280 px with the bar empty beside it)
     switchBtn.style.setProperty('--sw-max', `${Math.max(120, Math.floor(room))}px`);
+    // the scroll a render had, given back; the active tab brought into view (gliding when it just changed)
+    if (!scrolling) { aim = null; scroller.scrollLeft = 0; }
+    else {
+      if (keep != null) scroller.scrollLeft = keep;
+      reveal(activeId, keep != null && shownActive !== undefined && shownActive !== activeId);
+    }
+    shownActive = activeId;
     // a frame of overflow (fonts, a resize in progress) fades at the edge instead of cutting…
     checkClip();
     // …and is read again once the strip has settled (its width transition may end without an event)
@@ -478,9 +524,69 @@ export function initTabs(cb) {
     paintSwitch();
   }
 
+  // ── scrolling ──
+  let aim = null;              // where a smooth scroll is heading (successive wheel notches add up)
+  let shownActive;             // the active tab the last layout brought into view
+  const maxScroll = () => Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+  function scrollToX(x, smooth) {
+    const to = Math.round(Math.min(maxScroll(), Math.max(0, x)));
+    if (Math.abs(to - scroller.scrollLeft) < 1) { aim = null; return; }
+    const glide = smooth && !reduced();
+    aim = glide ? to : null;
+    scroller.scrollTo({ left: to, behavior: glide ? 'smooth' : 'auto' });
+  }
+  /** The arrows: most of a view at a time, the way a page turns. */
+  function nudge(dir) {
+    const from = aim ?? scroller.scrollLeft;
+    scrollToX(from + dir * Math.max(TAB_FLOOR, scroller.clientWidth * 0.7), true);
+  }
+  /** Bring a tab fully into view, clear of the faded edge. */
+  function reveal(id, smooth) {
+    if (!id || !strip.classList.contains('scroll')) return;
+    const node = scroller.querySelector(`.tb-tab[data-id="${CSS.escape(id)}"]`);
+    if (!node) return;
+    const sr = scroller.getBoundingClientRect();
+    const r = node.getBoundingClientRect();
+    const cur = scroller.scrollLeft;
+    const x0 = r.left - sr.left + cur;
+    const x1 = x0 + r.width;
+    const w = scroller.clientWidth;
+    let to = cur;
+    if (x0 < cur + EDGE) to = x0 - EDGE;
+    else if (x1 > cur + w - EDGE) to = x1 - w + EDGE;
+    if (Math.abs(to - cur) >= 1) scrollToX(to, smooth);
+  }
+  function paintEdges() {
+    const on = strip.classList.contains('scroll');
+    const x = scroller.scrollLeft;
+    const atStart = !on || x <= 1;
+    const atEnd = !on || x >= maxScroll() - 1;
+    prevBtn.disabled = atStart;
+    nextBtn.disabled = atEnd;
+    scroller.classList.toggle('fade-l', on && !atStart);
+    scroller.classList.toggle('fade-r', on && !atEnd);
+  }
+  scroller.addEventListener('scroll', paintEdges, { passive: true });
+  scroller.addEventListener('scrollend', () => { aim = null; paintEdges(); });
+  // the wheel scrolls the strip sideways: a mouse notch glides, a trackpad follows the finger
+  scroller.addEventListener('wheel', (e) => {
+    if (!strip.classList.contains('scroll') || e.ctrlKey) return;
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (!d) return;
+    e.preventDefault();
+    const px = e.deltaMode === 1 ? d * 18 : e.deltaMode === 2 ? d * scroller.clientWidth : d;
+    const notch = e.deltaMode !== 0 || Math.abs(px) >= 50;
+    scrollToX((notch ? aim ?? scroller.scrollLeft : scroller.scrollLeft) + px, notch);
+  }, { passive: false });
+  // a middle click on the strip never starts the browser's autoscroll (on a tab, it closes the tab)
+  scroller.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
+
   function checkClip() {
     const compact = document.body.classList.contains('compact');
+    const scrolling = strip.classList.contains('scroll');
     strip.classList.toggle('clip', !compact && strip.scrollWidth > strip.clientWidth + 1);
+    scroller.classList.toggle('clip', !compact && !scrolling && scroller.scrollWidth > scroller.clientWidth + 1);
+    paintEdges();
   }
   let clipRaf = 0;
   let clipTimer = 0;
@@ -505,8 +611,9 @@ export function initTabs(cb) {
     switchBtn.setAttribute('aria-label', `${t('tabs.switch')} · ${tn('tabs.count', tabs.length)}`);
   }
 
-  function openSwitch() {
-    switchBtn.classList.add('on');
+  /** Every open tab, by project: from the folded chip of a narrow window or from the list button (▾). */
+  function openSwitch(anchor = switchBtn) {
+    anchor.classList.add('on');
     const ctrl = t('app.key.ctrl');
     const items = [{ label: t('tabs.home'), icon: 'home', checked: !activeId, action: () => cb.onHome?.() }, 'sep'];
     tabs.forEach((tab, i) => {
@@ -530,25 +637,13 @@ export function initTabs(cb) {
     });
     items.push('sep');
     if (activeId) items.push({ label: t('tabs.closeTab'), icon: 'close', key: `${ctrl} W`, action: () => cb.onClose?.(activeId) });
-    items.push({ label: t('tabs.new'), icon: 'plus', key: `${ctrl} N`, action: () => cb.onNew?.() });   // at 8 tabs, app.js offers to make room
-    // at most 8 tabs: a search field would only push them down
-    openMenu(items, switchBtn, { search: false, onClose: () => switchBtn.classList.remove('on') });
-  }
-
-  /** A group the layout folded for lack of room: its chip lists its tabs (opening one gives it the room). */
-  function autoMenu(f, chip) {
-    chip.classList.add('on');
-    const ctrl = t('app.key.ctrl');
-    const items = [{ group: f.name }];
-    tabs.forEach((tab, i) => {
-      if (groupOf(tab) !== f.id) return;
-      items.push({
-        label: tab.name, icon: swatch(f.color), key: i < 8 ? `${ctrl} ${i + 1}` : null,
-        action: () => { if (tab.id !== activeId) cb.onSelect?.(tab.id); }
-      });
+    if (activeId && tabs.length > 1) items.push({ label: t('tabs.closeOthers'), action: () => cb.onCloseOthers?.(activeId) });
+    items.push({ label: t('tabs.new'), icon: 'plus', key: `${ctrl} N`, action: () => cb.onNew?.() });
+    // many tabs: a search field on top (it filters by board and by project name)
+    openMenu(items, anchor, {
+      search: tabs.length >= SEARCH_FROM, align: anchor === listBtn ? 'end' : 'start',
+      onClose: () => anchor.classList.remove('on')
     });
-    items.push('sep', { label: t('tabs.group.new'), icon: 'plus', action: () => cb.onNewIn?.(f.id) });
-    openMenu(items, chip, { search: false, onClose: () => chip.classList.remove('on') });
   }
 
   // the bar's width and the actions' width (the GPU chip grows and shrinks) both move the room
@@ -593,6 +688,7 @@ export function initTabs(cb) {
     const label = strip.querySelector(`.tb-tab[data-id="${CSS.escape(id || '')}"] .tb-title`);
     if (!label) return;
     if (editing) stopRename(false);
+    reveal(id, false);
     editing = { id, label };
     input.value = tab.name;
     label.hidden = true;
@@ -634,13 +730,13 @@ export function initTabs(cb) {
     get activeId() { return activeId; },
     ids: () => tabs.map((x) => x.id),
     has: (id) => tabs.some((x) => x.id === id),
-    full: () => tabs.length >= MAX_TABS,
+    /** Never full: there is no limit on the number of tabs (the strip scrolls). Kept for app.js and presence.js. */
+    full: () => false,
 
-    /** Add (or focus) a tab: `{ id, name, folderId }`. Returns false when the strip is already full. */
+    /** Add (or focus) a tab: `{ id, name, folderId }`. Always true (no limit). */
     add(meta, { activate = true } = {}) {
       let tab = tabs.find((x) => x.id === meta.id);
       if (!tab) {
-        if (tabs.length >= MAX_TABS) return false;
         tab = { id: meta.id, name: meta.name, folderId: meta.folderId || null };
         // a board of a project lands at the end of its group (Chrome)
         const g = groupOf(tab);

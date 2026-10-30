@@ -16,9 +16,10 @@ import { fmtClock } from '../util.js';
 import { typeOf, typeLabel, inputDefs, outputDefs } from '../catalog.js';
 import { ms, reduced, play, replayClass } from '../ui/motion.js';
 import { tip } from '../ui/tooltip.js';
-import { nodeInputs, nodeOutputs, isModelBlock, portsSignature, modelBlockTitle, hiddenInputs, blockWorkflow, startPoints } from '../nodes/ports.js';
+import { nodeInputs, nodeOutputs, isModelBlock, portsSignature, modelBlockTitle, hiddenInputs, blockWorkflow, startPoints, tierExclusion } from '../nodes/ports.js';
 import { openAddInput } from '../nodes/addinput.js';
 import { portTip } from '../nodes/porthelp.js';
+import { fmtDurShort } from '../nodes/media.js';
 
 const BORDER = 1;          // filet de la carte (unités monde)
 const HEAD_H = 36;         // --node-head-h
@@ -232,7 +233,11 @@ export class NodeView {
       if (r && def.unused) r.body = t('graph.port.unused');
       if (r && def.ignored) {
         const w = blockWorkflow(node, this._connected());
-        if (w) r.meta = [t('port.ignored', { what: tl(w.workflow.label || {}) }), r.meta].filter(Boolean).join(' · ');
+        // dans le mode, mais pas à ce palier (Kling 3.0 Turbo : pas d'image de fin) : c'est le palier qui l'écarte
+        const x = w ? tierExclusion(node, w.workflow, def.id) : null;
+        const why = x ? t('port.ignoredTier', { tier: x.tierName, tiers: x.tiers.join(', ') })
+          : w ? t('port.ignored', { what: tl(w.workflow.label || {}) }) : '';
+        if (why) r.meta = [why, r.meta].filter(Boolean).join(' · ');
       }
       return r;
     });
@@ -510,6 +515,11 @@ export class NodeView {
     else if (kind === 'waiting-gpu') {
       txt = t('graph.state.waiting');
       if (st.who) tip = t('graph.state.waitingWho', { who: st.who });
+    } else if (kind === 'running' && st.online && (st.remote === 'queued' || st.remote === 'full')) {
+      // en ligne, en file chez Higgsfield ou sa file pleine : pas « 5 % » (rien ne calcule encore), comme la file
+      // (textes de runs.js, describe/remoteText)
+      txt = t(st.remote === 'queued' ? 'run.st.atHf' : 'run.st.hfFull');
+      tip = st.remote === 'queued' ? t('run.st.atHfTip') : [st.message, t('run.st.hfFullTip')].filter(Boolean).join(' — ');
     } else if (kind === 'running') {
       if (p != null && p >= 0) {
         txt = t('graph.pct', { n: Math.round(p * 100) });
@@ -525,7 +535,10 @@ export class NodeView {
     } else if (kind === 'cancelled') txt = t('graph.state.cancelled');
     else if (current && current.status !== 'error') {
       const d = current.finished && current.started ? (current.finished - current.started) / 1000 : 0;
-      txt = d > 0 ? t('graph.state.doneIn', { d: durShort(d) }) : t('graph.state.done');
+      // la forme courte arrondie, comme le pied (« FAIT · 1 MIN ») ; la durée exacte au survol (un bloc de 288 px
+      // rognait « FAIT · 1 MIN 18… »)
+      txt = d > 0 ? t('graph.state.doneIn', { d: fmtDurShort(d * 1000) }) : t('graph.state.done');
+      if (d > 0) tip = durShort(d);
     }
     setText(this.stateEl, txt);
     if (tip) this.stateEl.dataset.tip = tip; else delete this.stateEl.dataset.tip;

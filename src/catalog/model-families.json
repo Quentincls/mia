@@ -30,7 +30,8 @@
         { "id": "real", "executor": "real", "cap": "3d-to-real", "as": "real",
           "label": { "fr": "Rendre photoréaliste", "en": "Make it photoreal" },
           "ports": { "video": { "label": { "fr": "Rendu 3D", "en": "3D render" } }, "start": {}, "look": {} }, "required": ["video"],
-          "params": ["prompt", "keepBlacks", "lora", "loraStrength", "seed"] },
+          "paramOverrides": { "passes": { "hint": { "fr": "2 passes : le mouvement se décide à mi-définition, puis le latent est agrandi ×2 et affiné, guidé par le rendu 3D en pleine définition. Auto : 1 passe, la recette validée sur les rendus 3D.", "en": "2 passes: the motion is decided at half resolution, then the latent is enlarged ×2 and refined, guided by the 3D render at full resolution. Auto: 1 pass, the recipe validated on 3D renders." } } },
+          "params": ["prompt", "keepBlacks", "passes", "lora", "loraStrength", "seed"] },
         { "id": "guided", "executor": "guided", "cap": "guided-video", "as": "guided", "promptRequired": true,
           "label": { "fr": "Vidéo guidée", "en": "Guided video" },
           "ports": { "guide": {}, "start": {}, "look": {}, "mask": {} }, "required": ["guide"],
@@ -38,15 +39,16 @@
         { "id": "i2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v",
           "label": { "fr": "Animer une image", "en": "Animate an image" },
           "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4, "trial": true }, "sheet": { "trial": true } }, "required": ["start"],
-          "params": ["prompt", "duration", "format", "resolution", "fps", "lora", "loraStrength", "seed"] },
+          "params": ["prompt", "duration", "format", "resolution", "passes", "fps", "lora", "loraStrength", "enhance", "seed"] },
         { "id": "sheet", "executor": "t2v", "cap": "text-to-video", "as": "t2v", "promptRequired": true, "trial": true,
           "label": { "fr": "Vidéo depuis une fiche personnage", "en": "Video from a character sheet" },
           "ports": { "sheet": {} }, "required": ["sheet"],
-          "params": ["prompt", "duration", "resolution", "lora", "loraStrength", "seed"] },
+          "params": ["prompt", "duration", "resolution", "lora", "loraStrength", "enhance", "seed"] },
         { "id": "t2v", "executor": "t2v", "cap": "text-to-video", "as": "t2v", "promptRequired": true,
           "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
           "ports": {}, "required": [],
-          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] }
+          "paramOverrides": { "passes": { "hint": { "fr": "2 passes : le mouvement se décide à mi-définition, puis le latent est agrandi ×2 et affiné. Auto : 1 passe.", "en": "2 passes: the motion is decided at half resolution, then the latent is enlarged ×2 and refined. Auto: 1 pass." } } },
+          "params": ["prompt", "duration", "format", "resolution", "passes", "lora", "loraStrength", "enhance", "seed"] }
       ]
     },
     "minimax": {

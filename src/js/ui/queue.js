@@ -16,6 +16,7 @@ import { state } from '../state.js';
 import { toast } from './toasts.js';
 import { tip } from './tooltip.js';
 import { button } from './controls.js';
+import { ghostOut } from './motion.js';
 import * as runs from '../nodes/runs.js';
 import { strings, num } from '../nodes/media.js';
 
@@ -55,6 +56,8 @@ strings({
   'gpu.queueRunning': '{n} en cours',
   'gpu.queueWaiting': '{n} en attente',
   'gpu.showQueue': 'Voir la file',
+  'queue.online': 'En ligne',
+  'gpu.queueOnline': 'En ligne : {run} en cours · {wait} en file · {max} à la fois',
 }, {
   'queue.title': 'Jobs',
   'queue.count.one': '{n} job',
@@ -91,6 +94,8 @@ strings({
   'gpu.queueRunning': '{n} running',
   'gpu.queueWaiting': '{n} waiting',
   'gpu.showQueue': 'Show the queue',
+  'queue.online': 'Online',
+  'gpu.queueOnline': 'Online: {run} running · {wait} queued · {max} at once',
 });
 
 const ACTIVE = new Set(['queued', 'waiting-gpu', 'running']);
@@ -195,23 +200,34 @@ const ms = (v) => (v == null ? null : v < 1e11 ? v * 1000 : v);
  */
 function queueEnd(active) {
   const now = Date.now();
-  let t0 = now;
-  for (const j of active) {
-    if (j.state !== 'running') continue;
-    const started = ms(j.started) || now;
-    const end = j.endAt || started + estimateSec(j) * 1000;
-    t0 = Math.max(t0, end);
-  }
-  let end = t0;
-  for (const j of active) if (j.state !== 'running') end += estimateSec(j) * 1000;
+  // deux voies : le local s'enchaîne (un calcul lourd à la fois) ; l'en ligne tourne en parallèle, à côté
+  const lane = (list, width) => {
+    let t0 = now;
+    for (const j of list) {
+      if (j.state !== 'running') continue;
+      const started = ms(j.started) || now;
+      t0 = Math.max(t0, j.endAt || started + estimateSec(j) * 1000);
+    }
+    let end = t0;
+    const waiting = list.filter((j) => j.state !== 'running');
+    for (const j of waiting) end += (estimateSec(j) * 1000) / width;
+    return end;
+  };
+  const online = active.filter((j) => j.online);
+  const width = Math.max(1, Number(status?.queue?.online?.max) || 4);
+  const end = Math.max(lane(active.filter((j) => !j.online), 1), online.length ? lane(online, width) : now);
   return end > now ? end : null;
 }
 
 function jobStatus(j, waitingOrder) {
-  const st = { kind: j.state, progress: j.progress, endAt: j.endAt, position: null, run: j.run, who: j.who, since: j.since };
-  if (j.state === 'queued') st.position = (waitingOrder.indexOf(j.jobId) + 1) || null;
+  const st = { kind: j.state, progress: j.progress, endAt: j.endAt, position: null, run: j.run, who: j.who, since: j.since,
+    online: !!j.online, remote: j.remote || null, message: j.message || null };
+  // la place dans SA voie : un calcul en ligne n'attend pas derrière les calculs locaux (ni l'inverse)
+  if (j.state === 'queued') st.position = (waitingOrder.filter((id) => !!onlineOf.get(id) === !!j.online).indexOf(j.jobId) + 1) || null;
+  // en ligne, en file chez Higgsfield ou sa file pleine : runs.describe le dit (même texte que l'en-tête du bloc)
   return runs.describe(st);
 }
+const onlineOf = new Map();     // jobId → en ligne ? (rempli à chaque rendu de la file)
 
 function buildSkeleton() {
   const dot = el('span', { class: 'q-dot' });
@@ -263,6 +279,8 @@ function renderQueue(jobs) {
     qRoot.classList.add('q-enter');
   }
   const running = active.find((j) => j.state === 'running');
+  onlineOf.clear();
+  for (const j of jobs) onlineOf.set(j.jobId, !!j.online);
   const waitingOrder = jobs.filter((j) => j.state === 'queued' || j.state === 'waiting-gpu').map((j) => j.jobId);
 
   // pastille : « 2 calculs · fin vers 20 h 45 » (en cours + en attente)
@@ -288,7 +306,7 @@ function renderQueue(jobs) {
 
   // liste détaillée
   if (!expanded) {
-    if (!Q.panel.hidden) Q.panel.hidden = true;
+    if (!Q.panel.hidden) { ghostOut(Q.panel, { dur: 'exit', to: { translate: '0 6px' } }); Q.panel.hidden = true; }
     return;
   }
   if (Q.panel.hidden) {
@@ -342,6 +360,7 @@ function jobRow(j0) {
       const lbl = j.label || (other ? '' : runs.nodeLabel(j.nodeId)) || '…';
       if (label.textContent !== lbl) label.textContent = lbl;
       const s = [
+        j.online || runs.isOnline?.(j.nodeId) ? t('queue.online') : '',
         j.mode === 'preview' ? t('queue.preview') : '',
         other ? t('queue.otherBoard', { name: runs.projectName(j.projectId) || j.projectName || '…' }) : runs.projectName(j.projectId),
       ].filter(Boolean).join(' · ');
@@ -411,6 +430,7 @@ let popOffs = [];
 function closePop() {
   for (const off of popOffs) off();
   popOffs = [];
+  ghostOut(popEl);
   popEl?.remove();
   popEl = null;
 }
@@ -469,7 +489,11 @@ function openPop(anchor) {
         el('div', { class: `gp-holder${g.lock && !g.lock.mine ? ' busy' : ''}` }, holderText(g))),
       el('div', { class: 'gp-sec' },
         el('div', { class: 'gp-kicker' }, t('gpu.queue')),
-        el('div', { class: 'gp-line' }, el('span', { class: 'gp-main' }, qText), showQ)));
+        el('div', { class: 'gp-line' }, el('span', { class: 'gp-main' }, qText), showQ),
+        // la voie en ligne, à part : elle n'attend jamais le GPU
+        (s?.queue?.online && (s.queue.online.running || s.queue.online.waiting))
+          ? el('div', { class: 'gp-sub' }, t('gpu.queueOnline', { run: s.queue.online.running, wait: s.queue.online.waiting, max: s.queue.online.max || 4 }))
+          : null));
     place();
   };
 

@@ -19,7 +19,7 @@ import { emit, on } from '../bus.js';
 import { openModal } from './modal.js';
 import { toast } from './toasts.js';
 import { tip } from './tooltip.js';
-import { segmented, toggle, textField, button } from './controls.js';
+import { segmented, toggle, textField, numberField, button } from './controls.js';
 import { money, shortDate } from './budget.js';
 
 register({
@@ -79,7 +79,9 @@ register({
     'set.bridge': 'Pilotage par un assistant',
     'set.secCloud': 'Comptes en ligne',
     'set.hf': 'Higgsfield',
-    'set.hfHint': 'Les modèles en ligne (Seedance, Kling, MiniMax 2K…) calculent chez Higgsfield : ta carte graphique reste libre, mais chaque calcul coûte des crédits. Crée une clé sur console.higgsfield.ai, puis colle-la ici (ID:SECRET). Elle reste chiffrée sur ce PC et Mia ne la montre plus.',
+    'set.hfParallel': 'Calculs en ligne simultanés',
+    'set.hfParallelHint': 'Ils partent en même temps, sans attendre ta carte graphique. Higgsfield met en file au-delà de la limite de ton compte (visible dans sa console) ; rien n’est facturé en double.',
+    'set.hfHint': 'Les modèles en ligne (Seedance, Kling, MiniMax 2K…) calculent chez Higgsfield : ta carte graphique reste libre, mais chaque calcul est payant, en $. Crée une clé sur console.higgsfield.ai, puis colle-la ici (ID:SECRET). Elle reste chiffrée sur ce PC et Mia ne la montre plus.',
     'set.hfLinked': 'Relié · clé …{tail}',
     'set.hfOff': 'Pas relié',
     'set.hfPlaceholder': 'ID:SECRET',
@@ -117,7 +119,7 @@ register({
     'set.copyBlock': 'Copier le bloc',
     'set.copied': 'Commande copiée',
     'set.copiedBlock': 'Bloc copié',
-    'set.tagline': 'Planche nodale pour l’IA locale',
+    'set.tagline': 'Génération vidéo pensée par des créatifs, sur ton PC ou en ligne',
     'set.version': 'Version {v}',
     'set.versionDate': 'Version {v} · {date}',
     'set.data': 'Données de l’app :',
@@ -188,7 +190,9 @@ register({
     'set.bridge': 'Driven by an assistant',
     'set.secCloud': 'Online accounts',
     'set.hf': 'Higgsfield',
-    'set.hfHint': 'Online models (Seedance, Kling, MiniMax 2K…) run at Higgsfield: your graphics card stays free, but each job costs credits. Create a key on console.higgsfield.ai, then paste it here (ID:SECRET). It stays encrypted on this PC and Mia never shows it again.',
+    'set.hfParallel': 'Online jobs at once',
+    'set.hfParallelHint': 'They start together, without waiting for your graphics card. Higgsfield queues beyond your account’s limit (shown in its console); nothing is charged twice.',
+    'set.hfHint': 'Online models (Seedance, Kling, MiniMax 2K…) run at Higgsfield: your graphics card stays free, but each job is paid, in $. Create a key on console.higgsfield.ai, then paste it here (ID:SECRET). It stays encrypted on this PC and Mia never shows it again.',
     'set.hfLinked': 'Linked · key …{tail}',
     'set.hfOff': 'Not linked',
     'set.hfPlaceholder': 'ID:SECRET',
@@ -226,7 +230,7 @@ register({
     'set.copyBlock': 'Copy the block',
     'set.copied': 'Command copied',
     'set.copiedBlock': 'Block copied',
-    'set.tagline': 'A node board for local AI',
+    'set.tagline': 'Video generation designed by creatives, on your PC or online',
     'set.version': 'Version {v}',
     'set.versionDate': 'Version {v} · {date}',
     'set.data': 'App data:',
@@ -349,7 +353,7 @@ function ensureCss(id, css) {
 }
 const ASSIST_CSS = `
 .set-recipe[hidden] { display: none; }
-.set-cmd-label { font-size: 12px; color: var(--txt-2); margin: 10px 0 5px; }
+.set-cmd-label { font-size: 11.5px; color: var(--txt-2); margin: 10px 0 5px; }
 .set-cmd.wrap { margin-bottom: 4px; align-items: flex-start; padding-top: 6px; padding-bottom: 6px; }
 .set-cmd.wrap code { white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip; line-height: 1.55; padding-top: 1px; }
 .set-assist-after { margin-top: 10px !important; }
@@ -682,10 +686,19 @@ export function openSettings(opts = {}) {
     el('div', { class: 'set-hf-form' }, topField, topSave, topClear), topNow, topMsg, el('div', { class: 'set-hf-form' }, topConsole));
   const topRow = el('div', { class: 'set-hf-top', hidden: true }, rowEl(t('set.hfTopUp'), t('set.hfTopUpHint')), topBox);
 
+  // online jobs at once (engine: their own lane, never waiting for the GPU) — prefs.cloudParallel, 1 to 16, default 4
+  const parNow = Math.max(1, Math.min(16, Math.round(Number(p.cloudParallel)) || 4));
+  const parallelCtl = numberField({
+    value: parNow, min: 1, max: 16, step: 1, decimals: 0, width: 72,
+    onChange: (v) => { const n = Math.max(1, Math.min(16, Math.round(v))); if (n !== state.prefs.cloudParallel) setPrefs({ cloudParallel: n }); }
+  });
+  const parallelRow = rowEl(t('set.hfParallel'), t('set.hfParallelHint'), parallelCtl);
+
   const hfRow = el('div', { class: 'set-cloud' },
     rowEl(t('set.hf'), t('set.hfHint'), hfState),
     el('div', { class: 'set-hf' }, hfForm, hfLinkedCtl, hfMsg),
-    topRow);
+    topRow,
+    parallelRow);
 
   const bridgeState = el('span', { class: 'set-state' }, t('set.bridgeChecking'));
   const bridgeHint = el('div', { class: 'set-hint' });

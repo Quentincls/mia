@@ -10,14 +10,96 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
-## À venir
+## 0.8.0 — 31/10/2026
+
+### En bref
+- **Tous les modèles en ligne, en entier** : Mia relève maintenant le catalogue de Higgsfield sur sa console (pas
+  seulement sa documentation, en retard). Arrivent **Kling 4.0** (texte, animer avec images-clés et image de fin,
+  références, montage d’une vidéo existante, jusqu’à 30 s en 1080p), **Genjutsu Light** et **SOUL V2 image vers
+  image**. Chaque champ d’un modèle devient un réglage ; ce qui n’est pas encore pris en charge est listé avec sa
+  raison.
+- **Le mode d’un bloc en ligne se voit et se choisit** : « Auto · Texte · Animer · Références · Modifier ». Seules
+  les entrées utiles au mode s’affichent ; « + Ajouter » range à part celles d’un autre mode et y bascule. Jetons de
+  citation propres au modèle (`@image_1`, `@video_1`).
+- **Le payant toujours clair** : « EN LIGNE · PAYANT » et « Relier mon compte » sans compte, un tarif public
+  « ≈ … $ » quand Higgsfield ne donne pas de prix, et un calcul déjà payé n’est plus jamais jeté : « Attendre le
+  résultat ».
+- **Plusieurs calculs en ligne à la fois** : ils partent en parallèle sans jamais attendre la carte graphique
+  (Réglages → Comptes en ligne, « Calculs en ligne simultanés », 4 par défaut, jusqu’à 16). File Higgsfield pleine :
+  Mia attend et réessaie seule, avec la même clé, sans double facture. Le local reste à un calcul lourd à la fois.
+- **LTX en 1 ou 2 passes** : nouveau réglage « Passes » (Auto · 1 passe · 2 passes) sur Animer une image, Vidéo
+  depuis un texte, Rendre photoréaliste et le bloc Modèle LTX. 2 passes : le mouvement se décide à mi-définition,
+  le latent est agrandi ×2 puis affiné, et les images-clés et l’image de fin sont conseillées (0,6 / 0,7) au lieu
+  d’imposées : plus de diaporama. Auto = 2 passes dès qu’une image de fin ou des images-clés sont branchées.
+- **Planches à vidéos bien plus légères** : petites copies de lecture (960 px, mêmes images) pour les grandes vidéos,
+  vignettes de 640 px pour les grandes images, vidéos hors champ libérées en 5 s ; le bloc Comparer ne sature plus le
+  décodeur vidéo (98 % → 4 %) ; la mémoire graphique d’une grosse planche passe de ≈ 2,4 Go à moins de 1 Go.
+- **Plus de limite d’onglets** : la barre défile (molette, flèches), l’onglet actif reste visible, et un bouton ▾
+  liste toutes les planches ouvertes avec une recherche.
+- **Plus vivante** : menus, listes, palette, inspecteur et file s’effacent en douceur, les petits boutons
+  s’enfoncent sous le doigt ; rien ne bouge au repos (et moins encore si Windows demande moins d’animations).
+
+### In short
+- **Every online model, in full**: Mia now reads Higgsfield’s catalogue from its console. New: **Kling 4.0** (text,
+  animate with keyframes and end image, references, editing an existing video, up to 30 s in 1080p), **Genjutsu
+  Light** and **SOUL V2 image-to-image**. Every model field is a setting; what is not supported yet is listed with
+  its reason.
+- **An online block’s mode is visible and choosable**: only the inputs of that mode show; “+ Add” lists other modes
+  apart. Per-model prompt tokens (`@image_1`, `@video_1`).
+- **Paid, always clear**: “ONLINE · PAID” and “Link my account” without an account, a public “≈ … $” rate when
+  Higgsfield gives no price, and a paid job is never thrown away: “Wait for the result”.
+- **Several online jobs at once**: they run in parallel and never wait for the graphics card (4 by default, up to 16).
+  A full Higgsfield queue is retried with the same key: never charged twice. Local jobs stay one heavy job at a time.
+- **LTX in 1 or 2 passes**: new “Passes” setting (Auto · 1 pass · 2 passes). 2 passes: motion at half resolution,
+  latent ×2 then refined, keyframes and end image advised (0.6 / 0.7) instead of forced. Auto = 2 passes with an end
+  image or keyframes.
+- **Much lighter video boards**: small playback copies, 640 px thumbnails, off-screen videos released after 5 s; the
+  Compare block no longer saturates the video decoder (98 % → 4 %).
+- **No tab limit**: the strip scrolls and a ▾ button lists every open board, with search.
+- **More alive**: menus, lists, palette, inspector and queue fade out; small buttons give when pressed; nothing moves
+  at rest.
+
+### Ajouté
+- Modèles en ligne : Kling 4.0, Genjutsu Light, SOUL V2 image vers image ; catalogue relevé sur la console et les
+  schémas de Higgsfield (`tools/build-cloud-catalog.mjs`), chaque champ exposé ou listé « non pris en charge » avec
+  sa raison ; « À choisir pour… » de Kling 4.0 et de Genjutsu Light.
+- Bloc Modèle en ligne : rangée « Mode » ; « Passer en … » pour une entrée ignorée ; aides justes par modèle.
+- Tarif public en repli (« ≈ ») sans compte relié ou quand Higgsfield ne donne pas de prix ; un prix sous 1 centime
+  s’écrit « 0,003 $ ».
+- Réglage « Passes » LTX ; Rendre photoréaliste en 2 passes (passe 2 guidée par le rendu 3D en pleine définition).
+- Réglages → Comptes en ligne : « Calculs en ligne simultanés ».
+- Liste des onglets ouverts (▾) avec recherche et « Fermer les autres onglets ».
+
+### Changé
+- Seuls les réglages du palier choisi partent (Kling 3.0 Turbo, LTX-2.5 Pro et Rapide) ; une valeur hors des options
+  est ramenée à la plus proche et la version le dit ; graine bornée selon le modèle ; aperçu à la plus petite
+  résolution ; Kling 4.0 à 10 s par défaut et, en montage, à la durée de la source ; la Qualité va de Turbo à 4K.
+- La file nomme un bloc Modèle par sa famille ; en-têtes « FAIT · 10 MIN », « EN FILE · 1 », « À RELANCER » ;
+  calculs en ligne à part (« En ligne », « En file chez Higgsfield »).
+- Un bloc calculé avant le réglage « Passes » garde son empreinte : aucun recalcul par ricochet.
+- Réglages → À propos : « Génération vidéo pensée par des créatifs, sur ton PC ou en ligne ».
+- Les assistants (MCP) reçoivent les réglages, notes, prix et jetons de chaque mode, et la file en ligne à part.
 
 ### Corrigé
-- **Claude et Codex retrouvent Mia** : installés depuis le Microsoft Store, ils voient `%APPDATA%` à travers leur
-  propre copie privée, où un vieux `bridge.json` (d’une Mia qu’ils avaient lancée eux-mêmes) cachait celui de la
-  Mia ouverte : « Mia ne répond pas » à chaque appel. Mia écrit maintenant aussi `%TEMP%\Mia\bridge.json`, que
-  le serveur MCP lit en premier (jamais par une instance de test).
-- Une Mia lancée depuis une console fermée ensuite ne remplit plus son journal en boucle (EPIPE : 40 Mo en 15 s).
+- Annuler un calcul déjà commencé chez Higgsfield, ou pendant un nouvel essai après une coupure, ne jette plus un
+  résultat payé : Mia le retrouve (même clé) et le récupère.
+- Une vidéo source trop courte (moins de 3 s pour Kling 4.0) est signalée avant le clic et refusée avant tout envoi.
+- La consigne négative cachée du bloc Modèle n’est plus envoyée aux modèles en ligne.
+- « Enrichir la consigne » arrive de nouveau au calcul depuis le bloc Modèle LTX.
+- Un titre envoyé au pont depuis une console Windows (cp1252) n’affiche plus « � » ; le pont refuse un argument
+  inconnu au lieu de deviner, et relier sans nommer l’entrée ne remplace plus un fil existant.
+- Claude et Codex installés depuis le Microsoft Store retrouvent Mia (`%TEMP%\Mia\bridge.json`) ; une Mia lancée
+  depuis une console fermée ne remplit plus son journal en boucle.
+- Bibliothèque : « Déborde » devient « Trop lourd · plus lent » ; les capacités d’un modèle ne se coupent plus au
+  milieu d’un mot ; ouverture plus légère des planches à nombreuses Consignes.
+
+### Pour les développeurs
+- `docs/ARCHITECTURE.md` présente le bloc Modèle et les modèles en ligne (catalogue généré, paliers `onlyTiers` /
+  `tierOptions`, jetons `cite`, `durationFromSource`, prix publics, reprise sur 429 avec la même clé, annulation
+  tardive), la voie en ligne de la file (`prefs.cloudParallel`, `engine.queue.online`) et les onglets sans limite.
+  `mcp/README.md` explique la file en ligne (`mia_jobs` `online` / `remote`).
+- Bancs : test-engine 247, test-cloud 91, test-route 76, validate-workflows 136 cas, tous verts sans GPU ni réseau
+  payant.
 
 ## 0.7.0 — 29/10/2026
 

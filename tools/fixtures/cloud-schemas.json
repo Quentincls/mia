@@ -1,0 +1,4017 @@
+{
+ "_doc": "Schémas des adresses Higgsfield (dash.higgsfield.ai, 2026-10-30) réduits aux champs, options et bornes : tools/test-cloud.js vérifie que Mia n’envoie rien hors du schéma de chaque palier. Refait par tools/build-cloud-catalog.mjs.",
+ "built": "2026-10-30",
+ "endpoints": {
+  "alibaba/happy-horse/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 15
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "alibaba/happy-horse/reference-to-video": {
+   "required": [
+    "image_urls",
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 15
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "alibaba/happy-horse/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1",
+      "4:3",
+      "3:4"
+     ]
+    }
+   }
+  },
+  "alibaba/happy-horse/v1.1/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 15
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "alibaba/happy-horse/v1.1/reference-to-video": {
+   "required": [
+    "image_urls",
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 15
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "alibaba/happy-horse/v1.1/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1",
+      "4:3",
+      "3:4"
+     ]
+    }
+   }
+  },
+  "alibaba/qwen-image-3/edit": {
+   "required": [
+    "prompt",
+    "image_urls"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k",
+      "2k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "7:9",
+      "9:7",
+      "9:16",
+      "16:9",
+      "21:9"
+     ]
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    },
+    "prompt_extend_mode": {
+     "type": "string",
+     "enum": [
+      "direct"
+     ]
+    }
+   }
+  },
+  "alibaba/qwen-image-3/text-to-image": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k",
+      "2k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "7:9",
+      "9:7",
+      "9:16",
+      "16:9",
+      "21:9"
+     ]
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    },
+    "prompt_extend_mode": {
+     "type": "string",
+     "enum": [
+      "direct",
+      "agent"
+     ]
+    }
+   }
+  },
+  "alibaba/wan-3.0-prime/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 30
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "adaptive"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    }
+   }
+  },
+  "alibaba/wan-3.0-prime/reference-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 30
+    },
+    "file_url": {
+     "type": "string"
+    },
+    "link_url": {
+     "type": "string"
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "adaptive"
+     ]
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    }
+   }
+  },
+  "alibaba/wan-3.0-prime/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 30
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "adaptive"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    }
+   }
+  },
+  "alibaba/wan-3.0/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 30
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "adaptive"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    }
+   }
+  },
+  "alibaba/wan-3.0/reference-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 30
+    },
+    "file_url": {
+     "type": "string"
+    },
+    "link_url": {
+     "type": "string"
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "adaptive"
+     ]
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    }
+   }
+  },
+  "alibaba/wan-3.0/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 30
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "adaptive"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "enable_thinking": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.0/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 15
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p",
+      "4k"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.0/reference-to-video": {
+   "required": [],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 15
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p",
+      "4k"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.0/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 15
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p",
+      "4k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.5/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 30
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "bitrate_mode": {
+     "type": "string",
+     "enum": [
+      "standard",
+      "high"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.5/reference-to-video": {
+   "required": [],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 30
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "bitrate_mode": {
+     "type": "string",
+     "enum": [
+      "standard",
+      "high"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.5/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 30
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "bitrate_mode": {
+     "type": "string",
+     "enum": [
+      "standard",
+      "high"
+     ]
+    },
+    "output_format": {
+     "type": "string",
+     "enum": [
+      "mp4",
+      "mov"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.5/video-edit": {
+   "required": [
+    "prompt",
+    "video_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "bitrate_mode": {
+     "type": "string",
+     "enum": [
+      "standard",
+      "high"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "bytedance/seedance-2.5/video-extend": {
+   "required": [
+    "prompt",
+    "video_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 30
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "bitrate_mode": {
+     "type": "string",
+     "enum": [
+      "standard",
+      "high"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    }
+   }
+  },
+  "higgsfield-ai/soul/cinema": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "9:16",
+      "16:9",
+      "4:3",
+      "3:4",
+      "1:1",
+      "2:3",
+      "3:2"
+     ]
+    },
+    "enhance_prompt": {
+     "type": "boolean"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "custom_reference_id": {},
+    "custom_reference_strength": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 1000000
+    },
+    "batch_size": {
+     "type": "integer",
+     "enum": [
+      1,
+      4
+     ]
+    }
+   }
+  },
+  "higgsfield-ai/soul/standard": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 1000000
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "style_id": {
+     "type": "string"
+    },
+    "batch_size": {
+     "type": "integer",
+     "enum": [
+      1,
+      4
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "9:16",
+      "16:9",
+      "4:3",
+      "3:4",
+      "1:1",
+      "2:3",
+      "3:2"
+     ]
+    },
+    "enhance_prompt": {
+     "type": "boolean"
+    },
+    "style_strength": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    }
+   }
+  },
+  "higgsfield-ai/soul/v2/image-to-image": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 1000000
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "style_id": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "batch_size": {
+     "type": "integer",
+     "enum": [
+      1,
+      4
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "9:16",
+      "16:9",
+      "4:3",
+      "3:4",
+      "1:1",
+      "2:3",
+      "3:2"
+     ]
+    },
+    "enhance_prompt": {
+     "type": "boolean"
+    },
+    "custom_reference_id": {
+     "type": "string"
+    },
+    "custom_reference_strength": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    }
+   }
+  },
+  "higgsfield-ai/soul/v2/standard": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 1000000
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "style_id": {
+     "type": "string"
+    },
+    "batch_size": {
+     "type": "integer",
+     "enum": [
+      1,
+      4
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "9:16",
+      "16:9",
+      "4:3",
+      "3:4",
+      "1:1",
+      "2:3",
+      "3:2"
+     ]
+    },
+    "enhance_prompt": {
+     "type": "boolean"
+    },
+    "custom_reference_id": {
+     "type": "string"
+    },
+    "custom_reference_strength": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    }
+   }
+  },
+  "higgsfield/ads-studio/v1.0": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "niche": {
+     "type": "string"
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "language": {
+     "type": "string"
+    },
+    "batch_size": {
+     "type": "integer",
+     "min": 1,
+     "max": 8
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "4:5",
+      "5:4",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4",
+      "21:9",
+      "3:2",
+      "2:3",
+      "2:1",
+      "1:2"
+     ]
+    },
+    "target_audience": {
+     "type": "string"
+    }
+   }
+  },
+  "higgsfield/ai-influencer": {
+   "required": [],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 1000000
+    },
+    "tier": {
+     "type": "string",
+     "enum": [
+      "normal",
+      "freak",
+      "total",
+      "insects",
+      "frogs",
+      "cats",
+      "dogs",
+      "capybaras",
+      "birds"
+     ]
+    },
+    "brief": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "selection": {
+     "type": "object"
+    },
+    "body_color": {
+     "type": "string"
+    },
+    "pinned_species": {
+     "type": "string"
+    },
+    "trait_variants": {},
+    "item_image_urls": {
+     "type": "array"
+    },
+    "variation_index": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    }
+   }
+  },
+  "higgsfield/cinema-studio/4.0": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "era": {
+     "type": "string",
+     "enum": [
+      "1960s",
+      "1980s",
+      "1990s",
+      "2000s",
+      "2020s"
+     ]
+    },
+    "genre": {
+     "type": "string",
+     "enum": [
+      "epic",
+      "drama",
+      "noir",
+      "comedy",
+      "horror",
+      "action"
+     ]
+    },
+    "light": {
+     "type": "string",
+     "enum": [
+      "silhouette",
+      "practicals",
+      "window",
+      "overhead-fall",
+      "contre-jour",
+      "soft-cross"
+     ]
+    },
+    "pacing": {
+     "type": "string",
+     "enum": [
+      "chaotic",
+      "dynamic",
+      "calm",
+      "single-shot"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 4,
+     "max": 30
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "camera_lens": {
+     "type": "string",
+     "enum": [
+      "clean-sharp",
+      "anamorphic",
+      "vintage-anamorphic",
+      "warm-vintage",
+      "halation-vintage"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "camera_model": {
+     "type": "string",
+     "enum": [
+      "modern",
+      "35mm-film",
+      "8mm-film",
+      "dv-camcorder"
+     ]
+    },
+    "color_palette": {
+     "type": "string",
+     "enum": [
+      "static-noon",
+      "twilight-fable",
+      "back-row-kissing-seats",
+      "on-the-other-side-of-the-porthole",
+      "the-emerald-ambush",
+      "highway-standoff",
+      "the-faded-fresco",
+      "oil-ochre",
+      "the-mountain-convent",
+      "ghost-in-the-code",
+      "pink-velvet",
+      "two-days-to-the-horizon",
+      "industrial-fog",
+      "stairs-go-up",
+      "field-post",
+      "home-is-the-next-gas-station",
+      "glossy-flesh",
+      "the-crimson-ballet",
+      "neon-rain-at-midnight",
+      "the-morning-after-rain",
+      "the-iron-borough",
+      "the-ground",
+      "the-investigation",
+      "turquoise-mirage",
+      "a-dream-in-color",
+      "breakfast-on-schedule",
+      "favela-gold",
+      "a-hotel-for-one",
+      "after-dark",
+      "crimson-vigi",
+      "the-neighbors-saw-everything",
+      "the-grey-channel",
+      "mirage-at-noon",
+      "bubblegum-boulevard",
+      "yellow-room",
+      "the-earth-keeps-things-reluctantly",
+      "tropic-fever-dream",
+      "bioluminescent-night",
+      "dont-turn-it-off-im-watching",
+      "the-silk-curtain-falls",
+      "the-butterfly",
+      "playtime",
+      "wallpaper-romance",
+      "overtime",
+      "the-way-home-is-longer",
+      "everyone-speaks-in-whispers",
+      "runaway-summer",
+      "amber-wasteland",
+      "the-circus",
+      "gasoline-sunset"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "camera_aperture": {
+     "type": "string",
+     "enum": [
+      "f14-wide-open",
+      "f4-moderate",
+      "f11-deep-focus"
+     ]
+    },
+    "camera_movement": {
+     "type": "string",
+     "enum": [
+      "snorricam",
+      "robot-arm",
+      "tilt-up",
+      "rack-focus",
+      "tilt-down",
+      "pov",
+      "pan-left",
+      "crane-up",
+      "pan-right",
+      "crane-down",
+      "side-tracking",
+      "pedestal-up",
+      "pedestal-down",
+      "handheld",
+      "tracking",
+      "drone-orbit",
+      "dolly-zoom",
+      "aerial-pullback",
+      "static-shot",
+      "bullet-time",
+      "whip-pan",
+      "slow-zoom-in",
+      "arc-left",
+      "slow-zoom-out",
+      "arc-right",
+      "truck-right",
+      "dolly-in",
+      "truck-left",
+      "dolly-out",
+      "slider-right",
+      "crush-zoom",
+      "slider-left",
+      "helicopter-shot"
+     ]
+    }
+   }
+  },
+  "higgsfield/genjutsu-light/motion-transfer/v1.0": {
+   "required": [
+    "video_url",
+    "image_urls"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "480p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "higgsfield/genjutsu-light/object-swap/v1.0": {
+   "required": [
+    "video_url",
+    "image_urls"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "480p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "higgsfield/genjutsu/motion-transfer/v1.0": {
+   "required": [
+    "video_url",
+    "image_urls"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "480p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "higgsfield/genjutsu/object-swap/v1.0": {
+   "required": [
+    "video_url",
+    "image_urls"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "480p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "higgsfield/genjutsu/restyle/v1.0": {
+   "required": [
+    "video_url",
+    "preset_id"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "preset_id": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "ideogram/v4.0": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "1:2",
+      "2:1",
+      "2:3",
+      "3:2",
+      "4:5",
+      "5:4",
+      "9:16",
+      "16:9",
+      "5:8",
+      "8:5",
+      "3:4",
+      "4:3",
+      "9:22",
+      "22:9",
+      "9:23",
+      "23:9",
+      "3:8",
+      "8:3",
+      "5:12",
+      "12:5",
+      "1:3",
+      "3:1"
+     ]
+    },
+    "image_weight": {
+     "type": "integer",
+     "min": 1,
+     "max": 100
+    },
+    "rendering_speed": {
+     "type": "string",
+     "enum": [
+      "TURBO",
+      "DEFAULT",
+      "QUALITY"
+     ]
+    }
+   }
+  },
+  "kling-video/motion-control/pro": {
+   "required": [
+    "image_url",
+    "video_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "keep_original_sound": {
+     "type": "string",
+     "enum": [
+      "yes",
+      "no"
+     ]
+    },
+    "character_orientation": {
+     "type": "string",
+     "enum": [
+      "image",
+      "video"
+     ]
+    }
+   }
+  },
+  "kling-video/motion-control/std": {
+   "required": [
+    "image_url",
+    "video_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "keep_original_sound": {
+     "type": "string",
+     "enum": [
+      "yes",
+      "no"
+     ]
+    },
+    "character_orientation": {
+     "type": "string",
+     "enum": [
+      "image",
+      "video"
+     ]
+    }
+   }
+  },
+  "kling-video/o3/first-last-frame": {
+   "required": [],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro",
+      "4k"
+     ]
+    },
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    },
+    "multi_prompt": {
+     "type": "array"
+    },
+    "last_frame_url": {
+     "type": "string"
+    },
+    "first_frame_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/o3/image-reference": {
+   "required": [],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro",
+      "4k"
+     ]
+    },
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "elements": {
+     "type": "array"
+    },
+    "shot_type": {
+     "type": "string",
+     "enum": [
+      "customize",
+      "intelligent"
+     ]
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    },
+    "multi_prompt": {
+     "type": "array"
+    },
+    "last_frame_url": {
+     "type": "string"
+    },
+    "first_frame_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/o3/video-edit": {
+   "required": [
+    "prompt",
+    "video_urls"
+   ],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro",
+      "4k"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "elements": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "video_urls": {
+     "type": "array"
+    }
+   }
+  },
+  "kling-video/o3/video-reference": {
+   "required": [
+    "prompt",
+    "video_urls"
+   ],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 10
+    },
+    "elements": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    }
+   }
+  },
+  "kling-video/omni/first-last-frame": {
+   "required": [
+    "prompt",
+    "first_frame_url"
+   ],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    },
+    "last_frame_url": {
+     "type": "string"
+    },
+    "first_frame_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/omni/image-reference": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 10
+    },
+    "elements": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    }
+   }
+  },
+  "kling-video/omni/video-edit": {
+   "required": [
+    "prompt",
+    "video_urls"
+   ],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "elements": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "video_urls": {
+     "type": "array"
+    }
+   }
+  },
+  "kling-video/omni/video-reference": {
+   "required": [
+    "prompt",
+    "video_urls"
+   ],
+   "props": {
+    "mode": {
+     "type": "string",
+     "enum": [
+      "std",
+      "pro"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 10
+    },
+    "elements": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    }
+   }
+  },
+  "kling-video/v2.5-turbo/pro/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10
+     ]
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v2.5-turbo/pro/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10
+     ]
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v2.5-turbo/standard/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10
+     ]
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v2.6/pro/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10
+     ]
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    }
+   }
+  },
+  "kling-video/v2.6/pro/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10
+     ]
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    }
+   }
+  },
+  "kling-video/v3.0-turbo/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    }
+   }
+  },
+  "kling-video/v3.0-turbo/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    }
+   }
+  },
+  "kling-video/v3.0/4k/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "elements": {
+     "type": "array"
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "multi_prompt": {
+     "type": "array"
+    },
+    "last_image_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v3.0/4k/text-to-video": {
+   "required": [],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "elements": {
+     "type": "array"
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    },
+    "multi_prompt": {
+     "type": "array"
+    }
+   }
+  },
+  "kling-video/v3.0/pro/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "elements": {
+     "type": "array"
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "multi_prompt": {
+     "type": "array"
+    },
+    "last_image_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v3.0/pro/text-to-video": {
+   "required": [],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "elements": {
+     "type": "array"
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    },
+    "multi_prompt": {
+     "type": "array"
+    }
+   }
+  },
+  "kling-video/v3.0/std/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "elements": {
+     "type": "array"
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "multi_prompt": {
+     "type": "array"
+    },
+    "last_image_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v3.0/std/text-to-video": {
+   "required": [],
+   "props": {
+    "sound": {
+     "type": "string",
+     "enum": [
+      "on",
+      "off"
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 15
+    },
+    "elements": {
+     "type": "array"
+    },
+    "cfg_scale": {
+     "type": "number",
+     "min": 0,
+     "max": 1
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    },
+    "multi_prompt": {
+     "type": "array"
+    }
+   }
+  },
+  "kling-video/v3/motion-control/pro": {
+   "required": [
+    "image_url",
+    "video_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "keep_original_sound": {
+     "type": "string",
+     "enum": [
+      "yes",
+      "no"
+     ]
+    },
+    "character_orientation": {
+     "type": "string",
+     "enum": [
+      "image",
+      "video"
+     ]
+    }
+   }
+  },
+  "kling-video/v3/motion-control/std": {
+   "required": [
+    "image_url",
+    "video_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "keep_original_sound": {
+     "type": "string",
+     "enum": [
+      "yes",
+      "no"
+     ]
+    },
+    "character_orientation": {
+     "type": "string",
+     "enum": [
+      "image",
+      "video"
+     ]
+    }
+   }
+  },
+  "kling-video/v4.0/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 30
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v4.0/reference-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 30
+    },
+    "elements": {
+     "type": "array"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "21:9",
+      "16:9",
+      "9:16",
+      "1:1",
+      "adaptive"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    }
+   }
+  },
+  "kling-video/v4.0/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 30
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "21:9",
+      "16:9",
+      "9:16",
+      "1:1"
+     ]
+    }
+   }
+  },
+  "kling-video/v4.0/video-edit": {
+   "required": [
+    "prompt",
+    "video_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 3,
+     "max": 30
+    },
+    "elements": {
+     "type": "array"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "video_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "21:9",
+      "16:9",
+      "9:16",
+      "1:1",
+      "adaptive"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    }
+   }
+  },
+  "lightricks/ltx-2.5/image-to-video/fast": {
+   "required": [
+    "prompt",
+    "duration",
+    "image_url"
+   ],
+   "props": {
+    "fps": {
+     "type": "integer",
+     "enum": [
+      24,
+      25,
+      48,
+      50
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      6,
+      8,
+      10
+     ]
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p",
+      "2k",
+      "4k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "camera_movement": {
+     "type": "string",
+     "enum": [
+      "dolly_in",
+      "dolly_out",
+      "dolly_left",
+      "dolly_right",
+      "jib_up",
+      "jib_down",
+      "static",
+      "focus_shift"
+     ]
+    }
+   }
+  },
+  "lightricks/ltx-2.5/image-to-video/pro": {
+   "required": [
+    "prompt",
+    "duration",
+    "image_url"
+   ],
+   "props": {
+    "fps": {
+     "type": "integer",
+     "enum": [
+      24,
+      25,
+      50
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      6,
+      8,
+      10
+     ]
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "camera_movement": {
+     "type": "string",
+     "enum": [
+      "dolly_in",
+      "dolly_out",
+      "dolly_left",
+      "dolly_right",
+      "jib_up",
+      "jib_down",
+      "static",
+      "focus_shift"
+     ]
+    }
+   }
+  },
+  "lightricks/ltx-2.5/text-to-video/fast": {
+   "required": [
+    "prompt",
+    "duration"
+   ],
+   "props": {
+    "fps": {
+     "type": "integer",
+     "enum": [
+      24,
+      25,
+      48,
+      50
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      6,
+      8,
+      10
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p",
+      "2k",
+      "4k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "camera_movement": {
+     "type": "string",
+     "enum": [
+      "dolly_in",
+      "dolly_out",
+      "dolly_left",
+      "dolly_right",
+      "jib_up",
+      "jib_down",
+      "static",
+      "focus_shift"
+     ]
+    }
+   }
+  },
+  "lightricks/ltx-2.5/text-to-video/pro": {
+   "required": [
+    "prompt",
+    "duration"
+   ],
+   "props": {
+    "fps": {
+     "type": "integer",
+     "enum": [
+      24,
+      25,
+      50
+     ]
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      6,
+      8,
+      10
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "camera_movement": {
+     "type": "string",
+     "enum": [
+      "dolly_in",
+      "dolly_out",
+      "dolly_left",
+      "dolly_right",
+      "jib_up",
+      "jib_down",
+      "static",
+      "focus_shift"
+     ]
+    }
+   }
+  },
+  "marketing-studio/image": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "quality": {
+     "type": "string",
+     "enum": [
+      "low",
+      "medium",
+      "high"
+     ]
+    },
+    "preset_id": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "moderation": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "low"
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k",
+      "2k",
+      "4k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "1:1",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "enhance_prompt": {
+     "type": "boolean"
+    }
+   }
+  },
+  "marketing-studio/image/flare": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "quality": {
+     "type": "string",
+     "enum": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    "preset_id": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "moderation": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "low"
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k",
+      "2k",
+      "4k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "1:1",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "enhance_prompt": {
+     "type": "boolean"
+    }
+   }
+  },
+  "marketing-studio/image/sunburst": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "quality": {
+     "type": "string",
+     "enum": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    "preset_id": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "moderation": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "low"
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k",
+      "2k",
+      "4k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "1:1",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+      "21:9"
+     ]
+    },
+    "enhance_prompt": {
+     "type": "boolean"
+    }
+   }
+  },
+  "minimax/h3/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 5,
+     "max": 15
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "2K"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "adaptive",
+      "21:9",
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "aigc_watermark": {
+     "type": "boolean"
+    }
+   }
+  },
+  "minimax/h3/reference-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 5,
+     "max": 15
+    },
+    "audio_urls": {
+     "type": "array"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "2K"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "adaptive",
+      "21:9",
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16"
+     ]
+    },
+    "aigc_watermark": {
+     "type": "boolean"
+    }
+   }
+  },
+  "minimax/h3/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 5,
+     "max": 15
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "2K"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "adaptive",
+      "21:9",
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16"
+     ]
+    },
+    "aigc_watermark": {
+     "type": "boolean"
+    }
+   }
+  },
+  "minimax/hailuo-2.3/standard/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      6,
+      10
+     ]
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "prompt_optimizer": {
+     "type": "boolean"
+    }
+   }
+  },
+  "minimax/hailuo-2.3/standard/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      6,
+      10
+     ]
+    },
+    "prompt_optimizer": {
+     "type": "boolean"
+    }
+   }
+  },
+  "pixverse/v6/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "number",
+     "min": 1,
+     "max": 15
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "360p",
+      "540p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "pixverse/v6/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "number",
+     "min": 1,
+     "max": 15
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "360p",
+      "540p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16"
+     ]
+    },
+    "generate_audio": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "recraft/v4.1/pro/text-to-image": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "colors": {
+     "type": "array"
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "2k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "2:1",
+      "1:2",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "5:4",
+      "4:5",
+      "6:10",
+      "14:10",
+      "10:14",
+      "16:9",
+      "9:16"
+     ]
+    },
+    "output_format": {
+     "type": "string",
+     "enum": [
+      "jpg",
+      "png",
+      "webp"
+     ]
+    },
+    "background_color": {
+     "type": "object"
+    }
+   }
+  },
+  "recraft/v4.1/text-to-image": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "colors": {
+     "type": "array"
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "2:1",
+      "1:2",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "5:4",
+      "4:5",
+      "6:10",
+      "14:10",
+      "10:14",
+      "16:9",
+      "9:16"
+     ]
+    },
+    "output_format": {
+     "type": "string",
+     "enum": [
+      "jpg",
+      "png",
+      "webp"
+     ]
+    },
+    "background_color": {
+     "type": "object"
+    }
+   }
+  },
+  "recraft/v4.1/utility/pro/text-to-image": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "colors": {
+     "type": "array"
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "2k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "2:1",
+      "1:2",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "5:4",
+      "4:5",
+      "6:10",
+      "14:10",
+      "10:14",
+      "16:9",
+      "9:16"
+     ]
+    },
+    "output_format": {
+     "type": "string",
+     "enum": [
+      "jpg",
+      "png",
+      "webp"
+     ]
+    },
+    "background_color": {
+     "type": "object"
+    }
+   }
+  },
+  "recraft/v4.1/utility/text-to-image": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "colors": {
+     "type": "array"
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "2:1",
+      "1:2",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "5:4",
+      "4:5",
+      "6:10",
+      "14:10",
+      "10:14",
+      "16:9",
+      "9:16"
+     ]
+    },
+    "output_format": {
+     "type": "string",
+     "enum": [
+      "jpg",
+      "png",
+      "webp"
+     ]
+    },
+    "background_color": {
+     "type": "object"
+    }
+   }
+  },
+  "v1/custom-references": {
+   "required": [
+    "name",
+    "input_images"
+   ],
+   "props": {
+    "name": {
+     "type": "string"
+    },
+    "model_version": {},
+    "input_images": {
+     "type": "array"
+    }
+   }
+  },
+  "wan/v2.6/image-to-video": {
+   "required": [
+    "prompt",
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": -1,
+     "max": 10000000
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10,
+      15
+     ]
+    },
+    "audio_url": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "wan/v2.6/reference-to-video": {
+   "required": [
+    "prompt",
+    "video_urls"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10
+     ]
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1",
+      "4:3",
+      "3:4"
+     ]
+    }
+   }
+  },
+  "wan/v2.6/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": -1,
+     "max": 10000000
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "enum": [
+      5,
+      10,
+      15
+     ]
+    },
+    "audio_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "multi_shots": {
+     "type": "boolean"
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    }
+   }
+  },
+  "wan/v2.7/image-to-video": {
+   "required": [
+    "image_url"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 15
+    },
+    "audio_url": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "end_image_url": {
+     "type": "string"
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "wan/v2.7/reference-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 10
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "video_urls": {
+     "type": "array"
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16"
+     ]
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "wan/v2.7/text-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 1,
+     "max": 2147483646
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 2,
+     "max": 15
+    },
+    "audio_url": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "16:9",
+      "9:16",
+      "1:1",
+      "4:3",
+      "3:4"
+     ]
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    },
+    "negative_prompt": {
+     "type": "string"
+    }
+   }
+  },
+  "xai/grok-imagine-image-2.0": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "quality": {
+     "type": "string",
+     "enum": [
+      "low",
+      "medium"
+     ]
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k",
+      "2k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "1:1",
+      "1:2",
+      "2:1",
+      "3:2",
+      "2:3",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16"
+     ]
+    }
+   }
+  },
+  "xai/grok-imagine-video/v1.5/reference-to-video": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "prompt": {
+     "type": "string"
+    },
+    "duration": {
+     "type": "integer",
+     "min": 1,
+     "max": 15
+    },
+    "audio_url": {
+     "type": "string"
+    },
+    "image_url": {
+     "type": "string"
+    },
+    "image_urls": {
+     "type": "array"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "480p",
+      "720p",
+      "1080p"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "1:1",
+      "16:9",
+      "9:16",
+      "4:3",
+      "3:4",
+      "3:2",
+      "2:3"
+     ]
+    }
+   }
+  },
+  "z-image/turbo": {
+   "required": [
+    "prompt"
+   ],
+   "props": {
+    "seed": {
+     "type": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    "prompt": {
+     "type": "string"
+    },
+    "resolution": {
+     "type": "string",
+     "enum": [
+      "1k",
+      "2k"
+     ]
+    },
+    "aspect_ratio": {
+     "type": "string",
+     "enum": [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "7:9",
+      "9:7",
+      "9:16",
+      "16:9",
+      "21:9"
+     ]
+    },
+    "prompt_extend": {
+     "type": "boolean"
+    }
+   }
+  }
+ }
+}

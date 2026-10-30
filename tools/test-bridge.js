@@ -268,6 +268,12 @@ async function main() {
     check(noIn.isError && /calcul|Branche|entrée/i.test(noIn.text), 'mia_run without its input → French error, no job', noIn.text);
     const w2 = await mcp.tool('mia_connect', { from: { node: importId, port: 'out' }, to: { node: resizeId } });
     check(!w2.isError, 'mia_connect image → resize', w2.text);
+    const again = await mcp.tool('mia_connect', { from: { node: importId, port: 'out' }, to: { node: resizeId } });
+    check(again.isError && /to\.port/.test(again.text), 'mia_connect without a port never replaces a wire (asks to name the input)', again.text);
+    const typo = await mcp.tool('mia_connect', { from: { node: importId }, to: { node: resizeId }, toPort: 'media' });
+    check(typo.isError && /toPort/.test(typo.text) && /from \{node, port\}/.test(typo.text), 'MCP: an unknown field (toPort) is an error listing the fields', typo.text);
+    const str = await mcp.tool('mia_connect', { from: { node: importId }, to: resizeId });
+    check(str.isError && /object/.test(str.text), 'MCP: a nodeRef given as a string is refused (schema: object)', str.text);
     const run = await mcp.tool('mia_run', { nodeId: resizeId });
     const jobId = run.json?.jobId;
     check(!run.isError && jobId, 'mia_run → jobId', run.text);
@@ -343,6 +349,7 @@ async function main() {
     check(rm.isError && /n’existe pas/.test(rm.text), 'remove of an unknown block → French error', rm.text.slice(0, 160));
 
     await testFolders(mcp, pid);
+    await testCloudModes(mcp, image);
   } catch (e) {
     failures++;
     console.log('  FAIL', e && e.stack ? e.stack : e);
@@ -365,6 +372,89 @@ async function main() {
   }
   console.log(failures ? `\n${failures} échec(s)` : '\nTout est bon.');
   process.exit(failures ? 1 : 0);
+}
+
+// ---------------------------------------------------------------- online Model blocks: mode, tier, notes (30/10)
+// Nothing is ever sent to Higgsfield: the blocks are only placed, wired and set (no mia_run).
+async function testCloudModes(mcp, image) {
+  console.log('· online Model blocks: mode, tier, notes, prompt tokens; LTX passes; a cp1252 body');
+  const created = await mcp.tool('mia_create_project', { name: `Modes en ligne ${STAMP}` });
+  check(!created.isError && created.json?.boardId, 'a board for the online modes', created.text);
+
+  const cat = await mcp.tool('mia_catalog', { type: 'gen' });
+  const gen = cat.json?.types?.[0];
+  const k4 = (gen?.params || []).find((p) => p.id === 'model')?.choices?.find((c) => c.value === 'hf:kling-4-0');
+  const edit = k4?.ways?.find((w) => /video-edit/.test(w.workflow));
+  check(edit && Array.isArray(edit.settings) && edit.settings.some((s) => s.id === 'hf.duration' && s.min === 3 && s.max === 30)
+    && edit.minSeconds?.video === 3 && edit.cite?.videoFrom === 2 && edit.price && Array.isArray(edit.notes) && edit.durationFromSource === 'video',
+  'mia_catalog: Kling 4.0 « Modifier » with its own settings, minSeconds, cite, price, notes', edit);
+  const k3 = (gen?.params || []).find((p) => p.id === 'model')?.choices?.find((c) => c.value === 'hf:kling-3-0');
+  const k3i = k3?.ways?.find((w) => /image-to-video/.test(w.workflow));
+  check(k3i?.settings?.some((s) => s.id === 'hf.sound' && Array.isArray(s.onlyTiers) && !s.onlyTiers.includes('turbo')) && k3i.portTiers?.end
+    && k3i.promptRequiredTiers?.includes('turbo'), 'mia_catalog: Kling 3.0 tiers (onlyTiers, portTiers, promptRequiredTiers)', k3i);
+  check(typeof gen?.howItWorks === 'string' && /params\.workflow/.test(gen.howItWorks) && /@video_2/.test(gen.howItWorks), 'howItWorks explains the online mode and the prompt tokens');
+
+  const add = await mcp.tool('mia_add_block', { type: 'gen', params: { model: 'hf:kling-4-0' }, title: 'Kling test' });
+  const k = add.json?.nodeId;
+  check(!add.isError && k, 'mia_add_block gen hf:kling-4-0', add.text.slice(0, 300));
+  check(add.json && !('lora' in (add.json.params || {})) && 'hf.duration' in (add.json.params || {}), 'add_block answers the online settings of its mode (hf.* defaults, no local lora)', add.json?.params);
+
+  const forced = await mcp.tool('mia_set_params', { nodeId: k, params: { workflow: 'Animer une image' } });
+  check(!forced.isError && forced.json?.params?.workflow === 'kling-video/v4.0/image-to-video' && /chosen/.test(forced.json?.model?.mode || '')
+    && (forced.json?.model?.connect || []).includes('start'), 'set_params workflow by its label → mode chosen, says what it lacks', forced.text.slice(0, 500));
+  check(forced.json && !('lora' in forced.json.params) && !('negative' in forced.json.params), 'set_params answers only the settings the block shows', forced.json?.params);
+
+  const imp = await mcp.tool('mia_import_media', { paths: [image] });
+  const img = imp.json?.blocks?.[0]?.nodeId;
+  await mcp.tool('mia_set_params', { nodeId: k, params: { workflow: 'kling-video/v4.0/text-to-video' } });
+  const w = await mcp.tool('mia_connect', { from: { node: img }, to: { node: k, port: 'start' } });
+  check(!w.isError && w.json?.ignored === true && /image-to-video/.test(w.json?.note || ''), 'mia_connect into an input the chosen mode ignores → ignored:true + the mode that uses it', w.text);
+  const k3t = (await mcp.tool('mia_add_block', { type: 'gen', params: { model: 'hf:kling-3-0', 'hf.tier': 'turbo' } })).json?.nodeId;
+  await mcp.tool('mia_connect', { from: { node: img }, to: { node: k3t, port: 'start' } });
+  const k3end = await mcp.tool('mia_connect', { from: { node: img }, to: { node: k3t, port: 'end' } });
+  check(!k3end.isError && k3end.json?.ignored === true && /Turbo/.test(k3end.json?.note || '') && /hf\.tier/.test(k3end.json?.note || ''),
+    'Kling 3.0 Turbo + end image: ignored because of the tier (not the mode), with the tier to pick', k3end.text);
+  const auto = await mcp.tool('mia_set_params', { nodeId: k, params: { workflow: 'auto' } });
+  check(!auto.isError && auto.json?.params?.workflow === '' && /auto/.test(auto.json?.model?.mode || '') && /image-to-video/.test(auto.json?.model?.workflow || ''),
+    'workflow "auto" → back to the wires (start image → Animer)', auto.text.slice(0, 400));
+  const bd = await mcp.tool('mia_get_board');
+  const kb = (bd.json?.blocks || []).find((x) => x.id === k);
+  check(kb?.model?.accepts?.includes('start') && kb.model.price && Array.isArray(kb.model.modes) && kb.model.modes.length === 4,
+    'get_board: model.accepts, price, modes', kb?.model);
+
+  const omni = await mcp.tool('mia_add_block', { type: 'gen', params: { model: 'hf:kling-omni', workflow: 'kling-video/omni/first-last-frame' } });
+  const o = omni.json?.nodeId;
+  const d7 = await mcp.tool('mia_set_params', { nodeId: o, params: { 'hf.duration': 7 } });
+  check(!d7.isError && (d7.json?.notes || []).some((n) => /hf\.duration/.test(n)), 'Kling Omni: 7 s outside « Animer » is kept, with a note (no more first-wins refusal)', d7.text.slice(0, 400));
+  const bad = await mcp.tool('mia_set_params', { nodeId: o, params: { 'hf.duration': 99 } });
+  check(bad.isError, 'a value no mode allows is still refused', bad.text.slice(0, 200));
+
+  const k3b = await mcp.tool('mia_add_block', { type: 'gen', params: { model: 'hf:kling-3-0' } });
+  const t3 = await mcp.tool('mia_set_params', { nodeId: k3b.json?.nodeId, params: { 'hf.tier': 'turbo', 'hf.sound': true } });
+  check(!t3.isError && (t3.json?.notes || []).some((n) => /hf\.sound/.test(n) && /turbo/.test(n)) && !('hf.sound' in (t3.json?.params || {})),
+    'Kling 3.0 Turbo: sound kept with a tier note, not shown', t3.text.slice(0, 400));
+
+  const ltx = await mcp.tool('mia_add_block', { type: 'gen', params: { model: 'fam:ltx' } });
+  const ps = await mcp.tool('mia_set_params', { nodeId: ltx.json?.nodeId, params: { passes: '2 passes' } });
+  check(!ps.isError && ps.json?.params?.passes === '2', 'LTX passes by its label « 2 passes » → "2"', ps.text.slice(0, 300));
+
+  // a body in the Windows console code page (cp1252): « — » is byte 0x97, « é » 0xE9
+  try {
+    const info = JSON.parse(fs.readFileSync(BRIDGE_FILE, 'utf8'));
+    const title = 'Wan 3.0 — drone épique';
+    const json = JSON.stringify({ method: 'rename_block', params: { nodeId: k, title }, client: 'test' });
+    const bytes = Buffer.from([...json].map((ch) => (ch === '—' ? 0x97 : ch.charCodeAt(0))));
+    const res = await new Promise((resolve, reject) => {
+      const req = require('node:http').request({ host: '127.0.0.1', port: info.port, path: '/call', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': bytes.length, Authorization: `Bearer ${info.token}` } }, (r) => {
+        const c = []; r.on('data', (x) => c.push(x)); r.on('end', () => { try { resolve(JSON.parse(Buffer.concat(c).toString('utf8'))); } catch (e) { reject(e); } });
+      });
+      req.on('error', reject);
+      req.end(bytes);
+    });
+    const got = JSON.stringify(res);
+    check(got.includes(title) && !got.includes('�'), 'a cp1252 body is read back as windows-1252 (no « � » in the title)', got.slice(0, 300));
+  } catch (e) { check(false, 'cp1252 body', String(e && e.message)); }
 }
 
 // ---------------------------------------------------------------- projects (folders) of boards, SPEC §18

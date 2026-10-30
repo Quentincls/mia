@@ -1,13 +1,20 @@
 {
  "version": 1,
  "_doc": "Points forts des modèles en ligne de Higgsfield (SPEC §23), tenus à la main : pour chaque famille de cloud-higgsfield.json (clé hf:…), « à choisir quand… » en une ou deux phrases FR/EN (strengths) et les critères où elle se distingue (bestFor, mots de la liste criteria). Écrits d’après docs.higgsfield.ai (pages des familles et de leurs workflows) et le connecteur Higgsfield (models_explore : descriptions, tags), sans aucun calcul : rien n’a encore été jugé à l’œil. Ne parler que de ce que Mia sait envoyer (pas de styles, de Soul ID ni de multi-plans). Une famille du catalogue sans entrée ici : tools/build-cloud-catalog.mjs et tools/test-route.js le signalent.",
- "checked": "2026-10-28",
+ "checked": "2026-10-30",
  "criteria": ["quality", "motion", "faces", "text", "sound", "long", "4k", "fast", "references", "edit", "camera", "style", "product"],
  "families": {
   "hf:genjutsu": {
    "strengths": {
-    "fr": "À choisir pour transformer une vidéo que tu as (4 à 30 s) : remplacer un objet par celui de tes images, ou faire rejouer son mouvement par tes personnages (8 images au plus).",
-    "en": "Pick it to transform a video you have (4 to 30 s): swap an object for the one in your images, or have your characters replay its motion (up to 8 images)."
+    "fr": "À choisir pour transformer une vidéo que tu as (4 à 30 s) : remplacer un objet par celui de tes images, ou faire rejouer son mouvement par tes personnages (8 images au plus).",
+    "en": "Pick it to transform a video you have (4 to 30 s): swap an object for the one in your images, or have your characters replay its motion (up to 8 images)."
+   },
+   "bestFor": ["edit", "motion", "references"]
+  },
+  "hf:genjutsu-light": {
+   "strengths": {
+    "fr": "À choisir pour des essais moins chers que Genjutsu sur une vidéo que tu as : remplacer un objet par celui de tes images, ou faire rejouer son mouvement par tes personnages (8 images au plus, jusqu’en 1080p).",
+    "en": "Pick it for cheaper tries than Genjutsu on a video you have: swap an object for the one in your images, or have your characters replay its motion (up to 8 images, up to 1080p)."
    },
    "bestFor": ["edit", "motion", "references"]
   },
@@ -59,6 +66,13 @@
     "en": "Pick it to make your character (one image) perform the motion of a 3 to 30 s video, keeping its sound if you like: Kling’s newest take on it."
    },
    "bestFor": ["motion"]
+  },
+  "hf:kling-4-0": {
+   "strengths": {
+    "fr": "À choisir pour un plan jusqu’à 30 s en 1080p, ou pour modifier une vidéo que tu as (3 à 30 s) avec tes images de référence ; images de début, de fin et images-clés possibles.",
+    "en": "Pick it for a shot up to 30 s in 1080p, or to edit a video you have (3 to 30 s) with your reference images; start, end and keyframe images too."
+   },
+   "bestFor": ["long", "edit", "references", "quality"]
   },
   "hf:kling-o3": {
    "strengths": {

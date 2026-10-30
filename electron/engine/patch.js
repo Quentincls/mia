@@ -172,8 +172,10 @@ const MSG = {
     preparingVideo: 'Préparation de la vidéo…',
     uploading: 'Envoi des fichiers au moteur…',
     minimax768: '768p : la plus grande taille de MiniMax H3, encore à l’essai sur ce PC. Si le calcul manque de mémoire, reviens en 720p.',
-    twoPass: 'Deux passes (à essayer) : plan calculé en {w1} × {h1}, puis agrandi ×2 et affiné par LTX.',
-    twoPassSheet: 'Deux passes : pas avec une fiche de référence, calcul en une passe.',
+    twoPass: '2 passes : plan calculé en {w1} × {h1}, puis latent agrandi ×2 et affiné par LTX.',
+    twoPassSheet: '2 passes : pas avec une fiche de référence, calcul en 1 passe.',
+    twoPassPreview: 'Aperçu en 1 passe : les 2 passes ne servent qu’au rendu final.',
+    twoPassMinimax: '2 passes : réglage propre à LTX, MiniMax H3 calcule en 1 passe.',
     enhanced: 'Consigne enrichie par Gemma (à essayer) : « {text} »',
     enhancedNone: 'Consigne enrichie par Gemma (à essayer).',
     sending: 'Envoi au moteur…',
@@ -200,8 +202,10 @@ const MSG = {
     preparingVideo: 'Preparing the video…',
     uploading: 'Sending files to the engine…',
     minimax768: '768p: MiniMax H3’s largest size, still being tried on this PC. If the run runs out of memory, go back to 720p.',
-    twoPass: 'Two passes (to try): shot made at {w1} × {h1}, then enlarged ×2 and refined by LTX.',
-    twoPassSheet: 'Two passes: not with a reference sheet, made in one pass.',
+    twoPass: '2 passes: shot made at {w1} × {h1}, then its latent enlarged ×2 and refined by LTX.',
+    twoPassSheet: '2 passes: not with a reference sheet, made in 1 pass.',
+    twoPassPreview: 'Preview in 1 pass: 2 passes are for the final render only.',
+    twoPassMinimax: '2 passes: an LTX setting, MiniMax H3 computes in 1 pass.',
     enhanced: 'Prompt enriched by Gemma (to try): “{text}”',
     enhancedNone: 'Prompt enriched by Gemma (to try).',
     sending: 'Sending to the engine…',
@@ -354,10 +358,39 @@ function minimaxLength(seconds, floor = false, minK = 3) {
   return 17 * Math.max(minK, floor ? Math.floor(k) : Math.round(k)) + 5;
 }
 
-// ---------------------------------------------------------------- LTX extras (Model block, « à essayer »)
+// ---------------------------------------------------------------- LTX extras: 2 passes, « Enrichir la consigne »
 
 const LTX_UPSCALER = 'ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors';
 const LTX_STAGE2_SIGMAS = '0.909375, 0.725, 0.421875, 0.0';   // the official distilled second stage
+// 2 passes (recipe validated 30/10 on the GPU): keyframes and end image ADVISED, not imposed, in both passes
+const LTX_KEY_STRENGTH = 0.6;
+const LTX_END_STRENGTH = 0.7;
+
+/**
+ * « Passes » of an LTX block: '1' | '2' | 'auto' (an old hidden `twoPass: true` counts as '2'). auto = 2 passes when
+ * `autoTwo` (i2v: an end image or keyframes; t2v and real: never). Previews, a reference sheet and MiniMax stay in
+ * 1 pass; `why` says which (the note), only when 2 passes were wanted.
+ * → { asked, wanted, two, why: null | 'preview' | 'sheet' | 'minimax' }
+ */
+function ltxPasses(x, { autoTwo = false, preview = false, sheet = false, minimax = false } = {}) {
+  const p = (x && x.params) || {};
+  let asked = p.passes == null ? 'auto' : String(p.passes);
+  if (!['auto', '1', '2'].includes(asked)) asked = 'auto';
+  if (asked === 'auto' && p.twoPass === true) asked = '2';
+  const wanted = asked === '2' || (asked === 'auto' && !!autoTwo);
+  const why = !wanted ? null : minimax ? 'minimax' : sheet ? 'sheet' : preview ? 'preview' : null;
+  return { asked, wanted, two: wanted && !why, why };
+}
+
+/** The note for 2 passes wanted but not made (MiniMax: only when « 2 passes » was asked explicitly). */
+function ltxPassesNote(ps) {
+  if (!ps || !ps.why) return null;
+  if (ps.why === 'minimax') return ps.asked === '2' ? t('twoPassMinimax') : null;
+  return t(ps.why === 'sheet' ? 'twoPassSheet' : 'twoPassPreview');
+}
+
+/** Minutes for a 2-pass LTX shot: 8 steps at half size + the refining pass (lab 30/10: the ×2 pass weighs ~half). */
+const ltxTwoPassMinutes = (w, h, frames) => ltxMinutes(w / 2, h / 2, frames) + 0.5 * ltxMinutes(w, h, frames) + 0.3;
 
 /**
  * « Enrichir la consigne »: Gemma (the LTX text encoder) rewrites the prompt as a detailed English shot description
@@ -994,7 +1027,8 @@ const exec = {
   setLang, begin, t, abortError, checkAbort,
   snap, even, ltxFrames, ceil8k1, int, seedOf, ltxMinutes, FORMAT_RATIOS, formatRatio, videoSize, shortSide,
   input, promptOf, model, modelFile, labelOf, isMinimax, minimaxLength, minimaxCanvas,
-  LTX_UPSCALER, LTX_STAGE2_SIGMAS, ltxEnhance, enhancedText,
+  LTX_UPSCALER, LTX_STAGE2_SIGMAS, LTX_KEY_STRENGTH, LTX_END_STRENGTH, ltxPasses, ltxPassesNote, ltxTwoPassMinutes,
+  ltxEnhance, enhancedText,
   familyKey, familyLabel, familyLimits, maxSeconds, loraTrigger, withTrigger, listedName, lora, loraPrompt, addLora, requireModels,
   engine, ranged, tmp, cleanup, upload, annotated, prefix, release, wrap, sweepEngineTemps, submit, files, filesOrThrow, metaOf,
   hasNvenc, codecArgs, ffmpeg, encode, framesInput, framesToVideo, stillTo, prepVideo, notes, dec, maskBox,

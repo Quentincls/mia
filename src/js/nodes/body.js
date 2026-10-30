@@ -24,16 +24,17 @@ import { tip } from '../ui/tooltip.js';
 import { toast } from '../ui/toasts.js';
 import { button, segmented } from '../ui/controls.js';
 import * as runs from './runs.js';
-import { createWell, emptyBlock, urlFor, baseName, strings, shellDo, probeMissing, extractFrame } from './media.js';
+import { createWell, emptyBlock, urlFor, baseName, strings, shellDo, probeMissing, extractFrame, lightImageUrl } from './media.js';
 import { mountParams, autoGrow } from './params.js';
 import { mountVersions } from './versions.js';
 import { mountCompare } from './compare.js';
 import { modelProblem } from './modelpicker.js';
-import { blockWorkflow, isModelBlock } from './ports.js';
-import { portsOfWorkflow } from './route.js';
+import { blockWorkflow, isModelBlock, blockFamily } from './ports.js';
+import { portsOfWorkflow, tierOf } from './route.js';
+import { citeToken } from './porthelp.js';
 import { typeOf } from '../catalog.js';
 import { openMaskEditor } from './maskeditor.js';
-import { money } from '../ui/budget.js';
+import { moneyFine } from '../ui/budget.js';
 import './viewer.js';      // écoute viewer:open
 import './inspector.js';   // écoute inspector:open
 
@@ -48,13 +49,23 @@ strings({
   'node.generate': 'Générer',
   'node.apply': 'Appliquer',
   'node.export': 'Exporter',
-  'node.generateTip': 'Calculé chez Higgsfield avec les réglages du bloc, tels quels : coûte le prix affiché.',
+  'node.generateTip': 'Calculé chez Higgsfield avec les réglages du bloc, tels quels : payant, en $ (le prix est à gauche quand Higgsfield le donne).',
   'node.generateLocalTip': 'Calculé sur ce PC avec les réglages du bloc : la définition, la durée et le nombre d’étapes décident du temps.',
   'node.timeTip': 'Temps prévu d’après tes derniers calculs sur ce PC.',
   'node.timeTipFirst': 'Première estimation : elle se règle sur ce PC dès les premiers calculs.',
   'node.priceTip': 'Prix donné par Higgsfield pour ces réglages, sur ton compte, avant de lancer.',
   'node.priceNone': 'prix ?',
   'node.priceNoneTip': 'Higgsfield ne donne pas de prix pour ces réglages : {why}',
+  'node.pricePublic': '≈ {price} · tarif public',
+  'node.pricePublicTip': 'Tarif public de Higgsfield pour ces réglages (sans compte relié, ou sans estimation) : le prix exact est connu au lancement.',
+  'node.priceLater': 'Le prix sera connu après le calcul.',
+  'node.paidTag': 'En ligne · payant',
+  'node.paidTagTip': 'Calculé chez Higgsfield, payant, en $ : relie ton compte pour le lancer.',
+  'node.paidTagTipPrice': 'Calculé chez Higgsfield, payant, en $ : {price} pour ces réglages. Relie ton compte pour le lancer.',
+  'node.linkAccount': 'Relier mon compte',
+  'node.linkAccountTip': 'Ce modèle calcule chez Higgsfield, en $. Relie ton compte (Réglages → Comptes en ligne) pour le lancer.',
+  'node.waitResult': 'Attendre le résultat',
+  'node.waitResultTip': 'Higgsfield ne peut plus l’arrêter : le calcul est déjà payé, Mia le récupère.',
   'node.cancel': 'Annuler',
   'node.errDetail': 'Voir le détail',
   'node.stale': 'Réglages ou entrées changés : relance pour mettre à jour',
@@ -80,6 +91,8 @@ strings({
   'node.model.install': 'Installer le modèle',
   'node.model.cantRun': 'Impossible de lancer : {why}',
   'node.src.missing': '« {name} » est introuvable',
+  'node.src.tooShort': '« {port} » dure {s} s : {family} en demande au moins {min}',
+  'node.src.tooLong': '« {port} » dure {s} s : {family} en prend au plus {max}',
   'node.src.missingSub': 'Remplace le fichier dans le bloc « {block} ».',
   'node.media.missingToast.one': '{n} média introuvable sur cette planche.',
   'node.media.missingToast.other': '{n} médias introuvables sur cette planche.',
@@ -87,6 +100,8 @@ strings({
   'node.ref.video': 'Vidéo {n}',
   'node.ref.audio': 'Son {n}',
   'node.ref.tip': '« {label} » dans la consigne = {name}',
+  'node.ref.tipToken': '« {label} » dans la consigne = {name} (« {plain} » est compris aussi, Mia le réécrit)',
+  'node.ref.tipSource': '« {label} » dans la consigne = la vidéo à modifier ({name})',
   'node.extract.oldVersion': 'Extraction depuis la version courante seulement : reviens à v{cur} (ou garde celle-ci avec ★).',
   'node.zone.draw': 'Dessiner la zone',
   'node.zone.edit': 'Modifier la zone',
@@ -111,13 +126,23 @@ strings({
   'node.generate': 'Generate',
   'node.apply': 'Apply',
   'node.export': 'Export',
-  'node.generateTip': 'Computed at Higgsfield with the block’s settings, as they are: costs the price shown.',
+  'node.generateTip': 'Computed at Higgsfield with the block’s settings, as they are: paid, in $ (the price is on the left when Higgsfield gives it).',
   'node.generateLocalTip': 'Computed on this PC with the block’s settings: resolution, length and step count decide the time.',
   'node.timeTip': 'Expected time, from your latest jobs on this PC.',
   'node.timeTipFirst': 'First estimate: it adjusts to this PC after the first jobs.',
   'node.priceTip': 'Price given by Higgsfield for these settings, on your account, before running.',
   'node.priceNone': 'price?',
   'node.priceNoneTip': 'Higgsfield gives no price for these settings: {why}',
+  'node.pricePublic': '≈ {price} · public rate',
+  'node.pricePublicTip': 'Higgsfield’s public rate for these settings (no linked account, or no estimate): the exact price is known when it runs.',
+  'node.priceLater': 'The price will be known after the job.',
+  'node.paidTag': 'Online · paid',
+  'node.paidTagTip': 'Computed at Higgsfield, paid, in $: link your account to run it.',
+  'node.paidTagTipPrice': 'Computed at Higgsfield, paid, in $: {price} for these settings. Link your account to run it.',
+  'node.linkAccount': 'Link my account',
+  'node.linkAccountTip': 'This model runs at Higgsfield, in $. Link your account (Settings → Online accounts) to run it.',
+  'node.waitResult': 'Wait for the result',
+  'node.waitResultTip': 'Higgsfield can no longer stop it: the job is already paid, Mia is fetching it.',
   'node.cancel': 'Cancel',
   'node.errDetail': 'See details',
   'node.stale': 'Settings or inputs changed: run again to update',
@@ -143,6 +168,8 @@ strings({
   'node.model.install': 'Install the model',
   'node.model.cantRun': 'Cannot run: {why}',
   'node.src.missing': '“{name}” is missing',
+  'node.src.tooShort': '“{port}” lasts {s} s: {family} needs at least {min}',
+  'node.src.tooLong': '“{port}” lasts {s} s: {family} takes at most {max}',
   'node.src.missingSub': 'Replace the file in the “{block}” block.',
   'node.media.missingToast.one': '{n} media file missing on this board.',
   'node.media.missingToast.other': '{n} media files missing on this board.',
@@ -150,6 +177,8 @@ strings({
   'node.ref.video': 'Video {n}',
   'node.ref.audio': 'Sound {n}',
   'node.ref.tip': '“{label}” in the prompt = {name}',
+  'node.ref.tipToken': '“{label}” in the prompt = {name} (“{plain}” works too, Mia rewrites it)',
+  'node.ref.tipSource': '“{label}” in the prompt = the video to edit ({name})',
   'node.extract.oldVersion': 'Extraction only from the current version: go back to v{cur} (or keep this one with ★).',
   'node.zone.draw': 'Draw the zone',
   'node.zone.edit': 'Edit the zone',
@@ -351,7 +380,10 @@ function missingParams(ctx) {
     const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
     const r = blockWorkflow(ctx.node, conn);
     const p = (ctx.type.params || []).find((x) => x.id === 'prompt');
-    if (!r || !r.workflow.promptRequired || !p || (p.port && ctx.connected(p.port))) return [];
+    // en ligne, certains paliers seulement l'exigent (Kling 3.0 Turbo : promptRequiredTiers)
+    const need = r && (r.workflow.promptRequired || (Array.isArray(r.workflow.promptRequiredTiers)
+      && r.workflow.promptRequiredTiers.includes(tierOf(r.workflow, ctx.node.params || {}))));
+    if (!r || !need || !p || (p.port && ctx.connected(p.port))) return [];
     const v = ctx.node.params?.prompt ?? p.default;
     return v == null || String(v).trim() === '' ? [tl(p.label)] : [];
   }
@@ -360,6 +392,31 @@ function missingParams(ctx) {
     const v = ctx.node.params?.[p.id] ?? p.default;
     return v == null || String(v).trim() === '';
   }).map((p) => tl(p.label));
+}
+
+/**
+ * Une vidéo branchée hors des bornes du mode en ligne (`ports.<id>.minSeconds/maxSeconds` du catalogue : Kling 4.0
+ * modifie une vidéo de 3 à 30 s) → la phrase à dire avant le clic (le moteur la refuse, rien n'est envoyé), ou ''.
+ */
+export function sourceOutOfBounds(ctx) {
+  if (!isModelBlock(ctx.node)) return '';
+  const fam = blockFamily(ctx.node);
+  if (!fam || fam.provider === 'local') return '';
+  const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+  const r = blockWorkflow(ctx.node, conn);
+  for (const [id, pd] of Object.entries((r && r.workflow && r.workflow.ports) || {})) {
+    if (!pd || !(pd.minSeconds > 0 || pd.maxSeconds > 0) || !conn.includes(id)) continue;
+    let s = null;
+    try { s = runs.source(ctx.id, id); } catch { s = null; }
+    const m = s?.meta || null;
+    const d = Number(m?.duration) || (m?.frames && m?.fps ? m.frames / m.fps : 0);
+    if (!(d > 0)) continue;
+    const port = tl((ctx.type.inputs || []).find((i) => i.id === id)?.label || { fr: id });
+    const sec = Math.round(d * 10) / 10;
+    if (pd.minSeconds > 0 && d < pd.minSeconds - 0.05) return t('node.src.tooShort', { port, s: sec, min: pd.minSeconds, family: fam.def.name });
+    if (pd.maxSeconds > 0 && d > pd.maxSeconds + 0.05) return t('node.src.tooLong', { port, s: sec, max: pd.maxSeconds, family: fam.def.name });
+  }
+  return '';
 }
 
 /** Une entrée branchée sur un bloc Média dont le fichier a disparu → { name, block } (ou null). */
@@ -477,6 +534,10 @@ function mountZoneRow(ctx, host) {
 // La barre de 2 px, l'anneau « périmé » et le filet rouge de la carte sont
 // dessinés par l'éditeur (SPEC §6.4) à partir du même runs.state().
 
+const safeStale = (id) => { try { return !!runs.isStale(id); } catch { return false; } };
+// la file et le verrou nomment un bloc Modèle sans titre par sa famille (« Kling 4.0 »), pas « Modèle »
+runs.setFamilyNamer((node) => (isModelBlock(node) ? blockFamily(node)?.def?.name || '' : ''));
+
 function mountRunChrome(ctx) {
   const ring = el('i', { class: 'nb-st-ring', hidden: true });
   const alert = el('i', { class: 'nb-st-alert', html: icon('warn', 13), hidden: true });
@@ -490,7 +551,11 @@ function mountRunChrome(ctx) {
   return {
     paint(st, problem) {
       // modèle absent : en carte étroite, l'icône d'alerte seule (la raison est dans l'info-bulle)
-      const d = st.kind === 'idle' && problem ? { text: problem.title, short: '', alert: true, tone: 'err', tip: problem.sub } : runs.describe(st);
+      // version périmée : « À RELANCER » en toutes lettres à la place de la durée (rapport DA P1-6 ; l'anneau seul se
+      // lisait comme la lettre « o »)
+      const stale = st.kind === 'done' && safeStale(ctx.id);
+      const d = st.kind === 'idle' && problem ? { text: problem.title, short: '', alert: true, tone: 'err', tip: problem.sub } : runs.describe(stale ? { ...st, stale: true } : st);
+      if (stale) status.dataset.stale = ''; else delete status.dataset.stale;
       // carte étroite : la forme courte (« 47 % », « #15 », « 1 h 12 »), pour ne pas manger le titre ;
       // le texte entier passe alors dans l'info-bulle
       const wide = (ctx.node.w || ctx.type.width || 336) >= 400;
@@ -570,7 +635,9 @@ function mountFooter(ctx, host) {
   const install = button({ label: t('node.model.install'), icon: 'node-dl', kind: 'ghost', size: 'sm', onClick: () => openInstaller(blocked?.caps) });
   install.classList.add('nb-install');
   install.hidden = true;
-  const foot = el('div', { class: 'nb-foot' }, install, est, actions);
+  // modèle en ligne sans compte relié (rapport DA P0-1) : « EN LIGNE · PAYANT » dit tout de suite que ça coûte
+  const paid = el('span', { class: 'nb-paid', hidden: true }, t('node.paidTag'));
+  const foot = el('div', { class: 'nb-foot' }, install, paid, est, actions);
   host.append(foot);
   for (const x of [actions, install]) { x.addEventListener('pointerdown', stop); x.addEventListener('dblclick', stop); }
   // bloc Modèle : la façon de faire retenue (ses modes, son estimation de départ)
@@ -581,6 +648,10 @@ function mountFooter(ctx, host) {
   let estDefault = '';
   let active = false;
   let blocked = null;
+  let locked = false;        // en ligne, commencé chez Higgsfield : plus annulable (executors/cloud.js, LOCKED)
+  let lastPaint = null;
+  // le compte Higgsfield relié ou non (Réglages → Comptes en ligne) : le pied et le bouton changent tout de suite
+  const offLinked = onLinked(() => { if (lastPaint && online) { shape = null; priceSig = null; api.paint(...lastPaint); } });
 
   // ── un seul « Générer » (demande de Quentin, 28/10) : ce que règle le bloc décide de la durée et du prix ;
   // un bloc à deux modes calcule en « final » (l'aperçu reste aux assistants qui le demandent) ──
@@ -611,10 +682,23 @@ function mountFooter(ctx, host) {
   let online = null;
   let price = '';
   let priceWhy = '';                                      // la raison de Higgsfield quand il ne donne pas de prix
+  let pricePublic = false;                                // tarif public de repli (« ≈ … $ · tarif public »)
   let priceSig = null;
   let priceTimer = 0;
+  // durées des vidéos branchées : Higgsfield facture le montage sur la source (Kling 4.0), son prix les demande
+  const videoSeconds = () => {
+    const out = {};
+    for (const port of online?.ports || []) {
+      let src = null;
+      try { src = runs.source(ctx.id, port); } catch { src = null; }
+      const d = Number(src?.meta?.duration) || 0;
+      if (src && src.kind === 'video' && d > 0) out[port] = Math.round(d * 100) / 100;
+    }
+    return out;
+  };
   function askPrice() {
-    const sig = online ? JSON.stringify([ctx.node.params?.model, ctx.node.params?.workflow, ctx.node.params, online.ports]) : null;
+    const secs = online ? videoSeconds() : null;
+    const sig = online && !sourceOutOfBounds(ctx) ? JSON.stringify([ctx.node.params?.model, ctx.node.params?.workflow, ctx.node.params, online.ports, secs, linkedNow]) : null;
     if (sig === priceSig) return;
     priceSig = sig;
     clearTimeout(priceTimer);
@@ -625,19 +709,28 @@ function mountFooter(ctx, host) {
       let r = null;
       try {
         r = await window.mia?.cloud?.price?.({ family: ctx.node.params?.model, workflow: ctx.node.params?.workflow || null,
-          params: { ...(ctx.node.params || {}) }, ports: online.ports });
+          params: { ...(ctx.node.params || {}) }, ports: online.ports, ...(Object.keys(secs).length ? { seconds: secs } : {}) });
       } catch { r = null; }
       if (sig !== priceSig) return;
-      // refusé par Higgsfield : « prix ? », sa raison au survol (sans compte relié : rien du tout)
-      priceWhy = r && !r.ok && r.error ? r.error : '';
-      price = r && r.ok && r.usd != null ? money(r.usd) : priceWhy ? t('node.priceNone') : '';
+      // refusé par Higgsfield : « prix ? », sa raison au survol ; tarif public (sans compte, ou estimation sans
+      // montant) : « ≈ 1,65 $ · tarif public », en gris
+      priceWhy = r && !r.ok && r.error ? r.error : (r && r.ok && r.why ? r.why : '');
+      pricePublic = !!(r && r.ok && r.usd != null && (r.source === 'public' || r.approx));
+      price = r && r.ok && r.usd != null
+        ? (pricePublic ? t('node.pricePublic', { price: usd(r.usd) }) : usd(r.usd))
+        : priceWhy ? t('node.priceNone') : '';
+      est.classList.toggle('is-approx', pricePublic);
       if (!active && !blocked) { estDefault = idleText(); showEst(estDefault); }
     }, 400);
   }
 
   // au repos : le prix (en ligne) puis la durée ; tant que le moteur n'a pas répondu, l'estimation du catalogue
-  const idleText = () => [online ? price : '', time || (online ? '' : estimateText(ttype, twoModes ? 'final' : null))]
-    .filter(Boolean).join(' · ');
+  // sans compte relié, le pied dit « EN LIGNE · PAYANT » et le bouton « Relier mon compte » : rien d'autre n'y tient,
+  // le tarif public passe dans l'info-bulle de l'étiquette
+  // une vidéo source hors des bornes du mode : la raison à la place du prix et de la durée (aucun prix demandé)
+  const idleText = () => (sourceOutOfBounds(ctx) || (online && linkedNow === false ? ''
+    : [online ? price : '', time || (online ? '' : estimateText(ttype, twoModes ? 'final' : null))].filter(Boolean).join(' · ')));
+  tip(paid, () => (price ? t('node.paidTagTipPrice', { price }) : t('node.paidTagTip')));
 
   // calculée au survol seulement : mesurer le texte à chaque dessin forcerait une mise en page
   tip(est, () => {
@@ -645,8 +738,10 @@ function mountFooter(ctx, host) {
     if (active) return est.scrollWidth > est.clientWidth ? est.textContent : '';
     // estimation effacée ou coupée faute de place (carte rétrécie, texte long) : elle se lit ici en entier
     const parts = est.classList.contains('is-cut') || est.scrollWidth > est.clientWidth + 1 ? [est.textContent] : [];
-    if (online && priceWhy) parts.push(t('node.priceNoneTip', { why: priceWhy }));
+    if (online && pricePublic) parts.push(t('node.pricePublicTip'));
+    else if (online && priceWhy) parts.push(t('node.priceNoneTip', { why: priceWhy }));
     else if (online && price) parts.push(t('node.priceTip'));
+    else if (online) parts.push(t('node.priceLater'));
     if (time) parts.push(t(timeLearned ? 'node.timeTip' : 'node.timeTipFirst'));
     return parts.join(' ');
   });
@@ -669,7 +764,20 @@ function mountFooter(ctx, host) {
   function build() {
     actions.replaceChildren();
     if (active) {
+      // en ligne, déjà commencé chez Higgsfield : plus d'annulation possible, le calcul est payé et Mia le récupère
+      if (locked) {
+        const wait = button({ label: t('node.waitResult'), icon: 'stop', kind: 'ghost', size: 'sm', disabled: true });
+        actions.append(el('span', { class: 'nb-act-off', 'data-tip': t('node.waitResultTip') }, wait));
+        return;
+      }
       actions.append(button({ label: t('node.cancel'), icon: 'stop', kind: 'ghost', size: 'sm', onClick: () => runs.cancel(ctx.id) }));
+      return;
+    }
+    // en ligne sans compte relié : relier le compte d'abord (rien ne part, rien n'est payé)
+    if (online && linkedNow === false && !blocked) {
+      const link = button({ label: t('node.linkAccount'), kind: 'shiny', size: 'sm', onClick: () => emit('settings:open', { section: 'cloud' }) });
+      link.dataset.tip = t('node.linkAccountTip');
+      actions.append(link);
       return;
     }
     // Modèle absent : le bouton reste visible mais éteint, avec la raison au survol.
@@ -692,20 +800,25 @@ function mountFooter(ctx, host) {
     actions.append(wrap(go));
   }
 
-  return {
+  const api = {
     el: foot,
     paint(st, problem) {
+      lastPaint = [st, problem];
       active = ACTIVE.has(st.kind);
+      locked = active && isLockedMsg(st.message);
       blocked = !active && problem ? problem : null;
       ttype = targetType();
       online = onlineOf(ctx);
       twoModes = online || (ttype.modes || []).includes('final');
       if (!active && !blocked) { askPrice(); askTime(); }
-      const want = (active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle')
-        + (twoModes ? '|2' : '') + (variantsOk(ctx) ? '|4' : '') + (online ? '|online' : '');
+      if (online && linkedNow == null) askLinked();
+      const want = (active ? `active${locked ? '|locked' : ''}` : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle')
+        + (twoModes ? '|2' : '') + (variantsOk(ctx) ? '|4' : '') + (online ? `|online|${linkedNow}` : '');
+      paid.hidden = !(online && linkedNow === false && !active && !blocked);
       if (want !== shape) { shape = want; build(); }
       if (st.kind === 'running') {
-        estDefault = runs.endText(st.endAt) || t('node.running');
+        const far = runs.remoteText(st);
+        estDefault = far ? (far.sub || far.text) : runs.endText(st.endAt) || t('node.running');
       } else if (st.kind === 'queued') {
         estDefault = t('node.queued');
       } else if (st.kind === 'waiting-gpu') {
@@ -721,9 +834,35 @@ function mountFooter(ctx, host) {
       if (blocked) install.dataset.tip = blocked.sub || blocked.title || '';
       showEst(estDefault);
     },
-    destroy() { stopEstFit(); clearTimeout(timeTimer); clearTimeout(priceTimer); foot.remove(); },
+    destroy() { offLinked(); stopEstFit(); clearTimeout(timeTimer); clearTimeout(priceTimer); foot.remove(); },
   };
+  return api;
 }
+
+// ── compte en ligne relié ? (une question pour toute la planche, puis les changements de Réglages) ──
+let linkedNow = null;            // null = pas encore su
+let linkedAsked = false;
+const linkedListeners = new Set();
+function askLinked() {
+  if (linkedAsked) return;
+  linkedAsked = true;
+  Promise.resolve(window.mia?.cloud?.status?.()).then((st) => setLinked(!!(st && st.linked))).catch(() => setLinked(false));
+}
+function setLinked(v) {
+  if (v === linkedNow) return;
+  linkedNow = v;
+  for (const fn of [...linkedListeners]) { try { fn(); } catch (e) { console.error('[body] compte', e); } }
+}
+on('cloud:changed', (st) => setLinked(!!(st && st.linked)));
+function onLinked(fn) { linkedListeners.add(fn); return () => linkedListeners.delete(fn); }
+
+// textes de executors/cloud.js (LOCKED) : le calcul en ligne ne peut plus être arrêté, il est payé
+const LOCKED_TXT = ['Higgsfield ne peut plus l’arrêter : le calcul est déjà payé, Mia le récupère.',
+  'Higgsfield can no longer stop it: the job is already paid, Mia is fetching it.'];
+const isLockedMsg = (m) => !!m && LOCKED_TXT.includes(String(m));
+
+/** « 0,84 $ » ; un tout petit prix (une image SOUL V2 à 0,0032 $) garde ses chiffres utiles : « 0,003 $ ». */
+const usd = (v) => moneyFine(v);
 
 // ── références numérotées (Vidéo à partir de références, SPEC §17) ────
 // « Image 1 », « Image 2 »… dans l'ordre des fils (celui du moteur) : c'est ce
@@ -735,29 +874,45 @@ function mountRefs(ctx, host) {
   const CITED = ['refs', 'refVideos', 'refAudios', 'ref'];
   const all = (ctx.type.inputs || []).filter((i) => CITED.includes(i.id) && i.multi && i.max);
   if (!all.length || !host) return null;
-  const portsNow = () => {
-    if (!isModelBlock(ctx.node)) return all;
+  // le mode retenu d'un bloc Modèle (ses jetons de citation : « @image_1 », « @video_2 »… chez Kling 4.0)
+  const wfNow = () => {
+    if (!isModelBlock(ctx.node)) return null;
     const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
-    const r = blockWorkflow(ctx.node, conn);
-    const used = r ? portsOfWorkflow(r.workflow) : {};
+    return blockWorkflow(ctx.node, conn)?.workflow || null;
+  };
+  const portsNow = (wf) => {
+    if (!isModelBlock(ctx.node)) return all;
+    const used = wf ? portsOfWorkflow(wf) : {};
     return all.filter((i) => used[i.id]);
   };
   const root = el('div', { class: 'nb-refs', hidden: true });
   root.addEventListener('pointerdown', stop);
   host.append(root);
   let sig = null;
+  const nameOf = (s) => s.node.title || s.node.data?.name || tl(runs.typeOf(s.node.id)?.label || {});
+  // la vignette de 640 px d'une image (l'original seulement le temps qu'elle se fasse : le rendu se refait alors)
+  const thumbOf = (s) => (s.kind === 'image'
+    ? (s.path ? lightImageUrl({ rel: s.path, kind: 'image', meta: s.meta }, () => { sig = null; if (root.isConnected) render(); }) : '')
+    : (s.poster ? urlFor(s.poster) : ''));
   function render() {
     const items = [];
-    for (const p of portsNow()) {
+    const wf = wfNow();
+    // montage en ligne (Kling 4.0) : la vidéo à modifier se cite aussi (« @video_1 »), avant les références
+    if (wf?.cite && Number(wf.cite.videoFrom) >= 2 && wf.ports?.video) {
+      for (const s of runs.upstream(ctx.id, 'video').slice(0, 1)) {
+        const label = String(wf.cite.video || '').replace('{n}', '1');
+        if (label) items.push({ label, thumb: thumbOf(s), name: nameOf(s), key: `video:${s.node.id}:${s.path || ''}`, src: true });
+      }
+    }
+    for (const p of portsNow(wf)) {
       const list = runs.upstream(ctx.id, p.id);
       // Qwen : l'image à retoucher est l'Image 1, ses images d'appui sont les images 2 et 3
       const from = p.id === 'ref' ? 2 : 1;
       list.forEach((s, i) => {
         const kind = p.type === 'video' ? 'video' : p.type === 'audio' ? 'audio' : 'image';
-        const label = t(`node.ref.${kind}`, { n: i + from });
-        const thumb = s.kind === 'image' ? (s.path ? urlFor(s.path) : '') : (s.poster ? urlFor(s.poster) : '');
-        const name = s.node.title || s.node.data?.name || tl(runs.typeOf(s.node.id)?.label || {});
-        items.push({ label, thumb, name, key: `${p.id}:${s.node.id}:${s.path || ''}` });
+        const plain = t(`node.ref.${kind}`, { n: i + from });
+        const token = citeToken(wf, kind, i + from);
+        items.push({ label: token || plain, plain: token ? plain : '', thumb: thumbOf(s), name: nameOf(s), key: `${p.id}:${s.node.id}:${s.path || ''}` });
       });
     }
     const next = items.map((x) => `${x.key}|${x.label}|${x.thumb}`).join(',');
@@ -765,10 +920,10 @@ function mountRefs(ctx, host) {
     sig = next;
     root.hidden = !items.length;
     root.replaceChildren(...items.map((x) => {
-      const chip = el('span', { class: 'nb-ref' },
+      const chip = el('span', { class: `nb-ref${x.plain || x.src ? ' token' : ''}` },
         el('span', { class: 'nb-ref-thumb' }, x.thumb ? el('img', { src: x.thumb, alt: '', draggable: 'false', decoding: 'async' }) : null),
         el('span', { class: 'nb-ref-lab' }, x.label));
-      chip.dataset.tip = t('node.ref.tip', { label: x.label, name: x.name });
+      chip.dataset.tip = x.src ? t('node.ref.tipSource', { label: x.label, name: x.name }) : x.plain ? t('node.ref.tipToken', { label: x.label, name: x.name, plain: x.plain }) : t('node.ref.tip', { label: x.label, name: x.name });
       return chip;
     }));
   }
@@ -911,7 +1066,12 @@ function computeBody(ctx) {
     const ratio = wellRatio();
     if (st.kind === 'queued') return { title: t('node.queued'), ratio };
     if (st.kind === 'waiting-gpu') return { title: t('node.waitingGpu'), sub: st.who ? t('node.waitingWho', { who: st.who }) : '', ratio };
-    if (st.kind === 'running') return { title: t('node.running'), sub: runs.endText(st.endAt), ratio };
+    if (st.kind === 'running') {
+      // en ligne, en file chez Higgsfield ou sa file pleine (le compte à rebours en sous-titre) : pas « Calcul en cours »
+      const far = runs.remoteText(st);
+      if (far) return { title: far.text, sub: far.sub, ratio };
+      return { title: t('node.running'), sub: runs.endText(st.endAt), ratio };
+    }
     if (problem) {
       return {
         title: problem.title, sub: problem.sub, icon: 'warn', ratio,
@@ -922,6 +1082,8 @@ function computeBody(ctx) {
     if (missing.length) return { title: t('node.notComputed'), sub: t('node.connect', { list: missing.join(', ') }), ratio };
     const empty = missingParams(ctx);
     if (empty.length) return { title: t('node.notComputed'), sub: t('node.fillFirst', { list: empty.join(', ') }), ratio };
+    const bounds = sourceOutOfBounds(ctx);
+    if (bounds) return { title: t('node.notComputed'), sub: bounds, icon: 'warn', ratio };
     const gone = goneSource(ctx);
     if (gone) return { title: t('node.src.missing', { name: gone.name }), sub: t('node.src.missingSub', { block: gone.block }), icon: 'warn', ratio };
     // la durée prévue est dans le pied, à côté de « Générer » (une seule, d'après ce PC)
@@ -1158,6 +1320,7 @@ function importBody(ctx) {
     well.show({
       url, poster: urlFor(d.poster), kind: d.kind || 'image', meta: d.meta,
       alpha: !!d.meta?.alpha, pending: unplayable,
+      rel: d.src,                                   // l'original : sa copie légère sert aux petits puits
     });
     // Le cache de Chromium peut encore lire un fichier effacé : on demande au disque, une fois.
     if (d.src && probedSrc !== d.src) {

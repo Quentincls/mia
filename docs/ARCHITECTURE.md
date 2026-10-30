@@ -21,8 +21,9 @@ installation on another PC is [INSTALL.md](INSTALL.md) (in French).
 
 ## Principles
 
-- **Local only.** Everything runs on the user's PC: ComfyUI on `127.0.0.1`, a Python worker, ffmpeg. The only
-  outgoing connections are the model downloads the user starts, and the engine setup script.
+- **Local first.** Everything runs on the user's PC: ComfyUI on `127.0.0.1`, a Python worker, ffmpeg. The only
+  outgoing connections are the model downloads the user starts, the engine setup script and, once the user has
+  linked an account, the paid online models of one service (Higgsfield), only when the user runs such a block.
 - **Plain words.** A *board* holds *blocks* named by what they do; a *project* is a folder of boards. No jargon
   outside the folded *Advanced* settings (no "sampler", "VAE", "IC-LoRA" on screen).
 - **One heavy job at a time**, behind a GPU lock that other tools on the machine can share.
@@ -196,7 +197,9 @@ estimates. The interface, the engine and the MCP server all read it.
    or a pinned run, is reused; otherwise a job is queued for it first. A failed upstream fails the block with its
    name.
 3. **Queue.** One `heavy` job at a time, and only with the GPU lock; `light` and `none` jobs run two at a time
-   but wait while a heavy job runs. First in, first out; any job can be cancelled.
+   but wait while a heavy job runs. First in, first out; any job can be cancelled. Online jobs (a Model block set
+   to an online model) have their own lane: they never wait for the GPU and never hold a heavy job back, up to
+   `prefs.cloudParallel` at once (4 by default, 1 to 16, set in Settings → Online accounts).
 4. **GPU lock.** A small lock file in the engine's `runtime` folder, shared with other tools: who holds it, since
    when, for how long. Taken for each heavy job with a readable label, renewed every five minutes, released in a
    `finally`; a stale lock of a dead Mia process is cleared at start-up. While someone else holds it the job shows
@@ -220,8 +223,30 @@ Face flags and UTF-8 output. It talks back with lines such as `@mia {"p":0.42,"m
 `cancel` file in the output folder, then ends the process tree after three seconds.
 
 **Status**: `engine:status` reports ComfyUI (`running`, `stopped`, `starting`, `error`, `foreign`), the GPU
-(name, memory, lock) and the queue, refreshed every three seconds while a window is open. Jobs and events carry
-progress, a message and an ETA learnt from past runs of the same block type and mode.
+(name, memory, lock) and the queue (`running`, `waiting`, then `local` and `online` apart), refreshed every three
+seconds while a window is open. Jobs and events carry progress, a message and an ETA learnt from past runs of the
+same block type and mode; an online job also carries `online: true` and `remote` (`queued`, `running`, or `full`
+while the provider's queue is full).
+
+### The Model block and online models
+
+A *Model* block (`type: "gen"`) is set to a model family rather than a task: `fam:ltx`, `fam:minimax`… on this PC
+(`src/catalog/model-families.json`), or `hf:<family>` online (`src/catalog/cloud-higgsfield.json`). What is wired
+into it picks what it does: `src/js/nodes/route.js` (an ES module with no import, loaded by the interface and, with
+its `export`s stripped, by the engine) scores each of the family's ways of working against the wired inputs, so
+the screen and the engine always agree. Online, a way chosen by the user (`params.workflow`) wins over the score.
+
+The online catalogue is generated, never edited by hand: `tools/build-cloud-catalog.mjs` reads the provider's
+public pages and schemas (`--renormalize` rebuilds it offline from a cache). Each way lists its inputs, settings
+(with tier-only settings and options: `onlyTiers`, `tierOptions`), prompt tokens (`cite`), whether its length
+follows the source video (`durationFromSource`, `minSeconds`), a public price range (`price`) and the fields Mia
+does not send yet, each with a reason (`unsupported`). `electron/engine/executors/cloud.js` uploads the inputs,
+sends only what the chosen tier accepts, retries a full queue (HTTP 429) after the delay it is given with the
+same `Idempotency-Key` (never charged twice), and follows the request until the result is downloaded into the
+version folder. A job cancelled after the provider has started it is still fetched, since it is already paid.
+Prices come from the provider's free estimate, or from the public price range, shown with "≈". The account key
+is kept encrypted (`safeStorage`) in the data folder and never reaches the window. `tools/test-cloud.js` checks
+all of this against a local fake server.
 
 ## Models and LoRAs
 
@@ -252,7 +277,10 @@ the editor. Modules talk through a small event bus (`bus.js`: `on`, `off`, `once
 - **Home** (`ui/home.js`): projects, then boards without a project, then recipes; search and sort; breadcrumb
   inside a project; drag a board onto a project to file it.
 - **Tabs** (`ui/tabs.js`): one tab per open board; the boards of a project are contiguous behind a coloured
-  group chip that folds and unfolds; the window controls are never pushed out of view.
+  group chip that folds and unfolds; the window controls are never pushed out of view. There is no tab limit:
+  past the room available, names shrink to a floor, then the strip scrolls between two arrows (wheel too), the
+  active tab is always brought into view, and a list button shows every open board by project, with a search
+  field from nine tabs.
 - **Editor** (`graph/editor.js`): the camera (world point at the top-left plus zoom), the block cards (header,
   preview well, port rows, settings, footer), wires (horizontal-tangent cubic Béziers), sections, minimap,
   clipboard, undo history. Levels of detail switch content visibility at zoom 0.45, 0.22 and 0.10; a block never
@@ -315,7 +343,9 @@ model folders): see [CONTRIBUTING.md](../CONTRIBUTING.md).
 | `node tools/test-engine.js` | queue, GPU lock, hashes, cancellation |
 | `node tools/test-scanner.js` | model recognition, capabilities, LoRA registry and placement (in a fake engine folder) |
 | `node tools/validate-workflows.js` | every ComfyUI graph Mia builds, validated offline against the schema in `tools/fixtures/comfy_object_info.json` (or `--schema`) |
-| `node tools/check-syntax.mjs` | syntax of every JavaScript file |
+| `node tools/check-syntax.mjs` | syntax of every JavaScript file, typographic apostrophes in French strings |
+| `node tools/test-route.js` | how a Model block picks its way of working from what is wired (shared by screen and engine) |
+| `node tools/test-cloud.js` | online models against a local fake server: uploads, requests, tiers, retries, cancelling, prices (no real call, nothing paid) |
 | `node tools/test-light-executors.js` | CPU executors (trim, resize, sequence, sound, finish…) |
 | `node tools/test-bridge.js` | the assistants' bridge and MCP server |
 | `node tools/test-migrations.js` | data format migrations |

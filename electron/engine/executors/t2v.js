@@ -5,8 +5,9 @@
 // Size = the block's format (16:9, 9:16, 1:1, 4:3, 3:4, 21:9) at its resolution (short side 540 / 720 / 1080),
 // generated on LTX's 32-px grid and cropped back to the exact size (1088 → 1080, as the lab does).
 // Character / place LoRA (SPEC §12): LoraLoaderModelOnly after the UNET, trigger word put first in the prompt.
-// Model block extras (« à essayer »): « Deux passes » (half size, latent ×2, 3 refining steps) for final renders and
-// « Enrichir la consigne » (Gemma rewrites the prompt), as in i2v.js; « Vidéo depuis une fiche personnage »: a
+// « Passes » (catalog `passes`: auto | 1 | 2, old `twoPass: true` = 2): 2 passes = half size in 8 steps, latent ×2,
+// 3 refining steps (the recipe validated 30/10, see i2v.js), final renders only; auto = 1 pass here (no keyframes).
+// Model block extra (« à essayer »): « Enrichir la consigne » (Gemma rewrites the prompt), as in i2v.js; « Vidéo depuis une fiche personnage »: a
 // reference sheet without any start image, as the official LTX-2.5_ICLoRA_Ingredients template does (empty latent
 // with the sheet's own shape, the sheet held on every frame as an IC-LoRA guide at frame 0, guides cropped before
 // decode). GPU trial of 25/10: a sheet squeezed into a 16:9 frame with black bars is copied as is.
@@ -45,7 +46,8 @@ function plan(x) {
   // takes the sheet's shape (the Ingredients template)
   const ratio = sheet ? E.formatRatio(null, x.inputs.sheet.meta, 16 / 9)
     : E.formatRatio(x.params.format === 'auto' ? '16:9' : x.params.format, null, 16 / 9);
-  const twoPass = !preview && x.params.twoPass === true && !sheet;
+  const passes = E.ltxPasses(x, { autoTwo: false, preview, sheet });
+  const twoPass = passes.two;
   // LTX is trusted up to its family limit (SPEC §22), the bound the block shows
   const dur = Math.max(1, Math.min(E.maxSeconds(E.model(x, 'model'), 'ltx'), Number(x.params.duration) || 5));
   const seconds = preview ? Math.min(dur, PREVIEW_MAX_S) : dur;
@@ -56,7 +58,7 @@ function plan(x) {
   const size = E.videoSize({ ratio, short, maxPixels: Math.min(LTX_MAX_PIXELS, sheetMax), mult: twoPass ? 64 : 32 });
   const free = sheet ? E.videoSize({ ratio, short, maxPixels: LTX_MAX_PIXELS }) : size;
   const { w, h } = size;
-  return { preview, w, h, ow: size.ow, oh: size.oh, crop: size.crop, seconds, frames, twoPass, sheet,
+  return { preview, w, h, ow: size.ow, oh: size.oh, crop: size.crop, seconds, frames, twoPass, passes, sheet,
     sheetCapped: sheet && free.w * free.h > w * h, enhance: x.params.enhance === true };
 }
 
@@ -124,6 +126,8 @@ async function run(x) {
     P.set(g, '5518:4848', 'samples', ['9817', 1]);
     notes.push(E.t('twoPass', { w1: w / 2, h1: h / 2 }));
   }
+  const passNote = E.ltxPassesNote(pl.passes);
+  if (passNote) notes.push(passNote);
   P.set(g, '9990', 'filename_prefix', E.prefix(x, '', 'frame'));
   P.set(g, '9991', 'filename_prefix', E.prefix(x, '', 'audio'));
 
@@ -155,7 +159,7 @@ function estimate(x) {
     const { w, h, frames, twoPass, enhance, sheet } = plan(x);
     const extra = enhance ? 0.5 : 0;
     // a looped sheet doubles the tokens: attention grows ~ tokens^1.5 (as i2v.js)
-    return (twoPass ? E.ltxMinutes(w / 2, h / 2, frames) + E.ltxMinutes(w, h, frames) * (3 / 8) : E.ltxMinutes(w, h, frames) * (sheet ? 2.8 : 1)) + extra;
+    return (twoPass ? E.ltxTwoPassMinutes(w, h, frames) : E.ltxMinutes(w, h, frames) * (sheet ? 2.8 : 1)) + extra;
   } catch { return x && x.mode === 'preview' ? 1 : 7; }
 }
 

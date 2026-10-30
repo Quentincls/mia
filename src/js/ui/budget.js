@@ -40,6 +40,14 @@ export function money(amount, currency = 'USD') {
   return lang() === 'en' ? `${sign}$${s}` : `${sign}${s.replace('.', ',')} $`;
 }
 
+/** A price that may be tiny: « 0,84 $ », but « 0,003 $ » for a SOUL V2 image at 0.0032 $ (never « 0,00 $ »). */
+export function moneyFine(amount, currency = 'USD') {
+  const n = Number(amount) || 0;
+  if (n <= 0 || n >= 0.01) return money(n, currency);
+  const x = n.toFixed(3);
+  return money(0, currency).replace(/0[.,]00/, (m) => (m.includes(',') ? x.replace('.', ',') : x));
+}
+
 /** A top-up date, short: « 27/10 » (« 10/27 » in English). */
 export function shortDate(ms) {
   return new Date(ms).toLocaleDateString(lang() === 'en' ? 'en-US' : 'fr-FR', { day: '2-digit', month: '2-digit' });

@@ -6,8 +6,8 @@
 
 import { t, tl, has, register } from '../i18n.js';
 import { inputDefs } from '../catalog.js';
-import { isModelBlock, blockFamily, portLabels } from './ports.js';
-import { portsOfWorkflow, needsOf } from './route.js';
+import { isModelBlock, blockFamily, portLabels, tierExclusion } from './ports.js';
+import { portsOfWorkflow, needsOf, chooseWorkflow } from './route.js';
 
 register({
   fr: {
@@ -23,6 +23,7 @@ register({
     'port.upTo': 'Jusqu’à {n}',
     'port.notTaken': 'Pas prise par {family}',
     'port.ignored': 'Pas utilisée pour « {what} »',
+    'port.ignoredTier': 'Pas prise en {tier} (seulement {tiers})',
     'port.trial': 'À essayer : pas encore validée au labo',
     'port.help.start': 'La première image du plan : le modèle part d’elle et la met en mouvement.',
     'port.help.end': 'L’image où le plan doit arriver. Conseillée : sans elle, le texte seul décide où finit l’action.',
@@ -34,7 +35,9 @@ register({
     'port.help.refAudios': 'Des sons dont la vidéo s’inspire : une voix à imiter, une musique, une ambiance. Ils ne sont pas calés dans le temps ; pour que la vidéo suive un son précis (lèvres, rythme), utilise « Son à suivre ». Cite-les : « Son 1 »…',
     'port.help.video': 'La vidéo de départ, que le modèle transforme.',
     'port.help.video.ltx': 'Ton rendu 3D (Unreal, Blender, passe « Lumière seule ») : LTX le repeint en image filmée, sans toucher à la caméra ni au mouvement.',
-    'port.help.video.cloud': 'La vidéo à modifier ou à prolonger : le modèle part d’elle.',
+    'port.help.video.cloud': 'La vidéo de départ : le modèle part d’elle pour « {mode} ».',
+    'port.help.keys.cloud': 'Des images par où le plan doit passer, entre le début et la fin, dans l’ordre des fils (du haut vers le bas) : le modèle les place lui-même. Garde le cadrage de l’image de début.',
+    'port.help.refVideos.cloud': 'Des vidéos dont le modèle reprend le mouvement, le cadrage ou l’ambiance, dans l’ordre des fils. Cite-les dans la consigne comme le disent les pastilles sous le bloc.',
     'port.help.video.minimax': 'La vidéo à prolonger : MiniMax reprend sa fin et continue le plan. Le résultat est la vidéo entière, rallongée.',
     'port.help.guide': 'Une vidéo dont le modèle suit la forme et le mouvement (profondeur ou contours), sans en copier les couleurs. Avec une image de début, garde le cadrage de la 1re image du guide : sinon le plan coupe.',
     'port.help.layout': 'Une image dont le modèle garde la composition (placement, perspective, profondeur), pas les couleurs ni le style : ta LoRA garde la main. Le format suit cette image.',
@@ -66,6 +69,7 @@ register({
     'port.upTo': 'Up to {n}',
     'port.notTaken': 'Not taken by {family}',
     'port.ignored': 'Not used for “{what}”',
+    'port.ignoredTier': 'Not taken in {tier} (only {tiers})',
     'port.trial': 'To try: not checked at the lab yet',
     'port.help.start': 'The first frame of the shot: the model starts from it and sets it in motion.',
     'port.help.end': 'The frame the shot must land on. Recommended: without it, the text alone decides where the action ends.',
@@ -77,7 +81,9 @@ register({
     'port.help.refAudios': 'Sounds the video draws on: a voice to imitate, music, an atmosphere. They are not placed in time; for the video to follow a precise sound (lips, rhythm), use “Sound to follow”. Name them: “Sound 1”…',
     'port.help.video': 'The starting video, which the model transforms.',
     'port.help.video.ltx': 'Your 3D render (Unreal, Blender, “Lighting only” pass): LTX repaints it as filmed footage, without touching the camera or the motion.',
-    'port.help.video.cloud': 'The video to edit or extend: the model starts from it.',
+    'port.help.video.cloud': 'The starting video: the model starts from it for “{mode}”.',
+    'port.help.keys.cloud': 'Frames the shot must pass through, between the start and the end, in wire order (top to bottom): the model places them itself. Keep the start image’s framing.',
+    'port.help.refVideos.cloud': 'Videos whose motion, framing or mood the model borrows, in wire order. Name them in the prompt as the chips under the block say.',
     'port.help.video.minimax': 'The video to extend: MiniMax picks up its end and carries the shot on. The result is the whole video, made longer.',
     'port.help.guide': 'A video whose shape and motion the model follows (depth or outlines), without copying its colours. With a start image, keep the framing of the guide’s first frame: otherwise the shot cuts.',
     'port.help.layout': 'An image whose composition the model keeps (placement, perspective, depth), not its colours or style: your LoRA keeps control. The format follows this image.',
@@ -100,6 +106,45 @@ register({
 
 const typeWord = (k) => (has(`port.type.${k}`) ? t(`port.type.${k}`) : k);
 
+/** Entrées reliées d'un bloc (ids), lues sur la planche. */
+function connectedOf(node) {
+  let m = {};
+  try { m = window.__mia?.editor?.inputsOf?.(node.id) || {}; } catch { m = {}; }
+  return Object.keys(m).filter((k) => m[k] && m[k].length);
+}
+
+/** Le mode retenu d'un bloc Modèle (façon de faire du catalogue), d'après ses fils et son choix. */
+function planOf(node, fam) {
+  try { return chooseWorkflow(fam, connectedOf(node), node.params?.workflow || null); } catch { return null; }
+}
+const modeOf = (node, fam) => tl(planOf(node, fam)?.workflow?.label || {});
+
+/**
+ * Aide d'une entrée propre à un modèle en ligne (`ports.<id>.help` du catalogue, quand l'aide de Mia serait fausse) :
+ * celle du mode retenu, sinon celle d'un autre mode qui la prend (l'entrée n'y sert pas encore). '' sinon.
+ */
+export function cloudPortHelp(node, fam, id) {
+  const wf = planOf(node, fam)?.workflow;
+  const mine = wf?.ports?.[id]?.help;
+  if (mine) return tl(mine);
+  if (wf?.ports?.[id]) return '';
+  const other = (fam.def.workflows || []).find((w) => w.ports?.[id]?.help);
+  return other ? tl(other.ports[id].help) : '';
+}
+
+/**
+ * Jeton de citation de la n-ième référence (n à partir de 1) dans la consigne d'un modèle en ligne : « @image_1 »,
+ * « @video_2 »… (`cite` du mode : `videoFrom` = numéro de la 1re vidéo de référence, 2 quand la vidéo à modifier est
+ * « @video_1 »). null quand le mode n'a pas de jeton à lui (on écrit alors « Image 1 »).
+ */
+export function citeToken(wf, kind, n) {
+  const c = wf && wf.cite;
+  if (!c) return null;
+  if (kind === 'image' && c.image) return String(c.image).replace('{n}', String(n));
+  if (kind === 'video' && c.video) return String(c.video).replace('{n}', String(n + (Number(c.videoFrom) || 1) - 1));
+  return null;
+}
+
 /**
  * Infobulle riche d'une pastille : { kicker, title, body, meta } (tooltip.js), ou '' quand il n'y a rien à dire.
  * `node` : le bloc ; `def` : la définition du port telle que le bloc la montre (ports.js) ; `dir` : 'in' | 'out'.
@@ -113,9 +158,12 @@ export function portTip(node, def, dir, kind) {
     body = fam ? t('port.help.out.gen', { kind: typeWord(kind || def.type) }) : (def.hint ? tl(def.hint) : t('port.help.out'));
   } else {
     const id = def.id;
+    // modèle en ligne : l'aide propre à son mode, tirée de sa doc (ports.<id>.help du catalogue : « @video_1 »…)
+    const own = fam && fam.provider !== 'local' ? cloudPortHelp(node, fam, id) : '';
     // une aide propre à la famille (port.help.video.ltx…) ou aux modèles en ligne (port.help.refs.cloud…)
     const special = fam ? (fam.provider === 'local' ? `port.help.${id}.${fam.key}` : `port.help.${id}.cloud`) : null;
-    if (special && has(special)) body = t(special);
+    if (own) body = own;
+    else if (special && has(special)) body = t(special, { mode: modeOf(node, fam) });
     // bloc Modèle : la phrase simple d'abord (le conseil du catalogue vise les anciens blocs)
     else if (fam && has(`port.help.${id}`)) body = t(`port.help.${id}`);
     else if (def.hint) body = tl(def.hint);
@@ -131,7 +179,8 @@ export function portTip(node, def, dir, kind) {
       if (def.id !== 'prompt') {
         const labels = portLabels(fam);
         const word = (pid) => tl(labels[pid] || inputDefs(node.type).find((i) => i.id === pid)?.label || { fr: pid });
-        const uses = (fam.def.workflows || []).filter((wf) => portsOfWorkflow(wf)[def.id]).map((wf) => {
+        // une façon de faire qui ne la prend pas au palier choisi (Kling 3.0 Turbo) n'est pas citée
+        const uses = (fam.def.workflows || []).filter((wf) => portsOfWorkflow(wf)[def.id] && !tierExclusion(node, wf, def.id)).map((wf) => {
           const needs = needsOf(wf).filter((pid) => pid !== def.id);
           return needs.length ? t('port.usedForWith', { what: tl(wf.label || {}), needs: needs.map(word).join(', ') }) : tl(wf.label || {});
         });

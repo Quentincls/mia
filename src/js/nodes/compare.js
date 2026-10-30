@@ -7,13 +7,17 @@
 // - Différence : un canevas qui dessine A puis B en mode « difference »
 //   (ce qui n'a pas bougé devient noir).
 // Deux vidéos sont lues EN MÊME TEMPS : A mène, B suit (lecture, pause,
-// position) avec une correction de dérive à chaque image affichée.
+// position). Pendant la lecture, la suiveuse rattrape un petit écart par sa
+// vitesse (0,97 à 1,03) et n'est repositionnée qu'au-delà de 0,25 s, une fois
+// par seconde au plus : un repositionnement à chaque image saturait le
+// décodeur (audit perf du 30/10). À la pause, après un saut et au bouclage,
+// elle est recalée exactement sur la même image.
 // Utilisé par le bloc « Comparer A/B » et par la visionneuse (avant/après).
 
 import { t } from '../i18n.js';
 import { el, clamp } from '../util.js';
 import { attachPlayer } from './player.js';
-import { strings, emptyBlock, trackVideo, metaText } from './media.js';
+import { strings, emptyBlock, trackVideo, metaText, liteOf } from './media.js';
 
 strings({
   'node.cmp.a': 'A',
@@ -179,16 +183,24 @@ export function mountCompare(host, opts = {}) {
     const m = master();
     const f = follower();
     if (m) {
-      // la suiveuse se charge tout de suite ; la meneuse passe par le budget vidéo
-      if (f) { f.src = (m === la ? B : A).url; }
-      if (opts.full) { m.src = (m === la ? A : B).url; m.play().catch(() => {}); }
-      else slot = trackVideo(root, m, { src: (m === la ? A : B).url, poster: (m === la ? A : B).poster, autoplay: true });
+      const mSrc = m === la ? A : B;
+      const fSrc = f ? (m === la ? B : A) : null;
+      if (opts.full) {
+        if (f) f.src = fSrc.url;
+        m.src = mSrc.url; m.play().catch(() => {});
+      } else {
+        // la suiveuse passe par le budget vidéo avec la meneuse : chargée et déchargée avec elle
+        slot = trackVideo(root, m, {
+          src: mSrc.url, poster: mSrc.poster, autoplay: true, lite: liteOf(mSrc),
+          follower: f ? { video: f, src: fSrc.url, lite: liteOf(fSrc) } : null,
+        });
+      }
       bindSync(m, f);
       if (opts.controls !== false) {
         const meta = (m === la ? A : B).meta || {};
         player = attachPlayer(m, {
           mode: opts.full ? 'full' : 'compact', fps: meta.fps, frames: meta.frames,
-          onUserToggle: (playing) => { if (slot) { slot.userPaused = !playing; slot.userPlayed = playing; } },
+          onUserToggle: (playing) => { if (slot) { slot.userPaused = !playing; slot.userPlayed = playing; slot.setPrecise(!playing); } },
         });
         root.append(player.el);
       }
@@ -197,25 +209,67 @@ export function mountCompare(host, opts = {}) {
   }
 
   // ── lecture synchronisée ────────────────────────────────────────────
+  const SYNC_TOL = 0.25;          // écart (s) au-delà duquel on repositionne pendant la lecture
+  const SYNC_SEEK_MS = 1000;      // au plus un repositionnement par seconde
+  const RATE_SPAN = 0.03;         // rattrapage doux : vitesse 0,97 à 1,03
   function bindSync(m, f) {
     const fps = () => ((m === la ? A : B)?.meta?.fps) || 24;
-    const align = (force) => {
-      if (!f || !isFinite(f.duration)) return;
-      const target = Math.min(m.currentTime, Math.max(0, f.duration - 0.01));
-      if (force || Math.abs(f.currentTime - target) > 0.5 / fps()) f.currentTime = target;
+    let lastSeek = 0;
+    let lastT = 0;
+    const base = () => m.playbackRate || 1;
+    const setRate = (r) => { if (Math.abs(f.playbackRate - r) > 0.002) f.playbackRate = r; };
+    const loaded = () => !!(f && f.getAttribute('src'));
+    /** Recalage exact (pause, saut, bouclage) : la même image des deux côtés. */
+    const align = () => {
+      if (!loaded()) return;
+      setRate(base());
+      lastSeek = performance.now();
+      const d = f.duration;
+      if (isFinite(d) && m.currentTime >= d) {          // suiveuse plus courte : elle attend sur sa dernière image
+        if (!f.paused) f.pause();
+        if (Math.abs(f.currentTime - d) > 0.5 / fps()) f.currentTime = Math.max(0, d - 0.5 / fps());
+        return;
+      }
+      if (Math.abs(f.currentTime - m.currentTime) > 0.25 / fps()) f.currentTime = m.currentTime;
+      if (!m.paused && f.paused) f.play().catch(() => {});
+    };
+    /** Pendant la lecture : vitesse ajustée, repositionnement rare. */
+    const follow = () => {
+      if (!loaded() || f.readyState < 1 || f.seeking) return;
+      const t = m.currentTime;
+      const looped = t + 0.5 < lastT;
+      lastT = t;
+      const d = f.duration;
+      if (looped || (isFinite(d) && t >= d)) { if (looped || !f.paused) align(); return; }
+      if (f.ended) return;                              // arrivée au bout un peu avant : elle attend le bouclage
+      if (f.paused && !m.paused) f.play().catch(() => {});
+      const diff = f.currentTime - t;                   // > 0 : la suiveuse est en avance
+      const now = performance.now();
+      if (Math.abs(diff) > SYNC_TOL) {
+        if (now - lastSeek >= SYNC_SEEK_MS) { f.currentTime = t; lastSeek = now; setRate(base()); }
+        else setRate(base() * (diff > 0 ? 1 - RATE_SPAN : 1 + RATE_SPAN));
+        return;
+      }
+      if (Math.abs(diff) <= 0.5 / fps()) { setRate(base()); return; }
+      // l'écart se rattrape en ~2 s, sans jamais dépasser ±3 % de vitesse
+      setRate(base() * clamp(1 - diff / 2, 1 - RATE_SPAN, 1 + RATE_SPAN));
     };
     if (f) {
-      m.addEventListener('play', () => { align(true); f.play().catch(() => {}); });
-      m.addEventListener('pause', () => { f.pause(); align(true); });
-      m.addEventListener('seeked', () => align(true));
-      m.addEventListener('ratechange', () => { f.playbackRate = m.playbackRate; });
+      // la suiveuse ne boucle pas d'elle-même : la meneuse la relance au bouclage, à la même image
+      f.loop = false;
+      m.addEventListener('play', () => { align(); f.play().catch(() => {}); });
+      m.addEventListener('pause', () => { f.pause(); align(); });
+      m.addEventListener('seeked', () => { lastT = m.currentTime; align(); });
+      m.addEventListener('ratechange', () => setRate(base()));
+      // suiveuse (re)chargée par le budget vidéo : elle reprend où en est la meneuse
+      f.addEventListener('loadedmetadata', () => align());
     }
     m.addEventListener('seeked', drawDiff);
     const tick = () => {
       if (!alive) return;
       if (typeof m.requestVideoFrameCallback !== 'function') return;
       rvfc = m.requestVideoFrameCallback(() => {
-        align(false);
+        if (f) follow();
         if (mode === 'diff') drawDiff();
         tick();
       });

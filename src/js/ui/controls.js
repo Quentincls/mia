@@ -19,6 +19,7 @@ import { el, clamp, measureLater } from '../util.js';
 import { icon } from '../icons.js';
 import { t, tl, register, locale } from '../i18n.js';
 import { openMenu, closeMenu } from './menu.js';
+import { play } from './motion.js';
 
 register({
   fr: { 'app.ctl.choose': 'Choisir…', 'app.ctl.reset': 'Double-clic : valeur par défaut' },
@@ -102,12 +103,22 @@ export function segmented({ options = [], value, onChange, size = 'md', full = f
     const b = root.querySelectorAll('.seg-opt')[i];
     return { i, w: b ? b.offsetWidth : 0, x: b ? b.offsetLeft : 0 };
   }
+  // posée d'un coup, puis glissée en transform seul (FLIP) : animer « width » refaisait la mise en page à chaque
+  // image (~36 i/s sur une planche de 119 blocs, SPEC §20.2)
+  let shown = null;
   function writePlace(m) {
     if (!m) return;
     if (!m.w) { pill.style.opacity = m.i < 0 ? '0' : ''; return; }
     pill.style.opacity = '';
+    const from = shown;
+    shown = { x: m.x, w: m.w };
+    if (from && from.x === m.x && from.w === m.w) return;
     pill.style.width = m.w + 'px';
     pill.style.transform = `translateX(${m.x}px)`;
+    if (from && from.w && !root.classList.contains('no-anim')) {
+      play(pill, [{ transform: `translateX(${from.x}px) scaleX(${from.w / m.w})` }, { transform: `translateX(${m.x}px)` }],
+        { dur: 'enter', easing: 'out' });
+    }
   }
   const place = () => writePlace(readPlace());
   const placeJob = { read: readPlace, write: writePlace };
@@ -272,6 +283,7 @@ export function dropdown({
         meta: it.meta != null ? String(it.meta) : undefined,
         badge: it.badge ? tl(it.badge) : undefined,
         disabled: !!it.disabled,
+        dim: !!it.dim,
         tip: it.tip ? tl(it.tip) : undefined,
         checked: it.value === current,
         icon: it.icon,

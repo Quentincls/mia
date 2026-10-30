@@ -103,7 +103,7 @@
   border-radius: 8px; color: var(--txt-2); white-space: nowrap;
   font: 500 11px/1 var(--font-kicker, var(--font-mono)); letter-spacing: .04em; text-transform: uppercase;
   font-variant-numeric: tabular-nums;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
 }
 .gpu-chip:hover { background: var(--surface-3); color: var(--txt); }
 .gpu-gauge {

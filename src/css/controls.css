@@ -24,7 +24,8 @@
 .seg-pill {
   position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 0; width: 0;
   border-radius: 8px; background: var(--seg-on);
-  transition: transform var(--dur-enter) var(--ease-out), width var(--dur-enter) var(--ease-out);
+  /* aucune transition : controls.js la fait glisser en transform seul (FLIP, depuis son bord gauche) */
+  transform-origin: left center;
   pointer-events: none;
 }
 .seg.no-anim .seg-pill { transition: none; }

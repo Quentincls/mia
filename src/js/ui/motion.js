@@ -180,3 +180,41 @@ export function viewTransition(update) {
     return Promise.resolve(update());
   }
 }
+
+/**
+ * Sortie d'un panneau qui se ferme d'un coup (menu, liste de modèles, palette, inspecteur, file) :
+ * le code le retire tout de suite, comme avant (l'état ne change pas), et une COPIE inerte posée à sa
+ * place s'efface (opacité + `scale`/`translate`, propriétés individuelles qui se composent avec le
+ * `transform` du panneau). À appeler juste AVANT de cacher ou de retirer l'élément. La copie ne joue
+ * aucune animation CSS, ne prend aucun clic et ne charge aucune vidéo. Rien sous mouvement réduit.
+ * `to` : l'arrivée (par défaut `{ scale: '0.98' }`) ; `dur` : un token (`menu` par défaut).
+ */
+export function ghostOut(el, { dur = 'menu', easing = 'in', to = { scale: '0.98' } } = {}) {
+  if (!el?.isConnected || !el.parentNode || el.hidden || reduced()) return null;
+  const d = typeof dur === 'number' ? dur : ms(dur);
+  if (!d) return null;
+  let g;
+  try {
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return null;
+    g = el.cloneNode(true);
+  } catch { return null; }
+  // aucune lecture ni chargement dans la copie : les médias deviennent des cases vides
+  for (const m of g.querySelectorAll('video, audio, iframe, object, embed')) m.replaceWith(document.createElement('span'));
+  try {
+    const a = el.querySelectorAll('canvas'), b = g.querySelectorAll('canvas');
+    b.forEach((c, i) => { try { if (a[i]?.width && a[i]?.height) c.getContext('2d')?.drawImage(a[i], 0, 0); } catch { /* canevas protégé */ } });
+    const fa = el.querySelectorAll('input, textarea'), fb = g.querySelectorAll('input, textarea');
+    fb.forEach((f, i) => { try { if (fa[i]) f.value = fa[i].value; } catch { /* champ fichier */ } });
+  } catch { /* copie partielle : tant pis */ }
+  g.classList.add('mo-ghost');
+  g.setAttribute('aria-hidden', 'true');
+  g.inert = true;
+  el.after(g);
+  const kill = () => g.remove();
+  const anim = play(g, [{ opacity: 1 }, { opacity: 0, ...to }], { dur: d, easing, fill: 'forwards' });
+  if (!anim) { kill(); return null; }
+  anim.finished.then(kill, kill);
+  setTimeout(kill, d + 400);   // filet : une fenêtre qui ne peint pas ne finit pas ses animations
+  return anim;
+}

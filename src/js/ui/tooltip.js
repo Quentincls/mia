@@ -106,8 +106,16 @@ function show(target) {
   h.style.animation = '';
 }
 
+// Just after a drag (a wire dropped on an input, a block moved), the pointer is released over a target without having
+// come to it: no help there until the mouse really moves (the input's card used to cover the wire just placed).
+let quietUntil = 0;
+let downAt = null;
+let sleeping = null;
+const QUIET_MS = 600;
+
 function hide() {
   clearTimeout(timer);
+  sleeping = null;
   if (node && !node.hidden) {
     node.hidden = true;
     warmUntil = performance.now() + WARM_MS;
@@ -122,8 +130,17 @@ function onOver(e) {
   hide();
   if (!target || e.buttons) return;
   current = target;
+  if (performance.now() < quietUntil) { sleeping = target; return; }
   const wait = performance.now() < warmUntil ? 0 : DELAY;
   timer = setTimeout(() => { if (current === target) show(target); }, wait);
+}
+
+function onMove(e) {
+  if (!sleeping || current !== sleeping || performance.now() < quietUntil) return;
+  if (e.pointerType === 'touch' || e.buttons) return;
+  const target = sleeping;
+  sleeping = null;
+  timer = setTimeout(() => { if (current === target) show(target); }, DELAY);
 }
 
 function onOut(e) {
@@ -138,6 +155,12 @@ function install() {
   installed = true;
   document.addEventListener('pointerover', onOver, true);
   document.addEventListener('pointerout', onOut, true);
+  document.addEventListener('pointermove', onMove, { capture: true, passive: true });
+  window.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; }, true);
+  window.addEventListener('pointerup', (e) => {
+    if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) { quietUntil = performance.now() + QUIET_MS; warmUntil = 0; }
+    downAt = null;
+  }, true);
   for (const evt of ['pointerdown', 'keydown', 'wheel', 'scroll', 'blur', 'dragstart']) {
     window.addEventListener(evt, () => { if (current) { hide(); warmUntil = 0; } }, true);
   }

@@ -12,6 +12,9 @@
 //     key on frame 0, « Fidélité au guide » = IC-LoRA strength, single stage euler, decoded straight from stage 1.
 //     Long guides: 97-frame windows overlapping by 25, each later window keyed on the frame already generated at
 //     its start, joined with a short blend at the most alike frame (same code as « Rendre photoréaliste »).
+//     Always ONE pass (no « Passes » setting, 30/10): the Union ref0.5 IC-LoRA reads its guide at half size
+//     (reference_downscale_factor 2) and needs an even latent; a half-size first pass at 1080p (960×544, latent
+//     30×17) would break it. Opening 2 passes needs a 128-px grid and a GPU test first.
 //   MiniMax H3 + Fun ControlNet Union: fl2va + turbo 8 steps, the control video
 //     through MiniMaxH3FunControlNetApply (strength = fidelity), the start image as first frame, 24 fps, sound.
 //     Its mask input means « inpaint », not « free area »: the mask is ignored with MiniMax (note).

@@ -581,6 +581,43 @@
           "limit": "resolutions"
         },
         {
+          "id": "passes",
+          "kind": "seg",
+          "default": "auto",
+          "hashOmitDefault": true,
+          "label": {
+            "fr": "Passes",
+            "en": "Passes"
+          },
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "fr": "Auto",
+                "en": "Auto"
+              }
+            },
+            {
+              "value": "1",
+              "label": {
+                "fr": "1 passe",
+                "en": "1 pass"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "fr": "2 passes",
+                "en": "2 passes"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "2 passes : le mouvement se décide à mi-définition, puis le latent est agrandi ×2 et affiné. Image de fin et images-clés y sont conseillées (0,7 / 0,6) au lieu d’imposées. Auto : 2 passes dès qu’une image de fin ou des images-clés sont branchées, sinon 1 passe.",
+            "en": "2 passes: the motion is decided at half resolution, then the latent is enlarged ×2 and refined. The end image and keyframes are advised (0.7 / 0.6) instead of imposed. Auto: 2 passes as soon as an end image or keyframes are connected, otherwise 1 pass."
+          }
+        },
+        {
           "id": "fps",
           "kind": "select",
           "default": 24,
@@ -1105,6 +1142,43 @@
           "limit": "resolutions"
         },
         {
+          "id": "passes",
+          "kind": "seg",
+          "default": "auto",
+          "hashOmitDefault": true,
+          "label": {
+            "fr": "Passes",
+            "en": "Passes"
+          },
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "fr": "Auto",
+                "en": "Auto"
+              }
+            },
+            {
+              "value": "1",
+              "label": {
+                "fr": "1 passe",
+                "en": "1 pass"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "fr": "2 passes",
+                "en": "2 passes"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "2 passes : le mouvement se décide à mi-définition, puis le latent est agrandi ×2 et affiné. Image de fin et images-clés y sont conseillées (0,7 / 0,6) au lieu d’imposées. Auto : 2 passes dès qu’une image de fin ou des images-clés sont branchées, sinon 1 passe.",
+            "en": "2 passes: the motion is decided at half resolution, then the latent is enlarged ×2 and refined. The end image and keyframes are advised (0.7 / 0.6) instead of imposed. Auto: 2 passes as soon as an end image or keyframes are connected, otherwise 1 pass."
+          }
+        },
+        {
           "id": "lora",
           "kind": "model",
           "caps": [
@@ -1373,6 +1447,43 @@
             }
           ],
           "limit": "resolutions"
+        },
+        {
+          "id": "passes",
+          "kind": "seg",
+          "default": "auto",
+          "hashOmitDefault": true,
+          "label": {
+            "fr": "Passes",
+            "en": "Passes"
+          },
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "fr": "Auto",
+                "en": "Auto"
+              }
+            },
+            {
+              "value": "1",
+              "label": {
+                "fr": "1 passe",
+                "en": "1 pass"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "fr": "2 passes",
+                "en": "2 passes"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "2 passes : le mouvement se décide à mi-définition, puis le latent est agrandi ×2 et affiné. Auto : 1 passe.",
+            "en": "2 passes: the motion is decided at half resolution, then the latent is enlarged ×2 and refined. Auto: 1 pass."
+          }
         },
         {
           "id": "lora",
@@ -1833,6 +1944,43 @@
           "hint": {
             "fr": "L’IA a tendance à éclaircir les zones très sombres (ciel de nuit, ombres, fond noir) ou à y inventer des détails. Activé, Mia remet le noir de ta vidéo partout où elle était noire.",
             "en": "The AI tends to brighten very dark areas (night sky, shadows, black background) or invent detail there. On, Mia puts your video’s black back wherever it was black."
+          }
+        },
+        {
+          "id": "passes",
+          "kind": "seg",
+          "default": "auto",
+          "hashOmitDefault": true,
+          "label": {
+            "fr": "Passes",
+            "en": "Passes"
+          },
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "fr": "Auto",
+                "en": "Auto"
+              }
+            },
+            {
+              "value": "1",
+              "label": {
+                "fr": "1 passe",
+                "en": "1 pass"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "fr": "2 passes",
+                "en": "2 passes"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "2 passes : le mouvement se décide à mi-définition, puis le latent est agrandi ×2 et affiné, guidé par le rendu 3D en pleine définition. Auto : 1 passe, la recette validée sur les rendus 3D.",
+            "en": "2 passes: the motion is decided at half resolution, then the latent is enlarged ×2 and refined, guided by the 3D render at full resolution. Auto: 1 pass, the recipe validated on 3D renders."
           }
         },
         {

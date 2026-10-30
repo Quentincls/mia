@@ -157,6 +157,10 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 | `mia_focus` · `mia_say` | te montrer des blocs ; t'écrire un mot dans une bulle |
 
 Les erreurs reviennent en français clair (« Le bloc « Profondeur » n'a pas d'entrée « image ». Entrées : media… »).
+Les arguments sont vérifiés d'après le schéma de chaque outil avant d'agir : un champ inconnu (`toPort` au lieu de
+`to: {node, port}`) ou une mauvaise forme (`to` en texte) est une erreur qui liste les champs permis, jamais une
+supposition qui modifierait la planche. `mia_connect` sans port nommé ne remplace jamais un fil déjà branché : il
+demande de nommer l'entrée (`to.port`).
 
 ### Le bloc Modèle (un bloc par modèle)
 Quand tu demandes un modèle par son nom (« fais-le avec MiniMax », « essaie Seedance »), l'assistant pose un bloc
@@ -168,6 +172,35 @@ l'entrée (`start`, `keys`, `refs`, `refAudios`, `video`, `audio`…), même cel
 quoi il se sert (`model.uses`), ce qui manque et ce qui est ignoré ; sur un bloc encore vide, `model.startFrom`
 donne les points de départ de la ligne « Partir de : » (entrée et ce qu'elle ferait). Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p) sont signalées comme telles : juge le résultat à l'œil. Prolonger une vidéo et les images-clés de MiniMax
 sont validés (essais du 24/10).
+
+Sur ce PC, le réglage `passes` des blocs LTX (`auto`, `1`, `2`, ou leurs libellés « Auto », « 1 passe »,
+« 2 passes ») choisit une ou deux passes ; `auto` en fait deux dès qu'une image de fin ou des images-clés sont
+branchées.
+
+**Modèles en ligne (Higgsfield, payants)** : un bloc en ligne montre son **mode** à l'écran (« Auto · Texte ·
+Animer · Références · Modifier »). L'assistant le choisit par `params.workflow` (l'id d'une façon de faire, ou
+son libellé) : le mode choisi passe devant ce que disent les fils, le bloc dit alors ce qui lui manque
+(`model.connect`) et ignore ce qui ne lui sert pas (`model.ignored`) ; `"auto"` rend le choix aux fils.
+`mia_catalog` donne pour chaque mode (`ways[]`) ses propres réglages complets (bornes, choix, paliers
+`onlyTiers` / `tierOptions`), les notes de la doc du fabricant (`notes`), la durée minimale d'une vidéo source
+(`minSeconds`), les jetons de citation (`cite` : Kling 4.0 `@image_1`, `@video_1`… ; en montage, la vidéo à
+modifier est `@video_1` et les vidéos de référence partent de `@video_2`), le tarif public (`price`) et les
+champs que Mia n'envoie pas encore (`unsupported`). `mia_get_board` ajoute `model.mode`, `model.modes` (ce qui
+manque à chacun), `model.accepts` (les entrées du mode au palier choisi), `model.price`, `model.cite`, et montre
+les réglages `hf.*` du mode avec leurs défauts. `mia_set_params` vérifie chaque valeur selon le mode et le
+palier en cours (une valeur permise seulement dans un autre mode est gardée, avec une note) et répond avec les
+réglages que le bloc montre ; `mia_connect` répond `ignored: true` et une note quand le fil ne sert pas au mode
+en cours (ou pas au palier choisi : image de fin en Kling 3.0 Turbo, la note donne alors le palier qui la prend). Un texte envoyé au pont dans l'encodage de la console Windows (cp1252) est relu tel quel : plus de
+« � » dans les titres.
+
+**File des calculs en ligne** : un calcul en ligne n'attend jamais la carte graphique ; plusieurs partent en même
+temps, jusqu'au réglage « Calculs en ligne simultanés » (Réglages → Comptes en ligne, 4 par défaut, 16 au plus).
+`mia_status` donne la file en deux voies : `engine.queue.local {running, waiting}` et `engine.queue.online
+{running, waiting, atHiggsfield, max}` (`running`/`waiting` comptent toujours tout). Dans `mia_jobs`, un calcul en
+ligne porte `online: true` et `remote` : `queued` (en file chez Higgsfield), `running`, ou `full` (la file
+Higgsfield du compte est pleine : Mia attend le délai demandé et renvoie la même demande, avec la même clé, sans
+jamais payer deux fois ; rien n'est encore créé). Annuler un calcul déjà commencé chez Higgsfield ne jette pas le
+résultat payé : Mia le récupère (la note du résultat le dit).
 
 ## Sécurité
 

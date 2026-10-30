@@ -53,13 +53,22 @@ const CASES = [
   ['fam:qwen21', ['layout'], 't2i', { unused: [] }],                          // guide de cadrage (profondeur)                         // 2.1 : pas de retouche (Qwen Image Edit)
   ['hf:seedance-2-5', [], 'bytedance/seedance-2.5/text-to-video', { ties: [] }],
   ['hf:seedance-2-5', ['refs'], 'bytedance/seedance-2.5/reference-to-video', {}],
+  // mode choisi (30/10) : en ligne, il passe devant le score ; il dit ce qui lui manque et ce qu'il ignore
+  ['hf:kling-4-0', ['video'], 'kling-video/v4.0/video-edit', { forced: false }],
+  ['hf:kling-4-0', ['video'], 'kling-video/v4.0/image-to-video', { blocked: true, missing: ['start'], unused: ['video'], forced: true, auto: 'kling-video/v4.0/video-edit' }, 'kling-video/v4.0/image-to-video'],
+  ['hf:kling-4-0', [], 'kling-video/v4.0/reference-to-video', { blocked: true, missing: ['refs'], forced: true }, 'kling-video/v4.0/reference-to-video'],
+  ['hf:kling-4-0', ['start'], 'kling-video/v4.0/text-to-video', { blocked: false, unused: ['start'], forced: true, auto: 'kling-video/v4.0/image-to-video' }, 'kling-video/v4.0/text-to-video'],
+  ['hf:kling-4-0', ['start'], 'kling-video/v4.0/image-to-video', { forced: false }, 'auto'],
+  ['hf:kling-4-0', ['start'], 'kling-video/v4.0/image-to-video', { forced: false }, 'mode-qui-n-existe-pas'],
+  // sur ce PC, le choix ne fait toujours que départager (planches d'avant inchangées)
+  ['fam:ltx', ['video', 'start'], 'real', { forced: false }, 'i2v'],
 ];
 
 let ok = 0;
 let ko = 0;
 const same = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-for (const [f, conn, want, exp] of CASES) {
-  const r = R.chooseWorkflow(fam(f), conn, null);
+for (const [f, conn, want, exp, choice = null] of CASES) {
+  const r = R.chooseWorkflow(fam(f), conn, choice);
   const why = [];
   if (!r) why.push('aucun résultat');
   else {
@@ -68,9 +77,35 @@ for (const [f, conn, want, exp] of CASES) {
     if (exp.missing && !same(r.missing, exp.missing)) why.push(`manque [${r.missing}]`);
     if (exp.unused && !same(r.unused, exp.unused)) why.push(`ignore [${r.unused}]`);
     if (exp.ties && !same(r.ties.map((w) => w.id), exp.ties)) why.push(`choix [${r.ties.map((w) => w.id)}]`);
+    if (exp.forced !== undefined && !!r.forced !== exp.forced) why.push(`choisi ${!!r.forced}`);
+    if (exp.auto && r.auto?.id !== exp.auto) why.push(`auto ${r.auto?.id}`);
   }
-  const label = `${f} [${conn.join(', ')}]`;
+  const label = `${f} [${conn.join(', ')}]${choice ? ` ← ${choice}` : ''}`;
   if (why.length) { ko++; console.log(`  ÉCHEC ${label} : ${why.join(' · ')}`); } else { ok++; console.log(`  ok    ${label} → ${want}`); }
 }
-console.log(`\n${ok} contrôles réussis, ${ko} échec(s).`);
-process.exit(ko ? 1 : 0);
+// Rangée « Mode » (30/10) : deux modes d'une même famille ne portent jamais le même mot (« Auto · Texte · Texte »
+// chez SOUL V2) ; un mot en double laisse la place au libellé entier, qui doit alors les distinguer (FR et EN).
+(async () => {
+  // module pur sans import : lu tel quel (un import() ESM depuis ce banc CommonJS ferait un avertissement de Node)
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../src/js/nodes/waywords.js'), 'utf8').replace(/^export /gm, '');
+  const { wordKey, modeWordKeys } = new Function(`${src}
+return { wordKey, modeWordKeys };`)();
+  const famList = [...Object.values(local.families || {}), ...Object.values(cloud.families || {})];
+  for (const def of famList) {
+    const wfs = def.workflows || [];
+    if (wfs.length < 2) continue;
+    const keys = modeWordKeys(wfs);
+    const bad = [];
+    for (const lg of ['fr', 'en']) {
+      const shown = wfs.map((w, i) => keys[i] || `=${(w.label || {})[lg] || w.id}`);
+      const dup = shown.filter((x, i) => shown.indexOf(x) !== i);
+      if (dup.length) bad.push(`${lg} : ${[...new Set(dup)].join(', ')}`);
+    }
+    if (bad.length) { ko++; console.log(`  ÉCHEC modes de ${def.name} : même libellé (${bad.join(' · ')})`); } else ok++;
+  }
+  const soul = wordKey({ id: 'higgsfield-ai/soul/v2/image-to-image' });
+  if (soul !== 'edit') { ko++; console.log(`  ÉCHEC SOUL V2 image vers image → ${soul} au lieu de edit`); }
+  else { ok++; console.log('  ok    SOUL V2 image vers image → Retouche'); }
+  console.log(`\n${ok} contrôles réussis, ${ko} échec(s).`);
+  process.exit(ko ? 1 : 0);
+})();

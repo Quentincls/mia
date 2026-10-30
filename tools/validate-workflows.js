@@ -280,6 +280,23 @@ const ltxPasses = (gs) => {
   const up = Object.values(g).some((n) => n.class_type === 'LTXVLatentUpsampler');
   return `${e ? `${e.inputs.width}x${e.inputs.height}` : '?'}${up ? '×2' : ''}`;
 };
+// « Passes » (30/10): LTXVAddGuide « frame:strength » in graph order, how many nodes of a class, the crop of the encode
+const ltxGuides = (gs) => Object.values(gs[gs.length - 1] || {}).filter((n) => n.class_type === 'LTXVAddGuide')
+  .map((n) => `${n.inputs.frame_idx}:${n.inputs.strength}`).join(' ');
+const nOf = (g, cls) => Object.values(g || {}).filter((n) => n.class_type === cls).length;
+const wantLtx = (passes, guideList = null, extra = null) => (gs) => {
+  if (ltxPasses(gs) !== passes) return `passes ${ltxPasses(gs)} au lieu de ${passes}`;
+  if (guideList !== null && ltxGuides(gs) !== guideList) return `guides « ${ltxGuides(gs)} » au lieu de « ${guideList} »`;
+  return extra ? extra(gs[gs.length - 1]) : null;
+};
+const cropOf = (calls) => (calls.map((c) => c.join(' ')).join(' ').match(/crop=(\d+:\d+)/) || [])[1] || null;
+// the LTX family's ways as model-families.json says (the Model block hands only their params to the executor)
+const FAMILIES = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'catalog', 'model-families.json'), 'utf8'));
+const ltxWay = (id) => {
+  const w = FAMILIES.families.ltx.workflows.find((x) => x.id === id);
+  return { provider: 'local', key: 'ltx', family: 'LTX 2.5', workflow: w.id, what: w.label.fr, executor: w.executor, as: w.as,
+    cap: w.cap, kind: 'video', ports: Object.keys(w.ports || {}), params: w.params };
+};
 const enriched = (gs) => Object.values(gs[gs.length - 1] || {}).some((n) => n.class_type === 'TextGenerateLTX2Prompt')
   && Object.values(gs[gs.length - 1]).some((n) => n.class_type === 'CLIPTextEncode' && Array.isArray(n.inputs.text)
     && (gs[gs.length - 1][n.inputs.text[0]] || {}).class_type === 'TextGenerateLTX2Prompt');
@@ -434,7 +451,7 @@ const VARIANTS = {
     { name: 'MiniMax · texte seul · aperçu 9:16', mode: 'preview', inputs: { prompt: text('a dancer turns') },
       params: { format: '9:16' }, models: { model: INV.minimax } },
     // images-clés au milieu du plan, son à suivre, prolonger une vidéo (bloc Modèle, à l'essai)
-    { name: 'LTX · deux passes · 1080p · fin + image-clé', mode: 'final', inputs: { start: IMG_H, end: IMG_H, keys: [IMG_V] },
+    { name: 'LTX · ancien twoPass:true · 1080p · fin + image-clé', mode: 'final', inputs: { start: IMG_H, end: IMG_H, keys: [IMG_V] },
       params: { resolution: '1080', format: '16:9', twoPass: true }, models: { model: INV.ltxInt8 },
       expectGraph: (gs) => (ltxPasses(gs) === '960x544×2' ? null : `passes ${ltxPasses(gs)}`) },
     { name: 'LTX · deux passes · 720p · consigne enrichie', mode: 'final', inputs: { start: IMG_V },
@@ -442,8 +459,41 @@ const VARIANTS = {
       expectGraph: (gs) => (ltxPasses(gs) === '384x640×2' && enriched(gs) ? null : `passes ${ltxPasses(gs)}, enrichie ${enriched(gs)}`) },
     { name: 'LTX · deux passes demandées en aperçu → une passe', mode: 'preview', inputs: { start: IMG_H },
       params: { twoPass: true }, models: { model: INV.ltxInt8 }, expectGraph: (gs) => (/×2/.test(ltxPasses(gs)) ? 'deux passes en aperçu' : null) },
-    { name: 'LTX · 2 images-clés + fin', mode: 'final', inputs: { start: IMG_H, keys: [IMG_H, IMG_V], end: IMG_H },
-      params: { duration: 5, format: '16:9' }, models: { model: INV.ltxInt8 }, expectGraph: wantGuides('LTXV@-1 LTXV@40 LTXV@80') },
+    { name: 'LTX · « 1 passe » · 2 images-clés + fin → imposées (force 1)', mode: 'final', inputs: { start: IMG_H, keys: [IMG_H, IMG_V], end: IMG_H },
+      params: { duration: 5, format: '16:9', passes: '1' }, models: { model: INV.ltxInt8 },
+      expectGraph: (gs) => wantGuides('LTXV@-1 LTXV@40 LTXV@80')(gs) || wantLtx('1280x736', '-1:1 40:1 80:1')(gs) },
+    // « Passes » (30/10) : la recette validée le 30/10 — demi-définition, latent ×2, 3 pas ;
+    // fin 0,7 et clés 0,6 dans LES DEUX passes, prétraitées, clés au multiple de 8 ; auto = 2 passes avec fin ou clés
+    { name: 'passes auto · fin · 1080p 16:9 → 2 passes, fin conseillée 0,7', mode: 'final', inputs: { start: IMG_H, end: IMG_H },
+      params: { resolution: '1080', format: '16:9' }, models: { model: INV.ltxInt8 }, expectNotes: /2 passes : plan calculé en 960 × 544/,
+      expectFf: (calls) => (cropOf(calls) === '1920:1080' ? null : `recadrage ${cropOf(calls)}`),
+      expectGraph: wantLtx('960x544×2', '-1:0.7 -1:0.7', (g) => (nOf(g, 'LTXVCropGuides') === 2 && nOf(g, 'LTXVPreprocess') === 2
+        && g['100'].inputs.sigmas === '0.909375, 0.725, 0.421875, 0.0' && g['17'].inputs.sigmas.startsWith('1.0, 0.99375')
+        && g['93'].inputs.image[0] === '39' ? null : 'recadrages, prétraitements ou sigmas inattendus')) },
+    { name: 'passes auto · 3 clés + fin → clés 0,6 au multiple de 8', mode: 'final', inputs: { start: IMG_H, keys: [IMG_H, IMG_V, IMG_SQ], end: IMG_H },
+      params: { duration: 5, format: '16:9' }, models: { model: INV.ltxInt8 }, expectNotes: /3 image\(s\)-clé\(s\) conseillée\(s\) aux images 32, 64, 88/,
+      expectGraph: wantLtx('640x384×2', '-1:0.7 32:0.6 64:0.6 88:0.6 -1:0.7 32:0.6 64:0.6 88:0.6',
+        (g) => (nOf(g, 'LTXVPreprocess') === 5 && g['112'].inputs.image[0] === '67' ? null : 'clés non prétraitées')) },
+    { name: 'passes auto · sans fin ni clé → 1 passe', mode: 'final', inputs: { start: IMG_H }, params: { format: '16:9' },
+      models: { model: INV.ltxInt8 }, expectGraph: wantLtx('1280x736', '') },
+    { name: 'passes « 2 » · sans fin ni clé → 2 passes', mode: 'final', inputs: { start: IMG_V }, params: { format: '9:16', passes: '2' },
+      models: { model: INV.ltxInt8 }, expectGraph: wantLtx('384x640×2', '') },
+    { name: 'passes auto · fin · 540p 16:9 → 480×288 ×2, recadré 960×540', mode: 'final', inputs: { start: IMG_H, end: IMG_H },
+      params: { resolution: '540', format: '16:9' }, models: { model: INV.ltxInt8 }, expectGraph: wantLtx('480x288×2'),
+      expectFf: (calls) => (cropOf(calls) === '960:540' ? null : `recadrage ${cropOf(calls)}`) },
+    { name: 'passes auto · fin · 1080p 9:16 → 544×960 ×2', mode: 'final', inputs: { start: IMG_V, end: IMG_V },
+      params: { resolution: '1080', format: '9:16' }, models: { model: INV.ltxInt8 }, expectGraph: wantLtx('544x960×2'),
+      expectFf: (calls) => (cropOf(calls) === '1080:1920' ? null : `recadrage ${cropOf(calls)}`) },
+    { name: 'passes auto · fin · aperçu → 1 passe (note)', mode: 'preview', inputs: { start: IMG_H, end: IMG_H },
+      models: { model: INV.ltxInt8 }, expectNotes: /Aperçu en 1 passe/, expectGraph: (gs) => (/×2/.test(ltxPasses(gs)) ? 'deux passes en aperçu' : null) },
+    { name: 'passes « 2 » · fiche de référence → 1 passe (note)', mode: 'final', inputs: { start: IMG_V, sheet: IMG_SQ },
+      params: { passes: '2', resolution: '720' }, models: { model: INV.ltxInt8 }, expectNotes: /pas avec une fiche de référence/,
+      expectGraph: (gs) => (/×2/.test(ltxPasses(gs)) ? 'deux passes avec une fiche' : null) },
+    { name: 'passes « 2 » · MiniMax → 1 passe (note)', mode: 'final', inputs: { start: IMG_H, end: IMG_H },
+      params: { passes: '2', format: '16:9' }, models: { model: INV.minimax }, expectNotes: /MiniMax H3 calcule en 1 passe/,
+      expectGraph: (gs) => (nOf(gs[0], 'LTXVLatentUpsampler') ? 'upscaler LTX dans MiniMax' : null) },
+    { name: 'passes « 2 » · anglais (note EN)', mode: 'final', lang: 'en', inputs: { start: IMG_H, end: IMG_H },
+      params: { passes: '2', format: '16:9' }, models: { model: INV.ltxInt8 }, expectNotes: /2 passes: shot made at 640 × 384/ },
     { name: 'MiniMax · 3 images-clés', mode: 'final', inputs: { start: IMG_H, keys: [IMG_H, IMG_V, IMG_SQ] },
       params: { duration: 5, format: '16:9' }, models: { model: INV.minimax }, expectGraph: wantGuides('MiniMaxH3@31 MiniMaxH3@62 MiniMaxH3@92') },
     { name: 'MiniMax · texte + son à suivre', mode: 'final', inputs: { audio: aud(20) },
@@ -482,6 +532,10 @@ const VARIANTS = {
       format: '16:9', twoPass: true, enhance: true }, models: { model: INV.ltxInt8 },
       expectGraph: (gs) => (ltxPasses(gs) === '960x544×2' && enriched(gs) ? null : `passes ${ltxPasses(gs)}, enrichie ${enriched(gs)}`) },
     { name: 'aperçu · 16:9', mode: 'preview', params: { prompt: 'a slow ocean wave' }, models: { model: INV.ltxInt8 } },
+    { name: 'passes « 2 » · 1080p 16:9', mode: 'final', params: { prompt: 'a lighthouse in a storm', resolution: '1080', format: '16:9', passes: '2' },
+      models: { model: INV.ltxInt8 }, expectGraph: wantLtx('960x544×2'), expectNotes: /2 passes : plan calculé en 960 × 544/ },
+    { name: 'passes auto → 1 passe', mode: 'final', params: { prompt: 'a lighthouse in a storm', resolution: '1080', format: '16:9' },
+      models: { model: INV.ltxInt8 }, expectGraph: wantLtx('1920x1088') },
     { name: 'final · 9:16 · LoRA lieu', mode: 'final', params: { prompt: 'the roof at dusk', format: '9:16' },
       models: { model: INV.ltxFp4, lora: INV.rooftop } },
     { name: 'final · 21:9 1080p', mode: 'final', inputs: { prompt: text('huge wave crashing on glass') },
@@ -500,6 +554,33 @@ const VARIANTS = {
       params: { prompt: 'photoreal, cinematic' }, models: { model: INV.ltxInt8 } },
     { name: 'final · 240 images (3 tranches) · sans look', mode: 'final', inputs: { video: vid(1920, 1080, 240) },
       models: { model: INV.ltxInt8 } },
+    // « Passes » (30/10) : 2 passes dans chaque tranche, passe 2 guidée par le rendu PLEINE définition (5548:9006)
+    { name: 'passes « 2 » · 240 images (3 tranches) · look · LoRA', mode: 'final', inputs: { video: vid(1920, 1080, 240), look: IMG_H },
+      params: { passes: '2' }, models: { model: INV.ltxInt8, lora: INV.mara }, expectNotes: /2 passes : plan calculé en 960 × 544/,
+      expectGraph: (gs) => {
+        if (gs.length !== 3) return `${gs.length} tranche(s)`;
+        for (const [k, g] of gs.entries()) {
+          const e = g['9002:3059'].inputs;
+          if (e.width !== 960 || e.height !== 544 || !Array.isArray(e.length)) return `tranche ${k + 1} : latent ${e.width}x${e.height}`;
+          if (g['9002:5012'].inputs.image[0] !== '9610' || g['9610'].inputs.width !== 960) return `tranche ${k + 1} : guide de la passe 1 pas à demi-taille`;
+          const p2 = g['9602'] && g['9602'].inputs;
+          if (!p2 || p2.image[0] !== '5548:9006' || p2.latent_downscale_factor !== 1 || p2.latent[0] !== '9601') return `tranche ${k + 1} : passe 2 mal guidée`;
+          if (!g['9603'] || g['9603'].inputs.frame_idx !== -1) return `tranche ${k + 1} : look absent de la passe 2`;
+          if (!!g['9604'] !== (k > 0) || !!g['980a'] !== (k > 0)) return `tranche ${k + 1} : clé de raccord`;
+          if (g['5518:5538'].inputs.samples[0] !== '9609' || g['9607'].inputs.sigmas !== '0.909375, 0.725, 0.421875, 0.0') return `tranche ${k + 1} : décodage ou sigmas`;
+          if (g['9606'].inputs.model[0] !== g['5516:4828'].inputs.model[0] || g['9606'].inputs.model[0] === '5004:5606') return `tranche ${k + 1} : passe 2 sans le LoRA`;
+        }
+        return null;
+      } },
+    { name: 'passes « 2 » · 81 images · sans look (1 tranche)', mode: 'final', inputs: { video: vid(1080, 1920, 81, 30) },
+      params: { passes: '2' }, models: { model: INV.ltxInt8 },
+      expectGraph: (gs) => (gs[0]['9002:3059'].inputs.width === 544 && gs[0]['9002:3059'].inputs.height === 960 && !gs[0]['9603']
+        && gs[0]['9602'].inputs.latent[0] === '9601' ? null : 'tranche unique sans look mal faite') },
+    { name: 'passes auto → 1 passe (recette « clean »)', mode: 'final', inputs: { video: vid(1920, 1080, 97), look: IMG_H },
+      models: { model: INV.ltxInt8 }, expectGraph: (gs) => (gs[0]['9601'] || !Array.isArray(gs[0]['9002:3059'].inputs.width) ? '2 passes ou latent figé en auto' : null) },
+    { name: 'passes « 2 » · aperçu → 1 passe (note)', mode: 'preview', inputs: { video: vid(1920, 1080, 97), look: IMG_H },
+      params: { passes: '2' }, models: { model: INV.ltxInt8 }, expectNotes: /Aperçu en 1 passe/,
+      expectGraph: (gs) => (gs[0]['9601'] ? 'deux passes en aperçu' : null) },
   ],
   perform: [
     { name: 'aperçu · vertical', mode: 'preview', inputs: { character: IMG_V, motion: vid(1080, 1920, 240, 30, { hasAudio: true }) },
@@ -574,6 +655,23 @@ const VARIANTS = {
       params: { prompt: 'Image 1 walks', resolution: '768', format: '9:16' }, models: { model: null }, expectGraph: wantSize('768x1344') },
     { name: 'cite Son 3 avec 1 son → refus', mode: 'final', assume: PENDING, inputs: { refs: [IMG_V], refAudios: [aud(5)] },
       params: { prompt: 'Image 1 sings Son 3' }, models: { model: null }, expectError: /cite « Son 3 », mais 1 son/ },
+  ],
+  // bloc Modèle fam:ltx : « Passes » (et « Enrichir la consigne ») passent bien jusqu'à la façon de faire (forTarget)
+  gen: [
+    { name: 'LTX · Animer · passes « 2 » sans fin ni clé → 2 passes', mode: 'final', gen: ltxWay('i2v'), inputs: { start: IMG_H },
+      params: { model: 'fam:ltx', passes: '2', format: '16:9', prompt: 'slow push-in' }, models: { model: INV.ltxInt8 },
+      expectGraph: wantLtx('640x384×2', '') },
+    { name: 'LTX · Animer · 2 clés, passes auto → 2 passes, clés 0,6', mode: 'final', gen: ltxWay('i2v'),
+      inputs: { start: IMG_H, keys: [IMG_H, IMG_V] }, params: { model: 'fam:ltx', format: '16:9', prompt: 'walks' },
+      models: { model: INV.ltxInt8 }, expectGraph: wantLtx('640x384×2', '40:0.6 80:0.6 40:0.6 80:0.6') },
+    { name: 'LTX · Animer · 2 clés, passes « 1 » + consigne enrichie', mode: 'final', gen: ltxWay('i2v'),
+      inputs: { start: IMG_H, keys: [IMG_H, IMG_V] }, params: { model: 'fam:ltx', format: '16:9', passes: '1', enhance: true, prompt: 'walks' },
+      models: { model: INV.ltxInt8 }, expectGraph: (gs) => wantLtx('1280x736', '40:1 80:1')(gs) || (enriched(gs) ? null : 'consigne non enrichie') },
+    { name: 'LTX · Texte · passes « 2 »', mode: 'final', gen: ltxWay('t2v'), params: { model: 'fam:ltx', passes: '2', format: '16:9', prompt: 'a storm' },
+      models: { model: INV.ltxInt8 }, expectGraph: wantLtx('640x384×2') },
+    { name: 'LTX · Photoréaliste · passes « 2 »', mode: 'final', gen: ltxWay('real'), inputs: { video: vid(1920, 1080, 97), start: IMG_H },
+      params: { model: 'fam:ltx', passes: '2' }, models: { model: INV.ltxInt8 },
+      expectGraph: (gs) => (gs[0]['9601'] && gs[0]['9603'] ? null : 'passe 2 ou look absents') },
   ],
   guided: [
     { name: 'LTX · profondeur calculée · aperçu', mode: 'preview', inputs: { guide: vid(1920, 1080, 120) },
@@ -758,6 +856,7 @@ async function main() {
         progress: () => {}, preview: () => {}, signal: new AbortController().signal,
         comfy: fk.comfy, py: null, ffmpeg: fk.ffmpeg, log: (l) => log.push(l), lang: v.lang || 'fr',
       };
+      if (v.gen) x.gen = v.gen;                // bloc Modèle : le plan de planGen (façon de faire, réglages montrés)
       if (v.ensure) x.ensureLora = async (key) => ({ comfyName: v.ensure[key] });
       let res = null;
       let error = null;
@@ -771,7 +870,15 @@ async function main() {
       if (!v.expectError && !fk.comfy.graphs.length) ok = false;
       if (v.expectGraph && fk.comfy.graphs.length) {
         const why = v.expectGraph(fk.comfy.graphs);
-        if (why) { ok = false; problems.push(why); }
+        if (why) { ok = false; problems.push({ level: 'error', msg: why }); }
+      }
+      if (v.expectNotes && res && !v.expectNotes.test(String(res.notes || ''))) {
+        ok = false;
+        problems.push({ level: 'error', msg: `notes sans ${v.expectNotes} : ${String(res.notes || '').replace(/\n/g, ' / ')}` });
+      }
+      if (v.expectFf && res) {
+        const why = v.expectFf(fk.ffmpeg.calls);
+        if (why) { ok = false; problems.push({ level: 'error', msg: why }); }
       }
       const outPorts = res ? Object.keys(res.outputs || {}) : [];
       const portOk = res && type.outputs.every((o) => outPorts.includes(o.id))

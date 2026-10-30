@@ -16,7 +16,7 @@
 import { t, tl, tn, register, lang } from '../i18n.js';
 import { icon } from '../icons.js';
 import { state } from '../state.js';
-import { reduced } from '../ui/motion.js';
+import { reduced, ghostOut } from '../ui/motion.js';
 import {
   types, recipes, typeLabel, typeDesc, compatible, modelCaps,
   inputDefs, outputDefs, outRule, typeOf
@@ -25,8 +25,7 @@ import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
 import { familyOf, localKeyOf, portsOfFamily, chooseWorkflow } from '../nodes/route.js';
 import { mainPorts } from '../nodes/ports.js';
 import { familyWords, makerColor } from '../nodes/familypicker.js';
-import { money } from '../ui/budget.js';
-import { fromPrice, askFromPrices } from '../ui/fromprices.js';
+import { fromText, askFromPrices } from '../ui/fromprices.js';
 import { setPrefs } from '../ui/settings.js';
 import { segmented } from '../ui/controls.js';
 
@@ -80,7 +79,7 @@ register({
     'pal.sec.online': 'Modèles en ligne · payants',
     'pal.sec.blocks': 'Tâches prêtes',
     'pal.sec.tabPc': '{tab} · modèles sur ce PC',
-    'pal.sec.tabOnline': '{tab} · modèles en ligne',
+    'pal.sec.tabOnline': '{tab} · modèles en ligne · payants',
     'pal.sec.tabBlocks': '{tab} · tâches prêtes',
     'pal.favs': 'Favoris',
     'pal.recent': 'Récents',
@@ -111,8 +110,8 @@ register({
     'pal.cloud': 'En ligne',
     'pal.online': 'En ligne',
     'pal.from': 'Se branche sur',
-    'pal.priceFrom': 'dès {price}',
-    'pal.priceTip': 'Le moins cher chez Higgsfield, sur ton compte : plus petite définition, durée la plus courte.',
+    'pal.priceFrom': 'dès {price}',
+    'pal.priceTip': 'Le moins cher chez Higgsfield : plus petite définition, durée la plus courte. « ≈ » : tarif public (sans compte relié), le prix exact est connu au lancement.',
     'pal.empty': 'Aucun bloc ne correspond.',
     'pal.emptyFrom': 'Aucun bloc ne peut se brancher ici.',
     'pal.nav': 'choisir',
@@ -155,7 +154,7 @@ register({
     'pal.sec.online': 'Online models · paid',
     'pal.sec.blocks': 'Ready-made tasks',
     'pal.sec.tabPc': '{tab} · models on this PC',
-    'pal.sec.tabOnline': '{tab} · online models',
+    'pal.sec.tabOnline': '{tab} · online models · paid',
     'pal.sec.tabBlocks': '{tab} · ready-made tasks',
     'pal.favs': 'Favourites',
     'pal.recent': 'Recent',
@@ -186,8 +185,8 @@ register({
     'pal.cloud': 'Online',
     'pal.online': 'Online',
     'pal.from': 'Plugs into',
-    'pal.priceFrom': 'from {price}',
-    'pal.priceTip': 'The cheapest at Higgsfield, on your account: smallest resolution, shortest length.',
+    'pal.priceFrom': 'from {price}',
+    'pal.priceTip': 'The cheapest at Higgsfield: smallest resolution, shortest length. “≈”: public rate (no linked account); the exact price is known when it runs.',
     'pal.empty': 'No block matches.',
     'pal.emptyFrom': 'No block can plug in here.',
     'pal.nav': 'choose',
@@ -404,6 +403,7 @@ export function createPalette(ed) {
 
   function close() {
     if (root.hidden) return;
+    ghostOut(root);   // la palette s'efface à sa place (copie inerte, SPEC §20.1)
     root.hidden = true;
     const pf = st.prevFocus;
     st.prevFocus = null;
@@ -742,8 +742,8 @@ export function createPalette(ed) {
     if (!spans.length) return;
     const paint = () => {
       for (const s of spans) {
-        const v = fromPrice(s.dataset.fam);
-        s.textContent = v != null ? t('pal.priceFrom', { price: money(v) }) : '';
+        const v = fromText(s.dataset.fam);
+        s.textContent = v != null ? t('pal.priceFrom', { price: v }) : '';
       }
     };
     paint();
@@ -766,8 +766,8 @@ export function createPalette(ed) {
     const fav = isFav(e);
     let where = [], takes = [], gives = [], blocks = [];
     if (e.kind === 'model') {
-      const price = e.online ? fromPrice(e.value) : null;
-      where = e.online ? [e.def.maker, t('pal.d.online'), price != null ? t('pal.priceFrom', { price: money(price) }) : '']
+      const price = e.online ? fromText(e.value) : null;
+      where = e.online ? [e.def.maker, t('pal.d.online'), price != null ? t('pal.priceFrom', { price }) : '']
         : [e.def.maker, e.missing ? t('pal.notInstalled') : t('pal.d.pc')];
       const ports = portsOfFamily(e.fam);
       takes = inputDefs('gen').filter((p) => ports[p.id]).map((p) => [p.type, tl(p.label), ports[p.id].multi ? ports[p.id].max : 0]);

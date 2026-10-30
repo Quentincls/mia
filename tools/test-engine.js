@@ -15,6 +15,10 @@ const path = require('node:path');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 
+// Faux executors : aucun GPU possible. MIA_NO_GPU=1 (imposé aux agents dans leur environnement) ferait refuser
+// tous les blocs lourds du banc : retiré ici, et testé à part (section « MIA_NO_GPU=1 »).
+delete process.env.MIA_NO_GPU;
+
 const MIA = path.resolve(__dirname, '..');
 const ENGINE = path.join(MIA, 'electron', 'engine');
 const FIXTURES = path.join(__dirname, 'fixtures', 'engine');      // faux executors + faux worker Python
@@ -199,7 +203,8 @@ function waitFor(pred, ms = 8000, what = 'événement') {
     engine.on('event', on);
   });
 }
-const waitEnd = (jobId, ms) => waitFor((e) => e.jobId === jobId && ['done', 'error', 'cancelled'].includes(e.kind), ms, `fin de ${jobId}`);
+const waitEnd = (jobId, ms) => (!jobId ? Promise.reject(new Error('run refusé : aucun jobId'))
+  : waitFor((e) => e.jobId === jobId && ['done', 'error', 'cancelled'].includes(e.kind), ms, `fin de ${jobId}`));
 async function idle(ms = 10000) {
   const until = Date.now() + ms;
   while (engine.jobs.size && Date.now() < until) await wait(20);
@@ -318,6 +323,15 @@ async function main() {
   node('n_ia').params.lora = 'none';
   check('aucun job créé par les refus', engine.jobs.size === 0);
 
+  // ================================================================ MIA_NO_GPU
+  section('MIA_NO_GPU=1 : un amont lourd est refusé, sans job');
+  process.env.MIA_NO_GPU = '1';
+  try {
+    r = await run('n_rsz');
+    check('run refusé avec le message du mode test', !r.ok && /MIA_NO_GPU=1/.test(r.error || ''), r);
+    check('aucun job créé', engine.jobs.size === 0);
+  } finally { delete process.env.MIA_NO_GPU; }
+
   // ================================================================ chaîne amont
   section('Chaîne import → Profondeur (lourd) → Redimensionner (léger)');
   T.log.length = 0;
@@ -412,6 +426,109 @@ async function main() {
   check('ordre FIFO des lourds', heavy[0].name === 'depth' && heavy[1].name === 'cutout');
   check('les deux légers tournent ensemble (max 2)', overlap(light[0], light[1]));
   T.cfg = {};
+
+  // ================================================================ voie « en ligne » (blocs Modèle hf:…)
+  section('File : les calculs en ligne ont leur propre voie (ni GPU, ni limite des légers)');
+  {
+    const prefsGet = ctx.prefs.get;
+    const withPrefs = (extra) => { ctx.prefs.get = async () => ({ ...(await prefsGet()), ...extra }); };
+    ctx.cloud = { linked: () => true };               // compte relié (faux) : aucun appel réseau, l'executor est faux
+    let gi = 0;
+    const addGen = () => {
+      const id = `n_on${gi++}`;
+      graph.nodes.push({ id, type: 'gen', x: 1600, y: 200 * gi, params: { model: 'hf:seedance-2-5', prompt: `plan en ligne ${id}` } });
+      return id;
+    };
+    // maximum de calculs simultanés d'une liste d'enregistrements {start, end}
+    const maxAtOnce = (recs) => Math.max(0, ...recs.map((a) => recs.filter((b) => b.start <= a.start && a.start < b.end).length));
+    const gens = () => T.log.filter((x) => x.name === 'gen');
+
+    // 1) un lourd local + 5 en ligne (défaut : 4 à la fois) + un léger local
+    withPrefs({});
+    T.log.length = 0;
+    T.cfg.depth = { delay: 1500 };
+    T.cfg.gen = { delay: 700 };
+    T.cfg.frame = { delay: 100 };
+    node('n_dep').params.invert = 'en-ligne-1';      // nouvelle empreinte
+    node('n_frm2').params.at = 5;
+    const hv = await run('n_dep');
+    check('lourd local accepté', hv.ok, hv);
+    await waitFor((e) => e.jobId === hv.jobId && e.kind === 'start', 4000, 'départ du lourd');
+    const onIds = [];
+    for (let i = 0; i < 5; i++) { const x = await run(addGen()); check(`bloc en ligne ${i + 1} accepté`, x.ok, x); onIds.push(x.jobId); }
+    const lt = await run('n_frm2');
+    await wait(250);
+    const st = await invoke('engine:status');
+    const q = st && st.queue;
+    check('statut : la file en ligne est donnée à part (4 en cours, 1 en file, max 4)',
+      q && q.online && q.online.running === 4 && q.online.waiting === 1 && q.online.max === 4 && q.local && q.local.running === 1, q);
+    const fifth = engine.jobs.get(onIds[4]);
+    check('le 5e attend dans la file de Mia avec un état clair', fifth && fifth.state === 'queued' && /En file dans Mia : 4 calculs en ligne/.test(fifth.message), fifth && fifth.message);
+    check('le job en ligne est marqué « online » (file, MCP)', engine.jobList().find((j) => j.jobId === onIds[0]).online === true
+      && events.some((e) => e.jobId === onIds[0] && e.online === true));
+    const ltJob = engine.jobs.get(lt.jobId);
+    check('le léger local attend toujours le lourd (règle du labo inchangée)', ltJob && ltJob.state === 'queued' && /calcul en cours/.test(ltJob.message), ltJob && ltJob.message);
+    await Promise.all([...onIds, hv.jobId, lt.jobId].map((id) => waitEnd(id, 15000)));
+    await idle();
+    const dep1 = T.log.find((x) => x.name === 'depth');
+    const g1 = gens();
+    const fr1 = T.log.find((x) => x.name === 'frame');
+    check('5 calculs en ligne faits', g1.length === 5 && onIds.every((id) => events.some((e) => e.jobId === id && e.kind === 'done')), g1.length);
+    check('4 calculs en ligne pendant le calcul lourd (aucun n’attend le GPU)', g1.filter((g) => overlap(g, dep1)).length >= 4, g1.map((g) => [g.start - dep1.start, g.end - dep1.start]));
+    check('jamais plus de 4 en ligne à la fois', maxAtOnce(g1) === 4, maxAtOnce(g1));
+    check('le léger local n’a pas tourné pendant le lourd', fr1 && !overlap(fr1, dep1));
+    check('le lourd n’a pas attendu les calculs en ligne', dep1.start <= Math.min(...g1.map((g) => g.start)) + 50);
+
+    // 2) réglage « Calculs en ligne simultanés » = 2 : 3 blocs → jamais plus de 2
+    withPrefs({ cloudParallel: 2 });
+    T.log.length = 0;
+    T.cfg.gen = { delay: 400 };
+    const ids2 = [];
+    for (let i = 0; i < 3; i++) ids2.push((await run(addGen())).jobId);
+    await wait(120);
+    const q2 = (await invoke('engine:status')).queue.online;
+    check('réglage à 2 : 2 en cours, 1 en file', q2.max === 2 && q2.running === 2 && q2.waiting === 1, q2);
+    await Promise.all(ids2.map((id) => waitEnd(id, 10000)));
+    check('réglage à 2 respecté', maxAtOnce(gens()) === 2 && gens().length === 3, maxAtOnce(gens()));
+    withPrefs({ cloudParallel: 99 });
+    await engine.refreshPrefs();
+    check('réglage borné (99 → 16, 0 ou illisible → 4)', engine.onlineLimit() === 16
+      && I.onlineLimit({ cloudParallel: 0 }) === 4 && I.onlineLimit({ cloudParallel: 'x' }) === 4 && I.onlineLimit({}) === 4 && I.onlineLimit({ cloudParallel: 1 }) === 1);
+
+    // 3) un lourd lancé APRÈS des calculs en ligne démarre tout de suite (ils ne comptent pas comme « petits calculs »)
+    withPrefs({});
+    T.log.length = 0;
+    T.cfg.gen = { delay: 1200 };
+    T.cfg.depth = { delay: 200 };
+    const ids3 = [];
+    for (let i = 0; i < 2; i++) ids3.push((await run(addGen())).jobId);
+    await wait(100);
+    node('n_dep').params.invert = 'en-ligne-2';
+    const hv2 = await run('n_dep');
+    await Promise.all([...ids3, hv2.jobId].map((id) => waitEnd(id, 10000)));
+    const dep3 = T.log.find((x) => x.name === 'depth');
+    check('lourd lancé pendant 2 calculs en ligne : il démarre sans les attendre', dep3 && gens().every((g) => overlap(g, dep3)),
+      gens().map((g) => [g.start, g.end]).concat([[dep3 && dep3.start, dep3 && dep3.end]]));
+    await idle();
+
+    // 4) une vraie conversion locale d'un calcul en ligne (réencodage avant envoi) attend la fin du lourd
+    T.log.length = 0;
+    T.cfg.depth = { delay: 600 };
+    node('n_dep').params.invert = 'en-ligne-3';
+    const hv3 = await run('n_dep');
+    await waitFor((e) => e.jobId === hv3.jobId && e.kind === 'start', 4000, 'départ du lourd');
+    const fakeOnline = { state: 'queued', online: true, _: { abort: new AbortController(), active: false, gpu: 'none', online: true } };
+    await engine.whenGpuIdle(fakeOnline);
+    const freeAt = Date.now();
+    await waitEnd(hv3.jobId, 5000);
+    const dep4 = T.log.find((x) => x.name === 'depth');
+    check('réencodage d’un calcul en ligne : attend que le GPU local soit libre', dep4 && freeAt >= dep4.end - 5, { freeAt, end: dep4 && dep4.end });
+    await idle();
+    T.cfg = {};
+    ctx.prefs.get = prefsGet;
+    await engine.refreshPrefs();
+    delete ctx.cloud;
+  }
 
   // ================================================================ verrou tenu par une autre session
   section('GPU pris par une autre session');
@@ -580,6 +697,68 @@ async function main() {
   r = await run('n_down');
   await waitEnd(r.jobId);
   check('format changé → recalcul', T.log.some((x) => x.name === 'i2v' && x.params.format === '9:16'));
+
+  // « Passes » des blocs LTX (30/10) : un bloc d'avant ce réglage garde EXACTEMENT son empreinte (aucun recalcul par
+  // ricochet) ; « auto » = rien ; seul un choix explicite (1 ou 2) compte
+  section('Passes LTX : empreinte inchangée sans choix explicite');
+  node('n_ia').params.passes = 'auto';
+  T.log.length = 0;
+  r = await run('n_down');
+  end = await waitEnd(r.jobId);
+  check('passes « auto » posé sur un bloc existant : pas de recalcul', end.kind === 'done' && !T.log.some((x) => x.name === 'i2v'));
+  node('n_ia').params.passes = '2';
+  T.log.length = 0;
+  r = await run('n_down');
+  await waitEnd(r.jobId);
+  check('passes « 2 » → recalcul, réglage transmis', T.log.some((x) => x.name === 'i2v' && x.params.passes === '2'));
+  {
+    const CAT = JSON.parse(fs.readFileSync(path.join(MIA, 'src', 'catalog', 'nodes.json'), 'utf8'));
+    const P = require(path.join(ENGINE, 'patch.js'));
+    const models = { model: { id: 'ltx', file: 'ltx.safetensors' }, lora: null };
+    for (const id of ['i2v', 't2v', 'real', 'gen']) {
+      const type = CAT.types.find((t) => t.id === id);
+      const pd = (type.params || []).find((p) => p.id === 'passes');
+      check(`${id} : réglage « passes » seg auto/1/2, non avancé, sans empreinte par défaut`, !!pd && pd.kind === 'seg' && pd.default === 'auto'
+        && !pd.advanced && pd.hashOmitDefault === true && pd.options.map((o) => o.value).join() === 'auto,1,2'
+        && pd.label.fr === 'Passes' && pd.options[2].label.en === '2 passes' && !!pd.hint.fr && !!pd.hint.en, pd);
+      const before = { ...type, params: type.params.filter((p) => p.id !== 'passes') };
+      const old = {};
+      for (const p of before.params) old[p.id] = p.default === undefined ? null : clone(p.default);
+      const h0 = I.stable(I.hashParamsOf(before, old, models));
+      check(`${id} : bloc d'avant « passes » → même empreinte`, I.stable(I.hashParamsOf(type, old, models)) === h0);
+      check(`${id} : « auto » → même empreinte`, I.stable(I.hashParamsOf(type, { ...old, passes: 'auto' }, models)) === h0);
+      check(`${id} : « 1 » et « 2 » → autre empreinte`, I.stable(I.hashParamsOf(type, { ...old, passes: '1' }, models)) !== h0
+        && I.stable(I.hashParamsOf(type, { ...old, passes: '2' }, models)) !== h0
+        && I.stable(I.hashParamsOf(type, { ...old, passes: '1' }, models)) !== I.stable(I.hashParamsOf(type, { ...old, passes: '2' }, models)));
+    }
+    const E = P.exec;
+    const ps = (params, o) => E.ltxPasses({ params }, o);
+    check('passes : auto + fin/clés → 2 ; auto seul → 1 ; ancien twoPass:true → 2',
+      ps({ passes: 'auto' }, { autoTwo: true }).two && !ps({ passes: 'auto' }, {}).two && ps({ twoPass: true }, {}).two
+      && ps({ passes: '2' }, {}).two && !ps({ passes: '1', twoPass: true }, { autoTwo: true }).two);
+    check('passes : aperçu, fiche, MiniMax → 1 passe et la raison', ps({ passes: '2' }, { preview: true }).why === 'preview'
+      && ps({ passes: '2' }, { sheet: true }).why === 'sheet' && ps({ passes: '2' }, { minimax: true }).why === 'minimax'
+      && ps({ passes: 'auto' }, { minimax: true, autoTwo: true }).two === false && !ps({ passes: '1' }, { preview: true }).why);
+    // bloc Modèle fam:ltx : forTarget ne filtre plus « passes » ni « enhance » (constat 30/10)
+    const fams = JSON.parse(fs.readFileSync(path.join(MIA, 'src', 'catalog', 'model-families.json'), 'utf8'));
+    const way = (wid) => fams.families.ltx.workflows.find((w) => w.id === wid);
+    const gen = require(path.join(ENGINE, 'executors', 'gen.js'));
+    const ft = (wid) => gen._forTarget({ gen: { as: way(wid).as, ports: Object.keys(way(wid).ports), params: way(wid).params },
+      params: { model: 'fam:ltx', prompt: 'x', passes: '2', enhance: true }, inputs: {} }).params;
+    check('bloc Modèle LTX : « passes » arrive à Animer, Texte et Photoréaliste', ft('i2v').passes === '2' && ft('t2v').passes === '2'
+      && ft('real').passes === '2' && ft('guided').passes === undefined);
+    check('bloc Modèle LTX : « enhance » arrive à Animer et Texte', ft('i2v').enhance === true && ft('t2v').enhance === true);
+    // estimation (labo 30/10) : demi-définition + 0,5 × pleine définition + 0,3 min
+    const i2v = require(path.join(ENGINE, 'executors', 'i2v.js'));
+    const xi = (passes, inputs = {}) => ({ mode: 'final', params: { duration: 5, format: '16:9', resolution: '1080', fps: 24, passes },
+      inputs: { start: { abs: 'a.png', meta: { w: 1920, h: 1080 } }, ...inputs }, model: () => null });
+    const two = i2v.estimate(xi('2'));
+    check('estimation 2 passes = ltxMinutes(w/2,h/2) + 0,5 × ltxMinutes(w,h) + 0,3', Math.abs(two
+      - (E.ltxMinutes(960, 544, 121) + 0.5 * E.ltxMinutes(1920, 1088, 121) + 0.3)) < 1e-9 && two > 4 && two < 6, two);
+    check('estimation auto + fin = 2 passes ; auto seul = 1 passe', i2v.estimate(xi('auto', { end: { abs: 'b.png' } })) === two
+      && i2v.estimate(xi('auto')) === E.ltxMinutes(1920, 1088, 121), [i2v.estimate(xi('auto')), E.ltxMinutes(1920, 1088, 121)]);
+  }
+  delete node('n_ia').params.passes;
   T.cfg = {};
   check('showIf (unitaire)', I.shownParam({ showIf: { param: 'lora', notIn: ['none', null, ''] } }, { lora: 'none' }) === false
     && I.shownParam({ showIf: { param: 'lora', notIn: ['none', null, ''] } }, { lora: 'x' }) === true
@@ -828,6 +1007,21 @@ async function main() {
   console.log(`        ComfyUI : ${s.comfy.state} ${s.comfy.version || ''} · GPU : ${s.gpu.name || '?'} ${s.gpu.vramUsedGB ?? '?'} / ${s.gpu.vramTotalGB ?? '?'} Go`);
   check('ComfyUI lancé par Mia ? non', s.comfy.managedByMia === false);
   check('événements engine:status poussés', sent.some((x) => x.ch === 'engine:status') && sent.some((x) => x.ch === 'engine:event'));
+
+  // un job en ligne qui réencode en local (x.localWork) compte comme un léger : un lourd l'attend
+  section('Job en ligne : réencodage local (localWork) compté comme un léger');
+  {
+    const fake = { jobId: 'j_fake', _: { active: true, gpu: 'none', online: true, abort: new AbortController() } };
+    engine.jobs.set(fake.jobId, fake);
+    try {
+      check('en ligne seul : pas compté comme léger', engine.lightActive() === 0);
+      let during = -1;
+      const back = await engine.localWork(fake, async () => { during = engine.lightActive(); return 42; });
+      check('pendant le réencodage : compté comme léger', during === 1, during);
+      check('localWork rend la valeur de fn', back === 42, back);
+      check('après : plus compté', engine.lightActive() === 0 && !fake._.localWork);
+    } finally { engine.jobs.delete(fake.jobId); }
+  }
   engine.dispose();
 
   // ================================================================ fermeture / reprise

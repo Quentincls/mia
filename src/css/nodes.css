@@ -134,7 +134,7 @@ body {
 }
 .pl-btn {
   width: 24px; height: 24px; flex: none; display: grid; place-items: center;
-  border-radius: 50%; color: #fff; transition: background var(--nb-dur) var(--nb-ease);
+  border-radius: 50%; color: #fff; transition: background var(--nb-dur) var(--nb-ease), scale var(--dur-pop) var(--ease-out);
 }
 .pl-btn:hover { background: rgba(255, 255, 255, .14); }
 .pl-btn svg { width: 14px; height: 14px; }
@@ -303,7 +303,7 @@ body {
 .np-seed { display: flex; align-items: center; gap: 4px; }
 .np-icon-btn {
   width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 6px;
-  color: var(--txt-3); transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+  color: var(--txt-3); transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), scale var(--dur-pop) var(--ease-out);
 }
 .np-icon-btn:hover { background: var(--wash-2); color: var(--txt); }
 .np-icon-btn svg { width: 15px; height: 15px; }
@@ -583,6 +583,12 @@ body {
   user-select: text; outline: none; transition: border-color var(--nb-dur) var(--nb-ease);
 }
 .nb-textarea:focus { border-color: var(--line-strong); }
+/* field-sizing: content (autoGrow, params.js) : la hauteur d'avant reste (rows=3 vide, une ligne de réserve sous le
+   texte), sinon les cartes Consigne raccourcissaient de 11 à 19 px */
+@supports (field-sizing: content) {
+  .nb-textarea { min-height: calc(3lh + 18px); padding-bottom: calc(8px + 1lh); }
+  .nb-note { min-height: max(96px, calc(4lh + 24px)); padding-bottom: calc(14px + 1lh); }
+}
 .nb-textarea::placeholder, .nb-note::placeholder { color: var(--txt-3); }
 [data-body="note"] { background: var(--surface-3); }
 .nb-note-wrap { margin: -8px -8px 0; }
@@ -688,7 +694,7 @@ body {
 .vw-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line-2); }
 .vw-btn {
   width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--txt-2);
-  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), scale var(--dur-pop) var(--ease-out);
 }
 .vw-btn:hover { background: var(--surface-3); color: var(--txt); }
 .vw-btn:disabled { opacity: .35; pointer-events: none; }
@@ -736,7 +742,7 @@ body {
 .insp-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .insp-x {
   width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--txt-3);
-  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), scale var(--dur-pop) var(--ease-out);
 }
 .insp-x:hover { background: var(--surface-3); color: var(--txt); }
 .insp-scroll { flex: 1 1 auto; overflow: auto; padding: 12px 14px 18px; }
@@ -792,7 +798,7 @@ body {
 .insp-ver-acts { flex: none; display: flex; gap: 2px; }
 .insp-star, .insp-more {
   width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--txt-3);
-  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), scale var(--dur-pop) var(--ease-out);
 }
 .insp-star:hover, .insp-more:hover { background: var(--wash-2); color: var(--txt); }
 .insp-star.on { color: var(--txt); }
@@ -928,7 +934,7 @@ body {
 .fp-chip {
   height: 22px; padding: 0 8px; border-radius: 11px; border: 1px solid var(--line-2); background: transparent; color: var(--txt-2);
   font: 500 9.5px/1 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; cursor: pointer;
-  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), border-color var(--nb-dur) var(--nb-ease);
+  transition: background var(--nb-dur) var(--nb-ease), color var(--nb-dur) var(--nb-ease), border-color var(--nb-dur) var(--nb-ease), scale var(--dur-pop) var(--ease-out);
 }
 .fp-chip:hover { color: var(--txt); background: var(--wash); }
 .fp-chip.on { color: var(--surface); background: var(--txt); border-color: var(--txt); }
@@ -978,7 +984,7 @@ body {
 .fp-note { font: 500 9px/1 var(--nb-kicker); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); }
 .fp-install {
   height: 22px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line-2); background: transparent; color: var(--txt);
-  font-size: 11.5px; cursor: pointer; transition: background var(--nb-dur) var(--nb-ease);
+  font-size: 11.5px; cursor: pointer; transition: background var(--nb-dur) var(--nb-ease), scale var(--dur-pop) var(--ease-out);
 }
 .fp-install:hover { background: var(--wash-2); }
 .fp-star {
@@ -1012,3 +1018,28 @@ body {
 .mp-pop.fp.narrow .fp-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
 .mp-pop.fp.narrow .fp-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 5px 6px; }
 .mp-pop.fp.narrow .fp-nav-it { flex: none; height: 26px; }
+
+/* ── bloc Modèle en ligne : mode, notes, payant (cloud-ui, 30/10) ───── */
+/* un mode impossible avec les fils actuels : estompé, toujours cliquable (il montre alors ce qui lui manque) */
+.np-wfrow .seg-opt.dim:not(.on) .seg-txt { opacity: .5; }
+/* « Passer en … » dans une note : un lien sobre, pas un bouton de plus */
+.np-note-act {
+  display: inline; padding: 0; border: 0; background: none; font: inherit; color: var(--txt-2);
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+.np-note-act:hover { color: var(--txt); }
+/* « + Ajouter » : ce que fait l'entrée, en texte courant (la mono reste aux étiquettes en majuscules, da.md §4.1) */
+.ai-uses { font-size: 11px; line-height: 1.35; color: var(--txt-3); margin-top: 3px; white-space: normal; max-width: 340px; }
+.ctx-item.hot .ai-uses { color: rgba(255, 255, 255, .72); }
+/* pied d'un bloc en ligne sans compte relié */
+.nb-paid {
+  flex: none; font: 500 9.5px/1 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; color: var(--txt-3);
+  padding: 3px 5px 2px; border: 1px solid var(--line-2); border-radius: 4px; white-space: nowrap;
+}
+.nb-paid[hidden] { display: none; }
+/* version périmée : « À RELANCER » écrit dans l'en-tête, l'anneau à côté du titre n'a plus à le dire */
+.n-head:has(.nb-status[data-stale]) .n-stale { display: none; }
+/* puces « ce que sait faire le modèle » : les mots ne se coupent plus n'importe où (espaces insécables) */
+.mp-card .mp-chips { overflow-wrap: normal; }
+/* jeton de citation d'un modèle en ligne (« @video_1 ») : écrit tel qu'il se tape, jamais en majuscules */
+.nb-ref.token { text-transform: none; letter-spacing: 0; font-size: 10.5px; }

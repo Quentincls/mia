@@ -89,12 +89,31 @@ export function typeOf(nodeId) {
 /** Entrée du catalogue d'un type par son id (si un corps l'a déjà enregistrée). */
 export const typeById = (id) => types.get(id) || null;
 
-/** Libellé lisible d'un bloc : son titre, sinon le nom de son type. */
+/**
+ * Libellé lisible d'un bloc : son titre, sinon (bloc Modèle) le nom de sa famille (« Kling 4.0 », rapport DA P1-5 : la
+ * file montrait trois « Modèle » indiscernables), sinon le nom de son type.
+ */
 export function nodeLabel(nodeId) {
   const node = editor()?.getNode?.(nodeId);
   if (node?.title) return node.title;
+  const fam = node ? familyNameOf(node) : '';
+  if (fam) return fam;
   const ty = typeOf(nodeId);
   return ty ? tl(ty.label) : '';
+}
+
+/** Nom de la famille d'un bloc Modèle (son réglage « model »), lu dans les catalogues ; '' sinon. */
+let famNamer = null;
+export function setFamilyNamer(fn) { famNamer = typeof fn === 'function' ? fn : null; }
+function familyNameOf(node) {
+  if (!famNamer) return '';
+  try { return famNamer(node) || ''; } catch { return ''; }
+}
+
+/** Le bloc calcule-t-il chez Higgsfield (modèle en ligne) ? Pour la méta « EN LIGNE » de la file. */
+export function isOnline(nodeId) {
+  const node = editor()?.getNode?.(nodeId);
+  return !!node && node.type === 'gen' && String(node.params?.model || '').startsWith('hf:');
 }
 
 // ── chargement ───────────────────────────────────────────────────────
@@ -283,6 +302,9 @@ export function state(nodeId) {
   if (L && ACTIVE.has(L.kind)) {
     const st = { ...L };
     if (L.kind === 'queued') st.position = queuePosition(L.jobId);
+    // calcul en ligne : en file chez Higgsfield, ou sa file pleine (le bloc le dit comme la file, pas « En cours »)
+    const j = L.jobId ? jobs.get(L.jobId) : null;
+    if (j?.online) { st.online = true; st.remote = j.remote || null; }
     return st;
   }
   // Consigne : un état seulement pour la réécriture de SON texte, case cochée (ni « fait » ni erreur d'un autre texte)
@@ -310,10 +332,11 @@ function typedText(nodeId) {
   return n.params?.rewrite === true ? (n.params?.text ?? '') : false;
 }
 
-/** Rang (1 = prochain) d'un job dans la file d'attente de Mia. */
+/** Rang (1 = prochain) d'un job dans SA voie de la file de Mia (en ligne et local n'attendent pas l'un derrière l'autre). */
 function queuePosition(jobId) {
+  const me = jobs.get(jobId);
   const waiting = [...jobs.values()]
-    .filter((j) => j.state === 'queued' || j.state === 'waiting-gpu')
+    .filter((j) => (j.state === 'queued' || j.state === 'waiting-gpu') && !!j.online === !!me?.online)
     .sort((a, b) => (a.created || 0) - (b.created || 0));
   const i = waiting.findIndex((j) => j.jobId === jobId);
   return i < 0 ? null : i + 1;
@@ -336,6 +359,8 @@ function upsertJob(evt, patch) {
   const job = { ...prev, ...patch, touched: Date.now() };
   if (!job.label && mine) job.label = nodeLabel(evt.nodeId);
   if (evt.mode !== undefined && job.mode == null) job.mode = evt.mode;
+  // calcul en ligne : sa propre voie dans la file ; remote = queued | running | full chez Higgsfield
+  if (evt.online) { job.online = true; job.remote = evt.remote || null; }
   jobs.set(evt.jobId, job);
   return job;
 }
@@ -713,13 +738,25 @@ export function endText(endAt) {
  * `short` : la forme d'un en-tête de carte étroite, qui ne doit pas manger le titre (le texte entier
  * passe alors dans l'info-bulle) — « 47 % », « #15 », « 1 h 12 » ; vide = l'anneau seul.
  */
+/**
+ * Un calcul en ligne déjà parti, mais qui attend chez Higgsfield (limite du compte : « En file chez Higgsfield ») ou
+ * dont la file est pleine (rien de créé ni de facturé, Mia réessaie) → { text, tip, sub } ; null sinon. Partagé par
+ * l'en-tête et le puits du bloc et par la file.
+ */
+export function remoteText(st) {
+  if (!st || !st.online || st.kind !== 'running') return null;
+  if (st.remote === 'queued') return { text: t('run.st.atHf'), tip: t('run.st.atHfTip'), sub: '' };
+  if (st.remote === 'full') return { text: t('run.st.hfFull'), tip: [st.message, t('run.st.hfFullTip')].filter(Boolean).join(' — '), sub: st.message || '' };
+  return null;
+}
+
 export function describe(st) {
   if (!st) return { text: '', tone: 'muted' };
   switch (st.kind) {
     case 'queued':
       return {
         text: st.position ? t('run.st.queuedN', { n: st.position }) : t('run.st.queued'),
-        short: st.position ? t('run.st.queuedShort', { n: st.position }) : t('run.st.queued'), tone: 'muted', ring: true,
+        short: st.position ? t('run.st.queuedN', { n: st.position }) : t('run.st.queued'), tone: 'muted', ring: true,
       };
     case 'waiting-gpu':
       return {
@@ -727,6 +764,8 @@ export function describe(st) {
         tip: st.who ? t('run.st.gpuBusyWho', { who: st.who, since: st.since ? fmtClock(typeof st.since === 'number' ? st.since : Date.parse(st.since)) : '?' }) : t('run.st.gpuBusyTip'),
       };
     case 'running': {
+      const far = remoteText(st);
+      if (far) return { text: far.text, short: far.text, tone: 'muted', tip: far.tip };
       const p = st.progress != null ? `${Math.round(st.progress * 100)} %` : t('run.st.running');
       const full = [p, endText(st.endAt)].filter(Boolean).join(' · ');
       // l'heure de fin reste dans le pied du bloc
@@ -734,7 +773,9 @@ export function describe(st) {
     }
     case 'done': {
       const d = runDuration(st.run);
-      return { text: d != null ? t('run.st.doneIn', { dur: fmtDur(d) }) : t('run.st.done'), short: d != null ? fmtDurShort(d) : t('run.st.done'), tone: 'muted' };
+      // « FAIT · 10 MIN » (da.md §4.5) : seule, la durée se lisait comme l'estimation du pied
+      if (st.stale) return { text: t('run.st.stale'), short: t('run.st.stale'), tone: 'muted', tip: t('run.st.staleTip') };
+      return { text: d != null ? t('run.st.doneIn', { dur: fmtDur(d) }) : t('run.st.done'), short: d != null ? t('run.st.doneIn', { dur: fmtDurShort(d) }) : t('run.st.done'), tone: 'muted' };
     }
     case 'error':
       return { text: t('run.st.error'), tone: 'err', tip: st.message || '' };
@@ -754,10 +795,16 @@ strings({
   'run.st.gpuBusyTip': 'Un autre calcul utilise le GPU. Mia attend son tour.',
   'run.st.running': 'En cours',
   'run.st.endAt': 'fin vers {time}',
+  'run.st.atHf': 'En file chez Higgsfield',
+  'run.st.atHfTip': 'Higgsfield l’a reçu et le lancera dès qu’un de tes calculs en ligne finit (limite de ton compte).',
+  'run.st.hfFull': 'File Higgsfield pleine',
+  'run.st.hfFullTip': 'La file de ton compte Higgsfield est pleine : rien n’a été créé ni facturé, Mia réessaie toute seule.',
   'run.st.done': 'Fait',
   'run.st.doneIn': 'Fait · {dur}',
   'run.st.error': 'Erreur',
   'run.st.cancelled': 'Annulé',
+  'run.st.stale': 'À relancer',
+  'run.st.staleTip': 'Réglages ou amont changés depuis cette version : relance pour la mettre à jour.',
 }, {
   'run.st.queued': 'Queued',
   'run.st.queuedN': 'Queued · {n}',
@@ -767,10 +814,16 @@ strings({
   'run.st.gpuBusyTip': 'Another job is using the GPU. Mia waits its turn.',
   'run.st.running': 'Running',
   'run.st.endAt': 'ends ~{time}',
+  'run.st.atHf': 'Queued at Higgsfield',
+  'run.st.atHfTip': 'Higgsfield received it and will start it as soon as one of your online jobs ends (your account’s limit).',
+  'run.st.hfFull': 'Higgsfield queue full',
+  'run.st.hfFullTip': 'Your Higgsfield account’s queue is full: nothing was created or charged, Mia tries again by itself.',
   'run.st.done': 'Done',
   'run.st.doneIn': 'Done · {dur}',
   'run.st.error': 'Error',
   'run.st.cancelled': 'Cancelled',
+  'run.st.stale': 'Run again',
+  'run.st.staleTip': 'Settings or inputs changed since this version: run again to update it.',
 });
 
 // ── actions ──────────────────────────────────────────────────────────
@@ -949,7 +1002,7 @@ async function handleRun({ nodeId, mode } = {}) {
 // fois en moins d'une seconde n'est traité qu'une fois.
 const seenEvents = new Map();
 function firstTime(evt) {
-  const sig = `${evt?.jobId}|${evt?.projectId}|${evt?.nodeId}|${evt?.kind}|${evt?.progress}|${evt?.eta}|${evt?.message}|${evt?.preview}|${evt?.run?.runId}`;
+  const sig = `${evt?.jobId}|${evt?.projectId}|${evt?.nodeId}|${evt?.kind}|${evt?.progress}|${evt?.eta}|${evt?.message}|${evt?.preview}|${evt?.run?.runId}|${evt?.remote}`;
   const now = performance.now();
   if (seenEvents.size > 300) {
     for (const [k, at] of seenEvents) if (now - at > 1000) seenEvents.delete(k);
@@ -984,6 +1037,6 @@ setInterval(() => {
 export const runs = {
   load, list, all, current, state, isStale, output, upstream, source, pin, unpin, removeRun, run, runVariants, cancel,
   cancelJob, versionNumber, findRun, registerType, typeOf, typeById, nodeLabel, jobList, onJobs, projectName, syncJobs,
-  isActive, describe, endText, runDuration, typicalSec, setMissing, isMissing,
+  isActive, describe, remoteText, endText, runDuration, typicalSec, setMissing, isMissing,
 };
 export default runs;

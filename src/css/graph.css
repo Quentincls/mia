@@ -629,7 +629,7 @@
   border-radius: 9px;
   color: var(--txt-2);
   font-size: 12.5px; font-weight: 550;
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
 }
 .g-dock-btn svg { width: 16px; height: 16px; flex: none; }
 .g-dock-btn:hover { color: var(--txt); background: var(--surface-3); }
@@ -661,7 +661,7 @@
   flex: none; height: 26px; padding: 0 11px; border-radius: 999px;
   font-size: 12px; font-weight: 550; color: var(--txt);
   background: var(--surface-3); border: 1px solid var(--line-2);
-  transition: background var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
 }
 .g-ro-btn:hover { background: var(--surface-hi); }
 /* planche illisible : pas de recettes ni d'invitation à ajouter */
@@ -671,14 +671,14 @@
   width: 32px; height: 32px; border-radius: 9px;
   display: grid; place-items: center;
   color: var(--txt-2);
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
 }
 .zb-btn svg, .zb-mini svg { width: 16px; height: 16px; }
 .zb-level {
   min-width: 56px; height: 32px; padding: 0 6px; border-radius: 9px;
   font-size: 11.5px; font-weight: 550; font-variant-numeric: tabular-nums;
   color: var(--txt-2);
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
 }
 .zb-btn:hover, .zb-mini:hover, .zb-level:hover { color: var(--txt); background: var(--surface-3); }
 .zb-mini.on { color: var(--txt); background: var(--surface-3); }
@@ -827,9 +827,10 @@
 }
 .pal-glyph svg { width: 15px; height: 15px; }
 .pal-item.on .pal-glyph { color: var(--txt); border-color: var(--line-2); }
-.pal-name { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pal-name { flex: 0 0 auto; max-width: 62%; min-width: 0; font-size: 13px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pal-item.missing .pal-name, .pal-item.missing .pal-glyph { opacity: .55; }
 .pal-meta {
+  /* elle cède avant le nom (« Happy Horse 1.0 » rogné à 9 lettres par « En ligne · Texte · Animer… » + le prix) */
   flex: 0 1 auto; margin-left: auto; min-width: 0; max-width: 55%;
   /* 1,4 et non 1 : une boîte de 10 px rognait les accents des capitales (« VIDÉO ») */
   font-family: var(--font-kicker); font-size: 10px; line-height: 1.4;
@@ -1038,7 +1039,7 @@
   font-size: 12px; font-weight: 550;
   color: var(--txt); background: var(--surface-3);
   border: 1px solid var(--line-2);
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
 }
 .mb-btn:hover { background: var(--surface-hi); }
 .mb-btn.ghost { background: transparent; color: var(--txt-2); }

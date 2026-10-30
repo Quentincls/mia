@@ -27,6 +27,7 @@ import { tip } from '../ui/tooltip.js';
 import { segmented, toggle } from '../ui/controls.js';
 import { setPrefs } from '../ui/settings.js';
 import { strings, num } from './media.js';
+import { ghostOut } from '../ui/motion.js';
 import { types, typeLabel, modelCaps } from '../catalog.js';
 import {
   loadProfiles, profileOf, limitsOf, variantOf, familyKeyOf, familyName, familyDesc, makerOf, markOf, cloudProviders,
@@ -395,6 +396,7 @@ function closePop() {
   const p = openPop;
   openPop = null;
   p.cleanup();
+  ghostOut(p.el);   // la liste s'efface à sa place (SPEC §20.1)
   p.el.remove();
 }
 
@@ -453,7 +455,8 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
       txt.textContent = profileOf(m) ? familyName(m) : modelName(m);
       cardMark.textContent = markOf(m, modelName(m));
       const chips = [v?.tag, ...modelChips(m, param, { short: true })].filter(Boolean);
-      cardChips.textContent = chips.join(' · ');
+      // espaces insécables : un mot ne se coupe pas en deux lignes, « · » ne commence jamais une ligne
+      cardChips.textContent = chips.map((c) => String(c).replace(/ /g, '\u00a0')).join('\u00a0· ');
       cardChips.hidden = !chips.length;
     } else {
       txt.textContent = auto && !inv() ? t('node.model.auto') : l.text;

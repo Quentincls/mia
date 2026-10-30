@@ -30,7 +30,8 @@ import {
   typeOf, types as allTypes, defaults, compatible, recipe as recipeById, recipes as allRecipes
 } from '../catalog.js';
 import { nodeInputs, nodeOutputs, isModelBlock, blockWorkflow, startPoints, mainPorts, blockFamily } from '../nodes/ports.js';
-import { familyOf, localKeyOf } from '../nodes/route.js';
+import { familyOf, localKeyOf, chooseWorkflow, tierOf, tierAllows } from '../nodes/route.js';
+import { modePorts } from '../nodes/ports.js';
 import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
 
 register({
@@ -66,6 +67,7 @@ register({
     'presence.err.needNode': 'Donne l’id du bloc (nodeId).',
     'presence.err.addFailed': 'Le bloc n’a pas pu être posé.',
     'presence.err.selfWire': 'Un bloc ne peut pas se brancher sur lui-même.',
+    'presence.err.wouldReplace': 'Toutes les entrées compatibles de « {b} » sont déjà branchées : le fil remplacerait celui de « {port} ». Nomme l’entrée (to.port) pour le remplacer exprès. Entrées : {list}.',
     'presence.err.noOutputs': 'Le bloc « {block} » n’a pas de sortie.',
     'presence.err.noInputs': 'Le bloc « {block} » n’a pas d’entrée.',
     'presence.err.noOutPort': 'Le bloc « {block} » n’a pas de sortie « {port} ». Sorties : {list}.',
@@ -99,7 +101,14 @@ register({
     'presence.err.busy': 'Mia n’a pas pu finir cette action (fenêtre réduite ou occupée). Réessaie.',
     'presence.note.hidden': 'Réglage enregistré mais masqué tant que « {param} » ne le permet pas.',
     'presence.note.partial': '{n} fichier(s) n’ont pas pu être importés : voir le message dans Mia.',
-    'presence.note.preview': 'Aperçu lancé : regarde le résultat, puis relance en mode « final » si c’est bon.'
+    'presence.note.preview': 'Aperçu lancé : regarde le résultat, puis relance en mode « final » si c’est bon.',
+    'presence.note.otherMode': '{key} : pas utilisé par « {mode} » (mode actuel) ; gardé pour {others}.',
+    'presence.note.outOfMode': '{key} = {value} : hors de « {mode} » ; Mia l’envoie ramené à la valeur permise la plus proche (ou passe le bloc dans {others}).',
+    'presence.note.tierOnly': '{key} : pas envoyé au palier « {tier} » (seulement {tiers}).',
+    'presence.note.wireIgnored': 'Fil branché, mais « {mode} » (mode actuel) n’utilise pas « {port} » : il est ignoré. {hint}',
+    'presence.note.wireHint': 'Le mode « {mode} » s’en sert : params.workflow = "{id}".',
+    'presence.note.wireTier': 'Fil branché, mais « {port} » n’est pas prise en {tier} (seulement {tiers}) : elle est ignorée. Pour s’en servir : params["hf.tier"] = "{value}".',
+    'presence.err.badWorkflow': '« {block} » : mode « {value} » inconnu. Modes permis : {list} (ou "auto").'
   },
   en: {
     'presence.pill': '{name} is driving Mia',
@@ -133,6 +142,7 @@ register({
     'presence.err.needNode': 'Give the block id (nodeId).',
     'presence.err.addFailed': 'The block could not be placed.',
     'presence.err.selfWire': 'A block cannot be wired to itself.',
+    'presence.err.wouldReplace': 'Every compatible input of “{b}” is already wired: this wire would replace the one in “{port}”. Name the input (to.port) to replace it on purpose. Inputs: {list}.',
     'presence.err.noOutputs': 'Block “{block}” has no output.',
     'presence.err.noInputs': 'Block “{block}” has no input.',
     'presence.err.noOutPort': 'Block “{block}” has no output “{port}”. Outputs: {list}.',
@@ -166,7 +176,14 @@ register({
     'presence.err.busy': 'Mia could not finish this action (window minimised or busy). Try again.',
     'presence.note.hidden': 'Setting saved but hidden while “{param}” does not allow it.',
     'presence.note.partial': '{n} file(s) could not be imported: see the message in Mia.',
-    'presence.note.preview': 'Preview started: look at the result, then run again in “final” mode if it is good.'
+    'presence.note.preview': 'Preview started: look at the result, then run again in “final” mode if it is good.',
+    'presence.note.otherMode': '{key}: not used by “{mode}” (current mode); kept for {others}.',
+    'presence.note.outOfMode': '{key} = {value}: outside “{mode}”; Mia sends it brought back to the nearest allowed value (or switch the block to {others}).',
+    'presence.note.tierOnly': '{key}: not sent in tier “{tier}” (only {tiers}).',
+    'presence.note.wireIgnored': 'Wire connected, but “{mode}” (current mode) does not use “{port}”: it is ignored. {hint}',
+    'presence.note.wireHint': 'The “{mode}” mode uses it: params.workflow = "{id}".',
+    'presence.note.wireTier': 'Wire connected, but “{port}” is not taken in {tier} (only {tiers}): it is ignored. To use it: params["hf.tier"] = "{value}".',
+    'presence.err.badWorkflow': '“{block}”: unknown mode “{value}”. Allowed modes: {list} (or "auto").'
   }
 });
 
@@ -1026,11 +1043,28 @@ function describeNode(e, n, R) {
  */
 function shownParams(n, params) {
   if (!isModelBlock(n)) return params;
-  const r = safe(() => blockWorkflow(n, []));
+  const r = safe(() => blockWorkflow(n, connOf(n)));
   if (!r) return params;
   const keep = new Set(['model', 'workflow', 'prompt']);
+  if (r.fam.provider !== 'local') {
+    // en ligne (30/10) : les réglages du mode retenu, au palier choisi, avec leurs défauts (hf.* non posés compris)
+    const tier = tierOf(r.workflow, { ...(n.params || {}), ...params });
+    const out = {};
+    for (const k of keep) if (k in params) out[k] = params[k];
+    for (const pd of r.workflow.params || []) {
+      if (!tierAllows(pd, tier)) continue;
+      out[pd.id] = pd.id in params ? params[pd.id] : pd.default;
+    }
+    return out;
+  }
   for (const wf of r.fam.def.workflows || []) for (const p of wf.params || []) keep.add(typeof p === 'string' ? p : p.id);
   return Object.fromEntries(Object.entries(params).filter(([k]) => keep.has(k) || k.startsWith('hf.')));
+}
+
+/** Entrées reliées d'un bloc (ids). */
+function connOf(n) {
+  const ins = safe(() => ed()?.inputsOf?.(n.id)) || {};
+  return Object.keys(ins).filter((k) => ins[k] && ins[k].length);
 }
 
 /** « 4 variantes » : un bloc Modèle qui fait des images sur ce PC, avec une graine (la règle de son bouton, nodes/body.js). */
@@ -1060,6 +1094,29 @@ function modelInfo(n, conn) {
   if (starts.length) info.startFrom = starts.map((s) => ({ port: s.id, label: tl(s.label), for: s.what.map((w) => tl(w)), ...(s.trial ? { trial: true } : {}) }));
   const trial = conn.filter((id) => ports[id]?.trial);
   if (r.workflow.trial || trial.length) info.trial = r.workflow.trial ? 'the whole way' : trial;
+  if (r.fam.provider !== 'local') {
+    // modèle en ligne (30/10) : le mode (choisi ou auto), ce qu'il accepte à son palier, son tarif public, les autres
+    // modes (et ce qui leur manque), les champs que Mia n'envoie pas
+    const accepts = [...(safe(() => modePorts(n, r.workflow)) || [])];
+    info.mode = r.forced ? 'chosen (params.workflow)' : 'auto (from the wires)';
+    if (r.forced && r.auto && r.auto.id !== r.workflow.id) info.autoWould = r.auto.id;
+    info.accepts = accepts;
+    const tier = tierOf(r.workflow, n.params || {});
+    if (tier) info.tier = tier;
+    const off = conn.filter((id) => id !== 'prompt' && ports[id] && !accepts.includes(id));
+    if (off.length) info.ignored = [...new Set([...(info.ignored || []), ...off])];
+    if (r.workflow.price) info.price = r.workflow.price;
+    if (r.workflow.cite) info.cite = r.workflow.cite;
+    if (r.workflow.durationFromSource) info.durationFromSource = r.workflow.durationFromSource;
+    const modes = r.fam.def.workflows || [];
+    if (modes.length > 1) {
+      info.modes = modes.map((w) => {
+        const x = safe(() => chooseWorkflow(r.fam, conn, w.id));
+        return { workflow: w.id, does: tl(w.label || {}), ...(x && x.blocked ? { missing: x.missing } : {}) };
+      });
+    }
+    if ((r.workflow.unsupported || []).length) info.unsupported = r.workflow.unsupported.map((u) => ({ field: u.field, why: tl(u.reason || {}) }));
+  }
   return info;
 }
 
@@ -1169,11 +1226,13 @@ function coerce(pd, v, block) {
   }
 }
 
-function checkParams(def, params, block, node = null) {
+function checkParams(def, params, block, node = null, notes = null) {
   const errs = [];
   const out = {};
   let known = def.params || [];
-  // bloc Modèle en ligne : ses réglages « hf.* » sont ceux du schéma de sa famille (cloud-higgsfield.json)
+  // bloc Modèle en ligne : ses réglages « hf.* » sont ceux du mode que choisira le bloc (fils + params.workflow), à
+  // son palier ; un réglage d'un autre mode est gardé avec une note (30/10, plus de « premier gagnant »)
+  let cloud = null;
   if (def.ports === 'model') {
     const value = params?.model ?? node?.params?.model ?? (def.params || []).find((p) => p.id === 'model')?.default;
     const fam = familyOf(value, localCatalog(), cloudCatalog(), state.inventory);
@@ -1181,15 +1240,70 @@ function checkParams(def, params, block, node = null) {
       const extra = [];
       for (const wf of fam.def.workflows || []) for (const p of wf.params || []) if (!extra.some((q) => q.id === p.id)) extra.push(p);
       known = [...known, ...extra];
+      cloud = fam;
     }
   }
+  // le mode : demandé ici (id, libellé ou "auto"), sinon celui du bloc
+  let choice = node?.params?.workflow || null;
+  if (cloud && params && 'workflow' in params) {
+    const v = params.workflow;
+    const ws = cloud.def.workflows || [];
+    const hit = v == null || v === '' || norm(v) === 'auto' ? { id: '' }
+      : ws.find((w) => w.id === String(v)) || ws.find((w) => [w.label?.fr, w.label?.en].some((l) => l && norm(l) === norm(v)));
+    if (!hit) errs.push(t('presence.err.badWorkflow', { block, value: String(v), list: ws.map((w) => `"${w.id}" (${tl(w.label || {})})`).join(', ') }));
+    else { out.workflow = hit.id; choice = hit.id || null; }
+  }
+  const plan = cloud ? safe(() => chooseWorkflow(cloud, node ? connOf(node) : [], choice)) : null;
+  const wf = plan?.workflow || null;
+  const modeName = wf ? tl(wf.label || {}) : '';
+  const own = (k) => (wf?.params || []).find((p) => p.id === k) || null;
+  const tierDef = own('hf.tier');
+  let tier = wf ? tierOf(wf, node?.params || {}) : null;
+  if (tierDef && params && 'hf.tier' in params) { try { tier = String(coerce(tierDef, params['hf.tier'], block)); } catch { /* dit plus bas */ } }
+  const othersOf = (k) => (cloud?.def.workflows || []).filter((w) => w !== wf && (w.params || []).some((p) => p.id === k));
+  const restrict = (pd) => {
+    const only = pd.tierOptions && tier != null ? pd.tierOptions[tier] : null;
+    return Array.isArray(only) && pd.options ? { ...pd, options: pd.options.filter((o) => only.map(String).includes(String(o.value))) } : pd;
+  };
   for (const [k, v] of Object.entries(params || {})) {
+    if (cloud && k === 'workflow') continue;
     const pd = known.find((p) => p.id === k);
     if (!pd) {
       errs.push(t('presence.err.unknownParam', { block, key: k, list: known.map((p) => p.id).join(', ') || t('presence.err.none') }));
       continue;
     }
-    try { out[k] = coerce(pd, v, block); } catch (err) { errs.push(err.message); }
+    if (!cloud || !k.startsWith('hf.') || !wf) {
+      try { out[k] = coerce(pd, v, block); } catch (err) { errs.push(err.message); }
+      continue;
+    }
+    const mine = own(k);
+    const others = othersOf(k);
+    const names = others.map((w) => `« ${tl(w.label || {})} »`).join(', ');
+    if (!mine) {
+      // réglage d'un autre mode : vérifié selon lui, gardé, et dit
+      let okv;
+      let lastErr = null;
+      for (const w of others) {
+        try { okv = coerce((w.params || []).find((p) => p.id === k), v, block); break; } catch (err) { lastErr = err; }
+      }
+      if (okv === undefined) { errs.push((lastErr && lastErr.message) || t('presence.err.unknownParam', { block, key: k, list: '' })); continue; }
+      out[k] = okv;
+      notes?.push(t('presence.note.otherMode', { key: k, mode: modeName, others: names }));
+      continue;
+    }
+    try {
+      out[k] = coerce(restrict(mine), v, block);
+      if (!tierAllows(mine, tier)) notes?.push(t('presence.note.tierOnly', { key: k, tier, tiers: mine.onlyTiers.join(', ') }));
+    } catch (err) {
+      // permis par un autre mode (Kling Omni : 7 s en références, pas en « Animer ») : gardé, avec une note
+      let okv;
+      for (const w of others) {
+        try { okv = coerce((w.params || []).find((p) => p.id === k), v, block); break; } catch { /* suivant */ }
+      }
+      if (okv === undefined) { errs.push(err.message); continue; }
+      out[k] = okv;
+      notes?.push(t('presence.note.outOfMode', { key: k, value: String(v), mode: modeName, others: names }));
+    }
   }
   if (errs.length) { const e = new Error(errs.join('\n')); e.user = true; throw e; }
   return out;
@@ -1366,7 +1480,8 @@ const METHODS = {
     const e = await board(p, { write: true });
     const def = findType(p.type);
     if (!def) fail('unknownType', { type: p.type ?? '', list: typeList() });
-    const params = p.params ? checkParams(def, p.params, tl(def.label)) : {};
+    const modeNotes = [];
+    const params = p.params ? checkParams(def, p.params, tl(def.label), null, modeNotes) : {};
     const w = def.width || 288;
     const h = estimateH(def);
     let pos;
@@ -1396,7 +1511,7 @@ const METHODS = {
       inputs: nodeInputs(node, [], { all: true }).map((i) => ({ port: i.id, type: i.type, label: tl(i.label), ...(i.required ? { required: true } : {}), ...(i.multi ? { multi: true, max: i.max || null } : {}) })),
       outputs: nodeOutputs(node).map((o) => ({ port: o.id, type: e.portType(id, o.id, 'out') || o.type, label: tl(o.label) })),
       params: shownParams(node, { ...defaults(def.id), ...(node.params || {}) }),
-      notes: hiddenNotes(def, params)
+      notes: [...hiddenNotes(def, params), ...modeNotes]
     };
   },
 
@@ -1457,6 +1572,8 @@ const METHODS = {
     const count = (wired[pick.i.id] || []).length;
     if (pick.i.multi && pick.i.max && count >= pick.i.max) fail('full', { in: tl(pick.i.label), b, max: pick.i.max });
     const replaced = !pick.i.multi && count > 0 ? (wired[pick.i.id] || []).map((s) => ({ ...s })) : [];
+    // never replace a wire on a guessed input: only when the assistant named that input
+    if (replaced.length && !to.port) fail('wouldReplace', { b, port: tl(pick.i.label), list: portLabelList(ins) });
 
     await ensureVisible(e, union([boxOf(e, A), boxOf(e, B)]));
     await glideTo(portPoint(e, A.id, pick.o.id, 'out'));
@@ -1467,15 +1584,44 @@ const METHODS = {
     const edgeId = e.connect(A.id, pick.o.id, B.id, pick.i.id);
     acted();
     if (!edgeId) fail('refused');
-    return { wireId: edgeId, from: { node: A.id, port: pick.o.id }, to: { node: B.id, port: pick.i.id }, type: pick.ot, replaced };
+    const out = { wireId: edgeId, from: { node: A.id, port: pick.o.id }, to: { node: B.id, port: pick.i.id }, type: pick.ot, replaced };
+    // bloc Modèle : le fil sert-il au mode retenu ? (sinon il est ignoré au calcul : le dire, et le mode qui s'en sert)
+    if (fam) {
+      const Bn = e.getNode(B.id) || B;
+      const r = safe(() => blockWorkflow(Bn, connOf(Bn)));
+      const accepts = r ? (fam.provider !== 'local' ? (safe(() => modePorts(Bn, r.workflow)) || new Set()) : null) : null;
+      const off = r && ((r.unused || []).includes(pick.i.id) || (accepts && !accepts.has(pick.i.id)));
+      // in the mode, but not at the chosen tier (Kling 3.0 Turbo: no end image): the tier is the reason, not the mode
+      const portDef = r && ((r.workflow && r.workflow.ports) || {})[pick.i.id];
+      const tierDef = r && ((r.workflow && r.workflow.params) || []).find((x) => x && x.id === 'hf.tier');
+      const tier = r ? safe(() => tierOf(r.workflow, Bn.params || {})) : null;
+      const byTier = off && fam.provider !== 'local' && portDef && tierDef && !(r.unused || []).includes(pick.i.id)
+        && Array.isArray(portDef.onlyTiers) && !tierAllows(portDef, tier);
+      const tierName = (v) => { const o = (tierDef?.options || []).find((x) => String(x.value) === String(v)); return o ? tl(o.label || {}) || String(v) : String(v); };
+      if (byTier) {
+        out.note = t('presence.note.wireTier', {
+          port: tl(pick.i.label), tier: tierName(tier), tiers: portDef.onlyTiers.map(tierName).join(', '), value: portDef.onlyTiers[0],
+        });
+        out.ignored = true;
+      } else if (off) {
+        const taker = (fam.def.workflows || []).find((w) => w !== r.workflow && (w.ports || {})[pick.i.id]);
+        out.note = t('presence.note.wireIgnored', {
+          mode: tl(r.workflow.label || {}), port: tl(pick.i.label),
+          hint: taker && fam.provider !== 'local' ? t('presence.note.wireHint', { mode: tl(taker.label || {}), id: taker.id }) : '',
+        }).trim();
+        out.ignored = true;
+      }
+    }
+    return out;
   },
 
   async set_params(p) {
     const e = await board(p, { write: true });
     const n = nodeOf(e, p.nodeId);
     const def = typeOf(n.type);
-    const clean = checkParams(def || { params: [] }, p.params || {}, blockName(n), n);
-    if (!Object.keys(clean).length) return { nodeId: n.id, params: { ...defaults(n.type), ...(n.params || {}) } };
+    const modeNotes = [];
+    const clean = checkParams(def || { params: [] }, p.params || {}, blockName(n), n, modeNotes);
+    if (!Object.keys(clean).length) return { nodeId: n.id, params: shownParams(n, { ...defaults(n.type), ...(n.params || {}) }), notes: modeNotes };
     await ensureVisible(e, boxOf(e, n));
     const controls = safe(() => e.slotEls(n.id)?.controls) || '.nb-foot';
     await glideTo(elPoint(e, n, controls, 0.42, 0.3));
@@ -1483,7 +1629,11 @@ const METHODS = {
     e.updateNode(n.id, { params: clean });
     acted();
     const after = { ...defaults(n.type), ...(e.getNode(n.id)?.params || {}) };
-    return { nodeId: n.id, params: after, notes: hiddenNotes(def || {}, after).filter((x) => Object.keys(clean).some((k) => x.startsWith(`${k}:`))) };
+    const shown = shownParams(e.getNode(n.id) || n, after);
+    const notes = [...hiddenNotes(def || {}, after).filter((x) => Object.keys(clean).some((k) => x.startsWith(`${k}:`))), ...modeNotes];
+    // un bloc Modèle : ce qu'il fait maintenant (le mode a pu changer)
+    const model = isModelBlock(n) ? safe(() => modelInfo(e.getNode(n.id), connOf(n))) : null;
+    return { nodeId: n.id, params: shown, notes, ...(model ? { model } : {}) };
   },
 
   async rename_block(p) {

@@ -9,7 +9,9 @@
  *     handed back as `poster`;
  *   - videos Chromium cannot play (ProRes, DNxHR, AVI…): a proxy cache\<file>.proxy.mp4, encoded in
  *     the background by a single-worker queue; `media:proxy` is sent when it is ready;
- *   - sounds (wav, mp3, m4a, flac…, for the Son block): their waveform in cache\<file>.wave.png, as `poster`.
+ *   - sounds (wav, mp3, m4a, flac…, for the Son block): their waveform in cache\<file>.wave.png, as `poster`;
+ *   - on demand, when the board first shows a big video or image (imported or a result), a light copy
+ *     for display only: cache\lite\<path>.lite.mp4 (960 px) or .thumb.jpg (640 px), low priority.
  * Paths in the returned data are relative to the project, with "/" (SPEC §3.3).
  */
 const fs = require('node:fs');
@@ -202,6 +204,10 @@ function createMedia({ store, ffmpeg, send, getWin, log = () => {} }) {
   const inBoard = (projectId, fn) => (typeof store.withBoard === 'function' ? store.withBoard(projectId, fn) : fn());
 
   async function importPaths(projectId, paths) {
+    // { lite: [{ rel, kind }] } : demande de copies légères pour l'affichage (voir requestLite)
+    if (paths && typeof paths === 'object' && !Array.isArray(paths) && Array.isArray(paths.lite)) {
+      return requestLite(projectId, paths.lite);
+    }
     await store.ready();
     const list = Array.isArray(paths) ? paths : [paths];
     return inBoard(projectId, async () => {
@@ -267,6 +273,7 @@ function createMedia({ store, ffmpeg, send, getWin, log = () => {} }) {
   // other nor with a GPU job for long. Jobs keep the project id, not the folder: a project
   // renamed meanwhile still gets its proxy.
   const queue = [];
+  const lowQueue = [];     // light copies for the board (below): only when nothing else waits
   let busy = false;
 
   const jobKey = (j) => `${j.what || 'proxy'}|${j.projectId}|${j.src}`;
@@ -278,6 +285,108 @@ function createMedia({ store, ffmpeg, send, getWin, log = () => {} }) {
     if (job.what === 'poster') queue.unshift(job);
     else queue.push(job);
     pump();
+  }
+
+  // ---------------------------------------------------------------- light copies (display only)
+  // On the board, a big video plays from a light copy (long side 960 px, H.264 without B-frames, every
+  // frame kept with its own timestamp: same rate, same frame count, so a frame number stays the same)
+  // and a big image shows as a 640 px thumbnail. The window asks for them the first time it shows the
+  // medium (importPaths(projectId, { lite: [...] })); they are made one at a time, after every other job
+  // of this queue, at low process priority, beside the proxies in the board's cache\ (disposable):
+  // cache\lite\<path of the medium>.lite.mp4 | .thumb.jpg (.thumb.png when it has alpha). The AI always
+  // reads the original.
+  const LITE = {
+    video: { side: 960, min: 1100, suffix: '.lite.mp4' },
+    image: { side: 640, min: 1024, suffix: '.thumb.jpg', alphaSuffix: '.thumb.png' }   // PNG keeps the transparency
+  };
+  const LITE_IMAGE_EXT = /\.(png|jpe?g|webp|bmp|avif)$/i;
+  const liteSkip = new Set();     // "projectId|rel": no copy worth making (small, alpha, unreadable, frame count off)
+  const liteRelOf = (rel, kind, alpha) => `cache/lite/${rel}${kind === 'image' && alpha ? LITE.image.alphaSuffix : LITE[kind].suffix}`;
+  const validLiteRel = (rel, kind) => typeof rel === 'string' && rel.length < 600 && /^(media|outputs)\//.test(rel) &&
+    !/[\\:\0]/.test(rel) && !rel.split('/').some((s) => s === '..' || s === '.' || s === '') &&
+    (kind !== 'image' || LITE_IMAGE_EXT.test(rel));
+
+  function queueLow(job) {
+    const key = jobKey(job);
+    if (lowQueue.some((j) => jobKey(j) === key) || (busy && busy === key)) return;
+    if (lowQueue.length >= 400) return;          // asked again at the next display
+    lowQueue.push(job);
+    pump();
+  }
+
+  /**
+   * items: [{ rel, kind:'video'|'image', alpha? }] (rel = path inside the board, media/… or outputs/…).
+   * → [{ rel, lite: 'cache/lite/…' | null, pending: bool }] — lite: the copy is there and up to date;
+   * pending: it is being made (`media:proxy` { src: 'lite:<rel>', lite } is sent when it is ready).
+   */
+  async function requestLite(projectId, items) {
+    await store.ready();
+    const dir = typeof projectId === 'string' ? store.projectDir(projectId) : null;
+    const list = Array.isArray(items) ? items.slice(0, 500) : [];
+    return Promise.all(list.map(async (it) => {
+      const rel = it && typeof it.rel === 'string' ? it.rel : '';
+      const kind = it && it.kind === 'image' ? 'image' : 'video';
+      const alpha = kind === 'image' && !!(it && it.alpha);
+      const out = { rel, lite: null, pending: false };
+      try {
+        if (!dir || !validLiteRel(rel, kind) || liteSkip.has(`${projectId}|${rel}`)) return out;
+        const src = path.join(dir, ...rel.split('/'));
+        const dstRel = liteRelOf(rel, kind, alpha);
+        const dst = path.join(dir, ...dstRel.split('/'));
+        if (!store.isInside(src, dir) || !store.isInside(dst, path.join(dir, 'cache'))) return out;
+        const [s, d] = await Promise.all([fsp.stat(src).catch(() => null), fsp.stat(dst).catch(() => null)]);
+        if (!s || !s.isFile()) return out;
+        // the copy carries its original's modification time: a file replaced under the same name is made again
+        if (d && d.size > 0 && Math.abs(d.mtimeMs - s.mtimeMs) < 1) {
+          out.lite = dstRel;
+          return out;
+        }
+        queueLow({ what: 'lite', projectId, src: rel, kind, alpha });
+        out.pending = true;
+        return out;
+      } catch (e) {
+        log('lite request failed:', rel, e.message);
+        return out;
+      }
+    }));
+  }
+
+  async function makeLite(job) {
+    const skip = (why) => {
+      liteSkip.add(`${job.projectId}|${job.src}`);
+      log('no light copy:', job.src, why);
+      send('media:proxy', { projectId: job.projectId, src: `lite:${job.src}`, lite: null });
+    };
+    const dir = store.projectDir(job.projectId);
+    if (!dir) throw new Error('project gone');
+    const spec = LITE[job.kind];
+    const src = path.join(dir, ...job.src.split('/'));
+    const dstRel = liteRelOf(job.src, job.kind, job.alpha);
+    const dst = path.join(dir, ...dstRel.split('/'));
+    if (!store.isInside(dst, path.join(dir, 'cache'))) throw new Error('copy outside cache');
+    const st = await fsp.stat(src);
+    let info = null;
+    try { info = await ffmpeg.probe(src); } catch (e) { return skip(e.userMessage || e.message); }
+    if (!info || info.kind !== job.kind) return skip('not a ' + job.kind);
+    if (Math.max(info.w || 0, info.h || 0) <= spec.min) return skip('small enough');
+    if (job.kind === 'image' && info.alpha && !job.alpha) return skip('alpha: a JPEG thumbnail would lose it');
+    const t0 = Date.now();
+    if (job.kind === 'video') {
+      const r = await ffmpeg.proxy(src, dst, { maxSide: spec.side, gop: 12, meta: info, audio: false, fpsMode: 'passthrough' });
+      // the frame number must not change: same frame count as the original, or no copy at all
+      let got = null;
+      try { got = await ffmpeg.probe(dst); } catch { got = null; }
+      if (!got || (info.frames && got.frames !== info.frames)) {
+        await fsp.rm(dst, { force: true }).catch(() => {});
+        return skip(`frame count ${got && got.frames} ≠ ${info.frames}`);
+      }
+      log('light copy ready:', dstRel, `${r.w}x${r.h}`, r.encoder, `${Date.now() - t0} ms`);
+    } else {
+      await ffmpeg.previewImage(src, dst, { maxSide: spec.side });
+      log('thumbnail ready:', dstRel, `${Date.now() - t0} ms`);
+    }
+    await fsp.utimes(dst, new Date(), st.mtime);
+    send('media:proxy', { projectId: job.projectId, src: `lite:${job.src}`, lite: dstRel });
   }
 
   /** A poster / preview deleted with cache\ (disposable), made again where graph.json expects it. */
@@ -294,9 +403,22 @@ function createMedia({ store, ffmpeg, send, getWin, log = () => {} }) {
 
   async function pump() {
     if (busy) return;
-    const job = queue.shift();
+    const job = queue.shift() || lowQueue.shift();
     if (!job) return;
     busy = jobKey(job);
+    if (job.what === 'lite') {
+      try {
+        await makeLite(job);
+      } catch (e) {
+        log('light copy failed:', job.src, e.userMessage || e.message);
+        liteSkip.add(`${job.projectId}|${job.src}`);
+        send('media:proxy', { projectId: job.projectId, src: `lite:${job.src}`, lite: null });
+      } finally {
+        busy = false;
+        setImmediate(pump);
+      }
+      return;
+    }
     if (job.what === 'poster') {
       try {
         const dir = store.projectDir(job.projectId);
@@ -410,7 +532,8 @@ function createMedia({ store, ffmpeg, send, getWin, log = () => {} }) {
     pick,
     pickFolder,
     reconcileGraph,
-    proxyQueue: () => ({ busy: !!busy, waiting: queue.length })
+    requestLite,
+    proxyQueue: () => ({ busy: !!busy, waiting: queue.length, light: lowQueue.length })
   };
 }
 

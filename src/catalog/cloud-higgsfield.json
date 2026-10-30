@@ -1,8 +1,8 @@
 {
- "version": 1,
- "_doc": "Modèles en ligne de Higgsfield, relevés dans docs.higgsfield.ai par tools/build-cloud-catalog.mjs (SPEC §23). Ne pas éditer à la main : relancer l’outil (--renormalize sans réseau).",
- "source": "https://docs.higgsfield.ai/docs/models.md",
- "built": "2026-10-24",
+ "version": 2,
+ "_doc": "Modèles en ligne de Higgsfield, relevés sur console.higgsfield.ai (liste, tarifs publics), dash.higgsfield.ai (schémas, notes) et docs.higgsfield.ai (appoint) par tools/build-cloud-catalog.mjs (SPEC §23). Ne pas éditer à la main : relancer l’outil (--renormalize sans réseau).",
+ "source": "https://console.higgsfield.ai/explore + https://dash.higgsfield.ai/models/<slug>/llms.txt",
+ "built": "2026-10-30",
  "api": {
   "base": "https://api.higgsfield.ai",
   "auth": "Authorization: Key {id}:{secret}",
@@ -19,7 +19,7 @@
    "name": "Genjutsu",
    "desc": {
     "fr": "Transfère un mouvement, remplace un objet ou change le style d’une vidéo.",
-    "en": "Transfer motion, replace objects, or restyle a source video."
+    "en": "Transfer a motion, swap an object or change the style of a video."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/genjutsu.md",
    "ports": {
@@ -47,7 +47,7 @@
       "fr": "Faire jouer un personnage",
       "en": "Make a character act"
      },
-     "name": "Motion transfer",
+     "name": "Motion Transfer",
      "endpoints": {
       "default": "higgsfield/genjutsu/motion-transfer/v1.0"
      },
@@ -88,17 +88,17 @@
        "kind": "seg",
        "options": [
         {
-         "value": "720p",
-         "label": {
-          "fr": "720p",
-          "en": "720p"
-         }
-        },
-        {
          "value": "480p",
          "label": {
           "fr": "480p",
           "en": "480p"
+         }
+        },
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
          }
         },
         {
@@ -112,12 +112,16 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use higgsfield/genjutsu/motion-transfer/v1.0 for new integrations. The legacy endpoint higgsfiled/genjutsu/motion-transfer/v1.0 remains callable for existing clients but is hidden from model discovery.",
-      "The source video must be at least 4 seconds. Videos longer than 30 seconds are trimmed to 30 seconds; output duration follows the prepared source video.",
-      "Provide 1–8 image references. The prompt is optional and defaults to an empty string."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.159,
+      "max": 0.816,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Per-second pricing. Each second of input video costs $0.318 at 480p, $0.681 at 720p, $1.632 at 1080p. Input duration is rounded up to the nearest whole second. Rates shown are before any applicable customer discount."
+     }
     },
     {
      "id": "higgsfield/genjutsu/object-swap/v1.0",
@@ -125,7 +129,7 @@
       "fr": "Remplacer un objet",
       "en": "Swap an object"
      },
-     "name": "Object swap",
+     "name": "Object Swap",
      "endpoints": {
       "default": "higgsfield/genjutsu/object-swap/v1.0"
      },
@@ -166,17 +170,17 @@
        "kind": "seg",
        "options": [
         {
-         "value": "720p",
-         "label": {
-          "fr": "720p",
-          "en": "720p"
-         }
-        },
-        {
          "value": "480p",
          "label": {
           "fr": "480p",
           "en": "480p"
+         }
+        },
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
          }
         },
         {
@@ -190,13 +194,213 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use higgsfield/genjutsu/object-swap/v1.0 for new integrations. The legacy endpoint higgsfiled/genjutsu/object-swap/v1.0 remains callable for existing clients but is hidden from model discovery.",
-      "The source video must be at least 4 seconds. Videos longer than 30 seconds are trimmed to 30 seconds; output duration follows the prepared source video.",
-      "Provide 1–8 image references. The prompt is optional and defaults to an empty string.",
-      "The source video must contain at least 409,600 pixels per frame (width × height)."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.159,
+      "max": 0.816,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Per-second pricing. Each second of input video costs $0.318 at 480p, $0.681 at 720p, $1.632 at 1080p. Input duration is rounded up to the nearest whole second. Rates shown are before any applicable customer discount."
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:genjutsu-light",
+   "provider": "higgsfield",
+   "kind": "video",
+   "maker": "Higgsfield",
+   "mark": "HF",
+   "name": "Genjutsu Light",
+   "desc": {
+    "fr": "Genjutsu plus léger et moins cher : transfère un mouvement ou remplace un objet dans une vidéo.",
+    "en": "A lighter, cheaper Genjutsu: transfer a motion or swap an object in a video."
+   },
+   "doc": "https://dash.higgsfield.ai/models/higgsfield/genjutsu-light/motion-transfer/v1.0/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "motion": {
+     "multi": false,
+     "max": 1
+    },
+    "refs": {
+     "multi": true,
+     "max": 8
+    },
+    "video": {
+     "multi": false,
+     "max": 1
+    }
+   },
+   "workflows": [
+    {
+     "id": "higgsfield/genjutsu-light/motion-transfer/v1.0",
+     "label": {
+      "fr": "Faire jouer un personnage",
+      "en": "Make a character act"
+     },
+     "name": "Motion Transfer",
+     "endpoints": {
+      "default": "higgsfield/genjutsu-light/motion-transfer/v1.0"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "motion": {
+       "field": "video_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 8,
+       "min": 1
+      }
+     },
+     "required": [
+      "motion",
+      "refs"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "720p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480p",
+         "label": {
+          "fr": "480p",
+          "en": "480p"
+         }
+        },
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        },
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": false,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.025,
+      "max": 0.1,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Priced per total second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount. Billable seconds = output duration + the sum of input reference video durations. Input video durations are measured during preprocessing; without video references, only output duration is billed. Genjutsu Light trims the source to 15 seconds; output duration is rounded up to whole seconds before billing."
+     }
+    },
+    {
+     "id": "higgsfield/genjutsu-light/object-swap/v1.0",
+     "label": {
+      "fr": "Remplacer un objet",
+      "en": "Swap an object"
+     },
+     "name": "Object Swap",
+     "endpoints": {
+      "default": "higgsfield/genjutsu-light/object-swap/v1.0"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "video": {
+       "field": "video_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 8,
+       "min": 1
+      }
+     },
+     "required": [
+      "video",
+      "refs"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "720p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480p",
+         "label": {
+          "fr": "480p",
+          "en": "480p"
+         }
+        },
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        },
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": false,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.025,
+      "max": 0.1,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Priced per total second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount. Billable seconds = output duration + the sum of input reference video durations. Input video durations are measured during preprocessing; without video references, only output duration is billed. Genjutsu Light trims the source to 15 seconds; output duration is rounded up to whole seconds before billing."
+     }
     }
    ]
   },
@@ -209,7 +413,7 @@
    "name": "Seedance 2.0",
    "desc": {
     "fr": "Vidéo depuis un texte, des images-clés ou des références (images, vidéos, sons).",
-    "en": "Generate videos from text, frames or image, video and audio references."
+    "en": "Video from text, keyframes or references (images, videos, sounds)."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/seedance-2.md",
    "ports": {
@@ -245,7 +449,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "bytedance/seedance-2.0/text-to-video"
      },
@@ -383,11 +587,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "Provide a nonblank prompt. This endpoint does not use media inputs; use the image-to-video or reference-to-video endpoint instead."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0985,
+      "max": 1.0887,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Token-metered pricing. Billable video tokens = ceil(generated video seconds × output width × output height × 24 fps / 1024). Image and audio references do not count as video input. Per 1,000 video tokens: 480p/720p/1080p $0.014, 4K $0.008. Rates shown are before any applicable customer discount."
+     }
     },
     {
      "id": "bytedance/seedance-2.0/image-to-video",
@@ -395,7 +604,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "bytedance/seedance-2.0/image-to-video"
      },
@@ -492,11 +701,16 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "The prompt is optional. Output framing follows image\\_url; end\\_image\\_url is the optional last frame."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0985,
+      "max": 1.0887,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Token-metered pricing. Billable video tokens = ceil(generated video seconds × output width × output height × 24 fps / 1024). Image and audio references do not count as video input. Per 1,000 video tokens: 480p/720p/1080p $0.014, 4K $0.008. Rates shown are before any applicable customer discount."
+     }
     },
     {
      "id": "bytedance/seedance-2.0/reference-to-video",
@@ -504,7 +718,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video (with video reference)",
      "endpoints": {
       "default": "bytedance/seedance-2.0/reference-to-video"
      },
@@ -665,12 +879,16 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "Provide a nonempty image\\_urls or video\\_urls array. Audio alone does not satisfy the reference requirement. Do not mix reference arrays with image\\_url, end\\_image\\_url or video\\_url.",
-      "Reference videos may be resized, transcoded and trimmed to 15 seconds each. Reference audio is normalized to 2–15 seconds per file and at most 15 seconds total."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.1182,
+      "max": 1.3064,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Token-metered pricing. Billable video tokens = ceil((input video seconds + generated video seconds) × output width × output height × 24 fps / 1024). Image and audio references do not count as video input. Per 1,000 video tokens: without video input — 480p/720p/1080p $0.014, 4K $0.008; with video input — 480p/720p/1080p $0.0084, 4K $0.0048 (0.6× the standard rate). With video references, both input and generated video durations are billable. Rates shown are before any applicable customer discount."
+     }
     }
    ]
   },
@@ -683,7 +901,7 @@
    "name": "Seedance 2.5",
    "desc": {
     "fr": "Crée, modifie et prolonge des vidéos à partir d’un texte et de références.",
-    "en": "Generate, edit and extend videos using text and multimodal references."
+    "en": "Create, edit and extend videos from text and references."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/seedance-2-5.md",
    "ports": {
@@ -723,7 +941,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "bytedance/seedance-2.5/text-to-video"
      },
@@ -908,11 +1126,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "Provide a nonblank prompt. This endpoint does not use media inputs; use the image-to-video or reference-to-video endpoint instead."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.144,
+      "max": 0.7961,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "For 16:9 video without video input, your request costs roughly $0.2056 per second of generated video at 480p, $0.4622 at 720p, and $1.1372 at 1080p. Each 1,000 video tokens costs $0.0214 at 480p or 720p and $0.0234 at 1080p. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are before any applicable customer discount."
+     }
     },
     {
      "id": "bytedance/seedance-2.5/image-to-video",
@@ -920,7 +1143,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "bytedance/seedance-2.5/image-to-video"
      },
@@ -1037,11 +1260,16 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "The prompt is optional. Output framing follows image\\_url; end\\_image\\_url is the optional last frame."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.144,
+      "max": 0.7961,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "For 16:9 video without video input, your request costs roughly $0.2056 per second of generated video at 480p, $0.4622 at 720p, and $1.1372 at 1080p. Each 1,000 video tokens costs $0.0214 at 480p or 720p and $0.0234 at 1080p. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are before any applicable customer discount."
+     }
     },
     {
      "id": "bytedance/seedance-2.5/reference-to-video",
@@ -1049,7 +1277,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video (with video reference)",
      "endpoints": {
       "default": "bytedance/seedance-2.5/reference-to-video"
      },
@@ -1079,7 +1307,13 @@
       }
      },
      "required": [],
-     "oneOf": [],
+     "oneOf": [
+      [
+       "refs",
+       "refVideos",
+       "refAudios"
+      ]
+     ],
      "params": [
       {
        "id": "hf.duration",
@@ -1225,12 +1459,16 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "Provide at least one nonempty reference array: image\\_urls, video\\_urls or audio\\_urls. Audio-only references are supported by this schema and preprocessing path.",
-      "Reference media are limited to 30 images, 10 videos and 10 audio files, with at most 50 items total. Video duration and audio duration are normalized separately to at most 30 seconds total per media type."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.1728,
+      "max": 0.9553,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "For 16:9 video without video input, your request costs roughly $0.2056 per second of generated video at 480p, $0.4622 at 720p, and $1.1372 at 1080p. Each 1,000 video tokens costs $0.0214 at 480p or 720p and $0.0234 at 1080p. If video inputs are provided, the token rate is multiplied by 0.6: $0.01284 per 1,000 tokens at 480p or 720p and $0.01404 at 1080p. Both input and generated video durations are billable. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual p"
+     }
     },
     {
      "id": "bytedance/seedance-2.5/video-edit",
@@ -1238,7 +1476,7 @@
       "fr": "Modifier une vidéo",
       "en": "Edit a video"
      },
-     "name": "Video edit",
+     "name": "Video Edit",
      "endpoints": {
       "default": "bytedance/seedance-2.5/video-edit"
      },
@@ -1352,13 +1590,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "The source video\\_url counts toward the 10-video limit, so include at most 9 additional video\\_urls. At most 50 media items are accepted across the source video and all reference arrays.",
-      "Videos and audio may be trimmed or padded during preprocessing to fit their respective 30-second total budgets. Output framing follows the source video.",
-      "Do not send duration: this endpoint derives output duration from the processed source video. The main video is normalized to at least 4 seconds."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.1728,
+      "max": 0.9553,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Video input is required. Each 1,000 video tokens costs $0.01284 at 480p or 720p and $0.01404 at 1080p (0.6× the no-video-input rate). For 16:9 output, this is roughly $0.1234 at 480p, $0.2773 at 720p, and $0.6823 at 1080p per second of combined input and generated video duration. Both input and generated video durations are billable. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are b"
+     }
     },
     {
      "id": "bytedance/seedance-2.5/video-extend",
@@ -1366,7 +1607,7 @@
       "fr": "Prolonger une vidéo",
       "en": "Extend a video"
      },
-     "name": "Video extend",
+     "name": "Video Extend",
      "endpoints": {
       "default": "bytedance/seedance-2.5/video-extend"
      },
@@ -1495,13 +1736,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Use publicly accessible media URLs; asset:// references are rejected for these endpoints.",
-      "The source video\\_url counts toward the 10-video limit, so include at most 9 additional video\\_urls. At most 50 media items are accepted across the source video and all reference arrays.",
-      "Videos and audio may be trimmed or padded during preprocessing to fit their respective 30-second total budgets. Output framing follows the source video.",
-      "duration is an integer from 4 to 30 seconds, with default 5."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.1728,
+      "max": 0.9553,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Video input is required. Each 1,000 video tokens costs $0.01284 at 480p or 720p and $0.01404 at 1080p (0.6× the no-video-input rate). For 16:9 output, this is roughly $0.1234 at 480p, $0.2773 at 720p, and $0.6823 at 1080p per second of combined input and generated video duration. Both input and generated video durations are billable. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are b"
+     }
     }
    ]
   },
@@ -1514,7 +1758,7 @@
    "name": "Kling 2.5 Turbo",
    "desc": {
     "fr": "Vidéo rapide depuis un texte ou une image, en Standard ou Pro.",
-    "en": "Generate videos with Standard and Pro workflow variants."
+    "en": "Fast video from text or an image, in Standard or Pro."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/kling-2-5-turbo.md",
    "ports": {
@@ -1534,7 +1778,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Pro text to video",
+     "name": "Text to Video (Pro)",
      "endpoints": {
       "pro": "kling-video/v2.5-turbo/pro/text-to-video"
      },
@@ -1603,11 +1847,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration accepts 5 or 10 seconds; 5 is the default.",
-      "This endpoint does not expose a sound or aspect\\_ratio field."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.035,
+      "max": 0.035,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/v2.5-turbo/image-to-video",
@@ -1615,10 +1863,10 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Pro image to video",
+     "name": "Image to Video (Pro)",
      "endpoints": {
-      "pro": "kling-video/v2.5-turbo/pro/image-to-video",
-      "standard": "kling-video/v2.5-turbo/standard/image-to-video"
+      "standard": "kling-video/v2.5-turbo/standard/image-to-video",
+      "pro": "kling-video/v2.5-turbo/pro/image-to-video"
      },
      "ports": {
       "prompt": {
@@ -1719,12 +1967,25 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration accepts 5 or 10 seconds; 5 is the default.",
-      "This endpoint does not expose a sound or aspect\\_ratio field.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.021,
+      "max": 0.035,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "tiers": {
+       "standard": {
+        "min": 0.021,
+        "max": 0.021
+       },
+       "pro": {
+        "min": 0.035,
+        "max": 0.035
+       }
+      }
+     }
     }
    ]
   },
@@ -1737,7 +1998,7 @@
    "name": "Kling 2.6",
    "desc": {
     "fr": "Vidéo depuis un texte ou une image de départ, avec le son si tu veux.",
-    "en": "Generate videos from text or a starting image, with optional sound."
+    "en": "Video from text or a start image, with sound if you want."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/kling-2-6.md",
    "ports": {
@@ -1757,7 +2018,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Pro text to video",
+     "name": "Text to Video (Pro)",
      "endpoints": {
       "pro": "kling-video/v2.6/pro/text-to-video"
      },
@@ -1862,11 +2123,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration accepts 5 or 10 seconds; 5 is the default.",
-      "Native audio uses sound: on or off and defaults to on."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.035,
+      "max": 0.07,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/v2.6/image-to-video",
@@ -1874,7 +2139,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Pro image to video",
+     "name": "Image to Video (Pro)",
      "endpoints": {
       "pro": "kling-video/v2.6/pro/image-to-video"
      },
@@ -1987,12 +2252,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration accepts 5 or 10 seconds; 5 is the default.",
-      "Native audio uses sound: on or off and defaults to on.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.035,
+      "max": 0.07,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -2005,7 +2273,7 @@
    "name": "Kling 2.6 Motion Control",
    "desc": {
     "fr": "Fait jouer le personnage d’une image avec le mouvement d’une vidéo.",
-    "en": "Apply motion from a source video to an image with Standard or Pro processing."
+    "en": "Make the character of an image play the motion of a video."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/kling-2-6-motion-control.md",
    "ports": {
@@ -2029,10 +2297,10 @@
       "fr": "Faire jouer un personnage",
       "en": "Make a character act"
      },
-     "name": "Pro",
+     "name": "Motion Control (Pro)",
      "endpoints": {
-      "pro": "kling-video/motion-control/pro",
-      "std": "kling-video/motion-control/std"
+      "std": "kling-video/motion-control/std",
+      "pro": "kling-video/motion-control/pro"
      },
      "ports": {
       "prompt": {
@@ -2127,14 +2395,25 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use a motion-reference video from 3 to 30 seconds long. The output duration follows the source video; do not send a separate duration field.",
-      "Use a character image up to 10 MB with each dimension between 300 and 65,536 pixels. Images outside the 0.4–2.5 width-to-height range are adjusted before generation.",
-      "Videos larger than 100 MB are compressed before generation.",
-      "Set character\\_orientation to image or video. keep\\_original\\_sound uses the strings yes and no, with yes as the default.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.035,
+      "max": 0.056,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "tiers": {
+       "std": {
+        "min": 0.035,
+        "max": 0.035
+       },
+       "pro": {
+        "min": 0.056,
+        "max": 0.056
+       }
+      }
+     }
     }
    ]
   },
@@ -2147,7 +2426,7 @@
    "name": "Kling 3.0",
    "desc": {
     "fr": "Vidéo depuis un texte ou une image, en Standard, Pro, 4K ou Turbo.",
-    "en": "Generate videos with Standard, Pro, 4K and Turbo workflow variants."
+    "en": "Video from text or an image, from fast Turbo to 4K."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/kling-3.md",
    "ports": {
@@ -2171,12 +2450,12 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "4K · Text to video",
+     "name": "Text to Video (Turbo)",
      "endpoints": {
-      "4k": "kling-video/v3.0/4k/text-to-video",
-      "pro": "kling-video/v3.0/pro/text-to-video",
+      "turbo": "kling-video/v3.0-turbo/text-to-video",
       "std": "kling-video/v3.0/std/text-to-video",
-      "turbo": "kling-video/v3.0-turbo/text-to-video"
+      "pro": "kling-video/v3.0/pro/text-to-video",
+      "4k": "kling-video/v3.0/4k/text-to-video"
      },
      "ports": {
       "prompt": {
@@ -2198,17 +2477,17 @@
        },
        "options": [
         {
-         "value": "std",
-         "label": {
-          "fr": "Standard",
-          "en": "Standard"
-         }
-        },
-        {
          "value": "turbo",
          "label": {
           "fr": "Turbo",
           "en": "Turbo"
+         }
+        },
+        {
+         "value": "std",
+         "label": {
+          "fr": "Standard",
+          "en": "Standard"
          }
         },
         {
@@ -2239,7 +2518,12 @@
        "advanced": false,
        "kind": "toggle",
        "on": "on",
-       "off": "off"
+       "off": "off",
+       "onlyTiers": [
+        "std",
+        "pro",
+        "4k"
+       ]
       },
       {
        "id": "hf.duration",
@@ -2269,7 +2553,12 @@
        "min": 0,
        "max": 1,
        "step": 0.01,
-       "unit": ""
+       "unit": "",
+       "onlyTiers": [
+        "std",
+        "pro",
+        "4k"
+       ]
       },
       {
        "id": "hf.aspect_ratio",
@@ -2330,18 +2619,65 @@
           "en": "1080p"
          }
         }
+       ],
+       "onlyTiers": [
+        "turbo"
        ]
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Always include a non-empty top-level prompt, including when using multi\\_prompt. Keep it within 2,500 characters; longer prompts are truncated.",
-      "For custom shots, set multi\\_shots to true and provide 1–6 multi\\_prompt objects. Each object needs prompt (at most 512 characters) and duration (a positive integer from 1 to 15 seconds).",
-      "Custom-shot durations are summed for generation and billing; the top-level duration does not override that sum. With multi\\_shots enabled and no custom shots, the top-level duration is retained.",
-      "Native audio uses sound: on or off and defaults to on.",
-      "elements contains Kling element IDs as decimal strings. Each ID must belong to the account making the request; arbitrary provider IDs are rejected."
-     ]
+     "promptRequiredTiers": [
+      "turbo"
+     ],
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      },
+      {
+       "field": "multi_shots",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      },
+      {
+       "field": "multi_prompt",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.042,
+      "max": 0.21,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "tiers": {
+       "turbo": {
+        "min": 0.056,
+        "max": 0.07
+       },
+       "std": {
+        "min": 0.042,
+        "max": 0.042
+       },
+       "pro": {
+        "min": 0.056,
+        "max": 0.084
+       },
+       "4k": {
+        "min": 0.21,
+        "max": 0.21
+       }
+      }
+     }
     },
     {
      "id": "kling-video/v3.0/image-to-video",
@@ -2349,12 +2685,12 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "4K · Image to video",
+     "name": "Image to Video (Turbo)",
      "endpoints": {
-      "4k": "kling-video/v3.0/4k/image-to-video",
-      "pro": "kling-video/v3.0/pro/image-to-video",
+      "turbo": "kling-video/v3.0-turbo/image-to-video",
       "std": "kling-video/v3.0/std/image-to-video",
-      "turbo": "kling-video/v3.0-turbo/image-to-video"
+      "pro": "kling-video/v3.0/pro/image-to-video",
+      "4k": "kling-video/v3.0/4k/image-to-video"
      },
      "ports": {
       "prompt": {
@@ -2372,7 +2708,12 @@
        "field": "last_image_url",
        "multi": false,
        "max": 1,
-       "min": 0
+       "min": 0,
+       "onlyTiers": [
+        "std",
+        "pro",
+        "4k"
+       ]
       }
      },
      "required": [
@@ -2390,17 +2731,17 @@
        },
        "options": [
         {
-         "value": "std",
-         "label": {
-          "fr": "Standard",
-          "en": "Standard"
-         }
-        },
-        {
          "value": "turbo",
          "label": {
           "fr": "Turbo",
           "en": "Turbo"
+         }
+        },
+        {
+         "value": "std",
+         "label": {
+          "fr": "Standard",
+          "en": "Standard"
          }
         },
         {
@@ -2431,7 +2772,12 @@
        "advanced": false,
        "kind": "toggle",
        "on": "on",
-       "off": "off"
+       "off": "off",
+       "onlyTiers": [
+        "std",
+        "pro",
+        "4k"
+       ]
       },
       {
        "id": "hf.duration",
@@ -2461,7 +2807,12 @@
        "min": 0,
        "max": 1,
        "step": 0.01,
-       "unit": ""
+       "unit": "",
+       "onlyTiers": [
+        "std",
+        "pro",
+        "4k"
+       ]
       },
       {
        "id": "hf.resolution",
@@ -2488,19 +2839,65 @@
           "en": "1080p"
          }
         }
+       ],
+       "onlyTiers": [
+        "turbo"
        ]
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "image\\_url is the first frame; last\\_image\\_url optionally sets the final frame.",
-      "Always include a non-empty top-level prompt, including when using multi\\_prompt. Keep it within 2,500 characters; longer prompts are truncated.",
-      "For custom shots, set multi\\_shots to true and provide 1–6 multi\\_prompt objects. Each object needs prompt (at most 512 characters) and duration (a positive integer from 1 to 15 seconds).",
-      "Custom-shot durations are summed for generation and billing; the top-level duration does not override that sum. With multi\\_shots enabled and no custom shots, the top-level duration is retained.",
-      "Native audio uses sound: on or off and defaults to on.",
-      "elements contains Kling element IDs as decimal strings. Each ID must belong to the account making the request; arbitrary provider IDs are rejected."
-     ]
+     "promptRequiredTiers": [
+      "turbo"
+     ],
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      },
+      {
+       "field": "multi_shots",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      },
+      {
+       "field": "multi_prompt",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.042,
+      "max": 0.21,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "tiers": {
+       "turbo": {
+        "min": 0.056,
+        "max": 0.07
+       },
+       "std": {
+        "min": 0.042,
+        "max": 0.063
+       },
+       "pro": {
+        "min": 0.056,
+        "max": 0.084
+       },
+       "4k": {
+        "min": 0.21,
+        "max": 0.21
+       }
+      }
+     }
     }
    ]
   },
@@ -2513,7 +2910,7 @@
    "name": "Kling 3.0 Motion Control",
    "desc": {
     "fr": "Fait jouer le personnage d’une image avec le mouvement d’une vidéo.",
-    "en": "Apply motion from a source video to an image with Standard or Pro processing."
+    "en": "Make the character of an image play the motion of a video."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/kling-3-motion-control.md",
    "ports": {
@@ -2537,10 +2934,10 @@
       "fr": "Faire jouer un personnage",
       "en": "Make a character act"
      },
-     "name": "Pro",
+     "name": "Motion Control (Pro)",
      "endpoints": {
-      "pro": "kling-video/v3/motion-control/pro",
-      "std": "kling-video/v3/motion-control/std"
+      "std": "kling-video/v3/motion-control/std",
+      "pro": "kling-video/v3/motion-control/pro"
      },
      "ports": {
       "prompt": {
@@ -2635,14 +3032,25 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Use a motion-reference video from 3 to 30 seconds long. The output duration follows the source video; do not send a separate duration field.",
-      "Use a character image up to 10 MB with each dimension between 300 and 65,536 pixels. Images outside the 0.4–2.5 width-to-height range are adjusted before generation.",
-      "Videos larger than 100 MB are compressed before generation.",
-      "Set character\\_orientation to image or video. keep\\_original\\_sound uses the strings yes and no, with yes as the default.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.063,
+      "max": 0.084,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "tiers": {
+       "std": {
+        "min": 0.063,
+        "max": 0.063
+       },
+       "pro": {
+        "min": 0.084,
+        "max": 0.084
+       }
+      }
+     }
     }
    ]
   },
@@ -2655,7 +3063,7 @@
    "name": "Kling O3",
    "desc": {
     "fr": "Crée et modifie des vidéos avec images-clés, images et vidéos de référence.",
-    "en": "Create and edit videos with first/last frames, image references and video references."
+    "en": "Create and edit videos with keyframes, reference images and reference videos."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/kling-o3.md",
    "ports": {
@@ -2687,7 +3095,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "First last frame",
+     "name": "First/Last Frame",
      "endpoints": {
       "default": "kling-video/o3/first-last-frame"
      },
@@ -2813,15 +3221,30 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "first\\_frame\\_url supplies the starting frame; last\\_frame\\_url is optional. These names differ from the image\\_url and last\\_image\\_url fields on Kling 3.0 image-to-video.",
-      "For a single shot, set multi\\_shots to false and provide prompt. For multiple shots, set multi\\_shots to true and provide 1–6 multi\\_prompt objects, each containing prompt and a positive integer duration.",
-      "Always include a non-empty top-level prompt, including when using multi\\_prompt.",
-      "Each shot prompt is limited to 512 characters. Custom-shot durations are summed for generation and billing; the top-level duration does not override that sum.",
-      "Native audio uses sound: on or off and defaults to off.",
-      "Keep the top-level prompt within 2,500 characters; longer prompts are truncated."
-     ]
+     "unsupported": [
+      {
+       "field": "multi_shots",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      },
+      {
+       "field": "multi_prompt",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.042,
+      "max": 0.056,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/o3/image-reference",
@@ -2829,7 +3252,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Image reference",
+     "name": "Image Reference",
      "endpoints": {
       "default": "kling-video/o3/image-reference"
      },
@@ -2986,15 +3409,37 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "Supply image\\_urls for visual references. Reference images are optional in the schema.",
-      "For a single shot, set multi\\_shots to false and provide prompt. For multiple shots, set multi\\_shots to true and provide 1–6 multi\\_prompt objects, each containing prompt and a positive integer duration.",
-      "Always include a non-empty top-level prompt, including when using multi\\_prompt.",
-      "Each shot prompt is limited to 512 characters. Custom-shot durations are summed for generation and billing; the top-level duration does not override that sum.",
-      "Native audio uses sound: on or off and defaults to off.",
-      "A multi\\_prompt shot must last at least 1 second; zero-second shots are rejected even though the schema permits zero."
-     ]
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      },
+      {
+       "field": "multi_shots",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      },
+      {
+       "field": "multi_prompt",
+       "reason": {
+        "fr": "plusieurs plans avec chacun sa consigne et sa durée : interface à venir",
+        "en": "several shots, each with its prompt and length: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.042,
+      "max": 0.042,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/o3/video-edit",
@@ -3002,7 +3447,7 @@
       "fr": "Modifier une vidéo",
       "en": "Edit a video"
      },
-     "name": "Video edit",
+     "name": "Video Edit",
      "endpoints": {
       "default": "kling-video/o3/video-edit"
      },
@@ -3066,14 +3511,23 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Supply exactly one source video from 3 to 15.5 seconds long and no larger than 200 MB. Duration is derived from the video; do not send a separate duration field.",
-      "You may also supply up to four image\\_urls and up to four elements.",
-      "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
-      "elements contains Kling element IDs as decimal strings. Each ID must belong to the account making the request; arbitrary provider IDs are rejected.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.063,
+      "max": 0.063,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/o3/video-reference",
@@ -3081,7 +3535,7 @@
       "fr": "Suivre une vidéo de référence",
       "en": "Follow a reference video"
      },
-     "name": "Video reference",
+     "name": "Video Reference",
      "endpoints": {
       "default": "kling-video/o3/video-reference"
      },
@@ -3187,14 +3641,23 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Supply exactly one video reference. duration controls the generated clip and accepts integer values from 3 to 10 seconds.",
-      "You may also supply up to four image\\_urls and up to four elements.",
-      "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
-      "elements contains Kling element IDs as decimal strings. Each ID must belong to the account making the request; arbitrary provider IDs are rejected.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.063,
+      "max": 0.084,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -3207,7 +3670,7 @@
    "name": "Kling Omni",
    "desc": {
     "fr": "Crée et modifie des vidéos avec des images et des vidéos de référence.",
-    "en": "Create and edit videos with image and video references."
+    "en": "Create and edit videos with reference images and videos."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/kling-omni.md",
    "ports": {
@@ -3239,7 +3702,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "First last frame",
+     "name": "First/Last Frame",
      "endpoints": {
       "default": "kling-video/omni/first-last-frame"
      },
@@ -3357,12 +3820,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "first\\_frame\\_url supplies the starting frame; last\\_frame\\_url is optional. These names differ from the image\\_url and last\\_image\\_url fields on Kling 3.0 image-to-video.",
-      "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.042,
+      "max": 0.056,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/omni/image-reference",
@@ -3370,7 +3836,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Image reference",
+     "name": "Image Reference",
      "endpoints": {
       "default": "kling-video/omni/image-reference"
      },
@@ -3468,13 +3934,23 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Supply image\\_urls for visual references. Reference images are optional in the schema.",
-      "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
-      "elements contains Kling element IDs as decimal strings. Each ID must belong to the account making the request; arbitrary provider IDs are rejected.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.042,
+      "max": 0.056,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/omni/video-edit",
@@ -3482,7 +3958,7 @@
       "fr": "Modifier une vidéo",
       "en": "Edit a video"
      },
-     "name": "Video edit",
+     "name": "Video Edit",
      "endpoints": {
       "default": "kling-video/omni/video-edit"
      },
@@ -3539,14 +4015,23 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Supply exactly one source video from 3 to 10 seconds long and no larger than 200 MB. Duration is derived from the video; do not send a separate duration field.",
-      "You may also supply up to four image\\_urls and up to four elements.",
-      "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
-      "elements contains Kling element IDs as decimal strings. Each ID must belong to the account making the request; arbitrary provider IDs are rejected.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.063,
+      "max": 0.063,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "kling-video/omni/video-reference",
@@ -3554,7 +4039,7 @@
       "fr": "Suivre une vidéo de référence",
       "en": "Follow a reference video"
      },
-     "name": "Video reference",
+     "name": "Video Reference",
      "endpoints": {
       "default": "kling-video/omni/video-reference"
      },
@@ -3660,14 +4145,679 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
+     "unsupported": [
+      {
+       "field": "elements",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.063,
+      "max": 0.084,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:kling-4-0",
+   "provider": "higgsfield",
+   "kind": "video",
+   "maker": "Kling",
+   "mark": "KL",
+   "name": "Kling 4.0",
+   "desc": {
+    "fr": "Vidéos jusqu’à 30 s en 1080p : texte, images-clés, références, ou montage d’une vidéo existante.",
+    "en": "Up to 30 s in 1080p: text, keyframes, references, or editing an existing video."
+   },
+   "doc": "https://dash.higgsfield.ai/models/kling-video/v4.0/image-to-video/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "start": {
+     "multi": false,
+     "max": 1
+    },
+    "keys": {
+     "multi": true,
+     "max": 8
+    },
+    "end": {
+     "multi": false,
+     "max": 1
+    },
+    "refs": {
+     "multi": true,
+     "max": 10
+    },
+    "refVideos": {
+     "multi": true,
+     "max": 5
+    },
+    "video": {
+     "multi": false,
+     "max": 1
+    }
+   },
+   "workflows": [
+    {
+     "id": "kling-video/v4.0/text-to-video",
+     "label": {
+      "fr": "Vidéo depuis un texte",
+      "en": "Video from text"
+     },
+     "name": "Text to Video",
+     "endpoints": {
+      "default": "kling-video/v4.0/text-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 30,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "1080p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        },
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
      "notes": [
-      "Supply exactly one video reference. duration controls the generated clip and accepts integer values from 3 to 10 seconds.",
-      "You may also supply up to four image\\_urls and up to four elements.",
-      "Keep the top-level prompt within 2,500 characters; longer prompts are truncated.",
-      "elements contains Kling element IDs as decimal strings. Each ID must belong to the account making the request; arbitrary provider IDs are rejected.",
-      "The example.com media URLs are placeholders. Replace them with public HTTPS URLs to your own media before submitting."
-     ]
+      "Supply a non-empty `prompt`. Use concrete motion and camera instructions, for example a tracking shot, a slow pan, or a stationary camera. Select the output framing with `aspect_ratio`.",
+      "To animate existing images, use `kling-video/v4.0/image-to-video`. To guide a new video with image or video references, use `kling-video/v4.0/reference-to-video`.",
+      "Use the exact field names and values listed above. `duration` must be an integer from 3 to 30, and `resolution` must be `720p` or `1080p`. Omit unused media fields instead of sending empty strings or nulls.",
+      "The schema permits additional properties, but undocumented keys do not create new model controls. Use only the parameters documented for this endpoint.",
+      "A non-empty prompt is required. Use one of the four listed aspect ratios; `adaptive` is not allowed for Text to Video."
+     ],
+     "price": {
+      "min": 0.1099,
+      "max": 0.1645,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "kling-video/v4.0/image-to-video",
+     "label": {
+      "fr": "Animer une image",
+      "en": "Animate an image"
+     },
+     "name": "Image to Video",
+     "endpoints": {
+      "default": "kling-video/v4.0/image-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "keys": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 8,
+       "min": 0,
+       "help": {
+        "fr": "Images intermédiaires, dans l’ordre : Kling les place lui-même entre le début et la fin (8 au plus).",
+        "en": "In-between frames, in order: Kling places them itself between the start and the end (8 at most)."
+       }
+      },
+      "end": {
+       "field": "end_image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [
+      "start"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 30,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "1080p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        },
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": false,
+     "unsupported": [],
+     "notes": [
+      "Frames are sent in this order: `image_url` → each entry in `image_urls` → `end_image_url`, if supplied. Put middle frames in the order you want them used. The schema allows at most 8 middle frames, leaving room for one first frame and one end frame: up to 10 images in total.",
+      "Only `image_url` is required. An end frame or middle frames alone cannot start a valid request. Omit unused optional frame fields rather than sending empty URL strings.",
+      "This endpoint does not expose an `aspect_ratio` parameter. Prepare your input frames with the desired composition; use `resolution` to select 720p or 1080p output.",
+      "Use the exact field names and values listed above. `duration` must be an integer from 3 to 30, and `resolution` must be `720p` or `1080p`. Omit unused media fields instead of sending empty strings or nulls.",
+      "The schema permits additional properties, but undocumented keys do not create new model controls. Use only the parameters documented for this endpoint.",
+      "The first frame is required even when middle or end frames are supplied. Nine or more middle frames are rejected. `aspect_ratio` is not a documented control for this mode."
+     ],
+     "price": {
+      "min": 0.1099,
+      "max": 0.1645,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "kling-video/v4.0/reference-to-video",
+     "label": {
+      "fr": "Vidéo à partir de références",
+      "en": "Video from references"
+     },
+     "name": "Reference to Video",
+     "endpoints": {
+      "default": "kling-video/v4.0/reference-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 10,
+       "min": 0,
+       "help": {
+        "fr": "Dans la consigne : « @image_1 », « @image_2 »… dans l’ordre des fils.",
+        "en": "In the prompt: “@image_1”, “@image_2”… in wire order."
+       }
+      },
+      "refVideos": {
+       "field": "video_urls",
+       "multi": true,
+       "max": 5,
+       "min": 0,
+       "help": {
+        "fr": "Dans la consigne : « @video_1 », « @video_2 »… dans l’ordre des fils.",
+        "en": "In the prompt: “@video_1”, “@video_2”… in wire order."
+       }
+      },
+      "end": {
+       "field": "end_image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [],
+     "oneOf": [
+      [
+       "refs",
+       "refVideos"
+      ]
+     ],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 30,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.elements",
+       "field": "elements",
+       "label": {
+        "fr": "Éléments Higgsfield",
+        "en": "Higgsfield elements"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiants d’« elements » de ton compte Higgsfield, séparés par des virgules (console.higgsfield.ai).",
+        "en": "IDs of “elements” from your Higgsfield account, separated by commas (console.higgsfield.ai)."
+       },
+       "kind": "text",
+       "format": "int-list",
+       "maxItems": 7
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "1080p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        },
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "adaptive",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "cite": {
+      "image": "@image_{n}",
+      "video": "@video_{n}",
+      "videoFrom": 1
+     },
+     "notes": [
+      "A prompt alone is insufficient. Supply at least one non-empty `image_urls` or `video_urls` list. Empty lists do not satisfy the reference requirement.",
+      "Images are addressed as `@image_1`, `@image_2`, and so on, and videos as `@video_1`, `@video_2`, and so on, following array order.",
+      "This mode creates a new video from references. To edit an existing source video, use `kling-video/v4.0/video-edit` and its required `video_url`.",
+      "Each supplied video URL is subject to a 2 GiB download limit. Input videos longer than 30 seconds are trimmed to their first 30 seconds before generation. This does not change the requested output `duration`, which remains an integer from 3 to 30 seconds.",
+      "Use the exact field names and values listed above. `duration` must be an integer from 3 to 30, and `resolution` must be `720p` or `1080p`. Omit unused media fields instead of sending empty strings or nulls.",
+      "The schema permits additional properties, but undocumented keys do not create new model controls. Use only the parameters documented for this endpoint.",
+      "A prompt with no usable reference is invalid. An empty reference array does not satisfy the source requirement."
+     ],
+     "price": {
+      "min": 0.0658,
+      "max": 0.1645,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Without input video: 720p $0.157/s, 1080p $0.235/s, charged on output duration. With input video: 720p $0.094/s, 1080p $0.141/s, charged on output duration + max(total input video duration, output duration). Input duration includes video elements and explicit videos after the 30-second trim."
+     }
+    },
+    {
+     "id": "kling-video/v4.0/video-edit",
+     "label": {
+      "fr": "Modifier une vidéo",
+      "en": "Edit a video"
+     },
+     "name": "Video Edit",
+     "endpoints": {
+      "default": "kling-video/v4.0/video-edit"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "video": {
+       "field": "video_url",
+       "multi": false,
+       "max": 1,
+       "min": 0,
+       "minSeconds": 3
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 10,
+       "min": 0,
+       "help": {
+        "fr": "Dans la consigne : « @image_1 », « @image_2 »… dans l’ordre des fils.",
+        "en": "In the prompt: “@image_1”, “@image_2”… in wire order."
+       }
+      },
+      "refVideos": {
+       "field": "video_urls",
+       "multi": true,
+       "max": 5,
+       "min": 0,
+       "help": {
+        "fr": "Dans la consigne, la vidéo à modifier est « @video_1 », ces vidéos suivent à partir de « @video_2 ».",
+        "en": "In the prompt, the video to edit is “@video_1”; these videos follow from “@video_2”."
+       }
+      },
+      "end": {
+       "field": "end_image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [
+      "video"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 30,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.elements",
+       "field": "elements",
+       "label": {
+        "fr": "Éléments Higgsfield",
+        "en": "Higgsfield elements"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiants d’« elements » de ton compte Higgsfield, séparés par des virgules (console.higgsfield.ai).",
+        "en": "IDs of “elements” from your Higgsfield account, separated by commas (console.higgsfield.ai)."
+       },
+       "kind": "text",
+       "format": "int-list",
+       "maxItems": 7
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "1080p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        },
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "adaptive",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "cite": {
+      "image": "@image_{n}",
+      "video": "@video_{n}",
+      "videoFrom": 2
+     },
+     "durationFromSource": "video",
+     "notes": [
+      "`video_url` is the required source video to edit. `video_urls` contains optional reference videos; it does not replace the source. `image_urls` contains optional reference images. A source video plus a prompt is sufficient; references are not required.",
+      "The source is `@video_1`. Reference videos from `video_urls` start at `@video_2`, in array order. Reference images start at `@image_1`, in array order.",
+      "`duration` controls the requested output duration; it is not automatically copied from the source video's length.",
+      "Each supplied video URL is subject to a 2 GiB download limit. Input videos longer than 30 seconds are trimmed to their first 30 seconds before generation. This does not change the requested output `duration`, which remains an integer from 3 to 30 seconds.",
+      "Use the exact field names and values listed above. `duration` must be an integer from 3 to 30, and `resolution` must be `720p` or `1080p`. Omit unused media fields instead of sending empty strings or nulls.",
+      "The schema permits additional properties, but undocumented keys do not create new model controls. Use only the parameters documented for this endpoint.",
+      "A reference video in `video_urls` does not satisfy the required `video_url`. Keep the source and reference roles separate."
+     ],
+     "price": {
+      "min": 0.0658,
+      "max": 0.0987,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Without input video: 720p $0.157/s, 1080p $0.235/s, charged on output duration. With input video: 720p $0.094/s, 1080p $0.141/s, charged on output duration + max(total input video duration, output duration). Input duration includes video elements and explicit videos after the 30-second trim."
+     }
     }
    ]
   },
@@ -3680,7 +4830,7 @@
    "name": "Happy Horse 1.0",
    "desc": {
     "fr": "Vidéo depuis un texte, une image de départ ou des images de référence.",
-    "en": "Generate videos from text, a starting image or reference images."
+    "en": "Video from text, a start image or reference images."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/happy-horse-1.md",
    "ports": {
@@ -3704,7 +4854,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "alibaba/happy-horse/text-to-video"
      },
@@ -3727,7 +4877,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -3821,10 +4973,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "The prompt must contain text; an empty string is rejected during submission."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.07,
+      "max": 0.14,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "alibaba/happy-horse/image-to-video",
@@ -3832,7 +4989,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "alibaba/happy-horse/image-to-video"
      },
@@ -3863,7 +5020,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -3909,10 +5068,15 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "The prompt is optional. This endpoint accepts one first-frame image; it does not support a last-frame image."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.07,
+      "max": 0.14,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "alibaba/happy-horse/reference-to-video",
@@ -3920,7 +5084,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video",
      "endpoints": {
       "default": "alibaba/happy-horse/reference-to-video"
      },
@@ -3951,7 +5115,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -3997,10 +5163,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Provide 1–9 reference images. This limit is enforced at submission even though the stored JSON Schema does not set minItems or maxItems. Reference videos are unsupported."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.07,
+      "max": 0.14,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -4013,7 +5184,7 @@
    "name": "HappyHorse 1.1",
    "desc": {
     "fr": "Vidéo depuis un texte, une image de départ ou des images de référence.",
-    "en": "Generate videos from text, a starting image or reference images."
+    "en": "Video from text, a start image or reference images."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/happy-horse-1-1.md",
    "ports": {
@@ -4037,7 +5208,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "alibaba/happy-horse/v1.1/text-to-video"
      },
@@ -4060,7 +5231,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -4154,10 +5327,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "The prompt must contain text; an empty string is rejected during submission."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.07,
+      "max": 0.09,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "alibaba/happy-horse/v1.1/image-to-video",
@@ -4165,7 +5343,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "alibaba/happy-horse/v1.1/image-to-video"
      },
@@ -4196,7 +5374,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -4242,10 +5422,15 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "The prompt is optional. This endpoint accepts one first-frame image; it does not support a last-frame image."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.07,
+      "max": 0.09,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "alibaba/happy-horse/v1.1/reference-to-video",
@@ -4253,7 +5438,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video",
      "endpoints": {
       "default": "alibaba/happy-horse/v1.1/reference-to-video"
      },
@@ -4284,7 +5469,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -4330,10 +5517,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Provide 1–9 reference images. This limit is enforced at submission even though the stored JSON Schema does not set minItems or maxItems. Reference videos are unsupported."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.07,
+      "max": 0.09,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -4346,7 +5538,7 @@
    "name": "Wan 3.0",
    "desc": {
     "fr": "Vidéo depuis un texte, des images-clés ou des références variées.",
-    "en": "Generate videos from text, frames or multimodal references."
+    "en": "Video from text, keyframes or varied references."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/wan-3.md",
    "ports": {
@@ -4382,7 +5574,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "alibaba/wan-3.0/text-to-video"
      },
@@ -4405,7 +5597,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -4535,11 +5729,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This endpoint generates from text; use the separate image or reference endpoint for media inputs.",
-      "The schema accepts seed=0, but the current implementation only forwards a nonzero seed."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.02,
+      "max": 0.08,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Priced per generated second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount."
+     }
     },
     {
      "id": "alibaba/wan-3.0/image-to-video",
@@ -4547,7 +5746,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "alibaba/wan-3.0/image-to-video"
      },
@@ -4584,7 +5783,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -4714,11 +5915,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Use image\\_url for the first frame and optional end\\_image\\_url for the last frame. Reference arrays belong to the reference-to-video endpoint.",
-      "The schema accepts seed=0, but the current implementation only forwards a nonzero seed."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.02,
+      "max": 0.08,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Priced per generated second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount."
+     }
     },
     {
      "id": "alibaba/wan-3.0/reference-to-video",
@@ -4726,7 +5932,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video",
      "endpoints": {
       "default": "alibaba/wan-3.0/reference-to-video"
      },
@@ -4767,7 +5973,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -4783,6 +5991,36 @@
        "max": 30,
        "step": 1,
        "unit": "s"
+      },
+      {
+       "id": "hf.file_url",
+       "field": "file_url",
+       "label": {
+        "fr": "Document de référence",
+        "en": "Reference document"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Adresse publique d’un document (pdf, docx, xlsx, pptx, md). Pas avec une page web.",
+        "en": "Public address of a document (pdf, docx, xlsx, pptx, md). Not with a web page."
+       },
+       "kind": "text"
+      },
+      {
+       "id": "hf.link_url",
+       "field": "link_url",
+       "label": {
+        "fr": "Page web de référence",
+        "en": "Reference web page"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Adresse d’une page publique : le modèle la lit avant de générer. Pas avec un document.",
+        "en": "Address of a public page: the model reads it before generating. Not with a document."
+       },
+       "kind": "text"
       },
       {
        "id": "hf.resolution",
@@ -4874,6 +6112,17 @@
        ]
       },
       {
+       "id": "hf.prompt_extend",
+       "field": "prompt_extend",
+       "label": {
+        "fr": "Enrichir la consigne",
+        "en": "Expand the prompt"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      },
+      {
        "id": "hf.generate_audio",
        "field": "generate_audio",
        "label": {
@@ -4897,13 +6146,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Reference media are optional in the stored schema: only prompt is required. The example includes an image to demonstrate reference mode.",
-      "Send either file\\_url or link\\_url. A document or web-page reference automatically enables thinking; when both are sent, file\\_url takes precedence.",
-      "Reference video clips must be 1–30 seconds each and total at most 30 seconds. Reference audio must be WAV or MP3 and total at most 30 seconds, as specified in the production schema.",
-      "The schema accepts seed=0, but the current implementation only forwards a nonzero seed."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.02,
+      "max": 0.08,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Priced per total video second: 480p $0.05/s, 720p $0.10/s, 1080p $0.20/s. Total billable duration = output video duration + the sum of all input reference video durations. Without input videos, only output duration is billed. Rates shown are before any applicable customer discount."
+     }
     }
    ]
   },
@@ -4916,7 +6168,7 @@
    "name": "Wan 3.0 Prime",
    "desc": {
     "fr": "La version haut de gamme de Wan 3.0.",
-    "en": "Generate videos from text, frames or multimodal references with Wan 3.0 Prime."
+    "en": "The high-end version of Wan 3.0."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/wan-3-prime.md",
    "ports": {
@@ -4952,7 +6204,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "alibaba/wan-3.0-prime/text-to-video"
      },
@@ -4975,7 +6227,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -5105,11 +6359,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This endpoint generates from text; use the separate image or reference endpoint for media inputs.",
-      "The schema accepts seed=0, but the current implementation only forwards a nonzero seed."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0272,
+      "max": 0.112,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "alibaba/wan-3.0-prime/image-to-video",
@@ -5117,7 +6375,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "alibaba/wan-3.0-prime/image-to-video"
      },
@@ -5154,7 +6412,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -5284,11 +6544,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Use image\\_url for the first frame and optional end\\_image\\_url for the last frame. Reference arrays belong to the reference-to-video endpoint.",
-      "The schema accepts seed=0, but the current implementation only forwards a nonzero seed."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0272,
+      "max": 0.112,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "alibaba/wan-3.0-prime/reference-to-video",
@@ -5296,7 +6560,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video",
      "endpoints": {
       "default": "alibaba/wan-3.0-prime/reference-to-video"
      },
@@ -5337,7 +6601,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -5353,6 +6619,36 @@
        "max": 30,
        "step": 1,
        "unit": "s"
+      },
+      {
+       "id": "hf.file_url",
+       "field": "file_url",
+       "label": {
+        "fr": "Document de référence",
+        "en": "Reference document"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Adresse publique d’un document (pdf, docx, xlsx, pptx, md). Pas avec une page web.",
+        "en": "Public address of a document (pdf, docx, xlsx, pptx, md). Not with a web page."
+       },
+       "kind": "text"
+      },
+      {
+       "id": "hf.link_url",
+       "field": "link_url",
+       "label": {
+        "fr": "Page web de référence",
+        "en": "Reference web page"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Adresse d’une page publique : le modèle la lit avant de générer. Pas avec un document.",
+        "en": "Address of a public page: the model reads it before generating. Not with a document."
+       },
+       "kind": "text"
       },
       {
        "id": "hf.resolution",
@@ -5444,6 +6740,17 @@
        ]
       },
       {
+       "id": "hf.prompt_extend",
+       "field": "prompt_extend",
+       "label": {
+        "fr": "Enrichir la consigne",
+        "en": "Expand the prompt"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      },
+      {
        "id": "hf.generate_audio",
        "field": "generate_audio",
        "label": {
@@ -5467,13 +6774,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Reference media are optional in the stored schema: only prompt is required. The example includes an image to demonstrate reference mode.",
-      "Send either file\\_url or link\\_url. A document or web-page reference automatically enables thinking; when both are sent, file\\_url takes precedence.",
-      "Reference video clips must be 1–30 seconds each and total at most 30 seconds. Reference audio must be WAV or MP3 and total at most 30 seconds, as specified in the production schema.",
-      "The schema accepts seed=0, but the current implementation only forwards a nonzero seed."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0272,
+      "max": 0.112,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Priced per total video second: 480p $0.068/s, 720p $0.14/s, 1080p $0.28/s. Total billable duration = output video duration + the sum of all input reference video durations. Without input videos, only output duration is billed. Rates shown are before any applicable customer discount."
+     }
     }
    ]
   },
@@ -5486,7 +6796,7 @@
    "name": "Cinema Studio 4.0",
    "desc": {
     "fr": "Plans de cinéma : caméra, objectif, lumière, époque et rythme au choix.",
-    "en": "Create video shots with camera and style controls and media references."
+    "en": "Cinema shots: pick the camera, lens, light, era and pace."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/cinema-studio-4.md",
    "ports": {
@@ -5514,7 +6824,7 @@
       "fr": "Plan de cinéma",
       "en": "Cinematic shot"
      },
-     "name": "Generate",
+     "name": "Cinema Studio 4.0",
      "endpoints": {
       "default": "higgsfield/cinema-studio/4.0"
      },
@@ -6585,14 +7895,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This is the public Cinema Studio 4.0 workflow. It uses text-to-video when references are absent and reference-to-video when any media array is nonempty.",
-      "Omit creative-control fields to let the director choose them automatically; the literal value \"auto\" is not accepted for these enum fields.",
-      "Optional prompt references use one-based tokens such as \\<\\<\\<image\\_1>>>, \\<\\<\\<video\\_1>>> and \\<\\<\\<audio\\_1>>>. Each token must refer to an attached item of the same media type.",
-      "This endpoint produces a new video. Editing and extension use the separate Seedance 2.5 endpoints.",
-      "Reference media are limited to 30 images, 10 videos and 10 audio files, with at most 50 items total. Video and audio may be normalized to separate 30-second total budgets."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.2057,
+      "max": 0.4623,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "Token-metered pricing. Billable video tokens = ceil((input video seconds + generated video seconds) × output width × output height × 24 fps / 1024). Image and audio references do not count as video input. At 480p or 720p, each 1,000 video tokens cost $0.0214 without video input or $0.01284 with video input (0.6× the standard rate). With video references, both input and generated video durations are billable. Rates shown are before any applicable customer discount."
+     }
     }
    ]
   },
@@ -6605,7 +7917,7 @@
    "name": "LTX-2.5",
    "desc": {
     "fr": "LTX dans le cloud : vidéo depuis un texte ou une image, en Rapide ou Pro.",
-    "en": "Generate videos from text or images with Fast and Pro variants."
+    "en": "LTX in the cloud: video from text or an image, in Fast or Pro."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/ltx-2-5.md",
    "ports": {
@@ -6629,7 +7941,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video fast",
+     "name": "Text to Video",
      "endpoints": {
       "fast": "lightricks/ltx-2.5/text-to-video/fast",
       "pro": "lightricks/ltx-2.5/text-to-video/pro"
@@ -6709,7 +8021,14 @@
           "en": "50"
          }
         }
-       ]
+       ],
+       "tierOptions": {
+        "pro": [
+         24,
+         25,
+         50
+        ]
+       }
       },
       {
        "id": "hf.duration",
@@ -6774,8 +8093,8 @@
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         },
         {
@@ -6785,7 +8104,13 @@
           "en": "4K"
          }
         }
-       ]
+       ],
+       "tierOptions": {
+        "pro": [
+         "720p",
+         "1080p"
+        ]
+       }
       },
       {
        "id": "hf.aspect_ratio",
@@ -6896,11 +8221,25 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration is marked required in the schema and has default 6; the API applies this top-level default before validation. The example includes it explicitly.",
-      "Fast supports 720p, 1080p, 2k or 4k and 24, 25, 48 or 50 fps."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.09,
+      "max": 0.3,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "tiers": {
+       "fast": {
+        "min": 0.09,
+        "max": 0.3
+       },
+       "pro": {
+        "min": 0.12,
+        "max": 0.17
+       }
+      }
+     }
     },
     {
      "id": "lightricks/ltx-2.5/image-to-video",
@@ -6908,7 +8247,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video fast",
+     "name": "Image to Video",
      "endpoints": {
       "fast": "lightricks/ltx-2.5/image-to-video/fast",
       "pro": "lightricks/ltx-2.5/image-to-video/pro"
@@ -7002,7 +8341,14 @@
           "en": "50"
          }
         }
-       ]
+       ],
+       "tierOptions": {
+        "pro": [
+         24,
+         25,
+         50
+        ]
+       }
       },
       {
        "id": "hf.duration",
@@ -7067,8 +8413,8 @@
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         },
         {
@@ -7078,7 +8424,13 @@
           "en": "4K"
          }
         }
-       ]
+       ],
+       "tierOptions": {
+        "pro": [
+         "720p",
+         "1080p"
+        ]
+       }
       },
       {
        "id": "hf.aspect_ratio",
@@ -7189,12 +8541,25 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration is marked required in the schema and has default 6; the API applies this top-level default before validation. The example includes it explicitly.",
-      "Fast supports 720p, 1080p, 2k or 4k and 24, 25, 48 or 50 fps.",
-      "image\\_url is the required first frame; end\\_image\\_url is an optional last frame. aspect\\_ratio explicitly controls output dimensions."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.09,
+      "max": 0.3,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "tiers": {
+       "fast": {
+        "min": 0.09,
+        "max": 0.3
+       },
+       "pro": {
+        "min": 0.12,
+        "max": 0.17
+       }
+      }
+     }
     }
    ]
   },
@@ -7207,7 +8572,7 @@
    "name": "MiniMax H3",
    "desc": {
     "fr": "MiniMax dans le cloud, en 2K : texte, images-clés ou références (images, vidéos, sons).",
-    "en": "Generate videos from text, frames or multimodal references."
+    "en": "MiniMax in the cloud, in 2K: text, keyframes or references (images, videos, sounds)."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/minimax-h3.md",
    "ports": {
@@ -7243,7 +8608,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "minimax/h3/text-to-video"
      },
@@ -7374,11 +8739,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Resolution is fixed to the case-sensitive schema value \"2K\". The prompt must contain non-whitespace text; the current provider serializer uses only its first 7,000 characters.",
-      "For text-only requests, aspect\\_ratio=\"auto\" or \"adaptive\" resolves to 16:9."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.065,
+      "max": 0.065,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "minimax/h3/image-to-video",
@@ -7386,7 +8755,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "minimax/h3/image-to-video"
      },
@@ -7531,11 +8900,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Resolution is fixed to the case-sensitive schema value \"2K\". The prompt must contain non-whitespace text; the current provider serializer uses only its first 7,000 characters.",
-      "The output aspect ratio follows the input keyframe even when aspect\\_ratio is supplied. end\\_image\\_url is an optional last frame."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.065,
+      "max": 0.065,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "minimax/h3/reference-to-video",
@@ -7543,7 +8916,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video",
      "endpoints": {
       "default": "minimax/h3/reference-to-video"
      },
@@ -7697,12 +9070,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Resolution is fixed to the case-sensitive schema value \"2K\". The prompt must contain non-whitespace text; the current provider serializer uses only its first 7,000 characters.",
-      "Provide at least one image or video reference. Audio references require an image or video reference and cannot be used alone.",
-      "Reference media may be cropped, resized, transcoded and trimmed. Video duration and audio duration are each normalized to fit within the provider's 15-second total budget."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.065,
+      "max": 0.065,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "2K output costs $0.13 per generated second. The first five reference images are included; each additional reference image costs $0.08. Rates shown are before any applicable customer discount."
+     }
     }
    ]
   },
@@ -7715,7 +9092,7 @@
    "name": "Hailuo 2.3",
    "desc": {
     "fr": "Vidéo depuis un texte ou une image, mouvements naturels.",
-    "en": "Generate videos from text or an image with Hailuo 2.3 Standard."
+    "en": "Video from text or an image, natural motion."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/hailuo-2-3.md",
    "ports": {
@@ -7735,7 +9112,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Standard text to video",
+     "name": "Text to Video (Standard)",
      "endpoints": {
       "standard": "minimax/hailuo-2.3/standard/text-to-video"
      },
@@ -7789,10 +9166,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This Standard endpoint uses a fixed 768P output resolution; resolution is not a configurable field in the production schema."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0117,
+      "max": 0.014,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "minimax/hailuo-2.3/image-to-video",
@@ -7800,7 +9182,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Standard image to video",
+     "name": "Image to Video (Standard)",
      "endpoints": {
       "standard": "minimax/hailuo-2.3/standard/image-to-video"
      },
@@ -7862,10 +9244,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This Standard endpoint uses a fixed 768P output resolution; resolution is not a configurable field in the production schema."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0117,
+      "max": 0.014,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -7878,7 +9265,7 @@
    "name": "PixVerse V6",
    "desc": {
     "fr": "Vidéo depuis un texte ou une image, avec le son.",
-    "en": "Generate videos from text or images with optional sound."
+    "en": "Video from text or an image, with sound."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/pixverse-v6.md",
    "ports": {
@@ -7902,7 +9289,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "pixverse/v6/text-to-video"
      },
@@ -7925,7 +9312,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -8055,10 +9444,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration is a number from 1 to 15, so the schema allows fractional values. If negative\\_prompt is supplied, it must contain 1–2,048 characters."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0298,
+      "max": 0.0978,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "pixverse/v6/image-to-video",
@@ -8066,7 +9460,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "pixverse/v6/image-to-video"
      },
@@ -8103,7 +9497,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.duration",
@@ -8185,11 +9581,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "duration is a number from 1 to 15, so the schema allows fractional values. If negative\\_prompt is supplied, it must contain 1–2,048 characters.",
-      "Use image\\_url for the first frame and optional end\\_image\\_url for the last frame. This endpoint has no aspect\\_ratio parameter; framing comes from the input image."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0298,
+      "max": 0.0978,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -8202,7 +9602,7 @@
    "name": "Wan 2.6",
    "desc": {
     "fr": "Vidéo depuis un texte, une image ou une vidéo de référence.",
-    "en": "Generate videos from text, images or video references."
+    "en": "Video from text, an image or a reference video."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/wan-2-6.md",
    "ports": {
@@ -8230,7 +9630,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "wan/v2.6/text-to-video"
      },
@@ -8259,7 +9659,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": -1,
+       "max": 10000000
       },
       {
        "id": "hf.duration",
@@ -8323,6 +9725,17 @@
        ]
       },
       {
+       "id": "hf.multi_shots",
+       "field": "multi_shots",
+       "label": {
+        "fr": "Plusieurs plans",
+        "en": "Multiple shots"
+       },
+       "default": false,
+       "advanced": false,
+       "kind": "toggle"
+      },
+      {
        "id": "hf.prompt_extend",
        "field": "prompt_extend",
        "label": {
@@ -8335,10 +9748,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Setting multi\\_shots=true also enables prompt\\_extend, even if prompt\\_extend was false."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.05,
+      "max": 0.075,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "wan/v2.6/image-to-video",
@@ -8346,7 +9764,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "wan/v2.6/image-to-video"
      },
@@ -8383,7 +9801,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": -1,
+       "max": 10000000
       },
       {
        "id": "hf.duration",
@@ -8454,6 +9874,17 @@
        ]
       },
       {
+       "id": "hf.multi_shots",
+       "field": "multi_shots",
+       "label": {
+        "fr": "Plusieurs plans",
+        "en": "Multiple shots"
+       },
+       "default": false,
+       "advanced": false,
+       "kind": "toggle"
+      },
+      {
        "id": "hf.prompt_extend",
        "field": "prompt_extend",
        "label": {
@@ -8477,11 +9908,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Setting multi\\_shots=true also enables prompt\\_extend, even if prompt\\_extend was false.",
-      "Input images may be resized to fit a 1,440-pixel maximum dimension before generation. A last-frame input is unsupported."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.05,
+      "max": 0.075,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "wan/v2.6/reference-to-video",
@@ -8489,7 +9924,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video",
      "endpoints": {
       "default": "wan/v2.6/reference-to-video"
      },
@@ -8615,10 +10050,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Supply 1–3 reference videos. This endpoint supports only 5 or 10 seconds, unlike the text and image endpoints that also support 15 seconds."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.05,
+      "max": 0.075,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -8631,7 +10071,7 @@
    "name": "Wan 2.7",
    "desc": {
     "fr": "Vidéo depuis un texte, des images-clés ou des références.",
-    "en": "Generate videos from text, frames or multimodal references."
+    "en": "Video from text, keyframes or references."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/wan-2-7.md",
    "ports": {
@@ -8667,7 +10107,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to video",
+     "name": "Text to Video",
      "endpoints": {
       "default": "wan/v2.7/text-to-video"
      },
@@ -8696,7 +10136,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -8812,10 +10254,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "The prompt must contain text. audio\\_url can supply driving audio."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.05,
+      "max": 0.075,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "wan/v2.7/image-to-video",
@@ -8823,7 +10270,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to video",
+     "name": "Image to Video",
      "endpoints": {
       "default": "wan/v2.7/image-to-video"
      },
@@ -8866,7 +10313,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -8934,10 +10383,15 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": null,
-     "notes": [
-      "The prompt is optional. end\\_image\\_url supplies a last frame, and audio\\_url can supply driving audio."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.05,
+      "max": 0.075,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "wan/v2.7/reference-to-video",
@@ -8945,7 +10399,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Reference to Video",
      "endpoints": {
       "default": "wan/v2.7/reference-to-video"
      },
@@ -8985,7 +10439,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 2147483646
       },
       {
        "id": "hf.duration",
@@ -9080,11 +10536,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Provide a nonempty image\\_urls or video\\_urls array. The combined number of image and video references must not exceed 5; this submission limit is not expressed in the stored JSON Schema.",
-      "Reference generation is limited to 2–10 seconds and aspect ratios 16:9 or 9:16."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.05,
+      "max": 0.075,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -9097,7 +10557,7 @@
    "name": "Grok Imagine Video 1.5",
    "desc": {
     "fr": "Vidéo depuis un texte, une image ou des références (images, son).",
-    "en": "Generate videos from text, images or an audio reference."
+    "en": "Video from text, an image or references (images, sound)."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/grok-video-1-5.md",
    "ports": {
@@ -9125,7 +10585,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to video",
+     "name": "Grok Imagine Video 1.5",
      "endpoints": {
       "default": "xai/grok-imagine-video/v1.5/reference-to-video"
      },
@@ -9277,12 +10737,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This endpoint also accepts text-only requests or one first-frame image. Choose either image\\_url or reference media (image\\_urls/audio\\_url); do not combine these modes.",
-      "When image\\_urls or audio\\_url is provided, resolution must be 480p or 720p. The shared schema also lists 1080p, which is rejected in reference mode.",
-      "Input images must decode as JPEG, PNG, WebP or GIF; SVG and XML are unsupported."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.08,
+      "max": 0.25,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -9295,15 +10758,11 @@
    "name": "SOUL",
    "desc": {
     "fr": "Images photoréalistes depuis un texte.",
-    "en": "Generate images with selectable styles and adjustable style strength."
+    "en": "Photoreal images from text."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/soul-standard.md",
    "ports": {
     "prompt": {
-     "multi": false,
-     "max": 1
-    },
-    "refs": {
      "multi": false,
      "max": 1
     }
@@ -9315,7 +10774,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Text to image",
+     "name": "Soul Standard",
      "endpoints": {
       "standard": "higgsfield-ai/soul/standard"
      },
@@ -9324,17 +10783,66 @@
        "field": "prompt",
        "multi": false,
        "max": 1
-      },
-      "refs": {
-       "field": "image_reference_url",
-       "multi": false,
-       "max": 1,
-       "min": 0
       }
      },
      "required": [],
      "oneOf": [],
      "params": [
+      {
+       "id": "hf.seed",
+       "field": "seed",
+       "label": {
+        "fr": "Graine",
+        "en": "Seed"
+       },
+       "default": null,
+       "advanced": true,
+       "kind": "seed",
+       "min": 1,
+       "max": 1000000
+      },
+      {
+       "id": "hf.style_id",
+       "field": "style_id",
+       "label": {
+        "fr": "Style Soul",
+        "en": "Soul style"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiant d’un style Soul de Higgsfield. Vide : sans style.",
+        "en": "ID of a Higgsfield Soul style. Empty: no style."
+       },
+       "kind": "text"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "720p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        },
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      },
       {
        "id": "hf.aspect_ratio",
        "field": "aspect_ratio",
@@ -9404,9 +10912,117 @@
         "fr": "Enrichir la consigne",
         "en": "Expand the prompt"
        },
-       "default": false,
+       "default": true,
        "advanced": true,
        "kind": "toggle"
+      },
+      {
+       "id": "hf.style_strength",
+       "field": "style_strength",
+       "label": {
+        "fr": "Force du style",
+        "en": "Style strength"
+       },
+       "default": 1,
+       "advanced": true,
+       "kind": "slider",
+       "min": 0,
+       "max": 1,
+       "step": 0.05,
+       "unit": ""
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [
+      {
+       "field": "batch_size",
+       "reason": {
+        "fr": "Mia garde une seule image par version",
+        "en": "Mia keeps one picture per version"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.0938,
+      "max": 0.1875,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:soul-v2",
+   "provider": "higgsfield",
+   "kind": "image",
+   "maker": "Higgsfield",
+   "mark": "HF",
+   "name": "SOUL V2",
+   "desc": {
+    "fr": "Images photoréalistes depuis un texte ou une image à transformer, nouvelle version.",
+    "en": "Photoreal images from text or from an image to transform, new version."
+   },
+   "doc": "https://docs.higgsfield.ai/docs/models/soul-2.md",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "image": {
+     "multi": false,
+     "max": 1
+    }
+   },
+   "workflows": [
+    {
+     "id": "higgsfield-ai/soul/v2",
+     "label": {
+      "fr": "Image depuis un texte",
+      "en": "Image from text"
+     },
+     "name": "Text to Image",
+     "endpoints": {
+      "standard": "higgsfield-ai/soul/v2/standard"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.seed",
+       "field": "seed",
+       "label": {
+        "fr": "Graine",
+        "en": "Seed"
+       },
+       "default": null,
+       "advanced": true,
+       "kind": "seed",
+       "min": 1,
+       "max": 1000000
+      },
+      {
+       "id": "hf.style_id",
+       "field": "style_id",
+       "label": {
+        "fr": "Style Soul",
+        "en": "Soul style"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiant d’un style Soul de Higgsfield. Vide : sans style.",
+        "en": "ID of a Higgsfield Soul style. Empty: no style."
+       },
+       "kind": "text"
       },
       {
        "id": "hf.resolution",
@@ -9436,77 +11052,13 @@
        ]
       },
       {
-       "id": "hf.seed",
-       "field": "seed",
-       "label": {
-        "fr": "Graine",
-        "en": "Seed"
-       },
-       "default": null,
-       "advanced": true,
-       "kind": "seed"
-      }
-     ],
-     "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "batch\\_size is 1 or 4 only. A custom\\_reference\\_id must belong to the calling account and have completed training.",
-      "aspect\\_ratio defaults to 4:3; enhance\\_prompt defaults to false; style\\_id defaults to 464ea177-8d40-4940-8d9d-b438bab269c7.",
-      "Optional image\\_reference\\_url guides prompt enhancement; it is distinct from custom\\_reference\\_id for a trained character.",
-      "seed may be omitted or null; generation selects a random seed when it is absent.",
-      "Short prompts using the general style can be enhanced automatically even when enhance\\_prompt=false.",
-      "custom\\_reference\\_strength=0 uses the selected style's default character strength; it does not disable the character reference."
-     ]
-    }
-   ]
-  },
-  {
-   "key": "hf:soul-v2",
-   "provider": "higgsfield",
-   "kind": "image",
-   "maker": "Higgsfield",
-   "mark": "HF",
-   "name": "SOUL V2",
-   "desc": {
-    "fr": "Images photoréalistes depuis un texte, nouvelle version.",
-    "en": "Generate portraits, fashion and editorial images with SOUL styles."
-   },
-   "doc": "https://docs.higgsfield.ai/docs/models/soul-2.md",
-   "ports": {
-    "prompt": {
-     "multi": false,
-     "max": 1
-    }
-   },
-   "workflows": [
-    {
-     "id": "higgsfield-ai/soul/v2",
-     "label": {
-      "fr": "Image depuis un texte",
-      "en": "Image from text"
-     },
-     "name": "Text to image",
-     "endpoints": {
-      "standard": "higgsfield-ai/soul/v2/standard"
-     },
-     "ports": {
-      "prompt": {
-       "field": "prompt",
-       "multi": false,
-       "max": 1
-      }
-     },
-     "required": [],
-     "oneOf": [],
-     "params": [
-      {
        "id": "hf.aspect_ratio",
        "field": "aspect_ratio",
        "label": {
         "fr": "Format",
         "en": "Aspect ratio"
        },
-       "default": "1:1",
+       "default": "4:3",
        "advanced": false,
        "kind": "select",
        "options": [
@@ -9562,6 +11114,123 @@
        ]
       },
       {
+       "id": "hf.enhance_prompt",
+       "field": "enhance_prompt",
+       "label": {
+        "fr": "Enrichir la consigne",
+        "en": "Expand the prompt"
+       },
+       "default": true,
+       "advanced": true,
+       "kind": "toggle"
+      },
+      {
+       "id": "hf.custom_reference_id",
+       "field": "custom_reference_id",
+       "label": {
+        "fr": "Soul ID",
+        "en": "Soul ID"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiant d’un Soul ID entraîné sur ton compte Higgsfield. Vide : aucun.",
+        "en": "ID of a Soul ID trained on your Higgsfield account. Empty: none."
+       },
+       "kind": "text"
+      },
+      {
+       "id": "hf.custom_reference_strength",
+       "field": "custom_reference_strength",
+       "label": {
+        "fr": "Force du Soul ID",
+        "en": "Soul ID strength"
+       },
+       "default": 1,
+       "advanced": true,
+       "kind": "slider",
+       "min": 0,
+       "max": 1,
+       "step": 0.05,
+       "unit": ""
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [
+      {
+       "field": "batch_size",
+       "reason": {
+        "fr": "Mia garde une seule image par version",
+        "en": "Mia keeps one picture per version"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.0032,
+      "max": 0.0057,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "higgsfield-ai/soul/v2/image-to-image",
+     "label": {
+      "fr": "Transformer une image",
+      "en": "Transform an image"
+     },
+     "name": "Image to Image",
+     "endpoints": {
+      "default": "higgsfield-ai/soul/v2/image-to-image"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "image": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [
+      "image"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.seed",
+       "field": "seed",
+       "label": {
+        "fr": "Graine",
+        "en": "Seed"
+       },
+       "default": null,
+       "advanced": true,
+       "kind": "seed",
+       "min": 1,
+       "max": 1000000
+      },
+      {
+       "id": "hf.style_id",
+       "field": "style_id",
+       "label": {
+        "fr": "Style Soul",
+        "en": "Soul style"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiant d’un style Soul de Higgsfield. Vide : sans style.",
+        "en": "ID of a Higgsfield Soul style. Empty: no style."
+       },
+       "kind": "text"
+      },
+      {
        "id": "hf.resolution",
        "field": "resolution",
        "label": {
@@ -9589,37 +11258,127 @@
        ]
       },
       {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "4:3",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "2:3",
+         "label": {
+          "fr": "2:3",
+          "en": "2:3"
+         }
+        },
+        {
+         "value": "3:2",
+         "label": {
+          "fr": "3:2",
+          "en": "3:2"
+         }
+        }
+       ]
+      },
+      {
        "id": "hf.enhance_prompt",
        "field": "enhance_prompt",
        "label": {
         "fr": "Enrichir la consigne",
         "en": "Expand the prompt"
        },
-       "default": false,
+       "default": true,
        "advanced": true,
        "kind": "toggle"
       },
       {
-       "id": "hf.seed",
-       "field": "seed",
+       "id": "hf.custom_reference_id",
+       "field": "custom_reference_id",
        "label": {
-        "fr": "Graine",
-        "en": "Seed"
+        "fr": "Soul ID",
+        "en": "Soul ID"
        },
-       "default": null,
+       "default": "",
        "advanced": true,
-       "kind": "seed"
+       "hint": {
+        "fr": "Identifiant d’un Soul ID entraîné sur ton compte Higgsfield. Vide : aucun.",
+        "en": "ID of a Soul ID trained on your Higgsfield account. Empty: none."
+       },
+       "kind": "text"
+      },
+      {
+       "id": "hf.custom_reference_strength",
+       "field": "custom_reference_strength",
+       "label": {
+        "fr": "Force du Soul ID",
+        "en": "Soul ID strength"
+       },
+       "default": 1,
+       "advanced": true,
+       "kind": "slider",
+       "min": 0,
+       "max": 1,
+       "step": 0.05,
+       "unit": ""
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "batch\\_size is 1 or 4 only. A custom\\_reference\\_id must belong to the calling account and have completed training.",
-      "aspect\\_ratio defaults to 1:1 and enhance\\_prompt defaults to false. seed defaults to a random integer from 1 to 1000000; explicit null is invalid.",
-      "style\\_id defaults to 3db34ab5-3439-4317-9e03-08dc30852e69. style\\_strength is accepted by the request schema but currently has no effect on generation.",
-      "Short prompts using the general style can be enhanced automatically even when enhance\\_prompt=false.",
-      "When using custom\\_reference\\_id, set custom\\_reference\\_strength to a value greater than 0 and no greater than 1. The schema accepts 0, but the current runtime fails to process it for a character reference."
-     ]
+     "unsupported": [
+      {
+       "field": "batch_size",
+       "reason": {
+        "fr": "Mia garde une seule image par version",
+        "en": "Mia keeps one picture per version"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.0032,
+      "max": 0.0057,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -9632,7 +11391,7 @@
    "name": "SOUL Cinema",
    "desc": {
     "fr": "Images au rendu cinéma depuis un texte.",
-    "en": "Generate cinema-inspired still images from text prompts."
+    "en": "Cinema-look images from text."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/soul-cinema.md",
    "ports": {
@@ -9763,6 +11522,21 @@
        ]
       },
       {
+       "id": "hf.custom_reference_strength",
+       "field": "custom_reference_strength",
+       "label": {
+        "fr": "Force du Soul ID",
+        "en": "Soul ID strength"
+       },
+       "default": 1,
+       "advanced": true,
+       "kind": "slider",
+       "min": 0,
+       "max": 1,
+       "step": 0.05,
+       "unit": ""
+      },
+      {
        "id": "hf.seed",
        "field": "seed",
        "label": {
@@ -9771,11 +11545,28 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 1,
+       "max": 1000000
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
+     "unsupported": [
+      {
+       "field": "custom_reference_id",
+       "reason": {
+        "fr": "champ d’un type que Mia ne sait pas encore remplir",
+        "en": "a field type Mia cannot fill yet"
+       }
+      },
+      {
+       "field": "batch_size",
+       "reason": {
+        "fr": "Mia garde une seule image par version",
+        "en": "Mia keeps one picture per version"
+       }
+      }
+     ],
      "notes": [
       "batch\\_size is 1 or 4 only. A custom\\_reference\\_id must belong to the calling account and have completed training.",
       "aspect\\_ratio defaults to 1:1 and enhance\\_prompt defaults to false. seed defaults to a random integer from 1 to 1000000; explicit null is invalid.",
@@ -9795,7 +11586,7 @@
    "name": "Marketing Studio Image",
    "desc": {
     "fr": "Visuels publicitaires à partir d’un texte et de tes images.",
-    "en": "Generate and edit campaign images, with optional preset-based prompt enhancement."
+    "en": "Ad visuals from text and your images."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/marketing-studio-image.md",
    "ports": {
@@ -9870,6 +11661,21 @@
        ]
       },
       {
+       "id": "hf.preset_id",
+       "field": "preset_id",
+       "label": {
+        "fr": "Préréglage",
+        "en": "Preset"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiant d’un préréglage Higgsfield. Vide : aucun.",
+        "en": "ID of a Higgsfield preset. Empty: none."
+       },
+       "kind": "text"
+      },
+      {
        "id": "hf.moderation",
        "field": "moderation",
        "label": {
@@ -9910,15 +11716,15 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         },
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         },
         {
@@ -10019,15 +11825,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Omit image\\_urls for text-to-image; provide up to 16 URLs for editing when enhance\\_prompt=false.",
-      "enhance\\_prompt=true requires an existing preset\\_id and 1–2 image URLs: product first, optional person/model reference second. Discover presets with GET /marketing-studio/image/presets.",
-      "Reference images must be valid JPEG, PNG, or WebP. Oversized supported images are normalized before rendering.",
-      "With enhancement enabled, aspect\\_ratio=auto uses the preset ratio. With enhancement disabled, current production mappings use square output for auto.",
-      "The 1k/2k/4k values are resolution tiers; exact pixel dimensions depend on the aspect ratio.",
-      "With enhance\\_prompt=true, quality must be high. This endpoint accepts low, medium, or high for unenhanced requests."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0138,
+      "max": 0.6136,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "marketing-studio/image/flare",
@@ -10104,6 +11910,21 @@
        ]
       },
       {
+       "id": "hf.preset_id",
+       "field": "preset_id",
+       "label": {
+        "fr": "Préréglage",
+        "en": "Preset"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiant d’un préréglage Higgsfield. Vide : aucun.",
+        "en": "ID of a Higgsfield preset. Empty: none."
+       },
+       "kind": "text"
+      },
+      {
        "id": "hf.moderation",
        "field": "moderation",
        "label": {
@@ -10144,15 +11965,15 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         },
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         },
         {
@@ -10253,15 +12074,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Omit image\\_urls for text-to-image; provide up to 16 URLs for editing when enhance\\_prompt=false.",
-      "enhance\\_prompt=true requires an existing preset\\_id and 1–2 image URLs: product first, optional person/model reference second. Discover presets with GET /marketing-studio/image/presets.",
-      "Reference images must be valid JPEG, PNG, or WebP. Oversized supported images are normalized before rendering.",
-      "With enhancement enabled, aspect\\_ratio=auto uses the preset ratio. With enhancement disabled, current production mappings use square output for auto.",
-      "The 1k/2k/4k values are resolution tiers; exact pixel dimensions depend on the aspect ratio.",
-      "quality accepts low, medium, high, xhigh, max and remains selectable with enhancement enabled."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0107,
+      "max": 0.6136,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public",
+      "note": "Per 1M tokens: text input $5, cached text input $1.25, text output $10; image input $8, cached image input $2, image output $30. Quality defaults to high. Final cost uses actual token usage and standard credit rounding. The initial charge is an estimate reconciled on completion."
+     }
     },
     {
      "id": "marketing-studio/image/sunburst",
@@ -10338,6 +12160,21 @@
        ]
       },
       {
+       "id": "hf.preset_id",
+       "field": "preset_id",
+       "label": {
+        "fr": "Préréglage",
+        "en": "Preset"
+       },
+       "default": "",
+       "advanced": true,
+       "hint": {
+        "fr": "Identifiant d’un préréglage Higgsfield. Vide : aucun.",
+        "en": "ID of a Higgsfield preset. Empty: none."
+       },
+       "kind": "text"
+      },
+      {
        "id": "hf.moderation",
        "field": "moderation",
        "label": {
@@ -10378,15 +12215,15 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         },
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         },
         {
@@ -10487,15 +12324,16 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Omit image\\_urls for text-to-image; provide up to 16 URLs for editing when enhance\\_prompt=false.",
-      "enhance\\_prompt=true requires an existing preset\\_id and 1–2 image URLs: product first, optional person/model reference second. Discover presets with GET /marketing-studio/image/presets.",
-      "Reference images must be valid JPEG, PNG, or WebP. Oversized supported images are normalized before rendering.",
-      "With enhancement enabled, aspect\\_ratio=auto uses the preset ratio. With enhancement disabled, current production mappings use square output for auto.",
-      "The 1k/2k/4k values are resolution tiers; exact pixel dimensions depend on the aspect ratio.",
-      "quality accepts low, medium, high, xhigh, max and remains selectable with enhancement enabled."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.0107,
+      "max": 0.6136,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public",
+      "note": "Per 1M tokens: text input $5, cached text input $1.25, text output $10; image input $8, cached image input $2, image output $30. Quality defaults to high. Final cost uses actual token usage and standard credit rounding. The initial charge is an estimate reconciled on completion."
+     }
     }
    ]
   },
@@ -10508,7 +12346,7 @@
    "name": "Ads Studio",
    "desc": {
     "fr": "Visuels publicitaires à partir d’un texte et de tes images.",
-    "en": "Turn a marketing brief and optional product references into 1–8 ad concepts rendered as images with GPT Image 2.5 Flare."
+    "en": "Ad visuals from text and your images."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/ads-studio.md",
    "ports": {
@@ -10528,7 +12366,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Generate ads",
+     "name": "Ads Studio",
      "endpoints": {
       "default": "higgsfield/ads-studio/v1.0"
      },
@@ -10548,6 +12386,28 @@
      "required": [],
      "oneOf": [],
      "params": [
+      {
+       "id": "hf.niche",
+       "field": "niche",
+       "label": {
+        "fr": "Secteur",
+        "en": "Niche"
+       },
+       "default": "",
+       "advanced": true,
+       "kind": "text"
+      },
+      {
+       "id": "hf.language",
+       "field": "language",
+       "label": {
+        "fr": "Langue",
+        "en": "Language"
+       },
+       "default": "",
+       "advanced": true,
+       "kind": "text"
+      },
       {
        "id": "hf.aspect_ratio",
        "field": "aspect_ratio",
@@ -10642,33 +12502,40 @@
           "fr": "1:2",
           "en": "1:2"
          }
-        },
-        {
-         "value": "3:1",
-         "label": {
-          "fr": "3:1",
-          "en": "3:1"
-         }
-        },
-        {
-         "value": "1:3",
-         "label": {
-          "fr": "1:3",
-          "en": "1:3"
-         }
         }
        ]
+      },
+      {
+       "id": "hf.target_audience",
+       "field": "target_audience",
+       "label": {
+        "fr": "Public visé",
+        "en": "Target audience"
+       },
+       "default": "",
+       "advanced": true,
+       "kind": "text"
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Submit one request with your brief. Ad concepts are prepared automatically, then rendered as images; no separate preparation or generate call is required.",
-      "batch\\_size selects 1–8 ad concepts. Each concept produces one image, so a fully successful batch returns batch\\_size images.",
-      "Rendering uses GPT Image 2.5 Flare with fixed 2k resolution and high quality. Exact dimensions depend on aspect\\_ratio. quality, resolution, renderer and fallback model are not public inputs.",
-      "All outputs in a batch use the requested aspect\\_ratio. Omitting it selects 1:1. The value auto is not supported.",
-      "Set HF\\_API\\_KEY\\_ID and HF\\_API\\_KEY\\_SECRET to your API credentials. Set a unique IDEMPOTENCY\\_KEY for each intended generation; reuse it only when retrying that same request."
-     ]
+     "unsupported": [
+      {
+       "field": "batch_size",
+       "reason": {
+        "fr": "Mia garde une seule image par version",
+        "en": "Mia keeps one picture per version"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.084,
+      "max": 0.084,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public",
+      "note": "Per 1M tokens: text input $5, cached text input $1.25, text output $10; image input $8, cached image input $2, image output $30. Quality defaults to high. Final cost uses actual token usage and standard credit rounding. The initial charge is an estimate reconciled on completion."
+     }
     }
    ]
   },
@@ -10681,7 +12548,7 @@
    "name": "Grok Image 2.0",
    "desc": {
     "fr": "Images depuis un texte, avec des images de référence.",
-    "en": "Generate and edit images with up to ten image references."
+    "en": "Images from text, with reference images."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/grok-image-2.md",
    "ports": {
@@ -10701,7 +12568,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Generate and edit",
+     "name": "Grok Imagine 2.0",
      "endpoints": {
       "default": "xai/grok-imagine-image-2.0"
      },
@@ -10762,15 +12629,15 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         },
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         }
        ]
@@ -10860,12 +12727,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Supports both text-to-image and editing: omit image\\_urls for generation, or supply up to 10 references for editing.",
-      "quality accepts low or medium only; resolution accepts 1k or 2k. aspect\\_ratio defaults to auto.",
-      "Reference images may be resized during preprocessing before submission. The request produces one image; no batch count is declared."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.04,
+      "max": 0.08,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -10878,7 +12748,7 @@
    "name": "Recraft V4.1",
    "desc": {
     "fr": "Images et illustrations depuis un texte.",
-    "en": "Generate 1K images with RGB palette and background controls."
+    "en": "Images and illustrations from text."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/recraft-v4-1.md",
    "ports": {
@@ -10894,7 +12764,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Text to image",
+     "name": "Text to Image",
      "endpoints": {
       "default": "recraft/v4.1/text-to-image"
      },
@@ -10922,8 +12792,8 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         }
        ]
@@ -11075,13 +12945,30 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This variant accepts only resolution=1k; use the separate standard/Pro endpoint for the other resolution tier.",
-      "colors is an array of objects shaped as \\{\"rgb\": \\[R, G, B]}; background\\_color is one such object. Every RGB value is an integer 0–255, with exactly three entries.",
-      "output\\_format is jpg, png, or webp; default is jpg. No reference-image input is declared.",
-      "prompt must contain 1–10000 characters. Fourteen aspect-ratio values are listed in the schema, including 6:10, 14:10, and 10:14."
-     ]
+     "unsupported": [
+      {
+       "field": "colors",
+       "reason": {
+        "fr": "palette de couleurs : interface à venir",
+        "en": "colour palette: interface to come"
+       }
+      },
+      {
+       "field": "background_color",
+       "reason": {
+        "fr": "couleur de fond : interface à venir",
+        "en": "background colour: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.035,
+      "max": 0.035,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -11094,7 +12981,7 @@
    "name": "Recraft V4.1 Pro",
    "desc": {
     "fr": "Images et illustrations depuis un texte, version Pro.",
-    "en": "Generate 2K images with RGB palette and background controls."
+    "en": "Images and illustrations from text, Pro version."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/recraft-v4-1-pro.md",
    "ports": {
@@ -11110,7 +12997,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Text to image",
+     "name": "Pro Text to Image",
      "endpoints": {
       "pro": "recraft/v4.1/pro/text-to-image"
      },
@@ -11138,8 +13025,8 @@
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         }
        ]
@@ -11291,13 +13178,30 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This variant accepts only resolution=2k; use the separate standard/Pro endpoint for the other resolution tier.",
-      "colors is an array of objects shaped as \\{\"rgb\": \\[R, G, B]}; background\\_color is one such object. Every RGB value is an integer 0–255, with exactly three entries.",
-      "output\\_format is jpg, png, or webp; default is jpg. No reference-image input is declared.",
-      "prompt must contain 1–10000 characters. Fourteen aspect-ratio values are listed in the schema, including 6:10, 14:10, and 10:14."
-     ]
+     "unsupported": [
+      {
+       "field": "colors",
+       "reason": {
+        "fr": "palette de couleurs : interface à venir",
+        "en": "colour palette: interface to come"
+       }
+      },
+      {
+       "field": "background_color",
+       "reason": {
+        "fr": "couleur de fond : interface à venir",
+        "en": "background colour: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.21,
+      "max": 0.21,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -11310,7 +13214,7 @@
    "name": "Recraft V4.1 Utility",
    "desc": {
     "fr": "Images utilitaires depuis un texte.",
-    "en": "Generate 1K images with RGB palette and background controls."
+    "en": "Utility images from text."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/recraft-v4-1-utility.md",
    "ports": {
@@ -11326,7 +13230,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Text to image",
+     "name": "Utility Text to Image",
      "endpoints": {
       "default": "recraft/v4.1/utility/text-to-image"
      },
@@ -11354,8 +13258,8 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         }
        ]
@@ -11507,13 +13411,30 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This variant accepts only resolution=1k; use the separate standard/Pro endpoint for the other resolution tier.",
-      "colors is an array of objects shaped as \\{\"rgb\": \\[R, G, B]}; background\\_color is one such object. Every RGB value is an integer 0–255, with exactly three entries.",
-      "output\\_format is jpg, png, or webp; default is jpg. No reference-image input is declared.",
-      "prompt must contain 1–10000 characters. Fourteen aspect-ratio values are listed in the schema, including 6:10, 14:10, and 10:14."
-     ]
+     "unsupported": [
+      {
+       "field": "colors",
+       "reason": {
+        "fr": "palette de couleurs : interface à venir",
+        "en": "colour palette: interface to come"
+       }
+      },
+      {
+       "field": "background_color",
+       "reason": {
+        "fr": "couleur de fond : interface à venir",
+        "en": "background colour: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.035,
+      "max": 0.035,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -11526,7 +13447,7 @@
    "name": "Recraft V4.1 Utility Pro",
    "desc": {
     "fr": "Images utilitaires depuis un texte, version Pro.",
-    "en": "Generate 2K images with RGB palette and background controls."
+    "en": "Utility images from text, Pro version."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/recraft-v4-1-utility-pro.md",
    "ports": {
@@ -11542,7 +13463,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Text to image",
+     "name": "Utility Pro Text to Image",
      "endpoints": {
       "pro": "recraft/v4.1/utility/pro/text-to-image"
      },
@@ -11570,8 +13491,8 @@
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         }
        ]
@@ -11723,13 +13644,30 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "This variant accepts only resolution=2k; use the separate standard/Pro endpoint for the other resolution tier.",
-      "colors is an array of objects shaped as \\{\"rgb\": \\[R, G, B]}; background\\_color is one such object. Every RGB value is an integer 0–255, with exactly three entries.",
-      "output\\_format is jpg, png, or webp; default is jpg. No reference-image input is declared.",
-      "prompt must contain 1–10000 characters. Fourteen aspect-ratio values are listed in the schema, including 6:10, 14:10, and 10:14."
-     ]
+     "unsupported": [
+      {
+       "field": "colors",
+       "reason": {
+        "fr": "palette de couleurs : interface à venir",
+        "en": "colour palette: interface to come"
+       }
+      },
+      {
+       "field": "background_color",
+       "reason": {
+        "fr": "couleur de fond : interface à venir",
+        "en": "background colour: interface to come"
+       }
+      }
+     ],
+     "notes": [],
+     "price": {
+      "min": 0.21,
+      "max": 0.21,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -11742,7 +13680,7 @@
    "name": "Qwen Image 3",
    "desc": {
     "fr": "Images depuis un texte, ou retouche d’une image en lui disant quoi changer.",
-    "en": "Generate images or edit one to three reference images with optional prompt reasoning."
+    "en": "Images from text, or edit an image by saying what to change."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/qwen-image-3.md",
    "ports": {
@@ -11762,7 +13700,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Text to image",
+     "name": "Text to Image",
      "endpoints": {
       "default": "alibaba/qwen-image-3/text-to-image"
      },
@@ -11785,7 +13723,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.resolution",
@@ -11801,15 +13741,15 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         },
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         }
        ]
@@ -11959,13 +13899,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "prompt must contain non-whitespace text. The schema imposes no character maximum; its 4,500-token guidance is advisory.",
-      "enable\\_thinking defaults to true and requires prompt\\_extend=true. Set both to false to disable enhancement.",
-      "prompt\\_extend\\_mode supports direct or agent. No reference images are accepted by this endpoint.",
-      "resolution is a tier; 2k square maps to 1536 by 1536 pixels, not 2048 by 2048."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.04,
+      "max": 0.075,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     },
     {
      "id": "alibaba/qwen-image-3/edit",
@@ -11973,7 +13915,7 @@
       "fr": "Retoucher une image",
       "en": "Edit an image"
      },
-     "name": "Edit images",
+     "name": "Edit",
      "endpoints": {
       "default": "alibaba/qwen-image-3/edit"
      },
@@ -12004,7 +13946,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.resolution",
@@ -12020,15 +13964,15 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         },
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         }
        ]
@@ -12171,13 +14115,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Provide 1–3 ordered reference image URLs. The list is required and cannot be empty.",
-      "enable\\_thinking defaults to true and requires prompt\\_extend=true. Set both to false to disable enhancement.",
-      "prompt\\_extend\\_mode accepts only direct; agent enhancement is unavailable on editing requests.",
-      "prompt must contain non-whitespace text. The 2k square output tier maps to 1536 by 1536 pixels."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.04,
+      "max": 0.075,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -12190,7 +14136,7 @@
    "name": "Ideogram 4.0",
    "desc": {
     "fr": "Images avec du texte bien écrit dedans (affiches, logos).",
-    "en": "Generate images with an optional image reference and selectable rendering speed."
+    "en": "Images with well-written text in them (posters, logos)."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/ideogram-4.md",
    "ports": {
@@ -12210,7 +14156,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Generate",
+     "name": "Ideogram 4.0",
      "endpoints": {
       "default": "ideogram/v4.0"
      },
@@ -12405,6 +14351,21 @@
        ]
       },
       {
+       "id": "hf.image_weight",
+       "field": "image_weight",
+       "label": {
+        "fr": "Poids de l’image",
+        "en": "Image weight"
+       },
+       "default": 1,
+       "advanced": true,
+       "kind": "slider",
+       "min": 1,
+       "max": 100,
+       "step": 1,
+       "unit": ""
+      },
+      {
        "id": "hf.rendering_speed",
        "field": "rendering_speed",
        "label": {
@@ -12440,13 +14401,15 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Omit image\\_url for text-to-image; provide image\\_url for remix/editing.",
-      "image\\_weight controls preservation of the input image and applies to editing requests only; values are integers from 1 to 100.",
-      "The square 1:1 aspect ratio is applied by default, including when an input image is supplied.",
-      "rendering\\_speed values are case-sensitive: TURBO, DEFAULT, QUALITY. prompt must contain 2–2048 characters."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.03,
+      "max": 0.03,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
   },
@@ -12459,7 +14422,7 @@
    "name": "Z-Image Turbo",
    "desc": {
     "fr": "Images très rapides depuis un texte.",
-    "en": "Generate images at 1K or 2K with optional prompt enhancement."
+    "en": "Very fast images from text."
    },
    "doc": "https://docs.higgsfield.ai/docs/models/z-image-turbo.md",
    "ports": {
@@ -12475,7 +14438,7 @@
       "fr": "Image depuis un texte",
       "en": "Image from text"
      },
-     "name": "Generate",
+     "name": "Turbo",
      "endpoints": {
       "default": "z-image/turbo"
      },
@@ -12498,7 +14461,9 @@
        },
        "default": null,
        "advanced": true,
-       "kind": "seed"
+       "kind": "seed",
+       "min": 0,
+       "max": 2147483647
       },
       {
        "id": "hf.resolution",
@@ -12514,15 +14479,15 @@
         {
          "value": "1k",
          "label": {
-          "fr": "1k",
-          "en": "1k"
+          "fr": "1K",
+          "en": "1K"
          }
         },
         {
          "value": "2k",
          "label": {
-          "fr": "2k",
-          "en": "2k"
+          "fr": "2K",
+          "en": "2K"
          }
         }
        ]
@@ -12623,14 +14588,97 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": null,
-     "notes": [
-      "Text-to-image only. prompt must contain non-whitespace text and at most 800 characters.",
-      "prompt\\_extend defaults to false; enabling it uses the enhanced pricing tier.",
-      "The schema accepts 1k and 2k tiers, ten aspect ratios, and an optional integer seed from 0 to 2147483647."
-     ]
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.015,
+      "max": 0.015,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
     }
    ]
+  }
+ ],
+ "skipped": [
+  {
+   "id": "higgsfield/ai-influencer",
+   "reason": {
+    "fr": "application (palier, sélection, variantes de traits), pas un modèle",
+    "en": "an app (tier, selection, trait variants), not a model"
+   }
+  },
+  {
+   "id": "soul-id",
+   "reason": {
+    "fr": "entraînement d’un visage, pas une génération",
+    "en": "face training, not a generation"
+   }
+  },
+  {
+   "id": "v1/custom-references",
+   "reason": {
+    "fr": "entraînement d’un visage, pas une génération",
+    "en": "face training, not a generation"
+   }
+  },
+  {
+   "id": "workflows/ads-studio",
+   "reason": {
+    "fr": "application de la console, pas un modèle",
+    "en": "console app, not a model"
+   }
+  },
+  {
+   "id": "workflows/cinema-studio-4-0",
+   "reason": {
+    "fr": "application de la console, pas un modèle",
+    "en": "console app, not a model"
+   }
+  },
+  {
+   "id": "workflows/genjutsu",
+   "reason": {
+    "fr": "application de la console, pas un modèle",
+    "en": "console app, not a model"
+   }
+  },
+  {
+   "id": "workflows/genjutsu/object-swap",
+   "reason": {
+    "fr": "application de la console, pas un modèle",
+    "en": "console app, not a model"
+   }
+  },
+  {
+   "id": "workflows/graphic-ads",
+   "reason": {
+    "fr": "application de la console, pas un modèle",
+    "en": "console app, not a model"
+   }
+  },
+  {
+   "id": "workflows/marketplace-design",
+   "reason": {
+    "fr": "application de la console, pas un modèle",
+    "en": "console app, not a model"
+   }
+  },
+  {
+   "id": "workflows/product-shots",
+   "reason": {
+    "fr": "application de la console, pas un modèle",
+    "en": "console app, not a model"
+   }
+  },
+  {
+   "id": "higgsfield/genjutsu/restyle/v1.0",
+   "field": "preset_id",
+   "reason": {
+    "fr": "demande un préréglage Higgsfield (identifiant) que Mia ne sait pas lister",
+    "en": "needs a Higgsfield preset id that Mia cannot list"
+   }
   }
  ]
 }

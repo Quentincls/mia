@@ -8,6 +8,8 @@
 //   every stale upstream block before the one asked for;
 // - queue: FIFO, ONE heavy (GPU) job at a time and only with the lab's GPU lock; light jobs (max 2) wait while a
 //   heavy job holds the GPU (lab rule: never a big CPU job next to a GPU job — the laptop crashed twice);
+//   online jobs (Model block on hf:…) have their own lane: they only wait for the network, so they neither count
+//   among the light ones nor wait for the GPU, up to prefs.cloudParallel at once (default 4, 1 to 16);
 // - executors: ./executors/<name>.js (B2/B3), loaded lazily, given the context `x` of SPEC §8.2.5
 //   (+ x.ensureLora(key), x.engineRoot, x.notes);
 // - versions: outputs/<nodeId>/<runId>/ with run.json (done | error | cancelled), probed outputs and posters;
@@ -37,6 +39,8 @@ const STR = {
     queued: 'En attente',
     waitHeavy: 'Attend la fin du calcul en cours',
     waitLight: 'Attend la fin d’un petit calcul',
+    waitOnline: 'En file dans Mia : {n} calculs en ligne déjà en cours',
+    waitOnlineOne: 'En file dans Mia : un calcul en ligne déjà en cours',
     waitDep: 'Attend le bloc « {name} »',
     gpuBusy: 'GPU occupé par « {who} » depuis {at}',
     gpuBusyMin: 'GPU occupé par « {who} » depuis {at} (~{minutes} min)',
@@ -114,6 +118,8 @@ const STR = {
     queued: 'Queued',
     waitHeavy: 'Waiting for the current job',
     waitLight: 'Waiting for a small job to finish',
+    waitOnline: 'Queued in Mia: {n} online jobs already running',
+    waitOnlineOne: 'Queued in Mia: one online job already running',
     waitDep: 'Waiting for “{name}”',
     gpuBusy: 'GPU busy: “{who}” since {at}',
     gpuBusyMin: 'GPU busy: “{who}” since {at} (~{minutes} min)',
@@ -195,6 +201,15 @@ const SMI_MS = 10000;
 const RETRY_MS = 15000;              // GPU lock polling, as the lab's scripts do
 const RENEW_MS = 5 * 60 * 1000;
 const MAX_LIGHT = 2;
+// Online jobs at once (prefs.cloudParallel): Higgsfield queues beyond the account's own limit, nothing is charged twice.
+const ONLINE_DEFAULT = 4;
+const ONLINE_MIN = 1;
+const ONLINE_MAX = 16;
+/** prefs.cloudParallel, bounded (anything unreadable: the default). */
+function onlineLimit(prefs) {
+  const n = Math.round(Number(prefs && prefs.cloudParallel));
+  return Number.isFinite(n) && n > 0 ? Math.max(ONLINE_MIN, Math.min(ONLINE_MAX, n)) : ONLINE_DEFAULT;
+}
 const KEEP_FINISHED_MS = 30 * 60 * 1000;
 const KEEP_FINISHED = 30;
 const NVIDIA_SMI = 'C:\\Windows\\System32\\nvidia-smi.exe';
@@ -379,6 +394,27 @@ function shownParam(p, params) {
   if ('eq' in c && !same(c.eq, v)) return false;
   if ('ne' in c && same(c.ne, v)) return false;
   return true;
+}
+
+/**
+ * Params that define the result — every one of the catalog (format, resolution, lora, loraStrength, follow,
+ * strength…). "auto" models hash as the model they resolve to: a new default recomputes. A setting hidden
+ * by its showIf (the LoRA strength while no LoRA is chosen) hashes as its default: no pointless recompute,
+ * and versions made before keep their fingerprint. A setting marked `hashOmitDefault` (« Passes » of the LTX
+ * blocks, 30/10) is left out while it is missing or at its default: blocks made before it existed keep EXACTLY
+ * their fingerprint (no recompute by ricochet); only an explicit choice counts.
+ */
+function hashParamsOf(type, params, models) {
+  const o = {};
+  for (const p of type.params || []) {
+    if (p.hashOmitDefault && (params[p.id] == null || params[p.id] === p.default)) continue;
+    if (!shownParam(p, params)) { o[p.id] = p.default === undefined ? null : clone(p.default); continue; }
+    if (p.kind === 'model') {
+      const m = models[p.id];
+      o[p.id] = m ? `model:${m.id || m.file || m.path || stable(m.comfy || m.label || '')}` : String(params[p.id] ?? '');
+    } else o[p.id] = params[p.id] ?? null;
+  }
+  return o;
 }
 
 /**
@@ -868,6 +904,15 @@ class Engine extends EventEmitter {
       if (p && typeof p.then === 'function') p.then((v) => { if (v) this._prefs = v; }).catch(() => {});
       else if (p) this._prefs = p;
     } catch { /* defaults */ }
+    // « Calculs en ligne simultanés » changed in Settings: waiting online jobs may start at once
+    try {
+      if (ctx.prefs && typeof ctx.prefs.onChange === 'function') {
+        this._offPrefs = ctx.prefs.onChange((p, changed) => {
+          if (p && typeof p === 'object') this._prefs = p;
+          if (!changed || typeof changed.has !== 'function' || changed.has('cloudParallel')) setImmediate(() => this.pump());
+        });
+      }
+    } catch { /* no live prefs: read again at each status tick */ }
 
     this.loadCatalog();
     this.jobs = new Map();       // jobId → job (queued or active)
@@ -986,22 +1031,9 @@ class Engine extends EventEmitter {
     return out;
   }
 
-  /**
-   * Params that define the result — every one of the catalog (format, resolution, lora, loraStrength, follow,
-   * strength…). "auto" models hash as the model they resolve to: a new default recomputes. A setting hidden
-   * by its showIf (the LoRA strength while no LoRA is chosen) hashes as its default: no pointless recompute,
-   * and versions made before keep their fingerprint.
-   */
+  /** Params that define the result (see hashParamsOf). */
   hashParams(type, params, models) {
-    const o = {};
-    for (const p of type.params || []) {
-      if (!shownParam(p, params)) { o[p.id] = p.default === undefined ? null : clone(p.default); continue; }
-      if (p.kind === 'model') {
-        const m = models[p.id];
-        o[p.id] = m ? `model:${m.id || m.file || m.path || stable(m.comfy || m.label || '')}` : String(params[p.id] ?? '');
-      } else o[p.id] = params[p.id] ?? null;
-    }
-    return o;
+    return hashParamsOf(type, params, models);
   }
 
   hasModels() {
@@ -1202,6 +1234,8 @@ class Engine extends EventEmitter {
     // `auto` (Model block): an online model computes elsewhere (no GPU, no lock), a local one is heavy
     const g = type.engine.gpu === 'auto' ? (spec.gen && spec.gen.provider !== 'local' ? 'none' : 'heavy') : type.engine.gpu;
     const gpu = ['heavy', 'light', 'none'].includes(g) ? g : 'heavy';
+    // an online Model block: its own lane in the queue (waits for the network only, never for the GPU)
+    const online = !!(spec.gen && spec.gen.provider && spec.gen.provider !== 'local' && gpu !== 'heavy');
     // Instances de test (MIA_NO_GPU=1) : jamais de calcul GPU, même pour un amont périmé lancé par ricochet
     // (le 17/10, un essai de « Couper » a relancé « Animer une image » en amont et démarré ComfyUI).
     if (gpu === 'heavy' && process.env.MIA_NO_GPU === '1') {
@@ -1214,7 +1248,8 @@ class Engine extends EventEmitter {
       jobId: `j_${crypto.randomBytes(5).toString('hex')}`,
       projectId: project.id,
       nodeId: node.id,
-      label: node.title || tl(type.label, lang),
+      // queue and lock label: the block's own name, else (Model block) its family « LTX 2.5 », else the block type
+      label: node.title || (spec.gen && spec.gen.family) || tl(type.label, lang),
       type: type.id,
       mode: spec.mode,
       state: 'queued',
@@ -1227,9 +1262,11 @@ class Engine extends EventEmitter {
       finished: null,
       who: undefined,
       since: undefined,
+      online,
+      remote: null,          // online: 'queued' | 'running' at Higgsfield, 'full' while its queue is full (retry)
       _: {
-        project, type, spec, gpu,
-        labelFr: node.title || (type.label && type.label.fr) || type.id,   // the lock is read by French sessions
+        project, type, spec, gpu, online,
+        labelFr: node.title || (spec.gen && spec.gen.family) || (type.label && type.label.fr) || type.id,   // the lock is read by French sessions
         abort: new AbortController(),
         active: false, holdsLock: false, wantsGpu: false, lockFile: null, qui: null,
         createdUpstream: [], run: null, runId: null, outDir: null, logFile: null, logFd: null,
@@ -1252,7 +1289,7 @@ class Engine extends EventEmitter {
       jobId: job.jobId, projectId: job.projectId, nodeId: job.nodeId, label: job.label, type: job.type, mode: job.mode,
       state: job.state, progress: job.progress, eta: job.eta, etaAt: job.etaAt, message: job.message,
       created: job.created, started: job.started, finished: job.finished, who: job.who, since: job.since,
-      projectName: job._.project.name
+      projectName: job._.project.name, online: !!job.online, remote: job.remote || null
     };
   }
 
@@ -1262,6 +1299,7 @@ class Engine extends EventEmitter {
       progress: job.progress ?? null, message: job.message || '', eta: job.eta ?? null, etaAt: job.etaAt ?? null,
       label: job.label, type: job.type, mode: job.mode, ...extra
     };
+    if (job.online) { evt.online = true; evt.remote = job.remote || null; }
     if (job.who) { evt.who = job.who; evt.since = job.since; }
     if (FINAL.has(kind)) job._.finalEvt = evt;
     job._.lastEmit = Date.now();
@@ -1299,10 +1337,26 @@ class Engine extends EventEmitter {
       .map((j) => this.pub(j));
   }
 
+  /**
+   * Local light jobs running (online ones excluded: they only wait for the network), plus an online job while it does
+   * real local work (x.localWork: re-encoding before upload), so a heavy job waits for it like for a light one.
+   */
   lightActive() {
     let n = 0;
-    for (const j of this.jobs.values()) if (j._.active && j._.gpu !== 'heavy') n++;
+    for (const j of this.jobs.values()) if (j._.active && j._.gpu !== 'heavy' && (!j._.online || j._.localWork)) n++;
     return n;
+  }
+
+  /** Online jobs running now. */
+  onlineActive() {
+    let n = 0;
+    for (const j of this.jobs.values()) if (j._.active && j._.online) n++;
+    return n;
+  }
+
+  /** How many online jobs may run at once (prefs.cloudParallel, 1 to 16, default 4). */
+  onlineLimit() {
+    return onlineLimit(this._prefs);
   }
 
   depState(job) {
@@ -1329,14 +1383,18 @@ class Engine extends EventEmitter {
   /**
    * Start whatever may start, in FIFO order:
    * - one heavy job at a time (it then waits for the GPU lock and for running light jobs to end);
-   * - light/none jobs, max 2, never while a heavy job holds (or is about to take) the GPU.
+   * - light/none jobs, max 2, never while a heavy job holds (or is about to take) the GPU;
+   * - online jobs, their own lane: up to prefs.cloudParallel at once, beside anything local (they only wait for
+   *   the network: no GPU, no big CPU); they neither count among the light ones nor hold back a heavy one.
    * The catalog decides what is heavy (`engine.gpu`): composite (torch on CUDA) is, and takes the lock.
    */
   pump() {
     if (this._disposed) return;
     const active = [...this.jobs.values()].filter((j) => j._.active);
     let heavyActive = active.some((j) => j._.gpu === 'heavy');
-    let lights = active.filter((j) => j._.gpu !== 'heavy').length;
+    let lights = active.filter((j) => j._.gpu !== 'heavy' && !j._.online).length;
+    let onlines = active.filter((j) => j._.online).length;
+    const onlineMax = this.onlineLimit();
     let heavyGate = active.some((j) => j._.gpu === 'heavy' && (j._.holdsLock || j._.wantsGpu));
 
     for (const id of [...this.order]) {
@@ -1349,7 +1407,14 @@ class Engine extends EventEmitter {
         continue;
       }
       if (dep.waiting) { this.setWaitingMessage(job, this.tr('waitDep', { name: dep.waiting.label })); continue; }
-      if (job._.gpu === 'heavy') {
+      if (job._.online) {
+        if (onlines >= onlineMax) {
+          this.setWaitingMessage(job, onlines === 1 ? this.tr('waitOnlineOne') : this.tr('waitOnline', { n: onlines }));
+          continue;
+        }
+        onlines++;
+        this.start(job);
+      } else if (job._.gpu === 'heavy') {
         if (heavyActive) { this.setWaitingMessage(job, this.tr('waitHeavy')); continue; }
         heavyActive = true;
         // It wants the GPU right away: no light job may slip in behind it (released if it has to wait for another app).
@@ -1624,6 +1689,37 @@ class Engine extends EventEmitter {
     }
   }
 
+  /** Online job: its state at Higgsfield, sent with the job (queue: « en file chez Higgsfield »). */
+  onRemote(job, st) {
+    const v = ['queued', 'running', 'full'].includes(st) ? st : null;
+    if (!job.online || job.remote === v) return;
+    job.remote = v;
+    if (job.state === 'running') this.emitJob(job, 'progress');
+  }
+
+  /**
+   * An online job about to do real local work (re-encoding a video before upload): waits while a local heavy job
+   * holds (or is about to take) the GPU, so the lab rule « no big CPU next to a GPU job » holds for it too.
+   */
+  async whenGpuIdle(job, msg) {
+    const signal = job._.abort.signal;
+    const busy = () => [...this.jobs.values()].some((j) => j !== job && j._.active && j._.gpu === 'heavy' && (j._.holdsLock || j._.wantsGpu));
+    let said = false;
+    while (busy()) {
+      if (signal.aborted) throw abortError(this.tr('cancelled'));
+      if (!said && msg) { said = true; this.onProgress(job, null, msg); }
+      await sleep(Math.min(this.retryMs, 1000), signal);
+    }
+    if (signal.aborted) throw abortError(this.tr('cancelled'));
+  }
+
+  /** x.localWork: whenGpuIdle, then fn() counted as a light job (lightActive) so no heavy job starts beside it. */
+  async localWork(job, fn, msg) {
+    await this.whenGpuIdle(job, msg);
+    job._.localWork = (job._.localWork || 0) + 1;
+    try { return await fn(); } finally { job._.localWork -= 1; if (!job._.localWork) delete job._.localWork; }
+  }
+
   onPreview(job, abs) {
     if (job.state !== 'running' || !abs) return;
     const dir = job._.project.dir;
@@ -1775,6 +1871,12 @@ class Engine extends EventEmitter {
       notes: spec.notes.slice(),
       gen: spec.gen || null,                 // Model block: family, workflow, executor or online endpoint (SPEC §23)
       cloud: this.ctx.cloud || null,         // online account service (main process), for the cloud executor only
+      // online job: where it is at Higgsfield ('queued' | 'running' | 'full' | null), shown apart in the queue
+      remote: (st) => this.onRemote(job, st),
+      // online job: a real local conversion (ffmpeg re-encode) waits until no local GPU job runs (lab rule)
+      whenGpuIdle: (msg) => this.whenGpuIdle(job, msg),
+      // online job: run fn as local work (waits for the GPU to be idle first, then holds heavy jobs back until it ends)
+      localWork: (fn, msg) => this.localWork(job, fn, msg),
       model: (key) => (Object.prototype.hasOwnProperty.call(spec.models, key) ? spec.models[key] : null),
       ensureLora: (key = 'lora') => this.ensureLora(job, key, { signal }),
       progress,
@@ -2231,16 +2333,25 @@ class Engine extends EventEmitter {
     }
     let running = 0;
     let waiting = 0;
+    const online = { running: 0, waiting: 0, atHiggsfield: 0, max: this.onlineLimit() };
     for (const j of this.jobs.values()) {
-      if (j.state === 'running') running++;
-      else if (j.state === 'queued' || j.state === 'waiting-gpu') waiting++;
+      const run = j.state === 'running';
+      const wait = j.state === 'queued' || j.state === 'waiting-gpu';
+      if (run) running++;
+      else if (wait) waiting++;
+      if (j._.online) {
+        if (run) online.running++;
+        else if (wait) online.waiting++;
+        if (run && (j.remote === 'queued' || j.remote === 'full')) online.atHiggsfield++;
+      }
     }
     const g = { ...this._gpu };
     if (g.vramUsedGB != null) g.vramUsedGB = Math.max(0, g.vramTotalGB > 0 ? Math.min(g.vramUsedGB, g.vramTotalGB) : g.vramUsedGB);
     return {
       comfy: this.comfy.status(),
       gpu: { ...g, lock, busyOther: (!!lock && !lock.mine) || !!this._comfyBusyOther },
-      queue: { running, waiting }
+      // running/waiting = every job (as before); local and online apart (online: its own lane, SPEC §23.3)
+      queue: { running, waiting, local: { running: running - online.running, waiting: waiting - online.waiting }, online }
     };
   }
 
@@ -2408,6 +2519,7 @@ class Engine extends EventEmitter {
   /** Tests: stop timers without touching processes. */
   dispose() {
     this._disposed = true;
+    if (typeof this._offPrefs === 'function') { try { this._offPrefs(); } catch { /* gone */ } }
     clearInterval(this._timer);
     clearTimeout(this._statusTimer);
     clearTimeout(this._timingsTimer);
@@ -2433,5 +2545,5 @@ function runOutput(run, port) {
 
 module.exports = {
   register, Engine, Planner,
-  _internals: { stable, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB, runOutput }
+  _internals: { stable, hashParamsOf, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB, runOutput, onlineLimit }
 };

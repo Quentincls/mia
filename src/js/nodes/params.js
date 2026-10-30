@@ -34,8 +34,10 @@ import { segmented, dropdown, slider, toggle, textField, numberField } from '../
 import { modelPicker, isLoraParam, resolveModel, baseKeyOf, loraKeyOf, loraChoices, familyLabel } from './modelpicker.js';
 import { boundsFor, limitBounds, usesInput, familyName } from './profiles.js';
 import { familyPicker } from './familypicker.js';
-import { blockWorkflow, portLabels } from './ports.js';
-import { localModelFor, needsOf, portsOfFamily } from './route.js';
+import { blockWorkflow, portLabels, tierExclusion } from './ports.js';
+import { localModelFor, needsOf, portsOfFamily, chooseWorkflow, tierOf, tierAllows } from './route.js';
+import { wayWord } from './familypicker.js';
+import { modeWordKeys } from './waywords.js';
 import { localCatalog } from './profiles.js';
 import * as runs from './runs.js';
 import { strings, baseName } from './media.js';
@@ -78,6 +80,22 @@ strings({
   'node.wf.trial': 'À essayer',
   'node.wf.trialWhole': 'Nouveau, pas encore validé au labo : regarde le résultat d’un œil critique.',
   'node.wf.trialPorts': '{ports} : nouveau, pas encore validé au labo. Regarde le résultat d’un œil critique.',
+  'node.wf.mode': 'Mode',
+  'node.wf.modeHint': 'Ce que fait {family}. « Auto » : Mia choisit d’après ce que tu branches ({list}). Un mode choisi passe devant : le bloc dit ce qui lui manque et ignore ce qui ne lui sert pas.',
+  'node.wf.auto': 'Auto',
+  'node.wf.autoTip': 'D’après ce qui est branché : {what}',
+  'node.wf.autoNow': 'Auto : {what}.',
+  'node.wf.modeLacks': '{what} · il manque : {ports}',
+  'node.wf.lacksOnly': 'Il manque : {ports}',
+  'node.wf.tierIgnored': '« {ports} » n’est pas prise en {tier} (seulement {tiers}) : elle est ignorée.',
+  'node.wf.tierSwitch': 'Passer en {tier}',
+  'node.wf.switch': 'Passer en « {what} »',
+  'node.mode.fit': '« {v} » n’existe pas ici : ramené à {to}.',
+  'node.mode.fitNum': '{v} est hors de ce que permet ce mode : ramené à {to}.',
+  'node.mode.fromSource': 'Comme la source · {n} s',
+  'node.mode.srcShort': 'La vidéo source dure {s} s : {family} en demande au moins {min}.',
+  'node.mode.srcLong': 'La vidéo source dure {s} s : {family} en prend au plus {max}.',
+  'node.mode.fromSourceTip': 'La vidéo branchée dure {s} s : la durée la suit (entre {min} et {max} s) tant que tu ne la changes pas.',
 }, {
   'node.adv': 'Advanced',
   'node.advTitle': 'Advanced',
@@ -115,6 +133,22 @@ strings({
   'node.wf.trial': 'To try',
   'node.wf.trialWhole': 'New, not checked at the lab yet: look at the result with a critical eye.',
   'node.wf.trialPorts': '{ports}: new, not checked at the lab yet. Look at the result with a critical eye.',
+  'node.wf.mode': 'Mode',
+  'node.wf.modeHint': 'What {family} does. “Auto”: Mia picks from what you connect ({list}). A chosen mode wins: the block says what it lacks and ignores what it does not use.',
+  'node.wf.auto': 'Auto',
+  'node.wf.autoTip': 'From what is connected: {what}',
+  'node.wf.autoNow': 'Auto: {what}.',
+  'node.wf.modeLacks': '{what} · missing: {ports}',
+  'node.wf.lacksOnly': 'Missing: {ports}',
+  'node.wf.tierIgnored': '“{ports}” is not taken in {tier} (only {tiers}): it is ignored.',
+  'node.wf.tierSwitch': 'Switch to {tier}',
+  'node.wf.switch': 'Switch to “{what}”',
+  'node.mode.fit': '“{v}” does not exist here: brought back to {to}.',
+  'node.mode.fitNum': '{v} is outside what this mode allows: brought back to {to}.',
+  'node.mode.fromSource': 'Like the source · {n} s',
+  'node.mode.srcShort': 'The source video lasts {s} s: {family} needs at least {min}.',
+  'node.mode.srcLong': 'The source video lasts {s} s: {family} takes at most {max}.',
+  'node.mode.fromSourceTip': 'The connected video lasts {s} s: the length follows it (between {min} and {max} s) until you change it.',
 });
 
 // Réglages qui ne valent que si la vidéo branchée a du son (bloc Son : garder / remplacer le son
@@ -245,6 +279,8 @@ export function mountParams(host, opts) {
   /** Valeur montrée par un choix filtré : la plus grande permise sous la valeur gardée, sinon la première. */
   function fitValue(p, v) {
     const opts = p.options || [];
+    // réglage en ligne gardé hors du mode : on montre ce qui partira (le plus proche), la note dit pourquoi
+    if (p._noteOf && opts.length && v != null && !opts.some((o) => String(o.value) === String(v))) return nearestOption(p, v);
     if (!p.limit || !opts.length || opts.some((o) => String(o.value) === String(v))) return v;
     const n = Number(v);
     const below = opts.filter((o) => Number(o.value) <= n);
@@ -281,7 +317,33 @@ export function mountParams(host, opts) {
       default: row = textRow(p);
     }
     rows.set(p.id, row);
+    if (p._noteOf) modeNoted.set(p.id, p);
     return row;
+  }
+
+  // ── réglage en ligne gardé hors de son mode, durée qui suit la source : une note sous la rangée ──
+  const modeNoted = new Map();         // paramId → définition qui porte _noteOf
+  function applyModeNotes() {
+    for (const [id, p] of modeNoted) {
+      const row = rows.get(id);
+      if (!row) continue;
+      const m = p._noteOf(node.params?.[id]);
+      let note = row.querySelector(':scope > .np-modenote');
+      if (m && !note) {
+        note = el('div', { class: 'np-note np-modenote' });
+        row.classList.add('np-wrap');
+        row.append(note);
+        tip(note, () => note.dataset.more || '');
+      }
+      if (!note) continue;
+      note.hidden = !m;
+      const key = m ? `${m.info ? 'i' : 'w'}|${m.text}` : '';
+      if (m && note.dataset.msg !== key) {
+        note.dataset.msg = key;
+        note.dataset.more = m.tip || '';
+        note.replaceChildren(el('span', { class: 'np-note-ico', html: icon('info', 12) }), el('span', {}, m.text));
+      }
+    }
   }
 
   function line(p, control, cls = '') {
@@ -435,7 +497,44 @@ export function mountParams(host, opts) {
       trial.hidden = !(workflow.trial || trialPorts.length) || !!blocked;
       row.classList.toggle('blocked', !!blocked);
       box.querySelector('.seg')?.remove();
-      if (ties && ties.length > 1) {
+      box.querySelector('.dd')?.remove();
+      // modèle en ligne à plusieurs modes (30/10) : le mode se voit et se choisit toujours ; « Auto » = d'après les fils.
+      // Un mode impossible avec les fils actuels reste cliquable, estompé : choisi, il montre ce qui lui manque.
+      const modes = wfInfo.fam.provider !== 'local' ? (wfInfo.fam.def.workflows || []) : [];
+      if (modes.length > 1) {
+        const lacks = (w) => {
+          const r = chooseWorkflow(wfInfo.fam, connected, w.id);
+          return r && r.blocked ? r.missing : [];
+        };
+        const autoLabel = tl(wfInfo.auto?.label || workflow.label || {});
+        const cur = wfInfo.forced ? workflow.id : '';
+        // deux modes qui auraient le même mot court (« Auto · Texte · Texte ») prennent leur libellé entier
+        const wordOk = modeWordKeys(modes);
+        const opts = [{ value: '', label: t('node.wf.auto'), tip: t('node.wf.autoTip', { what: autoLabel }), dim: false },
+          ...modes.map((w, i) => {
+            const miss = lacks(w);
+            const full = tl(w.label || {});
+            return { value: w.id, label: wordOk[i] ? wayWord(w) : full, full, dim: miss.length > 0, miss,
+              tip: miss.length ? t('node.wf.modeLacks', { what: full, ports: words(miss) }) : full };
+          })];
+        let c;
+        if (modes.length <= 4) {
+          c = segmented({ options: opts.map(({ value, label: l, tip: tp }) => ({ value, label: l, tip: tp })), value: cur, size: 'sm', onChange: (v) => commit(p, v) });
+          c.querySelectorAll('.seg-opt').forEach((b, i) => b.classList.toggle('dim', !!opts[i]?.dim));
+          box.append(c);
+          c.adapt({ watch: probeOf(row), room: () => roomOf(row), onLevel: (lvl) => setStack(row, lvl !== 'inline') });
+        } else {
+          c = dropdown({
+            // l'aide d'un mode impossible dit seulement ce qui manque (le libellé est juste au-dessus), estompé
+            items: opts.map((o) => ({ value: o.value, label: o.full || o.label, dim: o.dim,
+              hint: o.dim ? t('node.wf.lacksOnly', { ports: words(o.miss) }) : undefined })),
+            value: cur, onChange: (v) => commit(p, v),
+          });
+          box.append(c);
+          setStack(row, false);
+        }
+        value.hidden = true;
+      } else if (ties && ties.length > 1) {
         const c = segmented({
           options: ties.map((w) => ({ value: w.id, label: tl(w.label || {}) })),
           value: workflow.id, size: 'sm', onChange: (v) => commit(p, v),
@@ -452,6 +551,25 @@ export function mountParams(host, opts) {
       const mine = (unused || []).filter((id) => famPorts[id]);
       const foreign = (unused || []).filter((id) => !famPorts[id]);
       if (mine.length) msgs.push(t('node.wf.unused', { ports: words(mine), what: tl(workflow.label || {}) }));
+      // branchée, dans le mode, mais pas prise au palier choisi (Kling 3.0 Turbo : pas d'image de fin) : le dire, avec
+      // le palier qui la prend en un clic
+      let tierTo = null;
+      if (wfInfo.fam.provider !== 'local') {
+        const off = connected.filter((id) => !(unused || []).includes(id) && tierExclusion(node, workflow, id));
+        const x = off.length ? tierExclusion(node, workflow, off[0]) : null;
+        if (x) {
+          msgs.push(t('node.wf.tierIgnored', { ports: words(off), tier: x.tierName, tiers: x.tiers.join(', ') }));
+          tierTo = { value: x.first, name: x.tiers[0] };
+        }
+      }
+      // en ligne : une entrée ignorée propose le mode qui s'en sert (« Passer en Animer une image »)
+      let switchTo = null;
+      if (modes.length > 1 && mine.length) {
+        const takers = modes.filter((w) => w !== workflow && (w.ports || {})[mine[0]]);
+        switchTo = takers.find((w) => !chooseWorkflow(wfInfo.fam, connected, w.id)?.blocked) || takers[0] || null;
+      }
+      // en ligne, auto : ce que Mia a retenu d'après les fils
+      if (modes.length > 1 && !wfInfo.forced && !blocked) msgs.unshift(t('node.wf.autoNow', { what: value.textContent }));
       if (foreign.length) {
         const fams = Object.values(localCatalog().families || {}).filter((f) => Array.isArray(f.workflows) && f.workflows.length
           && f.name !== wfInfo.fam.def.name && foreign.some((id) => portsOfFamily({ def: f })[id]));
@@ -465,7 +583,25 @@ export function mountParams(host, opts) {
       note.hidden = !msgs.length;
       if (msgs.length) {
         note.className = `np-note${blocked ? ' np-warn' : ''}`;
-        note.replaceChildren(el('span', { class: 'np-note-ico', html: icon(blocked ? 'warn' : 'info', 12) }), el('span', {}, msgs.join(' ')));
+        const txt = el('span', {}, msgs.join(' '));
+        if (tierTo) {
+          const act = el('button', { class: 'np-note-act', type: 'button' }, t('node.wf.tierSwitch', { tier: tierTo.name }));
+          act.addEventListener('pointerdown', stop);
+          act.addEventListener('click', (e) => {
+            e.stopPropagation();
+            opts.setParam('hf.tier', tierTo.value);
+            opts.onChange?.('hf.tier', tierTo.value);
+            ctrls.get('hf.tier')?.set(tierTo.value);
+          });
+          txt.append(' ', act);
+        }
+        if (switchTo) {
+          const act = el('button', { class: 'np-note-act', type: 'button' }, t('node.wf.switch', { what: tl(switchTo.label || {}) }));
+          act.addEventListener('pointerdown', stop);
+          act.addEventListener('click', (e) => { e.stopPropagation(); commit(p, switchTo.id); });
+          txt.append(' ', act);
+        }
+        note.replaceChildren(el('span', { class: 'np-note-ico', html: icon(blocked ? 'warn' : 'info', 12) }), txt);
       }
     }
     paint();
@@ -558,12 +694,15 @@ export function mountParams(host, opts) {
   }
 
   function seedRow(p) {
-    const n = numberField({ value: Number(val(p)) || 0, min: 0, max: 2147483647, step: 1, onChange: (v) => commit(p, Math.round(Number(v) || 0)) });
+    // bornes du modèle (en ligne : SOUL 1 à 1 000 000, HappyHorse dès 1…) ; sinon celles d'un entier 32 bits
+    const lo = Number.isFinite(Number(p.min)) ? Number(p.min) : 0;
+    const hi = Number.isFinite(Number(p.max)) ? Number(p.max) : 2147483647;
+    const n = numberField({ value: Number(val(p)) || 0, min: lo, max: hi, step: 1, onChange: (v) => commit(p, Math.round(Number(v) || 0)) });
     const dice = el('button', { class: 'np-icon-btn', html: icon('dice', 15), 'data-tip': t('node.seedRandom') });
     dice.addEventListener('pointerdown', stop);
     dice.addEventListener('click', (e) => {
       e.stopPropagation();
-      const v = Math.floor(Math.random() * 1e9);
+      const v = Math.max(lo, 0) + Math.floor(Math.random() * Math.min(1e9, hi - Math.max(lo, 0) + 1));
       n.setValue(v);
       commit(p, v);
     });
@@ -867,6 +1006,7 @@ export function mountParams(host, opts) {
 
   function applyVisibility() {
     applyLimits();
+    applyModeNotes();
     if (noAudioNote) {
       const silent = sourceSilent();
       if (noAudioNote.hidden === silent) noAudioNote.hidden = !silent;
@@ -979,6 +1119,23 @@ export function mountParams(host, opts) {
   };
 }
 
+// rangs des définitions (une résolution hors mode est ramenée à la plus proche par rang, comme le moteur)
+const RES_RANK = ['480p', '540p', '720p', '768p', '1k', '1080p', '2k', '1440p', '4k'];
+/** L'option la plus proche d'une valeur gardée hors du mode : par rang pour une définition, par écart pour un nombre. */
+function nearestOption(p, v) {
+  const opts = p.options || [];
+  if (!opts.length) return p.default;
+  const rank = (x) => RES_RANK.indexOf(String(x).toLowerCase());
+  if (rank(v) >= 0 && opts.some((o) => rank(o.value) >= 0)) {
+    return opts.reduce((a, o) => (Math.abs(rank(o.value) - rank(v)) < Math.abs(rank(a.value) - rank(v)) ? o : a)).value;
+  }
+  const n = Number(v);
+  if (Number.isFinite(n) && opts.every((o) => Number.isFinite(Number(o.value)))) {
+    return opts.reduce((a, o) => (Math.abs(Number(o.value) - n) < Math.abs(Number(a.value) - n) ? o : a)).value;
+  }
+  return opts.some((o) => String(o.value) === String(p.default)) ? p.default : opts[0].value;
+}
+
 /**
  * Réglages d'un bloc Modèle (SPEC §23) : le modèle (carte de famille), « Ce que fait le bloc », puis seulement
  * les réglages de ce que fait le bloc — ceux du catalogue pour un modèle du PC (la liste de son workflow dans
@@ -1005,7 +1162,68 @@ function mountModelParams(host, opts) {
     if (r) { r.trialPorts = conn.filter((id) => r.workflow.ports?.[id]?.trial); r.connected = conn.filter((id) => id !== 'prompt'); }
     return r;
   };
-  const signature = (r) => (r ? `${r.fam.provider}:${r.fam.key}:${r.workflow.id}:${r.ties.map((w) => w.id).join('|')}:${r.blocked ? 1 : 0}:${r.unused.join(',')}:${r.trialPorts.join(',')}:${[...r.connected].sort().join(',')}` : 'none');
+  // en ligne : le palier (Kling 3.0 Turbo n'a ni son ni image de fin), le mode choisi et la durée de la vidéo branchée
+  // (montage Kling 4.0 : la durée suit la source) refont aussi les rangées
+  const signature = (r) => (r ? `${r.fam.provider}:${r.fam.key}:${r.workflow.id}:${r.ties.map((w) => w.id).join('|')}:${r.blocked ? 1 : 0}:${r.unused.join(',')}:${r.trialPorts.join(',')}:${[...r.connected].sort().join(',')}:${r.forced ? 1 : 0}:${r.auto?.id || ''}`
+    + (r.fam.provider !== 'local' ? `:${tierOf(r.workflow, node.params || {}) || ''}:${sourceSeconds(r) ?? ''}` : '') : 'none');
+
+  /** Durée (s) de la vidéo branchée quand le mode en ligne prend sa durée sur elle (`durationFromSource`), sinon null. */
+  function sourceSeconds(r) {
+    const port = r?.workflow?.durationFromSource;
+    if (!port) return null;
+    let src = null;
+    try { src = runs.source(node.id, port); } catch { src = null; }
+    const m = src?.meta || null;
+    const d = Number(m?.duration) || (m?.frames && m?.fps ? m.frames / m.fps : 0);
+    return d > 0 ? Math.round(d * 10) / 10 : null;
+  }
+
+  /**
+   * Un réglage en ligne tel que le mode et le palier le permettent (30/10) : null s'il n'existe pas à ce palier
+   * (`onlyTiers`), choix restreints (`tierOptions`), rangée à un seul choix ou « Format du fichier » cachés (rien à
+   * choisir dans Mia), durée qui suit la source, et `_noteOf(v)` : la phrase sous la rangée quand la valeur gardée
+   * sort de ce mode (le moteur la ramène aussi, avec une note dans la version).
+   */
+  function cloudParam(p0, r) {
+    const tier = tierOf(r.workflow, node.params || {});
+    if (!tierAllows(p0, tier)) return null;
+    let p = p0;
+    const restrict = p.tierOptions && tier != null ? p.tierOptions[tier] : null;
+    if (Array.isArray(restrict) && p.options) p = { ...p, options: p.options.filter((o) => restrict.map(String).includes(String(o.value))) };
+    if (p.id === 'hf.output_format') return null;
+    if ((p.kind === 'seg' || p.kind === 'select') && (p.options || []).length <= 1) return null;
+    if (p.id === 'hf.tier') return p;
+    // durée prise sur la vidéo branchée (montage Kling 4.0) tant que Quentin ne l'a pas réglée
+    const sec = p.id === 'hf.duration' ? sourceSeconds(r) : null;
+    const set = node.params?.[p.id];
+    if (sec != null && (set === undefined || set === null || set === '')) {
+      let d = Math.round(sec);
+      if (p.kind === 'slider') d = clamp(d, p.min ?? d, p.max ?? d);
+      else if (p.options?.length) d = p.options.map((o) => Number(o.value)).reduce((a, b) => (Math.abs(b - sec) < Math.abs(a - sec) ? b : a));
+      p = { ...p, default: d, _fromSource: { s: sec, n: d, min: p.min, max: p.max } };
+    }
+    // la vidéo branchée hors des bornes du mode (Kling 4.0 : 3 à 30 s) : la durée ne peut pas « suivre la source »,
+    // la raison en rouge sous la rangée (le pied et le puits la disent aussi ; rien n'est envoyé)
+    const srcDef = sec != null ? ((r.workflow.ports || {})[r.workflow.durationFromSource] || {}) : null;
+    const srcOut = srcDef && ((srcDef.minSeconds > 0 && sec < srcDef.minSeconds - 0.05) || (srcDef.maxSeconds > 0 && sec > srcDef.maxSeconds + 0.05))
+      ? { s: sec, min: srcDef.minSeconds, max: srcDef.maxSeconds, family: r.fam.def.name } : null;
+    const label = (v) => { const o = (p.options || []).find((x) => String(x.value) === String(v)); return o ? tl(o.label || {}) || String(v) : String(v); };
+    p = { ...p, _noteOf: (v) => {
+      if (srcOut) return { text: t(srcOut.min > 0 && srcOut.s < srcOut.min ? 'node.mode.srcShort' : 'node.mode.srcLong', srcOut) };
+      if (v === undefined || v === null || v === '') {
+        return p._fromSource ? { info: true, text: t('node.mode.fromSource', { n: p._fromSource.n }), tip: t('node.mode.fromSourceTip', p._fromSource) } : null;
+      }
+      if ((p.kind === 'seg' || p.kind === 'select') && p.options?.length && !p.options.some((o) => String(o.value) === String(v))) {
+        return { text: t('node.mode.fit', { v: String(v), to: label(nearestOption(p, v)) }) };
+      }
+      if ((p.kind === 'slider' || p.kind === 'seed' || p.kind === 'number') && Number.isFinite(Number(v))) {
+        const n = Number(v);
+        if ((p.min != null && n < p.min) || (p.max != null && n > p.max)) return { text: t('node.mode.fitNum', { v: n, to: clamp(n, p.min ?? n, p.max ?? n) }) };
+      }
+      return null;
+    } };
+    return p;
+  }
 
   function effectiveType(r) {
     const list = [P('model'), workflowParam(r)];
@@ -1027,8 +1245,13 @@ function mountModelParams(host, opts) {
         } else list.push(p);
       }
     } else if (r) {
-      list.push(P('prompt'));
-      for (const p of r.workflow.params || []) list.push(p);       // définitions du catalogue en ligne, telles quelles
+      // consigne obligatoire selon le mode, ou seulement à certains paliers (Kling 3.0 Turbo)
+      const tier = tierOf(r.workflow, node.params || {});
+      const need = r.workflow.promptRequired || (Array.isArray(r.workflow.promptRequiredTiers) && r.workflow.promptRequiredTiers.includes(tier));
+      const pp = P('prompt');
+      list.push(pp && need ? { ...pp, required: true } : pp);
+      // définitions du catalogue en ligne, au mode et au palier choisis
+      for (const p of r.workflow.params || []) { const e = cloudParam(p, r); if (e) list.push(e); }
     } else list.push(P('prompt'));
     return { ...base, params: list.filter(Boolean), _wf: r };
   }
@@ -1048,8 +1271,10 @@ function mountModelParams(host, opts) {
       const needs = needsOf(w);
       parts.push(`${needs.length ? needs.map(word).join(' + ') : t('node.wf.nothing')} → ${what}`);
     }
-    const hint = t('node.wf.hint', { family: r.fam.def.name, list: parts.join(' · ') });
-    return { ...p, hint: { fr: hint, en: hint } };
+    const online = r.fam.provider !== 'local' && (r.fam.def.workflows || []).length > 1;
+    const hint = t(online ? 'node.wf.modeHint' : 'node.wf.hint', { family: r.fam.def.name, list: parts.join(' · ') });
+    const lab = online ? t('node.wf.mode') : null;
+    return { ...p, hint: { fr: hint, en: hint }, ...(lab ? { label: { fr: lab, en: lab } } : {}) };
   }
 
   function build() {
@@ -1070,17 +1295,20 @@ function mountModelParams(host, opts) {
   };
 }
 
-/** Hauteur d'un textarea qui suit son contenu (bornée par le CSS max-height). */
+/**
+ * Hauteur d'un textarea qui suit son contenu (bornée par le CSS max-height). Électron 38 sait `field-sizing: content` :
+ * aucune lecture de scrollHeight, donc aucune mise en page forcée à l'ouverture d'une planche (≈ 100 ms pour 26
+ * Consignes, rapport perf du 30/10). Repli : les lectures groupées dans une seule image (util.measureLater).
+ */
 export function autoGrow(fieldEl) {
   const ta = fieldEl.matches?.('textarea') ? fieldEl : fieldEl.querySelector?.('textarea');
   if (!ta) return;
-  const fit = () => {
-    ta.style.height = 'auto';
-    ta.style.height = `${ta.scrollHeight + 2}px`;
-  };
+  if (globalThis.CSS?.supports?.('field-sizing', 'content')) { ta.style.fieldSizing = 'content'; return; }
+  const job = { read: () => ta.scrollHeight, write: (h) => { ta.style.height = `${h + 2}px`; } };
+  const fit = () => { ta.style.height = 'auto'; measureLater(job); };
   ta.addEventListener('input', fit);
-  requestAnimationFrame(fit);
+  fit();
   // setValue() externe : réajuster aussi
   const set = fieldEl.setValue;
-  if (typeof set === 'function') fieldEl.setValue = (v) => { set.call(fieldEl, v); requestAnimationFrame(fit); };
+  if (typeof set === 'function') fieldEl.setValue = (v) => { set.call(fieldEl, v); fit(); };
 }

@@ -289,32 +289,216 @@ export function extractFrame(srcNodeId, port, f) {
   return id;
 }
 
+// ── copies légères pour la planche ───────────────────────────────────
+// Sur la planche, une vidéo de plus de 1 100 px de côté se lit dans une copie légère (960 px, H.264
+// sans images B, mêmes cadence et nombre d'images : le numéro d'image ne change pas), et une image
+// de plus de 1 024 px s'affiche dans une vignette de 640 px. L'original revient dès que le puits
+// dépasse ces tailles en pixels réels, pour le lecteur précis (pause, image par image) et dans la
+// visionneuse, qui ne passe pas par ici. Les copies sont faites à la demande, au premier affichage,
+// en basse priorité, par electron/media.js, dans le cache de la planche (comme les proxys) :
+// cache/lite/<chemin>.lite.mp4 et cache/lite/<chemin>.thumb.jpg (.thumb.png pour une image à alpha).
+// L'IA lit toujours l'original.
+
+const LITE_PX = 960;        // vidéo : copie légère tant que le puits fait au plus 960 px réels
+const LITE_MIN = 1100;      // en dessous de ce côté, l'original est déjà léger
+const THUMB_PX = 640;       // image : vignette tant que le puits fait au plus 640 px réels
+const THUMB_MIN = 1024;
+const THUMB_EXT = /\.(png|jpe?g|webp|bmp|avif)$/i;   // pas de GIF (animé), ni ce qui a déjà son aperçu PNG
+
+/** Chemin (relatif à la planche) de la copie légère d'un média de la planche. Même règle que electron/media.js. */
+export const liteRel = (rel, kind, alpha = false) =>
+  `cache/lite/${rel}${kind === 'video' ? '.lite.mp4' : alpha ? '.thumb.png' : '.thumb.jpg'}`;
+
+/**
+ * La copie légère que mérite ce média, ou null. media = { rel, kind, meta, alpha? } (rel = chemin
+ * relatif à la planche : media/… ou outputs/…). Une image à alpha a une vignette PNG (damier intact).
+ */
+export function liteOf(media) {
+  const rel = media?.rel;
+  if (!rel || typeof rel !== 'string' || isAbs(rel) || !/^(media|outputs)\//.test(rel) || rel.split('/').includes('..')) return null;
+  const m = media.meta || {};
+  const side = Math.max(m.w || 0, m.h || 0);
+  if (media.kind === 'video') {
+    if (side <= LITE_MIN) return null;
+  } else if (media.kind === 'image') {
+    if (side <= THUMB_MIN || !THUMB_EXT.test(rel)) return null;
+  } else return null;
+  const pid = state.project?.id;
+  if (!pid) return null;
+  const alpha = media.kind === 'image' && !!(m.alpha || media.alpha);
+  return { rel, kind: media.kind, alpha, pid, url: mediaUrl(liteRel(rel, media.kind, alpha), pid) };
+}
+
+const liteState = new Map();   // « pid|rel » → 'asked' | 'pending' | 'ready' | 'none'
+const liteWait = new Map();    // « pid|rel » → Set(fn(état)) : rappelées à chaque changement
+let liteBatch = null;
+
+/** État de la copie légère, demandée si besoin ; `onChange(état)` est rappelée quand elle change. */
+function requestLite(l, onChange) {
+  const k = `${l.pid}|${l.rel}`;
+  const st = liteState.get(k);
+  if (st === 'ready' || st === 'none') return st;
+  if (onChange) {
+    if (!liteWait.has(k)) liteWait.set(k, new Set());
+    liteWait.get(k).add(onChange);
+  }
+  if (st) return st;
+  liteState.set(k, 'asked');
+  if (!liteBatch) { liteBatch = new Map(); setTimeout(flushLite, 16); }
+  if (!liteBatch.has(l.pid)) liteBatch.set(l.pid, []);
+  liteBatch.get(l.pid).push({ rel: l.rel, kind: l.kind, alpha: !!l.alpha });
+  return 'asked';
+}
+
+function setLite(k, st) {
+  if (liteState.get(k) === st) return;
+  liteState.set(k, st);
+  const fns = liteWait.get(k);
+  if (st === 'ready' || st === 'none') liteWait.delete(k);
+  for (const fn of fns || []) { try { fn(st); } catch (e) { console.error(e); } }
+}
+
+async function flushLite() {
+  const batch = liteBatch;
+  liteBatch = null;
+  for (const [pid, items] of batch || []) {
+    let res = null;
+    // Demande groupée par le canal d'import (electron/media.js reconnaît { lite: [...] }) :
+    // « ready » = la copie existe, « pending » = elle se fait en basse priorité, sinon pas de copie.
+    try { res = await window.mia?.media?.importPaths?.(pid, { lite: items }); } catch { res = null; }
+    const list = Array.isArray(res) ? res : [];
+    for (const it of items) {
+      const r = list.find((x) => x && x.rel === it.rel);
+      setLite(`${pid}|${it.rel}`, r?.lite ? 'ready' : r?.pending ? 'pending' : 'none');
+    }
+  }
+}
+
+// une copie faite en tâche de fond arrive par l'évènement des proxys, avec une source « lite:<rel> »
+window.mia?.media?.onProxy?.((evt) => {
+  if (typeof evt?.src !== 'string' || !evt.src.startsWith('lite:') || !evt.projectId) return;
+  setLite(`${evt.projectId}|${evt.src.slice(5)}`, evt.lite ? 'ready' : 'none');
+});
+on('project:opened', () => {
+  // une planche rouverte redemande au disque (copie effacée avec cache\, fichier remplacé)
+  for (const [k, st] of liteState) if (st !== 'pending' && st !== 'asked') liteState.delete(k);
+});
+
+/**
+ * URL d'une petite image pour une vignette (puce de référence, version) : la vignette de 640 px
+ * si elle est prête, sinon l'original (et la vignette est demandée pour la prochaine fois).
+ * media = { rel, kind:'image', meta }.
+ */
+export function lightImageUrl(media, onReady = null) {
+  const orig = urlFor(media?.rel);
+  const l = liteOf(media);
+  if (!l) return orig;
+  // `onReady(url)` : la vignette, dès qu'elle est faite (l'image affichée peut passer dessus sans attendre)
+  const st = requestLite(l, onReady ? (s) => { if (s === 'ready') onReady(l.url); } : undefined);
+  return st === 'ready' ? l.url : orig;
+}
+
+const realPx = (css) => css * (window.devicePixelRatio || 1);
+
 // ── budget vidéo de la planche ───────────────────────────────────────
-// Chaque vidéo de puits s'inscrit ici. Un IntersectionObserver dit si elle est
-// dans la vue ; un relevé léger toutes les 400 ms mesure sa largeur à l'écran
-// (le zoom de la caméra ne déclenche pas l'observer).
+// Chaque vidéo de puits s'inscrit ici. L'éditeur dit si sa carte est dans la vue (évènement
+// « mia:visibility », le même calcul que pour cacher les cartes : pas de second suivi) ; un
+// ResizeObserver donne la largeur du puits dans le monde, que le relevé de 400 ms multiplie par le
+// zoom : aucune mesure à l'écran, aucune mise en page forcée. Hors d'une carte (rare), un
+// IntersectionObserver prend le relais.
 
 const MIN_PX = 120;         // en dessous : poster, pas de décodage
-const MAX_AUTOPLAY = 8;     // vidéos qui jouent seules en même temps
-const UNLOAD_MS = 30000;    // hors champ depuis 30 s : on rend le décodeur
+const MAX_AUTOPLAY = 8;     // vidéos qui jouent seules en même temps (les plus grandes, les plus centrales)
+const MAX_LOADED = 16;      // vidéos chargées au plus : au-delà, on rend d'abord les plus anciennes hors champ
+const UNLOAD_MS = 5000;     // hors champ depuis 5 s : on rend le décodeur
 
 const slots = new Set();
-const slotByEl = new WeakMap();
+const slotByEl = new WeakMap();     // hôte → slot (vidéo ou image)
+const slotsByNode = new Map();      // carte .node → Set(slot)
+const boundNodes = new WeakSet();
+const imgSlots = new Set();         // images en vignette, à passer à l'original si le puits grandit
 let pollTimer = 0;
+let attachRaf = 0;
+
+const camZ = () => {
+  try { return window.__mia?.editor?.camera?.()?.z || 1; } catch { return 1; }
+};
 
 const io = typeof IntersectionObserver === 'function'
   ? new IntersectionObserver((entries) => {
     for (const e of entries) {
       const s = slotByEl.get(e.target);
-      if (!s) continue;
-      s.inView = e.isIntersecting;
+      if (!s || s.node) continue;
+      setInView(s, e.isIntersecting);
       s.px = e.boundingClientRect.width;
-      if (!s.inView && !s.hiddenAt) s.hiddenAt = performance.now();
-      if (s.inView) s.hiddenAt = 0;
       applySlot(s);
     }
   }, { rootMargin: '160px' })
   : null;
+
+const ro = typeof ResizeObserver === 'function'
+  ? new ResizeObserver((entries) => {
+    const z = camZ();
+    for (const e of entries) {
+      const s = slotByEl.get(e.target);
+      if (!s) continue;
+      s.worldW = e.contentRect.width;
+      if (s.img) { checkImage(s, z); continue; }
+      if (!s.node) attach(s);
+      if (s.node) { s.px = s.worldW * z; applySlot(s); }
+    }
+  })
+  : null;
+
+function setInView(s, v) {
+  s.inView = v;
+  if (!v && !s.hiddenAt) s.hiddenAt = performance.now();
+  if (v) s.hiddenAt = 0;
+}
+
+function onNodeVisibility(e) {
+  const set = slotsByNode.get(e.currentTarget);
+  if (!set) return;
+  const visible = !!e.detail?.visible;
+  // la largeur au zoom ACTUEL : au dézoom (« Cadrer tout », molette), le relevé attend la fin du geste et le
+  // ResizeObserver ne voit pas le zoom ; avec l'ancienne, chaque carte qui entre serait jugée assez grande et
+  // chargée (36 vidéos de 34 px mesurées sur Plan 01)
+  const z = camZ();
+  for (const s of set) {
+    if (s.node) s.px = (s.worldW || 0) * z;
+    setInView(s, visible);
+    applySlot(s);
+  }
+}
+
+/** Rattache le slot à sa carte (dès que le puits est dans la page). */
+function attach(s) {
+  if (s.node || !s.host.isConnected) return;
+  const node = s.host.closest('.node');
+  if (!node) {
+    if (io && !s.io) { s.io = true; io.observe(s.host); }
+    else if (!io) { s.inView = true; s.px = 999; }
+    return;
+  }
+  s.node = node;
+  if (!slotsByNode.has(node)) slotsByNode.set(node, new Set());
+  slotsByNode.get(node).add(s);
+  if (!boundNodes.has(node)) { boundNodes.add(node); node.addEventListener('mia:visibility', onNodeVisibility); }
+  setInView(s, !node.classList.contains('off'));
+  s.px = (s.worldW || 0) * camZ();
+}
+
+function flushAttach() {
+  attachRaf = 0;
+  const z = camZ();
+  for (const s of slots) {
+    if (s.node || s.io) continue;
+    attach(s);
+    if (s.node) { s.px = (s.worldW || 0) * z; applySlot(s); }
+  }
+}
+
+function weight(s) { return s.follower ? 2 : 1; }
 
 function playingCount() {
   let n = 0;
@@ -322,37 +506,192 @@ function playingCount() {
   return n;
 }
 
+function loadedCount() {
+  let n = 0;
+  for (const s of slots) if (s.loaded) n += weight(s);
+  return n;
+}
+
+const wanted = (s) => s.inView && s.px >= MIN_PX && !document.hidden && !s.suspended;
+
+/** Au plus MAX_LOADED vidéos chargées : on rend d'abord celles hors champ depuis le plus longtemps. */
+function enforceBudget(incoming = 0) {
+  let n = loadedCount() + incoming;
+  if (n <= MAX_LOADED) return;
+  const idle = [...slots].filter((s) => s.loaded && !wanted(s))
+    .sort((a, b) => (a.hiddenAt || Infinity) - (b.hiddenAt || Infinity));
+  for (const s of idle) {
+    if (n <= MAX_LOADED) break;
+    unload(s);
+    n -= weight(s);
+  }
+}
+
 function poll() {
   if (document.hidden) return;
-  // Pendant un geste de caméra (#world.moving), mesurer les puits forçait le style et la mise en page
-  // entre deux images (jusqu'à 127 ms en dézoomant, 28/10) : le relevé suivant, à l'arrêt, suffit.
+  // Pendant un geste de caméra (#world.moving), le relevé attend l'arrêt : les puits ne changent pas
+  // d'état au milieu d'un zoom (le relevé suivant, à l'arrêt, suffit).
   if (document.getElementById('world')?.classList.contains('moving')) return;
-  const seen = [], gone = [];
+  const z = camZ();
+  const now = performance.now();
   for (const s of slots) {
-    if (s.inView) seen.push(s);
-    else if (s.loaded && s.hiddenAt && performance.now() - s.hiddenAt > UNLOAD_MS) gone.push(s);
+    if (!s.node && !s.io) attach(s);
+    if (s.node) s.px = (s.worldW || 0) * z;
   }
-  // toutes les mesures d'abord, puis les changements : une seule mise en page
-  for (const s of seen) s.px = s.host.getBoundingClientRect().width;
-  for (const s of seen) applySlot(s);
-  for (const s of gone) unload(s);
+  for (const s of slots) {
+    // hors champ, ou dans le champ mais si petite que son poster la remplace, depuis 5 s : décodeur rendu
+    const idle = s.loaded && !s.suspended && !wanted(s) && (!s.inView || !!s.poster);
+    if (!idle) { s.idleAt = 0; continue; }
+    if (!s.idleAt) s.idleAt = s.inView ? now : (s.hiddenAt || now);
+    if (now - s.idleAt > UNLOAD_MS) unload(s);
+  }
+  for (const s of slots) if (s.inView) applySlot(s);
+  enforceBudget();
+  rankAutoplay(z);
+  for (const s of imgSlots) checkImage(s, z);
+}
+
+/**
+ * Parmi les vidéos qui jouent seules, priorité aux plus grandes et aux plus centrales (le nombre ne
+ * change pas : MAX_AUTOPLAY). Une vidéo lancée ou arrêtée à la main n'est jamais touchée.
+ */
+function rankAutoplay(z) {
+  const cands = [];
+  let mine = 0;
+  for (const s of slots) {
+    if (s.userPlayed && !s.video.paused) { mine++; continue; }
+    if (s.loaded && !s.userPaused && !s.userPlayed && s.autoplay && wanted(s)) cands.push(s);
+  }
+  const free = Math.max(0, MAX_AUTOPLAY - mine);
+  if (cands.length <= free) return;
+  const ed = window.__mia?.editor;
+  const cam = ed?.camera?.();
+  const stage = document.getElementById('stage');
+  const vw = stage?.clientWidth || window.innerWidth;
+  const vh = stage?.clientHeight || window.innerHeight;
+  const cx = cam ? cam.x + vw / 2 / z : 0, cy = cam ? cam.y + vh / 2 / z : 0;
+  const half = Math.max(1, Math.hypot(vw, vh) / 2 / z);
+  for (const s of cands) {
+    const n = cam && s.node ? ed.getNode?.(s.node.dataset.id) : null;
+    const d = n ? Math.hypot(n.x + (n.w || 336) / 2 - cx, n.y + 150 - cy) : half;
+    s.rank = s.px / (1 + d / half);
+  }
+  cands.sort((a, b) => b.rank - a.rank);
+  cands.forEach((s, i) => {
+    if (i < free) { if (s.video.paused) s.video.play().catch(() => {}); }
+    else if (!s.video.paused) s.video.pause();
+  });
+}
+
+/** Source de lecture : la copie légère (si prête et le puits assez petit) ou l'original. */
+function pickSource(s, l, orig) {
+  if (!l || s.precise || realPx(s.px) > LITE_PX) return { url: orig, lite: false };
+  s.onLite ||= () => { if (slots.has(s)) applySlot(s); };
+  const st = requestLite(l, s.onLite);
+  if (st === 'asked') return null;               // réponse dans un instant : on attend plutôt que charger deux fois
+  return st === 'ready' ? { url: l.url, lite: true } : { url: orig, lite: false };
+}
+
+function load(s) {
+  const p = pickSource(s, s.lite, s.src);
+  if (!p) return;
+  enforceBudget(weight(s));
+  // plus de place (16 vidéos voulues, aucune hors champ à rendre) : elle attend un relevé suivant
+  if (loadedCount() + weight(s) > MAX_LOADED) return;
+  s.using = p.lite ? 'lite' : 'orig';
+  s.video.src = p.url;
+  if (s.follower) {
+    const fp = p.lite ? pickSource(s, s.follower.lite, s.follower.src) : null;
+    s.follower.video.src = fp?.url || s.follower.src;
+    s.follower.using = fp?.lite ? 'lite' : 'orig';
+  }
+  s.loaded = true;
 }
 
 function unload(s) {
   s.video.pause();
   s.video.removeAttribute('src');
   try { s.video.load(); } catch { /* rien */ }
+  if (s.follower) {
+    const f = s.follower.video;
+    f.pause();
+    f.removeAttribute('src');
+    try { f.load(); } catch { /* rien */ }
+    s.follower.using = null;
+  }
   s.loaded = false;
+  s.using = null;
+  s.hold?.remove();
   s.host.classList.add('use-poster');
 }
 
+/**
+ * Change de source en gardant l'image et la lecture : l'image affichée reste posée (canevas) le temps
+ * que la nouvelle source décode la même image, pour qu'aucun noir ne passe.
+ */
+function swapSource(s, toLite) {
+  const v = s.video;
+  const url = toLite ? s.lite.url : s.src;
+  const t = v.currentTime;
+  const playing = !v.paused;
+  s.hold?.remove();
+  if (v.readyState >= 2 && v.videoWidth) {
+    try {
+      const k = Math.min(1, LITE_PX / Math.max(v.videoWidth, v.videoHeight));
+      const c = el('canvas', { class: v.className });
+      c.width = Math.max(1, Math.round(v.videoWidth * k));
+      c.height = Math.max(1, Math.round(v.videoHeight * k));
+      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      v.after(c);
+      s.hold = c;
+      const drop = () => { if (s.hold === c) s.hold = null; c.remove(); };
+      if (typeof v.requestVideoFrameCallback === 'function') v.requestVideoFrameCallback(drop);
+      setTimeout(drop, 1500);
+    } catch { s.hold = null; }
+  }
+  s.using = toLite ? 'lite' : 'orig';
+  v.src = url;
+  v.currentTime = t;                       // appliqué au chargement : même image
+  if (s.follower) {
+    const f = s.follower.video;
+    const fp = toLite ? pickSource(s, s.follower.lite, s.follower.src) : null;
+    f.src = fp?.url || s.follower.src;
+    f.currentTime = t;
+    s.follower.using = fp?.lite ? 'lite' : 'orig';
+  }
+  if (playing) v.play().catch(() => {});
+}
+
+/** La vidéo suiveuse (bloc Comparer) passe sur sa copie légère, à la même image (compare.js la recale ensuite). */
+function swapFollower(s) {
+  const f = s.follower.video;
+  const playing = !s.video.paused;
+  f.src = s.follower.lite.url;
+  f.currentTime = s.video.currentTime;
+  s.follower.using = 'lite';
+  if (playing) f.play().catch(() => {});
+}
+
 function applySlot(s) {
-  const want = s.inView && s.px >= MIN_PX && !document.hidden && !s.suspended;
+  const want = wanted(s);
   // Le poster ne remplace l'image que si le puits est petit (sinon la dernière
   // image décodée, plus juste, reste affichée).
   s.host.classList.toggle('use-poster', s.px < MIN_PX && !!s.poster);
   if (want) {
-    if (!s.loaded) { s.video.src = s.src; s.loaded = true; }
+    if (!s.loaded) load(s);
+    else if (s.lite) {
+      // l'original dès que le puits dépasse 960 px réels ou que le lecteur précis sert ;
+      // la copie légère, si elle arrive pendant la lecture d'un petit puits
+      // (la copie est demandée ici aussi : une vidéo chargée d'abord en grand ne la connaissait pas encore)
+      s.onLite ||= () => { if (slots.has(s)) applySlot(s); };
+      if (s.using === 'lite' && (s.precise || realPx(s.px) > LITE_PX)) swapSource(s, false);
+      else if (s.using === 'orig' && !s.precise && realPx(s.px) <= LITE_PX && !s.video.paused
+        && requestLite(s.lite, s.onLite) === 'ready') swapSource(s, true);
+      // bloc Comparer : la suiveuse rejoint sa copie légère quand elle arrive après celle de la meneuse
+      else if (s.using === 'lite' && s.follower?.lite && s.follower.using === 'orig' && !s.precise
+        && requestLite(s.follower.lite, s.onLite) === 'ready') swapFollower(s);
+    }
+    if (!s.loaded) return;
     if (s.video.paused && !s.userPaused && s.autoplay && (s.userPlayed || playingCount() < MAX_AUTOPLAY)) {
       s.video.play().catch(() => { /* lecture refusée : on reste sur l'image */ });
     }
@@ -364,15 +703,23 @@ function applySlot(s) {
 function addSlot(s) {
   slots.add(s);
   slotByEl.set(s.host, s);
-  if (io) io.observe(s.host);
-  else { s.inView = true; s.px = 999; applySlot(s); }
+  ro?.observe(s.host);
+  if (!ro) s.worldW = 336;
+  if (!attachRaf) attachRaf = requestAnimationFrame(flushAttach);
   if (!pollTimer) pollTimer = setInterval(poll, 400);
 }
 
 function removeSlot(s) {
   slots.delete(s);
-  if (io) io.unobserve(s.host);
-  if (!slots.size && pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
+  ro?.unobserve(s.host);
+  if (s.io) io?.unobserve(s.host);
+  s.hold?.remove();
+  if (s.node) {
+    const set = slotsByNode.get(s.node);
+    set?.delete(s);
+    if (set && !set.size) slotsByNode.delete(s.node);
+  }
+  if (!slots.size && !imgSlots.size && pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -381,19 +728,54 @@ document.addEventListener('visibilitychange', () => {
 
 /**
  * Confie une <video> au budget de la planche : elle ne joue que visible et
- * assez grande, se décharge après 30 s hors champ. `host` = l'élément mesuré
- * (un élément par vidéo : l'observer ne suit qu'une fois le même élément) ;
- * il reçoit la classe `use-poster` quand le poster remplace la vidéo.
- * Retour : le « slot » (userPaused / userPlayed modifiables) avec remove().
+ * assez grande, se décharge après 5 s hors champ. `host` = l'élément mesuré
+ * (un élément par vidéo) ; il reçoit la classe `use-poster` quand le poster
+ * remplace la vidéo. `lite` = liteOf(média) : copie légère pour les petits
+ * puits. `follower` = { video, src, lite } : une 2e vidéo chargée et déchargée
+ * avec celle-ci (bloc Comparer), qui compte dans le budget.
+ * Retour : le « slot » (userPaused / userPlayed modifiables, setPrecise(on))
+ * avec remove().
  */
-export function trackVideo(host, video, { src, poster, autoplay = true } = {}) {
+export function trackVideo(host, video, { src, poster, autoplay = true, lite = null, follower = null } = {}) {
   const slot = {
-    host, video, src, poster, loaded: false,
-    inView: false, px: 0, autoplay, userPaused: false, userPlayed: false, hiddenAt: 0,
+    host, video, src, poster, lite, follower, loaded: false, using: null, precise: false,
+    inView: false, px: 0, worldW: 0, autoplay, userPaused: false, userPlayed: false, hiddenAt: 0,
   };
   slot.remove = () => removeSlot(slot);
+  /** Lecteur précis (pause à la main, image par image) : l'original, pas la copie légère. */
+  slot.setPrecise = (on) => {
+    if (slot.precise === !!on) return;
+    slot.precise = !!on;
+    if (slots.has(slot)) applySlot(slot);
+  };
   addSlot(slot);
   return slot;
+}
+
+/**
+ * Une image de puits montrée dans sa vignette : elle passe à l'original dès que le puits dépasse
+ * 640 px réels (jamais l'inverse : l'original déjà décodé reste).
+ */
+function trackImage(host, img, orig) {
+  const s = { host, img, orig, worldW: 0 };
+  s.remove = () => {
+    imgSlots.delete(s);
+    ro?.unobserve(host);
+    if (!slots.size && !imgSlots.size && pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
+  };
+  imgSlots.add(s);
+  slotByEl.set(host, s);
+  ro?.observe(host);
+  if (!pollTimer) pollTimer = setInterval(poll, 400);
+  return s;
+}
+
+function checkImage(s, z) {
+  if (!imgSlots.has(s) || !s.worldW) return;
+  if (realPx(s.worldW * z) > THUMB_PX) {
+    s.img.src = s.orig;           // l'ancienne image reste affichée jusqu'au décodage de la nouvelle
+    s.remove();
+  }
 }
 
 /** Met en pause toutes les vidéos de la planche (visionneuse ouverte, onglet quitté). */
@@ -451,7 +833,10 @@ window.addEventListener('keydown', (e) => {
   if (isTyping(e.target) || isMenuOpen() || isModalOpen() || viewerShown() || !boardShown()) return;
   const w = activeWell();
   const p = w?.arm();
-  if (p && playerKey(p, e)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  if (!p) return;
+  // image par image : l'original, pas la copie légère (même numéro d'image)
+  if (e.key !== ',' && e.key !== '.') w.precise?.();
+  if (playerKey(p, e)) { e.preventDefault(); e.stopImmediatePropagation(); }
 }, true);
 
 // Un bloc sélectionné montre son lecteur (le CSS l'affiche, ici on le crée).
@@ -482,7 +867,8 @@ window.addEventListener('contextmenu', (e) => {
   if (!p) return;
   e.preventDefault();
   e.stopPropagation();
-  // on fige l'image : celle qu'on voit est celle qu'on extrait
+  // on fige l'image : celle qu'on voit est celle qu'on extrait (dans l'original, même numéro)
+  w.precise?.();
   p.step(0);
   const f = p.frame();
   openMenu([
@@ -533,6 +919,7 @@ export function createWell(opts = {}) {
 
   let layer = null;        // couche affichée { el, key, slot?, player?, video?, media? }
   let destroyed = false;
+  const currentLayer = () => layer;
 
   function setRatio(r) {
     const v = Math.min(Math.max(r || 16 / 9, 0.42), 3.2);
@@ -564,6 +951,7 @@ export function createWell(opts = {}) {
   function dispose(l) {
     if (!l) return;
     if (l.slot) l.slot.remove();
+    l.track?.remove();
     l.disarm?.();
     l.player?.destroy();
     if (l.video) { l.video.pause(); l.video.removeAttribute('src'); try { l.video.load(); } catch { /* rien */ } }
@@ -604,12 +992,34 @@ export function createWell(opts = {}) {
     img.onload = () => {
       if (!media.meta?.w && img.naturalWidth) setRatio(img.naturalWidth / img.naturalHeight);
     };
+    const layer = { el: box, key, kind: 'image' };
+    // une grande image : sa vignette de 640 px tant que le puits est petit (l'original au-delà)
+    const lite = liteOf(media);
     img.onerror = () => {
+      if (lite && img.getAttribute('src') === lite.url) {           // vignette effacée : l'original
+        liteState.set(`${lite.pid}|${lite.rel}`, 'none');
+        layer.track?.remove();
+        img.src = media.url;
+        return;
+      }
       box.replaceChildren(emptyBlock({ title: t('node.media.imgBroken'), icon: 'warn' }));
       checkGone(media.url);
     };
-    img.src = media.url;
-    return { el: box, key, kind: 'image' };
+    const useThumb = () => { img.src = lite.url; layer.track = trackImage(box, img, media.url); };
+    if (!lite) img.src = media.url;
+    else {
+      const st = requestLite(lite, (now) => {
+        if (destroyed || layer.track || layer !== currentLayer()) return;
+        if (!img.getAttribute('src')) { if (now === 'ready') useThumb(); else img.src = media.url; return; }
+        // l'original est déjà là (vignette faite après coup) : la vignette le remplace si le puits est
+        // petit, ce qui rend la mémoire de l'image en pleine définition
+        if (now === 'ready' && box.isConnected && realPx(box.clientWidth * camZ()) <= THUMB_PX) useThumb();
+      });
+      if (st === 'ready') useThumb();
+      else if (st !== 'asked') img.src = media.url;
+      else setTimeout(() => { if (!img.getAttribute('src')) img.src = media.url; }, 400);   // réponse trop lente
+    }
+    return layer;
   }
 
   /** Crée le lecteur du calque vidéo (au premier survol, à la sélection, au clavier). */
@@ -620,7 +1030,7 @@ export function createWell(opts = {}) {
     l.player = attachPlayer(l.video, {
       mode: 'compact',
       fps: m.meta?.fps, frames: m.meta?.frames,
-      onUserToggle: (playing) => { l.slot.userPaused = !playing; l.slot.userPlayed = playing; },
+      onUserToggle: (playing) => { l.slot.userPaused = !playing; l.slot.userPlayed = playing; l.slot.setPrecise(!playing); },
       onExtract: opts.onExtract ? (f) => opts.onExtract(f) : null,
     });
     root.append(l.player.el);
@@ -642,6 +1052,14 @@ export function createWell(opts = {}) {
     });
     video.addEventListener('error', () => {
       if (!slot.loaded) return;                // src retiré volontairement (déchargement)
+      if (slot.using === 'lite') {             // copie légère effacée ou illisible : l'original
+        liteState.set(`${slot.lite.pid}|${slot.lite.rel}`, 'none');
+        const tt = video.currentTime;
+        slot.using = 'orig';
+        video.src = media.url;
+        video.currentTime = tt;
+        return;
+      }
       // Pas lisible par Chromium : on garde le poster s'il existe, avec une note.
       const note = media.note || (media.pending ? t('node.media.preparing') : t('node.media.broken'));
       if (media.poster) {
@@ -664,7 +1082,9 @@ export function createWell(opts = {}) {
     }
     // la couche (et non le puits) est observée : pendant un fondu enchaîné entre deux
     // vidéos, chacune a son propre élément suivi par l'IntersectionObserver
-    const slot = trackVideo(box, video, { src: media.url, poster: media.poster, autoplay: opts.autoplay !== false && !media.paused });
+    const slot = trackVideo(box, video, {
+      src: media.url, poster: media.poster, autoplay: opts.autoplay !== false && !media.paused, lite: liteOf(media),
+    });
     l.slot = slot;
     return l;
   }
@@ -799,6 +1219,7 @@ export function createWell(opts = {}) {
     root,
     isVideo: () => layer?.kind === 'video',
     arm: () => armPlayer(layer),
+    precise: () => layer?.slot?.setPrecise(true),
     extract: opts.onExtract ? (f) => opts.onExtract(f) : null,
   };
   wells.add(entry);
