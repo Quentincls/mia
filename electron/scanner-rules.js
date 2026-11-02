@@ -2,7 +2,7 @@
 // Mia — règles du scanner de modèles + catalogue d'affichage FR/EN.
 //
 // Deux parties, toutes deux en DONNÉES (aucune logique de parcours ici) :
-//  1. RULES : port fidèle de `_plan/model_rules.json` (outil interne de l'auteur, non publié ; généré par scan_probe.py --dump-rules). Le scanner Node
+//  1. RULES : port fidèle de `model_rules.json` (outil interne de l'auteur, non publié ; généré par scan_probe.py --dump-rules). Le scanner Node
 //     reconnaît un fichier par les NOMS de ses tenseurs, jamais en chargeant un poids. Toute modification de ces
 //     règles doit faire monter RULES.schema (ou RULES_REV) : le cache models-cache.json est alors relu de zéro.
 //  2. Le catalogue : ce que l'utilisateur voit. Un fichier identifié (famille/rôle) devient « LTX 2.5 », « Profondeur »,

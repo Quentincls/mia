@@ -16,8 +16,8 @@ description: Faire évoluer le code de Mia (planche nodale d'IA locale, Electron
 2. `CONTRIBUTING.md` : règles du code, instance de test, contrôles avant une modification.
 3. `README.md` (ce que voit l'utilisateur), `CHANGELOG.md` (ce qui a changé), `mcp/README.md` (pont des
    assistants), `src/catalog/nodes.json` (les blocs).
-4. Copie de travail de l'auteur seulement (absents du dépôt public) : `HANDOFF.md`, `_plan/ETAT.md`,
-   `_plan/SPEC.md`, `_plan/da.md`. S'ils existent, lis-les **en entier** : ils décrivent le chantier en cours et
+4. Copie de travail de l'auteur seulement (absents du dépôt public) : `REPRISE.md`, `SPEC.md`, `da.md` (à la
+   racine du clone) et `..\OU-ON-EN-EST.md` (l'état du chantier, dans le dossier parent). S'ils existent, lis-les **en entier** : ils décrivent le chantier en cours et
    priment sur cette fiche.
 
 ## Carte du code

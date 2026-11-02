@@ -1,7 +1,7 @@
 'use strict';
 // Mia — scanner des modèles IA locaux (processus principal).
 //
-// Port Node de `_plan/scan_probe.py` (outil interne de l'auteur, non publié ; l'oracle de test : même cache, mêmes familles). LECTURE SEULE stricte :
+// Port Node de `scan_probe.py` (outil interne de l'auteur, non publié ; l'oracle de test : même cache, mêmes familles). LECTURE SEULE stricte :
 //  - .safetensors / .sft : 8 octets (u64 LE = taille de l'en-tête) puis l'en-tête JSON, rien d'autre ;
 //  - .gguf               : en-tête + métadonnées + infos de tenseurs, jamais les données ;
 //  - .pt/.pth/.ckpt/.bin : data.pkl (zip torch) ou pickle ancien PARCOURU PAR OPCODES, jamais exécuté ;

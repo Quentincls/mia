@@ -6,8 +6,9 @@ node_modules/
 # Internal work folders: agents' scratch, test instances, design studies and notes
 # (personal paths and machine details; the public summary is docs/ARCHITECTURE.md)
 /_dev/
-/_plan/
-/HANDOFF.md
+/REPRISE.md
+/SPEC.md
+/da.md
 
 # The tool that rebuilds the looks reads the author's private grade and frames;
 # the contact sheet is a duplicate of assets/looks.jpg

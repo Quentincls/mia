@@ -18,7 +18,8 @@ const R = require(path.join(ROOT, 'electron', 'scanner-rules.js'));
 const QUIET = process.argv.includes('--quiet');
 const DEV = process.env.MIA_TEST_DIR ? path.resolve(process.env.MIA_TEST_DIR) : path.join(ROOT, '_dev', 'fix-C', 'test');
 const CACHE = path.join(DEV, 'models-cache.test.json');
-const ORACLE = path.join(ROOT, '_plan', 'models_inventory.json');
+// L'oracle vit hors du dépôt, dans le dossier de travail de l'auteur (Recherche\Scanner, à côté du clone) ; MIA_SCANNER_ORACLE pour en changer.
+const ORACLE = process.env.MIA_SCANNER_ORACLE ? path.resolve(process.env.MIA_SCANNER_ORACLE) : path.join(ROOT, '..', 'Recherche', 'Scanner', 'models_inventory.json');
 const ENGINE_ROOT = process.env.MIA_ENGINE_ROOT || 'D:/AI_Local_Videos';
 
 let failures = 0, checks = 0;
@@ -100,7 +101,7 @@ async function testScans() {
 
 // --- 3. comparaison avec l'oracle Python ----------------------------------------------------
 function compareOracle(records) {
-  console.log('\n# Comparaison avec l\'oracle Python (_plan/models_inventory.json)');
+  console.log('\n# Comparaison avec l\'oracle Python (Recherche/Scanner/models_inventory.json)');
   if (!fs.existsSync(ORACLE)) { console.log('  (oracle absent : comparaison sautée)'); return; }
   const oracle = JSON.parse(fs.readFileSync(ORACLE, 'utf8'));
   const mine = new Map(records.map((r) => [r.path.toLowerCase(), r]));
