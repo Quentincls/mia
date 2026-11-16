@@ -70,10 +70,19 @@ function show(target) {
   const spec = specOf(target);
   let text = typeof spec.text === 'function' ? spec.text(target) : spec.text;
   if (text == null || text === '') return;
-  text = String(text);
   const h = host();
-  h.innerHTML = escapeHtml(text) + (spec.key ? ` <kbd>${escapeHtml(spec.key)}</kbd>` : '');
-  h.classList.toggle('multi', text.length > 48);
+  if (typeof text === 'object') {
+    // infobulle riche (une pastille d'entrée, un modèle) : { kicker, title, body, meta }, tout échappé
+    const part = (cls, s) => (s ? `<span class="${cls}">${escapeHtml(String(s))}</span>` : '');
+    h.innerHTML = part('tip-kicker', text.kicker) + part('tip-title', text.title) + part('tip-body', text.body) + part('tip-meta', text.meta);
+    h.classList.add('rich');
+    h.classList.remove('multi');
+  } else {
+    text = String(text);
+    h.innerHTML = escapeHtml(text) + (spec.key ? ` <kbd>${escapeHtml(spec.key)}</kbd>` : '');
+    h.classList.remove('rich');
+    h.classList.toggle('multi', text.length > 48);
+  }
   // measured at the origin, so the last position never squeezes its width
   h.style.left = '0px';
   h.style.top = '0px';

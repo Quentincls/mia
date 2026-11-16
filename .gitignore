@@ -21,6 +21,7 @@ node_modules/
 /data/
 bridge.json
 prefs.json
+cloud.json
 prefs.*.json
 loras.json
 timings.json

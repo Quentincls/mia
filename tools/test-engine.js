@@ -968,6 +968,17 @@ async function main() {
     check('plus aucun processus Python à nous', py.running() === 0);
   }
 
+  // bloc Modèle : sa sortie « out » se lit aussi dans un calcul d'avant le 25/10, rangé sous « video » ou « image »
+  {
+    const vid = { path: 'outputs/n/r/video.mp4', kind: 'video' };
+    check('sortie « out » d’un bloc Modèle rangée sous « video » (calcul d’avant le 25/10)', I.runOutput({ outputs: { video: vid } }, 'out') === vid);
+    check('sortie « out » rangée sous « out »', I.runOutput({ outputs: { out: vid } }, 'out') === vid);
+    check('un autre port manquant reste manquant', I.runOutput({ outputs: { video: vid } }, 'mask') === null);
+    check('deux sorties : « out » n’en devine aucune', I.runOutput({ outputs: { a: vid, b: vid } }, 'out') === null);
+    const gen = require(path.join(ENGINE, 'executors', 'gen.js'));
+    check('gen.js range le résultat d’un calcul du PC sous « out »', /res\.outputs = \{ out: first \}/.test(fs.readFileSync(path.join(ENGINE, 'executors', 'gen.js'), 'utf8')) && typeof gen.run === 'function');
+  }
+
   console.log(`\n${passes} contrôles réussis, ${failures} échec(s).`);
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* Windows garde parfois un verrou un instant */ }
   process.exit(failures ? 1 : 0);

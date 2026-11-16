@@ -303,6 +303,12 @@ async function testLoras() {
   fakeLora(lora1, { meta: kohya('testa_ltx25', 'tst woman'), fill: 1 });
   fakeLora(lora2, { meta: {}, fill: 2 });
   fakeLora(lora3, { meta: { 'modelspec.trigger_phrase': 'film look' }, fill: 4 });
+  // fiche de conseils <nom>.mia.json (mot déclencheur, force conseillée, aide) : elle passe avant les métadonnées
+  // dossier à part : le banc de retrait compte les LoRA de « mes-loras »
+  const lora4 = path.join(base, 'conseils', 'style_conseil.safetensors');
+  fakeLora(lora4, { meta: { 'modelspec.trigger_phrase': 'ancien mot' }, fill: 5 });
+  fs.writeFileSync(lora4.replace(/\.safetensors$/, '.mia.json'), JSON.stringify({ trigger: 'qntncls style', strength: 0.85,
+    advice: { fr: 'Paysages : 1,0', en: 'Landscapes: 1.0' } }));
   fakeModel(notLora);
   fs.writeFileSync(junk, 'pas un fichier de poids');
 
@@ -328,6 +334,18 @@ async function testLoras() {
   const f3 = inv.models.find((m) => m.path.toLowerCase() === lora3.replace(/\\/g, '/').toLowerCase());
   ok(f3 && f3.origin === 'folder' && f3.status === 'ready' && f3.caps.includes('lora') && f3.loraFor === 'ltx' && f3.trigger === 'film look' && f3.group === 'loras',
     `dossier de LoRA : « ${f3 && f3.label.fr} » prêt, pour LTX, déclencheur lu, section « Mes LoRA »`);
+  const inv4 = (await scan({ engineRoot: ENGINE_ROOT, cachePath: CACHE, writeCache: false, comfy: false, loraFolders: [path.join(base, 'conseils')] })).inventory;
+  const f4 = inv4.models.find((m) => m.path.toLowerCase() === lora4.replace(/\\/g, '/').toLowerCase());
+  ok(f4 && f4.trigger === 'qntncls style' && f4.strength === 0.85 && f4.advice && f4.advice.fr === 'Paysages : 1,0',
+    'fiche de conseils <nom>.mia.json : mot déclencheur, force conseillée et aide lus');
+  const lora5 = path.join(base, 'conseils', 'style_vide.safetensors');
+  fakeLora(lora5, { meta: { 'modelspec.trigger_phrase': 'ancien mot' }, fill: 6 });
+  fs.writeFileSync(lora5.replace(/\.safetensors$/, '.mia.json'), JSON.stringify({ trigger: 'mot de la fiche', strength: null }));
+  const inv5 = (await scan({ engineRoot: ENGINE_ROOT, cachePath: CACHE, writeCache: false, comfy: false,
+    loras: [{ id: 'l_vide', source: lora5, name: 'Vide', kind: 'style', trigger: '', origin: 'added' }] })).inventory;
+  const f5 = inv5.models.find((m) => m.path.toLowerCase() === lora5.replace(/\\/g, '/').toLowerCase());
+  ok(f5 && f5.trigger === 'mot de la fiche' && f5.strength == null,
+    `fiche de conseils : un mot vide à l'ajout laisse celui de la fiche (« ${f5 && f5.trigger} »), force « null » ignorée`);
   ok(!inv.models.some((m) => /gros_modele/.test(m.path)), 'dossier de LoRA : un fichier qui n\'est pas un LoRA est ignoré');
   ok(resolveIn(inv, f3 && f3.id, ['lora']) !== null && resolveIn(inv, 'auto', ['lora']) === null, 'resolve : un LoRA choisi est rendu, « Auto » ne choisit jamais de LoRA');
 

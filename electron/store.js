@@ -332,7 +332,8 @@ function defaultPrefs() {
     wires: 'sober',
     winBounds: null,
     loraFolders: [],          // SPEC §12.1: folders whose LoRA become usable directly (scanner reads them)
-    playerUnit: 'frames'      // SPEC §14: counter of the precise player (frames | seconds | timecode)
+    playerUnit: 'frames',     // SPEC §14: counter of the precise player (frames | seconds | timecode)
+    pinnedModels: []          // SPEC §22: models pinned at the top of the model panel (inventory ids)
   };
 }
 
@@ -365,6 +366,8 @@ function sanitizePrefs(p) {
   if (typeof out.playerUnit !== 'string' || !/^[a-z]{1,16}$/.test(out.playerUnit)) out.playerUnit = d.playerUnit;
   if (!['updated', 'opened', 'created', 'name'].includes(out.order)) out.order = d.order;
   if (!Array.isArray(out.openTabs)) out.openTabs = [];
+  out.pinnedModels = (Array.isArray(out.pinnedModels) ? out.pinnedModels : [])
+    .filter((x) => typeof x === 'string' && x.length <= 128).slice(0, 64);
   for (const k of ['snap', 'minimap']) out[k] = !!out[k];
   if (out.winBounds !== null && typeof out.winBounds !== 'object') out.winBounds = null;
   return out;

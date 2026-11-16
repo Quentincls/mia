@@ -28,6 +28,7 @@ const { Comfy, kindOf } = require('./comfy');
 const { createPyRunner } = require('./pyrun');
 const { createGpuLock, hhmm } = require('./gpulock');
 const places = require('../places');
+const route = require('./route');
 
 // ------------------------------------------------------------------ strings
 // Main-process strings, resolved at call time from prefs.lang (the renderer's i18n.js does not run here).
@@ -98,7 +99,14 @@ const STR = {
     loraPrepP: 'Préparation du LoRA… {p} %',
     loraFailed: 'Le LoRA « {name} » n’a pas pu être préparé pour le moteur.',
     quitNote: 'Mia a été fermée pendant le calcul.',
-    waitTimeout: 'Toujours en cours après {s} s.'
+    waitTimeout: 'Toujours en cours après {s} s.',
+    genNoModel: 'Choisis un modèle dans « {label} »',
+    genNoLocal: 'Aucun modèle {family} installé ne sait faire « {what} »',
+    genUnused: 'Ignoré pour « {what} » : {port}.',
+    genMissing: 'Il manque pour « {what} » : {ports}.',
+    genMax: '{family} prend {max} « {label} » au plus : les suivantes sont ignorées.',
+    cloudLink: 'Relie ton compte Higgsfield dans Réglages → Comptes en ligne',
+    cloudUpstream: 'Le bloc « {name} » calcule en ligne (payant) : lance-le d’abord lui-même.'
   },
   en: {
     queued: 'Queued',
@@ -166,7 +174,14 @@ const STR = {
     loraPrepP: 'Preparing the LoRA… {p} %',
     loraFailed: 'LoRA “{name}” could not be prepared for the engine.',
     quitNote: 'Mia was closed during the job.',
-    waitTimeout: 'Still running after {s} s.'
+    waitTimeout: 'Still running after {s} s.',
+    genNoModel: 'Choose a model in “{label}”',
+    genNoLocal: 'No installed {family} model can do “{what}”',
+    genUnused: 'Ignored for “{what}”: {port}.',
+    genMissing: 'Missing for “{what}”: {ports}.',
+    genMax: '{family} takes {max} “{label}” at most: the next ones are ignored.',
+    cloudLink: 'Link your Higgsfield account in Settings → Online accounts',
+    cloudUpstream: 'Block “{name}” computes online (paid): run it on its own first.'
   }
 };
 
@@ -188,7 +203,8 @@ const TIMING_PARAMS = ['speed', 'detail'];
 // First-run lock estimates (minutes) until real durations are learned — from the catalog's estimates.
 const DEFAULT_MINUTES = {
   'i2v|preview': 2, 'i2v|final': 9, 't2v|preview': 2, 't2v|final': 9, 'real|preview': 3, 'real|final': 20,
-  'perform|preview': 5, 'perform|final': 15, edit: 3, upscale: 20, depth: 2, cutout: 3
+  'perform|preview': 5, 'perform|final': 15, edit: 3, t2i: 1, mask: 0.1, upscale: 20, depth: 2, cutout: 3,
+  'gen|preview': 2, 'gen|final': 9
 };
 
 // ------------------------------------------------------------------ helpers
@@ -442,6 +458,10 @@ class Planner {
     const inputHashes = {};
     const inputKinds = {};
     const deps = new Set();
+    // Model block: inputs whose only sources are empty Media blocks still count as connected for the choice of the
+    // workflow (the board shows them connected); planGen decides whether that workflow needs them (« Glisse un fichier »)
+    const isGen = type.ports === 'model';
+    const emptyGen = [];
 
     for (const inp of type.inputs || []) {
       let edges = this.edgesInto(node.id, inp.id);
@@ -454,6 +474,10 @@ class Planner {
           const label = this.emptyImport(e.from.node);
           if (label === null) kept.push(e);
           else empty = empty || { nodeId: e.from.node, label };
+        }
+        if (isGen && empty && !kept.length) {
+          emptyGen.push({ port: inp.id, nodeId: empty.nodeId, label: empty.label || tl(inp.label, this.lang) });
+          continue;
         }
         if (empty && (kept.length || !inp.required)) notes.push(this.tr('ignoredEmpty', { label: empty.label || tl(inp.label, this.lang) }));
         if (empty && !kept.length && inp.required) {
@@ -510,9 +534,22 @@ class Planner {
       }
     }
 
+    // Model block (SPEC §23): its family, the workflow its wires ask for, the model (or online service) doing it.
+    let gen = null;
+    let genPlan = null;
+    if (type.engine && type.engine.executor === 'gen') {
+      genPlan = this.planGen(node, type, params, inputRefs, inputHashes, inputKinds, emptyGen);
+      missing.push(...genPlan.missing);
+      notes.push(...genPlan.notes);
+      gen = genPlan.gen;
+    }
+    // settings the chosen workflow does not show are not resolved (a LoRA kept from another workflow must not block)
+    const genParams = gen && Array.isArray(gen.params) ? new Set(gen.params) : null;
+
     const models = {};
     for (const p of type.params || []) {
-      if (p.kind !== 'model') continue;
+      if (p.kind !== 'model' || p.gen) continue;            // the Model block's family: planGen above
+      if (genParams && !genParams.has(p.id)) { models[p.id] = null; continue; }
       const v = params[p.id];
       if (p.allowNone && (v == null || v === '' || v === 'none')) { models[p.id] = null; continue; }
       const m = await this.e.resolveModel(v == null || v === '' ? 'auto' : v, p.caps);
@@ -530,15 +567,107 @@ class Planner {
       }
     }
 
+    if (genPlan) models.model = genPlan.model || null;
+
+    // a kept resolution the model does not offer runs at the value the block shows (params.js fitValue): the largest
+    // allowed one below it, else the first — not at the raw kept value (audit 25/10: 768p shown, 720p computed)
+    for (const p of type.params || []) {
+      if (p.limit !== 'resolutions' || params[p.id] == null) continue;
+      const lim = genPlan ? (genPlan.limits || {}) : require('./patch').exec.familyLimits(models.model);
+      if (!Array.isArray(lim.resolutions)) continue;
+      const allowed = (p.options || []).map((o) => String(o.value)).filter((v) => lim.resolutions.map(String).includes(v));
+      if (!allowed.length || allowed.includes(String(params[p.id]))) continue;
+      const below = allowed.filter((v) => Number(v) <= Number(params[p.id]));
+      params[p.id] = below.length ? below[below.length - 1] : allowed[0];
+    }
+
     if (missing.length) {
       const msgs = [...new Set(missing.map((m) => m.message))];
       return { error: msgs.slice(0, 2).join(' · ') + (msgs.length > 2 ? ` (+${msgs.length - 2})` : ''), missing };
     }
 
     const hashParams = this.e.hashParams(type, params, models);
-    const hashFor = (m) => sha1(stable([type.id, hashParams, type.modes ? m : null, inputHashes]));
+    // a Model block also hashes its workflow and its online settings (hf.*); every other block keeps its old hash
+    const hashFor = (m) => sha1(stable(gen
+      ? [type.id, hashParams, type.modes ? m : null, inputHashes, gen.workflow, gen.cloudParams || null]
+      : [type.id, hashParams, type.modes ? m : null, inputHashes]));
     return { node, type, mode, params, models, inputRefs, inputKinds, deps: [...deps], hash: hashFor(mode), hashFor,
-      notes: [...new Set(notes)] };
+      notes: [...new Set(notes)], gen };
+  }
+
+  /**
+   * Model block (SPEC §23): family of the chosen model, the workflow its connected inputs ask for (shared rules,
+   * ./route.js), the inputs that workflow does not use (left out, with a note), multi inputs past the model's
+   * limit, and the model that does it: the best ready local variant, or the online family (Higgsfield).
+   * Mutates refs / hashes / kinds (ports left out). → { missing, notes, model, gen }
+   */
+  planGen(node, type, params, refs, hashes, kinds, empty = []) {
+    const R = route.rules();
+    const { local, cloud } = route.catalogs();
+    const inv = this.e.inventory();
+    const out = { missing: [], notes: [], model: null, gen: null, limits: {} };
+    const label = this.label(node, type);
+    const fam = R.familyOf(params.model, local, cloud, inv);
+    if (!fam) {
+      out.missing.push({ nodeId: node.id, kind: 'model', param: 'model', message: this.tr('genNoModel', { label }) });
+      return out;
+    }
+    const family = fam.def.name;
+    if (fam.provider === 'local') out.limits = fam.def.limits || {};
+    // an input fed only by an empty Media block counts as connected, as on the board
+    const pick = R.chooseWorkflow(fam, [...Object.keys(refs), ...empty.map((e) => e.port)], params.workflow || null);
+    const wf = pick.workflow;
+    const what = tl(wf.label, this.lang);
+    const inpDef = (id) => (type.inputs || []).find((i) => i.id === id);
+    const portLabel = (id) => (inpDef(id) ? tl(inpDef(id).label, this.lang) : id);
+    if (pick.blocked) {
+      // the same sentence as the block's « Ce que fait le bloc » row
+      out.missing.push({ nodeId: node.id, kind: 'input', port: pick.missing[0],
+        message: this.tr('genMissing', { what, ports: pick.missing.map(portLabel).join(', ') }) });
+    }
+    const ports = R.portsOfWorkflow(wf);
+    for (const e of empty) {
+      // needed by the workflow (required, or the only one of an « either » group) → « Glisse un fichier », else left out
+      const needed = (wf.required || []).includes(e.port)
+        || (wf.oneOf || []).some((g) => g.includes(e.port) && !g.some((q) => q !== e.port && refs[q]));
+      if (needed && ports[e.port]) out.missing.push({ nodeId: e.nodeId, kind: 'file', port: e.port, message: this.tr('dropFile', { label: e.label }) });
+      else out.notes.push(this.tr('ignoredEmpty', { label: e.label }));
+    }
+    for (const p of Object.keys(refs)) {
+      if (!ports[p]) {
+        out.notes.push(this.tr('genUnused', { port: portLabel(p), what, family }));
+        delete refs[p]; delete hashes[p]; delete kinds[p];
+        continue;
+      }
+      if (Array.isArray(refs[p]) && refs[p].length > ports[p].max) {
+        out.notes.push(this.tr('genMax', { family, max: ports[p].max, label: portLabel(p) }));
+        refs[p] = refs[p].slice(0, ports[p].max);
+        hashes[p] = hashes[p].slice(0, ports[p].max);
+      }
+    }
+    if (wf.promptRequired && !String(params.prompt || '').trim()) {
+      out.missing.push({ nodeId: node.id, kind: 'param', param: 'prompt', message: this.tr('writePrompt') });
+    }
+    if (fam.provider === 'local') {
+      const m = R.localModelFor(fam, wf, inv);
+      if (!m && this.e.hasModels()) {
+        out.missing.push({ nodeId: node.id, kind: 'model', param: 'model', caps: [wf.cap], message: this.tr('genNoLocal', { family, what }) });
+      }
+      out.model = m || null;
+      // ports: the workflow's inputs reach its executor even when the task block has none of them (images-clés…)
+      // params: the settings this workflow shows — gen.js hands only those (over the task block's defaults) to the executor
+      out.gen = { provider: 'local', key: fam.key, family, workflow: wf.id, what, executor: wf.executor, as: wf.as,
+        cap: wf.cap, kind: fam.def.kind || 'video', ports: Object.keys(ports),
+        params: (wf.params || []).map((p) => (typeof p === 'string' ? p : p.id)) };
+    } else {
+      if (!this.e.cloudLinked()) out.missing.push({ nodeId: node.id, kind: 'cloud', message: this.tr('cloudLink') });
+      out.model = { id: fam.key, provider: fam.provider, cloud: true, file: family, label: { fr: family, en: family }, family };
+      const cloudParams = {};
+      for (const [k, v] of Object.entries(params)) if (k.startsWith('hf.')) cloudParams[k] = v;
+      out.gen = { provider: fam.provider, key: fam.key, family, workflow: wf.id, what, kind: fam.def.kind || 'video',
+        endpoints: wf.endpoints, ports: wf.ports, params: wf.params, notes: wf.notes || [], cloudParams };
+    }
+    return out;
   }
 
   /** What an upstream port carries. → {ref, hash, kind, job?} | {error, missing, upstream} */
@@ -573,7 +702,7 @@ class Planner {
     const res = await this.computed(node, type, stack, reqMode);
     if (res.error) return res.upstream ? res : { error: this.tr('inBlock', { block: label, msg: res.error }), missing: res.missing, upstream: true };
     if (res.run) {
-      const o = res.run.outputs && res.run.outputs[port];
+      const o = runOutput(res.run, port);
       if (!o) return fail(this.tr('noSuchOutput', { name: label, port }));
       return { ref: { run: res.run, port }, hash: res.run.hash || res.hash, kind: o.kind || this.concrete(outDef, res.spec) };
     }
@@ -583,6 +712,7 @@ class Planner {
   /** Concrete type of a declared output: `follow:<input>` = type of what is wired into that input (SPEC §4). */
   concrete(outDef, spec) {
     const t = String(outDef.type || 'media');
+    if (t === 'model') return (spec && spec.gen && spec.gen.kind) || 'media';     // Model block: what its family makes
     if (t.startsWith('follow:')) return (spec && spec.inputKinds && spec.inputKinds[t.slice(7)]) || 'media';
     return t === 'data' ? 'media' : t;
   }
@@ -651,6 +781,11 @@ class Planner {
     if (run) return { run, hash: run.hash, spec };
     const active = this.e.activeJob(this.project.id, node.id, spec.hash);
     if (active) return { job: active, hash: spec.hash, spec };
+    // An online Model block spends credits: it never starts because a block downstream asked (SPEC §23.3).
+    if (spec.gen && spec.gen.provider !== 'local') {
+      const msg = this.tr('cloudUpstream', { name: this.label(node, type) });
+      return { error: msg, missing: [{ nodeId: node.id, kind: 'cloud', message: msg }], upstream: true };
+    }
     const job = this.e.makeJob(this.project, node, type, spec, this.lang);
     this.newJobs.push(job);                 // after its own upstream jobs: the queue stays in dependency order
     return { job, hash: spec.hash, spec };
@@ -818,6 +953,16 @@ class Engine extends EventEmitter {
 
   hasModels() {
     return !!(this.ctx.models && typeof this.ctx.models.resolve === 'function');
+  }
+
+  /** The scanner's inventory (models and capabilities), or null before the first scan. */
+  inventory() {
+    try { return (this.ctx.models && typeof this.ctx.models.inventory === 'function' && this.ctx.models.inventory()) || null; } catch { return null; }
+  }
+
+  /** Is an online account linked (SPEC §23.3)? The key itself never reaches the engine's planning. */
+  cloudLinked() {
+    try { return !!(this.ctx.cloud && typeof this.ctx.cloud.linked === 'function' && this.ctx.cloud.linked()); } catch { return false; }
   }
 
   async resolveModel(value, caps) {
@@ -1001,7 +1146,9 @@ class Engine extends EventEmitter {
 
   // ------------------------------------------------------------ jobs
   makeJob(project, node, type, spec, lang) {
-    const gpu = ['heavy', 'light', 'none'].includes(type.engine.gpu) ? type.engine.gpu : 'heavy';
+    // `auto` (Model block): an online model computes elsewhere (no GPU, no lock), a local one is heavy
+    const g = type.engine.gpu === 'auto' ? (spec.gen && spec.gen.provider !== 'local' ? 'none' : 'heavy') : type.engine.gpu;
+    const gpu = ['heavy', 'light', 'none'].includes(g) ? g : 'heavy';
     // Instances de test (MIA_NO_GPU=1) : jamais de calcul GPU, même pour un amont périmé lancé par ricochet
     // (le 17/10, un essai de « Couper » a relancé « Animer une image » en amont et démarré ComfyUI).
     if (gpu === 'heavy' && process.env.MIA_NO_GPU === '1') {
@@ -1211,7 +1358,7 @@ class Engine extends EventEmitter {
           const run = r.run || (r.job && r.job._.run);
           const name = r.job ? r.job.label : r.run && r.run.nodeId;
           if (!run) throw new Error(this.tr('upFailed', { name }));
-          const o = run.outputs && run.outputs[r.port];
+          const o = runOutput(run, r.port);
           if (!o) throw new Error(this.tr('noSuchOutput', { name, port: r.port }));
           v = {
             abs: path.join(dir, ...String(o.path).split('/')), rel: o.path, kind: o.kind, meta: o.meta || null,
@@ -1310,6 +1457,9 @@ class Engine extends EventEmitter {
   timingKey(job) {
     const p = (job._ && job._.spec && job._.spec.params) || {};
     const extra = TIMING_PARAMS.filter((k) => p[k] != null && p[k] !== '').map((k) => `${k}=${p[k]}`);
+    // a Model block learns per family and workflow (LTX « animer » and Seedance « références » differ a lot)
+    const g = job._ && job._.spec && job._.spec.gen;
+    if (g) extra.unshift(`${g.key}:${g.workflow}`);
     return [job.type, job.mode || '-', ...extra].join('|');
   }
 
@@ -1357,7 +1507,7 @@ class Engine extends EventEmitter {
     if (exec && typeof exec.estimate === 'function') {
       try {
         const m = await exec.estimate({
-          type: J.type, params: clone(J.spec.params), mode: job.mode, inputs,
+          type: J.type, params: clone(J.spec.params), mode: job.mode, inputs, gen: J.spec.gen || null,
           model: (k) => (Object.prototype.hasOwnProperty.call(J.spec.models, k) ? J.spec.models[k] : null)
         });
         if (Number.isFinite(+m) && +m > 0) est = +m * 60;
@@ -1550,6 +1700,8 @@ class Engine extends EventEmitter {
       outDir,
       engineRoot: this.engineRoot(),
       notes: spec.notes.slice(),
+      gen: spec.gen || null,                 // Model block: family, workflow, executor or online endpoint (SPEC §23)
+      cloud: this.ctx.cloud || null,         // online account service (main process), for the cloud executor only
       model: (key) => (Object.prototype.hasOwnProperty.call(spec.models, key) ? spec.models[key] : null),
       ensureLora: (key = 'lora') => this.ensureLora(job, key, { signal }),
       progress,
@@ -2156,7 +2308,18 @@ function register(ctx) {
   return new Engine(ctx).install();
 }
 
+/**
+ * The output `port` of a finished run. A Model block (SPEC §23) has one output, « out », but its local runs made before
+ * 25/10/2026 kept the task executor's name (« video », « image »): a run with a single output answers for « out ».
+ */
+function runOutput(run, port) {
+  const outs = (run && run.outputs) || {};
+  if (outs[port]) return outs[port];
+  const all = Object.values(outs).filter(Boolean);
+  return port === 'out' && all.length === 1 ? all[0] : null;
+}
+
 module.exports = {
   register, Engine, Planner,
-  _internals: { stable, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB }
+  _internals: { stable, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB, runOutput }
 };

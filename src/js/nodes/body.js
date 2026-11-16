@@ -6,6 +6,7 @@
 //   note     → mot sur la planche, façon post-it sobre
 //   compare  → volet A/B, côte à côte, différence
 //   export   → fichier exporté + « Afficher dans l'Explorateur » / « Ouvrir »
+//   mask     → l'image branchée avec la zone peinte par-dessus, « Dessiner la zone » (éditeur)
 //   calcul   → puits du résultat (onglets si plusieurs sorties), aperçu en
 //              direct, erreur lisible, versions, références numérotées,
 //              réglages, pied « Lancer » (ou la raison qui l'empêche)
@@ -28,6 +29,10 @@ import { mountParams, autoGrow } from './params.js';
 import { mountVersions } from './versions.js';
 import { mountCompare } from './compare.js';
 import { modelProblem } from './modelpicker.js';
+import { blockWorkflow, isModelBlock } from './ports.js';
+import { portsOfWorkflow } from './route.js';
+import { typeOf } from '../catalog.js';
+import { openMaskEditor } from './maskeditor.js';
 import './viewer.js';      // écoute viewer:open
 import './inspector.js';   // écoute inspector:open
 
@@ -76,8 +81,13 @@ strings({
   'node.media.missingToast.other': '{n} médias introuvables sur cette planche.',
   'node.ref.image': 'Image {n}',
   'node.ref.video': 'Vidéo {n}',
+  'node.ref.audio': 'Son {n}',
   'node.ref.tip': '« {label} » dans la consigne = {name}',
   'node.extract.oldVersion': 'Extraction depuis la version courante seulement : reviens à v{cur} (ou garde celle-ci avec ★).',
+  'node.zone.draw': 'Dessiner la zone',
+  'node.zone.edit': 'Modifier la zone',
+  'node.zone.needImage': 'Branche d’abord l’image à retoucher.',
+  'node.zone.saveFailed': 'Le dessin n’a pas pu être enregistré : {error}',
 }, {
   'node.notComputed': 'Not computed yet',
   'node.connect': 'Connect first: {list}',
@@ -123,8 +133,13 @@ strings({
   'node.media.missingToast.other': '{n} media files missing on this board.',
   'node.ref.image': 'Image {n}',
   'node.ref.video': 'Video {n}',
+  'node.ref.audio': 'Sound {n}',
   'node.ref.tip': '“{label}” in the prompt = {name}',
   'node.extract.oldVersion': 'Extraction only from the current version: go back to v{cur} (or keep this one with ★).',
+  'node.zone.draw': 'Draw the zone',
+  'node.zone.edit': 'Edit the zone',
+  'node.zone.needImage': 'Connect the image to retouch first.',
+  'node.zone.saveFailed': 'The drawing could not be saved: {error}',
 });
 
 const ACTIVE = new Set(['queued', 'waiting-gpu', 'running']);
@@ -243,13 +258,43 @@ function estimateText(type, mode) {
   return first ? tl(first) : '';
 }
 
+/**
+ * Bloc Modèle : le type de bloc de la façon de faire retenue (ses modes, son estimation) ; en ligne, sans estimation
+ * en minutes (un calcul en ligne coûte des crédits, sa durée dépend de leur file). Autres blocs : leur propre type.
+ */
+function targetTypeOf(ctx) {
+  if (!isModelBlock(ctx.node)) return ctx.type;
+  const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+  const r = blockWorkflow(ctx.node, conn);
+  if (!r) return ctx.type;
+  if (r.fam.provider !== 'local') return { ...ctx.type, estimate: null };
+  return typeOf(r.workflow.as) || ctx.type;
+}
+
 /** Entrées obligatoires non branchées → libellés. */
 function missingInputs(ctx) {
+  // bloc Modèle (SPEC §23) : ce que demande la façon de faire choisie d'après les fils (rien n'est obligatoire en soi)
+  if (isModelBlock(ctx.node)) {
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const r = blockWorkflow(ctx.node, conn);
+    if (!r || !r.blocked) return [];
+    return r.missing.map((id) => tl((ctx.type.inputs || []).find((i) => i.id === id)?.label || { fr: id }));
+  }
   return (ctx.type.inputs || []).filter((i) => i.required && !ctx.connected(i.id)).map((i) => tl(i.label));
 }
 
 /** Réglages obligatoires encore vides (consigne…) et non remplacés par un fil → libellés. */
 function missingParams(ctx) {
+  // bloc Modèle : la consigne est obligatoire quand la façon de faire retenue l'exige (texte seul, références,
+  // vidéo guidée, prolonger, retoucher) — dit avant le lancement, comme les blocs de tâche
+  if (isModelBlock(ctx.node)) {
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const r = blockWorkflow(ctx.node, conn);
+    const p = (ctx.type.params || []).find((x) => x.id === 'prompt');
+    if (!r || !r.workflow.promptRequired || !p || (p.port && ctx.connected(p.port))) return [];
+    const v = ctx.node.params?.prompt ?? p.default;
+    return v == null || String(v).trim() === '' ? [tl(p.label)] : [];
+  }
   return (ctx.type.params || []).filter((p) => {
     if (!p.required || (p.port && ctx.connected(p.port))) return false;
     const v = ctx.node.params?.[p.id] ?? p.default;
@@ -297,6 +342,74 @@ function formatRatio(v, ctx) {
   const r = /^(\d+(?:[.,]\d+)?)\s*[:x×/]\s*(\d+(?:[.,]\d+)?)$/.exec(String(v));
   if (r) return parseFloat(r[1].replace(',', '.')) / parseFloat(r[2].replace(',', '.'));
   return v === 'vertical' ? 9 / 16 : v === 'wide' ? 2.39 : 16 / 9;
+}
+
+// ── bloc Masque : « Dessiner la zone » ────────────────────────────────
+
+/** Taille naturelle d'une image (quand le média n'a pas sa fiche). */
+function naturalSize(url) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight });
+    im.onerror = () => res(null);
+    im.src = url;
+  });
+}
+
+const zoneStamp = () => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+};
+
+/**
+ * Le bouton du bloc Masque. Le dessin validé va dans media\ de la planche sous un nouveau nom (l'empreinte du bloc
+ * change, ce qui en dépend se recalcule), puis dans le réglage `drawing`.
+ */
+function mountZoneRow(ctx, host) {
+  let busy = false;
+  let shown = null;                // libellé et état affichés : le bouton n'est redessiné que s'ils changent
+  const btn = button({ label: t('node.zone.draw'), icon: 'edit', kind: 'ghost', size: 'sm', onClick: () => draw() });
+  const row = el('div', { class: 'nb-zone-row' }, btn);
+  row.addEventListener('pointerdown', stop);
+  row.addEventListener('dblclick', stop);
+  host.append(row);
+  const rel = () => String(ctx.node.params?.drawing || '').trim();
+
+  async function draw() {
+    if (busy) return;
+    const src = sourceMedia(ctx, 'image');
+    if (!src || src.kind !== 'image') { toast(t('node.zone.needImage'), { kind: 'info' }); return; }
+    busy = true;
+    try {
+      const dims = src.meta?.w && src.meta?.h ? src.meta : await naturalSize(src.url);
+      const pid = ctx.projectId();
+      const bytes = await openMaskEditor({ imageUrl: src.url, w: dims?.w, h: dims?.h, drawingUrl: rel() ? urlFor(rel()) : null });
+      if (!bytes || ctx.projectId() !== pid) return;
+      const r = await window.mia.media.importBuffer(pid, `zone-${zoneStamp()}.png`, bytes);
+      if (!r?.ok || !r.data?.src) {
+        toast(t('node.zone.saveFailed', { error: r?.error || '?' }), { kind: 'error' });
+        return;
+      }
+      if (ctx.projectId() === pid) ctx.setParam('drawing', r.data.src);
+    } catch (e) {
+      toast(t('node.zone.saveFailed', { error: String(e?.message || e) }), { kind: 'error' });
+    } finally {
+      busy = false;
+    }
+  }
+  return {
+    url: () => (rel() ? urlFor(rel()) : null),
+    paint() {
+      const label = t(rel() ? 'node.zone.edit' : 'node.zone.draw');
+      const off = !sourceMedia(ctx, 'image');
+      if (shown && shown.label === label && shown.off === off) return;
+      shown = { label, off };
+      btn.setValue(label);
+      btn.setDisabled(off);
+    },
+    destroy() { row.remove(); },
+  };
 }
 
 // ── état d'exécution dans l'en-tête ─────────────────────────────────
@@ -348,7 +461,11 @@ function mountFooter(ctx, host) {
   const foot = el('div', { class: 'nb-foot' }, install, est, actions);
   host.append(foot);
   for (const x of [actions, install]) { x.addEventListener('pointerdown', stop); x.addEventListener('dblclick', stop); }
-  const modes = ctx.type.modes || null;
+  // bloc Modèle : estimation et boutons de la façon de faire retenue (Qwen : un seul « Lancer », Wan : ses vraies
+  // durées), jamais « ≈ 1 min » pour un modèle en ligne, qui coûte des crédits (audit 25/10, UX-12)
+  const targetType = () => targetTypeOf(ctx);
+  let ttype = targetType();
+  let modes = ttype.modes || null;
   let shape = null;          // 'active' | 'idle' | 'blocked|<raison>'
   let estDefault = '';
   let active = false;
@@ -357,7 +474,7 @@ function mountFooter(ctx, host) {
   tip(est, () => {
     if (blocked) return blocked.sub || '';
     if (modes && !active) {
-      return [t('node.estPreview', { est: estimateText(ctx.type, 'preview') }), t('node.estFinal', { est: estimateText(ctx.type, 'final') })].join(' · ');
+      return [t('node.estPreview', { est: estimateText(ttype, 'preview') }), t('node.estFinal', { est: estimateText(ttype, 'final') })].join(' · ');
     }
     return est.scrollWidth > est.clientWidth ? est.textContent : '';
   });
@@ -393,7 +510,7 @@ function mountFooter(ctx, host) {
         fin.dataset.tip = t('node.finalTip');
         pre.dataset.tip = t('node.previewTip');
         // l'estimation suit le bouton survolé : on sait ce que coûte chaque choix
-        const hover = (m) => () => { showEst(estimateText(ctx.type, m) || estDefault); };
+        const hover = (m) => () => { showEst(estimateText(ttype, m) || estDefault); };
         fin.addEventListener('pointerenter', hover('final'));
         pre.addEventListener('pointerenter', hover('preview'));
         for (const b of [fin, pre]) b.addEventListener('pointerleave', () => { showEst(estDefault); });
@@ -410,7 +527,9 @@ function mountFooter(ctx, host) {
     paint(st, problem) {
       active = ACTIVE.has(st.kind);
       blocked = !active && problem ? problem : null;
-      const want = active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle';
+      ttype = targetType();
+      modes = ttype.modes || null;
+      const want = (active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle') + `|${(modes || []).join(',')}`;
       if (want !== shape) { shape = want; build(); }
       if (st.kind === 'running') {
         estDefault = runs.endText(st.endAt) || t('node.running');
@@ -421,7 +540,7 @@ function mountFooter(ctx, host) {
       } else if (blocked) {
         estDefault = blocked.title;
       } else {
-        estDefault = estimateText(ctx.type, modes ? 'preview' : null);
+        estDefault = estimateText(ttype, modes ? 'preview' : null);
       }
       foot.classList.toggle('is-blocked', !!blocked);
       install.hidden = !blocked;
@@ -438,19 +557,31 @@ function mountFooter(ctx, host) {
 // que Quentin écrit dans sa consigne.
 
 function mountRefs(ctx, host) {
-  const ports = (ctx.type.inputs || []).filter((i) => i.multi && i.max && (i.type === 'image' || i.type === 'video'));
-  if (!ports.length || !host) return null;
+  // ce qui se cite dans la consigne : les références (images, vidéos, sons) et les images d'appui de Qwen — jamais
+  // les images-clés (audit 25/10, UX-3 / LIVE-4)
+  const CITED = ['refs', 'refVideos', 'refAudios', 'ref'];
+  const all = (ctx.type.inputs || []).filter((i) => CITED.includes(i.id) && i.multi && i.max);
+  if (!all.length || !host) return null;
+  const portsNow = () => {
+    if (!isModelBlock(ctx.node)) return all;
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const r = blockWorkflow(ctx.node, conn);
+    const used = r ? portsOfWorkflow(r.workflow) : {};
+    return all.filter((i) => used[i.id]);
+  };
   const root = el('div', { class: 'nb-refs', hidden: true });
   root.addEventListener('pointerdown', stop);
   host.append(root);
   let sig = null;
   function render() {
     const items = [];
-    for (const p of ports) {
+    for (const p of portsNow()) {
       const list = runs.upstream(ctx.id, p.id);
+      // Qwen : l'image à retoucher est l'Image 1, ses images d'appui sont les images 2 et 3
+      const from = p.id === 'ref' ? 2 : 1;
       list.forEach((s, i) => {
-        const kind = p.type === 'video' ? 'video' : 'image';
-        const label = t(kind === 'video' ? 'node.ref.video' : 'node.ref.image', { n: i + 1 });
+        const kind = p.type === 'video' ? 'video' : p.type === 'audio' ? 'audio' : 'image';
+        const label = t(`node.ref.${kind}`, { n: i + from });
         const thumb = s.kind === 'image' ? (s.path ? urlFor(s.path) : '') : (s.poster ? urlFor(s.poster) : '');
         const name = s.node.title || s.node.data?.name || tl(runs.typeOf(s.node.id)?.label || {});
         items.push({ label, thumb, name, key: `${p.id}:${s.node.id}:${s.path || ''}` });
@@ -542,8 +673,9 @@ function computeBody(ctx) {
     openInspector: () => emit('inspector:open', { nodeId: ctx.id }),
   });
 
-  // références numérotées + réglages + conseil d'entrée + pied
+  // références numérotées + (Masque) dessiner la zone + réglages + conseil d'entrée + pied
   const refs = mountRefs(ctx, C);
+  const zone = type.id === 'mask' && C ? mountZoneRow(ctx, C) : null;
   const params = C ? mountParams(C, {
     node: ctx.node, type, mode: 'card', setParam: ctx.setParam,
     onScrub: (paramId, frame) => { ctx.scrub = frame == null ? null : { paramId, frame }; renderWell(); },
@@ -619,7 +751,8 @@ function computeBody(ctx) {
     if (empty.length) return { title: t('node.notComputed'), sub: t('node.fillFirst', { list: empty.join(', ') }), ratio };
     const gone = goneSource(ctx);
     if (gone) return { title: t('node.src.missing', { name: gone.name }), sub: t('node.src.missingSub', { block: gone.block }), icon: 'warn', ratio };
-    return { title: t('node.notComputed'), sub: estimateText(type, type.modes ? 'preview' : null), ratio };
+    const tt = targetTypeOf(ctx);
+    return { title: t('node.notComputed'), sub: estimateText(tt, tt.modes ? 'preview' : null), ratio };
   }
 
   function renderWell(st = runs.state(ctx.id), problem = modelProblem(type, ctx.node)) {
@@ -627,6 +760,11 @@ function computeBody(ctx) {
     well.setTag(null);
     if (st.kind === 'running' && st.preview) { ctx.shows = 'live'; well.showLive(st.preview); return; }
     if (ctx.scrub && showSource(ctx.scrub.paramId, ctx.scrub.frame)) return;
+    // bloc Masque : l'image branchée et la zone peinte par-dessus (le masque gris, lui, s'ouvre au double-clic)
+    if (zone && !ACTIVE.has(st.kind)) {
+      const src = sourceMedia(ctx, 'image');
+      if (src && src.kind === 'image') { ctx.shows = 'source'; well.show({ ...src, zone: zone.url() }); return; }
+    }
     const run = viewedRun();
     const media = run ? outputMedia(run) : null;
     if (media) {
@@ -713,6 +851,8 @@ function computeBody(ctx) {
   /** Conseil d'une entrée facultative non branchée (« image de fin conseillée »). */
   let hintSig = null;
   function renderHint() {
+    // bloc Modèle : sa ligne « Ce que fait le bloc » dit déjà quoi brancher
+    if (isModelBlock(ctx.node)) { hint.hidden = true; hintSig = null; return; }
     const opt = (type.inputs || []).find((i) => !i.required && i.hint && i.type !== 'text' && !i.multi && !ctx.connected(i.id));
     hint.hidden = !opt;
     if (opt && opt.id !== hintSig) {
@@ -753,15 +893,16 @@ function computeBody(ctx) {
     renderWell(st, problem);
     renderHint();
     refs?.render();
+    zone?.paint();
     versions?.refresh();
   }
 
   return {
     render: renderAll,
-    renderInputs() { params?.refreshInputs(); renderHint(); renderWell(); refs?.render(); chrome.paint(runs.state(ctx.id), type.engine ? modelProblem(type, ctx.node) : null); },
+    renderInputs() { params?.refreshInputs(); renderHint(); zone?.paint(); renderWell(); refs?.render(); chrome.paint(runs.state(ctx.id), type.engine ? modelProblem(type, ctx.node) : null); },
     sync(node) { params?.sync(node); },
     destroy() {
-      well?.destroy(); params?.destroy(); versions?.destroy(); footer?.destroy(); chrome.destroy(); refs?.destroy();
+      well?.destroy(); params?.destroy(); versions?.destroy(); footer?.destroy(); chrome.destroy(); refs?.destroy(); zone?.destroy();
       tabs?.remove?.(); errorBox.remove(); hint.remove(); exportBox?.remove();
     },
   };

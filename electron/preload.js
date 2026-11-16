@@ -94,6 +94,13 @@ const INVOKE = {
   },
   bridge: {
     status: 'bridge:status'          // the assistant bridge (SPEC §13): {running, port, client…}
+  },
+  // SPEC §23.3: online accounts (Higgsfield). The key goes in once (setKey) and never comes back to the window.
+  cloud: {
+    status: 'cloud:status',          // () → {linked, provider, since, keyTail, crypto}
+    setKey: 'cloud:setKey',          // (« ID:SECRET ») → {ok, error?, status?} — checked, then kept encrypted
+    removeKey: 'cloud:removeKey',    // () → {ok, status}
+    check: 'cloud:check'             // () → {ok, error?} — a free call to Higgsfield
   }
 };
 /* channels:invoke:end */
@@ -158,6 +165,7 @@ const mia = {
     onTitlebarMenu: (cb) => listen(EVENTS.titlebarMenu, cb)
   }),
   app: invokers(INVOKE.app),
+  cloud: invokers(INVOKE.cloud),
   installer: Object.assign(invokers(INVOKE.installer), {
     onProgress: (cb) => listen(EVENTS.installerProgress, cb)
   }),

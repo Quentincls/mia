@@ -103,8 +103,9 @@
 
 /* Couche composée en permanence : la promouvoir au début de chaque geste et la
    rendre à la fin coûtait deux repeintures complètes (≈ 40 ms chacune, mesuré).
-   Chromium re-rastérise quand même le texte net à la nouvelle échelle dès que
-   le zoom s’arrête (vérifié de 0,4 à 1,8). */
+   Mais Chromium ne la repeint pas à la nouvelle échelle après un zoom (texte flou
+   chez Quentin, 25/10) : editor.js settle() la rend une image quand le zoom a
+   changé, puis la reprend, ce qui la repeint nette. */
 #world { will-change: transform; }
 #stage.tool-section, #stage.tool-section * { cursor: crosshair !important; }
 #groups { position: absolute; left: 0; top: 0; z-index: 0; }
@@ -533,7 +534,8 @@
   animation: g-pop var(--dur-pop) var(--ease-out);
   transition: color var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.w-cut:active { scale: 0.92; }
+/* pas de scale à l’appui : Chromium perd alors la pastille (le relâchement tombe sur le fil dessous, aucun clic) */
+.w-cut:active { opacity: 0.8; }
 .w-cut:hover { color: #fff; background: var(--danger, var(--state-err)); border-color: transparent; }
 .w-cut[hidden] { display: none; }
 @keyframes g-pop { from { opacity: 0; } }
@@ -738,7 +740,7 @@
 }
 .pal-body { display: flex; height: min(400px, 56vh); border-top: 1px solid var(--line); }
 .pal-cats {
-  flex: none; width: 136px; padding: 8px;
+  flex: none; width: 156px; padding: 8px;
   display: flex; flex-direction: column; gap: 1px;
   border-right: 1px solid var(--line);
   overflow: auto;
@@ -750,6 +752,12 @@
 }
 .pal-cat:hover { color: var(--txt); background: var(--wash); }
 .pal-cat.on { color: var(--txt); background: var(--wash-2); }
+/* « FABRIQUER », « PRÉPARER », « RETRAVAILLER » : petits titres des groupes d'onglets */
+.pal-catgroup {
+  flex: none; padding: 12px 10px 5px;
+  font-family: var(--font-kicker); font-size: 10px; font-weight: 500; line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--txt-3);
+}
 .pal-list { position: relative; flex: 1; min-width: 0; overflow: auto; padding: 4px 8px 10px; scroll-padding: 8px; }
 /* la surbrillance de la ligne active : un seul élément qui glisse de ligne en ligne */
 .pal-hl {
@@ -979,3 +987,44 @@
   .n-prog.indet::before { animation: none; width: 100%; transform: none; opacity: 0.5; }
   .node.entering, .node.leaving, .be-card, .pal-panel, #dock, #zoombar, #minimap, .w-cut, .drop-veil { animation: none; }
 }
+
+/* bloc Modèle (SPEC §23) : une entrée reliée que le modèle choisi ne prend pas reste visible, éteinte */
+.n-port.unused .lbl { color: var(--txt-3); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+.n-port.unused .dot { opacity: .5; }
+/* palette : la pastille d'un modèle (monogramme), à la place du glyphe d'un bloc */
+.pal-glyph.pal-mark { font: 600 9.5px/1 var(--font-mono); letter-spacing: .02em; color: var(--txt-2); }
+.pal-meta.online { color: var(--txt-2); }
+/* bloc Modèle : « + Ajouter » une entrée rangée, × pour la ranger, entrée montrée le temps d'un fil (SPEC §23) */
+.n-addrow { padding-left: 6px; }
+.n-add {
+  display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px 0 5px;
+  border-radius: var(--r-xs); color: var(--txt-3); font-size: 11.5px; font-weight: 450;
+  transition: color var(--dur-pop) var(--ease-out), background-color var(--dur-pop) var(--ease-out);
+}
+.n-add:hover, .n-add:focus-visible { color: var(--txt); background: var(--wash); }
+.n-add svg { display: block; flex: none; }
+.n-unshow {
+  display: grid; place-items: center; flex: none; width: 16px; height: 16px; margin-left: 4px;
+  border-radius: 4px; color: var(--txt-3); opacity: 0;
+  transition: opacity var(--dur-pop) var(--ease-out), color var(--dur-pop) var(--ease-out);
+}
+.n-port:hover .n-unshow, .n-unshow:focus-visible { opacity: 1; }
+.n-unshow:hover { color: var(--txt); background: var(--wash-2); }
+.n-unshow svg { display: block; }
+.n-port.peek .lbl { color: var(--txt-3); }
+/* reliée mais pas utilisée par ce que fait le bloc : grisée, sans être barrée (le modèle sait s'en servir autrement) */
+.n-port.ignored .lbl { color: var(--txt-3); }
+.n-port.ignored .dot { opacity: .55; }
+.connecting .n-port.peek.target .lbl { color: var(--txt); }
+.lod-2 .n-add, .lod-2 .n-unshow { visibility: hidden; }
+/* « Partir de : … » d'un bloc Modèle vide : des boutons discrets, sur plusieurs lignes si besoin */
+.n-row.n-startrow { height: auto; min-height: var(--node-row-h); flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 4px 12px 4px 12px; }
+.n-start-lbl { font-size: 11.5px; color: var(--txt-3); margin-right: 2px; }
+.n-start {
+  height: 22px; padding: 0 8px; border-radius: var(--r-xs); border: 1px solid var(--line-2);
+  font-size: 11.5px; color: var(--txt-2); white-space: nowrap;
+  transition: color var(--dur-pop) var(--ease-out), background-color var(--dur-pop) var(--ease-out), border-color var(--dur-pop) var(--ease-out);
+}
+.n-start-more { width: 22px; padding: 0; display: inline-grid; place-items: center; }
+.n-start:hover, .n-start:focus-visible { color: var(--txt); background: var(--wash); border-color: var(--line-strong); }
+.lod-2 .n-startrow { visibility: hidden; }

@@ -537,7 +537,7 @@ const FOLDED = new Set(['other', 'internal', 'apps', 'partials']);
 const HINTED = new Set(['loras', 'other', 'internal', 'apps', 'partials']);
 // Lignes de l'accueil : une par capacité, dans l'ordre où Quentin s'en sert.
 const HOME_CAPS = ['image-to-video', 'text-to-video', '3d-to-real', 'guided-video', 'reference-to-video', 'character-performance',
-  'image-edit', 'upscale', 'depth', 'cutout', 'lora'];
+  'image-edit', 'text-to-image', 'upscale', 'depth', 'cutout', 'lora'];
 const GENRE_KEYS = ['character', 'place', 'style'];
 const GENRE_FALLBACK = { character: { fr: 'Personnage', en: 'Character' }, place: { fr: 'Lieu', en: 'Place' }, style: { fr: 'Style', en: 'Style' } };
 
@@ -2106,7 +2106,8 @@ function homeRow(i, cap) {
     }
   }
   const nameEl = el('span', { class: 'hm-name' }, name || '—');
-  if (ttl) tip(nameEl, ttl);
+  // la phrase du manque, sinon le nom entier quand la rangée l'a coupé (la liste de tous ses LoRA)
+  tip(nameEl, () => ttl || (nameEl.scrollWidth > nameEl.clientWidth + 1 ? name : ''));
   const row = el('button', { class: ['hm-row', 'hm-' + stateCls], type: 'button', dataset: path ? { path } : {} },
     el('span', { class: 'hm-cap' }, capLabel(cap)),
     // le nom prend la place libre ; la famille (mono gris) le suit seulement si elle dit autre chose que le nom

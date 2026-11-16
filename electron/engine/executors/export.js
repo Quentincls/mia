@@ -21,7 +21,7 @@ const IMAGE_RE = /\.(png|jpe?g|webp|bmp|tiff?|exr|psd|tga|gif)$/i;
 const MB = 1000 * 1000;
 
 const lang = (x) => (x && x.lang === 'en' ? 'en' : 'fr');
-/** Chaîne dans la langue de l'interface (français par défaut : Quentin ne lit pas l'anglais). */
+/** Chaîne dans la langue de l'interface (français par défaut : langue principale de l'interface). */
 const tr = (x, fr, en) => (lang(x) === 'en' ? en : fr);
 
 /** Erreur « annulé » reconnaissable par le moteur (name AbortError + cancelled). */

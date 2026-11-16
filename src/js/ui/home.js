@@ -27,6 +27,9 @@ import { openSettings } from './settings.js';
 import { toggle } from './controls.js';
 import { ms, play, flip, rects, reduced, viewTransition } from './motion.js';
 
+/** A card name cut by its box: too wide (one line) or past its two lines (line clamp). */
+const isCut = (n) => n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1;
+
 register({
   fr: {
     'home.title': 'Projets',
@@ -700,7 +703,7 @@ export function initHome(cb = {}) {
       )
     );
     const nameEl = $('.card-name-text', node);
-    tip(nameEl, () => (nameEl.scrollWidth > nameEl.clientWidth + 1 ? f.name : ''));
+    tip(nameEl, () => (isCut(nameEl) ? f.name : ''));
     node.addEventListener('click', (e) => { if (e.detail <= 1 && !more.contains(e.target)) openFolder(f.id); });
     node.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFolder(f.id); }
@@ -752,7 +755,7 @@ export function initHome(cb = {}) {
     // the full name when the card had to cut it (and whether it has a tab)
     const nameEl = $('.card-name', node);
     tip(nameEl, () => {
-      const cut = nameEl.scrollWidth > nameEl.clientWidth + 1;
+      const cut = isCut(nameEl);
       if (cut) return p.name + (open ? ' · ' + t('home.isOpen') : '');
       return open ? t('home.isOpen') : '';
     });

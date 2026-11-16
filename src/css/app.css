@@ -367,6 +367,18 @@ kbd {
 }
 .tooltip kbd { font-size: 10px; padding: 1px 5px; }
 .tooltip.multi { white-space: normal; }
+/* infobulle riche (pastilles des blocs, modèles) : le genre en mono, le nom, une phrase simple, à quoi ça sert */
+.tooltip.rich { display: block; width: max-content; max-width: 280px; padding: 9px 11px 10px; white-space: normal; }
+.tooltip.rich .tip-kicker {
+  display: block; margin-bottom: 5px; font: 500 9.5px/1 var(--font-kicker, var(--font-mono)); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--txt-3);
+}
+.tooltip.rich .tip-title { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.3; color: var(--txt); }
+.tooltip.rich .tip-body { display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.45; color: var(--txt-2); }
+.tooltip.rich .tip-meta {
+  display: block; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line);
+  font: 500 9.5px/1.45 var(--font-kicker, var(--font-mono)); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3);
+}
 @keyframes tip-in { from { opacity: 0; transform: translateY(var(--tip-dy, 2px)); } }
 
 /* ── toasts ─────────────────────────────────────────────────────────── */
@@ -622,3 +634,27 @@ body.thumbing .pr-cursor, body.thumbing #presence, body.thumbing .presence,
 body.thumbing [data-thumb-hide], body.thumbing .tb-veil {
   visibility: hidden !important;
 }
+
+/* Réglages → Comptes en ligne (SPEC §23.3) : la clé se colle une fois, puis seulement Vérifier / Délier */
+.set-hf { display: flex; flex-direction: column; gap: 6px; margin: -2px 0 12px; }
+.set-hf-form { display: flex; align-items: center; gap: 8px; }
+.set-hf-form[hidden] { display: none; }
+.set-hf-form .tf { flex: 1 1 auto; min-width: 0; }
+.set-hf-msg.bad { color: var(--danger, var(--state-err)); }
+/* menu « + Ajouter » d'un bloc Modèle : la pastille du genre d'entrée, ce qu'elle permet */
+.pa-dot {
+  --pc: var(--t-media);
+  display: block; width: 9px; height: 9px; box-sizing: border-box;
+  border: 1.5px solid var(--pc); border-radius: 50%;
+}
+.pa-dot[data-t="image"] { --pc: var(--t-image); }
+.pa-dot[data-t="video"] { --pc: var(--t-video); border-radius: 2px; }
+.pa-dot[data-t="text"] { --pc: var(--t-text); }
+.pa-dot[data-t="audio"] { --pc: var(--t-audio); border-radius: 1.5px; transform: rotate(45deg) scale(.84); }
+.ctx-item.hot .pa-dot { border-color: #fff; }
+.pa-uses {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--txt-3); margin-top: 3px;
+  white-space: normal; max-width: 340px;
+}
+.ctx-item.hot .pa-uses { color: rgba(255,255,255,.72); }
+.addinput .ctx-item.rich { padding-top: 7px; padding-bottom: 7px; }

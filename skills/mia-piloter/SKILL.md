@@ -152,3 +152,67 @@ fermeture). `POST http://127.0.0.1:<port>/call`, en-tête `Authorization: Bearer
 `{"method":"add_block","params":{…},"client":"Claude"}` → `{ok, result}` / `{ok:false, error}`. Méthode = nom
 de l'outil sans `mia_` (`status`, `catalog`, `create_project`, `run`, `wait`…). Ou lancer
 `node <Mia>\mcp\mia-mcp.js` comme client stdio. Mode d'emploi : `mcp/README.md` de Mia.
+
+## Bloc Modèle : un bloc par modèle, sur le PC ou en ligne (depuis le 24/10)
+- `mia_add_block {type:"gen", params:{model:"fam:minimax"}}` pose un bloc au nom du modèle (« MiniMax H3 »).
+  Familles du PC : `fam:ltx`, `fam:minimax`, `fam:wan`, `fam:qwen` (ou l'id d'une variante de l'inventaire) ;
+  en ligne (Higgsfield, **payant**) : `hf:seedance-2-5`, `hf:kling-3-0`, `hf:minimax-h3`… — `mia_catalog {type:"gen"}`
+  les donne toutes (`choices` : ce qu'elles font, leurs entrées et maximums, leurs réglages `hf.*`).
+- Ses entrées sont celles de la famille ; **ce qui est branché décide de ce qu'il fait** : rien → vidéo depuis le
+  texte ; `start` (+ `end`) → animer une image ; `refs` / `refVideos` / `refAudios` → références (citées « Image 1 »,
+  « Vidéo 2 » dans la consigne) ; `guide` → vidéo guidée ; `video` (rendu 3D) → photoréaliste ; `character` +
+  `motion` → faire jouer un personnage ; une `video` dans MiniMax → la prolonger. Deux façons qui vont aussi
+  bien : `params.workflow` choisit (`mia_get_board` → `model.otherWays`).
+- **Lis `mia_catalog {type:"gen"}` une fois** : `params[model].choices[].ways` donne, pour chaque modèle, chaque façon
+  de faire avec `needs` (à brancher), `needsOneOf`, `takes` (entrées et combien), `settings` (ses réglages) et
+  `trial` (« à essayer »). `howItWorks` résume la règle. Les réglages hors de la façon choisie sont ignorés.
+- **À l'écran, un bloc Modèle vide n'impose rien** (depuis le 25/10) : LTX, MiniMax et la plupart des modèles en
+  ligne montrent la Consigne et une ligne « Partir de : » (un bouton par point de départ : image de début,
+  références, rendu 3D, vidéo guide, fiche…). Wan et Qwen, qui ne font qu'une chose, montrent leurs entrées. Tu ne
+  cliques pas ces boutons : tu relies le port.
+- **Relie en nommant le port** (`mia_connect … to:{node, port:"keys"}`) : c'est le port qui décide. Toutes les
+  entrées du modèle se branchent, même celles que l'interface range derrière « Partir de » ou « + Ajouter » (le fil
+  les montre). Sans port, le fil va à l'entrée principale tant qu'elle a de la place (MiniMax : `refs`, aussi pour la
+  2e et la 3e image ; LTX : `start`), puis à une entrée qui sert seule (un son dans MiniMax → `audio`, le son à
+  suivre). Un modèle qui ne sait pas partir de la consigne (Genjutsu, en ligne) montre ce qui lui manque.
+  Une entrée multiple numérote ses fils dans l'ordre vertical des blocs sources (le plus haut = 1).
+- **Une entrée seule qui a besoin d'une autre bloque le bloc** (image de fin, images-clés ou fiche sans image de début
+  sur LTX…) : il affiche « Il manque pour « … » : … » et ne part plus du texte en silence. Branche ce qui manque.
+- **Vérifie avec `mia_get_board`** : chaque bloc Modèle a `model` = {family, does, workflow, otherWays, uses (ce
+  qu'il prend de ce qui est branché), connect (ce qui manque), ignored (branché mais pas pris), trial, startFrom (bloc
+  vide : ses points de départ, port et ce qu'il ferait)}. `does` doit être ce que tu voulais avant de lancer.
+- Ce que savent les modèles du PC (entrées du bloc Modèle) :
+  - **LTX 2.5** : `start` (+ `end`, + `keys` jusqu'à 4 images-clés réparties à intervalles égaux entre début et
+    fin, + `sheet`) → animer ; rien → depuis le texte ; `guide` (+ `start`, qui sert de look) → guidée ; `video`
+    (rendu 3D, + `start` comme look) → photoréaliste ; `sheet` seule → vidéo depuis une fiche personnage (à
+    essayer). LTX ne mélange PAS plusieurs références séparées : c'est MiniMax.
+    Images-clés : **même cadrage que l'image de début** (cadrée autrement, le plan coupe vers elle).
+  - **MiniMax H3** (15 s, 24 i/s, `resolution` jusqu'à `768`) : `refs` (9 images) / `refVideos` (3) /
+    `refAudios` (3 sons) → références, citées « Image 1 », « Vidéo 2 », « Son 1 » (les sons comptés à part) ;
+    `start`/`end`/`keys` + `audio` (un son à suivre : la vidéo se cale dessus) → animer ; `keys` ou `audio` sans
+    image → depuis le texte ; `guide` → guidée ; `video` → **prolonger** (le résultat est la vidéo entière, rallongée
+    de `duration` secondes).
+  - **Wan Animate 2** : `character` + `motion` ; réglages `motionFidelity` (fidélité au mouvement) et `likeness`
+    (ressemblance), 0 à 2, 1 = normal.
+  - **Qwen Image Edit** : `image` + `ref` (jusqu'à 2 images d'appui) ; la consigne les cite « image 2 », « image 3 »
+    (l'image à retoucher est l'image 1).
+  - **FLUX.2 Klein 9B** (`fam:klein`) : rien → une image depuis la consigne (`format`, `resolution` 1024 = 1K ou
+    1440 = 1,5K), en quelques secondes ; `image` → la retouche en gardant son cadrage. **Qwen-Image 2.1 Turbo**
+    (`fam:qwen21`) : une image depuis la consigne, très bon pour les textes écrits dans l'image (jusqu'à 2048 = 2K) ;
+    une image branchée sur `layout` (« Cadrage ») lui fait garder sa composition (sa profondeur), la LoRA gardant son
+    style (`layoutFollow` : `strict`, `balanced` par défaut, `loose`) ; le format suit alors cette image. Une LoRA
+    peut avoir des conseils (`advice`) et une force conseillée (`strength`) dans `mia_catalog` : suis-les.
+    **Retoucher une zone** (Qwen 2.1) : l'image sur `image` et un bloc **Masque** (`mask`, son entrée `image` =
+    la même image) sur `mask`. La zone se peint dans Mia (bouton « Dessiner la zone » du Masque) : tu ne peux pas
+    peindre, demande-le à Quentin, ou mets dans `drawing` le chemin absolu d'un PNG noir et blanc que tu as fait
+    (blanc = la zone ; `mode` `change` / `protect`, `feather` en px). Seule la zone est recalculée
+    (`zoneStrength` 0,3 à 1, 0,7 par défaut) et recollée : le reste reste identique au pixel ; une zone de moins
+    de 300 px est zoomée toute seule. Recette `retouch-zone`.
+    Licences non commerciales (essais, projets perso) : dis-le. Une LoRA n'est proposée que sur le modèle pour lequel
+    elle a été entraînée (une LoRA Klein 9B sur Klein, une LoRA Qwen-Image 2.1 sur Qwen 2.1, jamais l'une sur l'autre).
+- **« À essayer » (`trial`)** : images-clés de LTX, son à suivre, sons de référence, 768p n'ont
+  pas encore été validés à l'œil au labo (prolonger et images-clés de MiniMax : validés le 24/10). Utilise-les quand on te le demande, dis-le, et fais juger
+  le résultat à l'œil (côte à côte avec la source).
+- Un modèle en ligne ne se lance **que si l'utilisateur l'a demandé** (crédits) ; son compte se relie dans Réglages →
+  Comptes en ligne (jamais par l'assistant : la clé ne passe pas par toi). L'aperçu en ligne coûte moins
+  (plus petite résolution, durée la plus courte).

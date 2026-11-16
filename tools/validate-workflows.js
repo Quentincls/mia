@@ -56,7 +56,7 @@ const REF2V = require(path.join(ENGINE, 'executors', 'ref2v.js'));
 const PENDING = { diffusion_models: [REF2V.REF2VA], loras: [REF2V.TURBO4] };
 // LoRAs made up for the family / placement tests (« mia\… » = ComfyUI's Windows spelling of models\loras\mia\…)
 const TEST_LORAS = { loras: ['wan_style_test.safetensors', 'qwen_style_test.safetensors', 'minimax_style_test.safetensors',
-  'mia\\perso_test.safetensors'] };
+  'mia\\perso_test.safetensors', 'klein_style_test.safetensors', 'qwen21_style_test.safetensors'] };
 const merge = (...sets) => {
   const out = {};
   for (const s of sets) for (const [k, v] of Object.entries(s || {})) out[k] = [...(out[k] || []), ...v];
@@ -108,6 +108,7 @@ function makeFakes(tmp, oi, lists) {
     calls: [],
     async run(args) {
       this.calls.push(args);
+      if (args.some((a) => String(a).includes('bbox='))) return { code: 0, stderr: `[Parsed_bbox_1] n:0 ${this.bbox(args)}` };
       const out = args[args.length - 1];
       const fi = args.indexOf('-frames:v');
       const ii = args.indexOf('-i');
@@ -121,6 +122,11 @@ function makeFakes(tmp, oi, lists) {
       return { code: 0, stderr: '' };
     },
     async probe(abs) { return meta.get(path.resolve(abs)) || { kind: 'image', w: 1080, h: 1920 }; },
+    // filtre bbox (zone d'un masque) : petite si le cas le dit (meta.zone), sinon une grande zone
+    bbox(args) {
+      const m = meta.get(path.resolve(args[args.indexOf('-i') + 1] || '')) || {};
+      return m.zone === 'small' ? 'x1:500 x2:524 y1:900 y2:926 w:25 h:27' : 'x1:100 x2:899 y1:200 y2:1499 w:800 h:1300';
+    },
     async nvenc() { return true; },
     encodeArgs() { return ['-c:v', 'h264_nvenc']; },
   };
@@ -221,6 +227,11 @@ const INV = {
     label: { fr: 'Perso test', en: 'Test character' }, trigger: 'prs test', comfy: null, placed: null },
   wanLora: inv('wan_style_test.safetensors', 'loras', 'Wan 2.x', 'Style Wan', { role: 'lora', loraFor: 'wan', trigger: 'wnstyle' }),
   qwenLora: inv('qwen_style_test.safetensors', 'loras', 'Qwen-Image', 'Style Qwen', { role: 'lora', loraFor: 'qwen' }),
+  klein: inv('flux-2-klein-9b.safetensors', 'diffusion_models', 'FLUX.2', 'FLUX.2 Klein 9B', { baseKey: 'flux2klein9b', variant: 'Klein 9B' }),
+  qwen21: inv('qwen_image_2.1_turbo_int8_convrot.safetensors', 'diffusion_models', 'Qwen-Image 2.1', 'Qwen-Image 2.1', { baseKey: 'qwen21' }),
+  kleinLora: inv('klein_style_test.safetensors', 'loras', 'FLUX.2', 'Style Klein',
+    { role: 'lora', variant: 'Klein 9B', loraFor: 'flux2klein9b', trigger: 'qntncls style' }),
+  qwen21Lora: inv('qwen21_style_test.safetensors', 'loras', 'Qwen-Image 2.1', 'Style Qwen 2.1', { role: 'lora', loraFor: 'qwen21' }),
   mmLora: inv('minimax_style_test.safetensors', 'loras', 'MiniMax H3', 'Style MiniMax', { role: 'lora', loraFor: 'minimax' }),
   wan: inv('wan_animate_2_int8_convrot.safetensors', 'diffusion_models', 'Wan 2.x', 'Wan Animate 2'),
   sv7: inv('seedvr2_7b_int8_convrot.safetensors', 'diffusion_models', 'SeedVR2', 'SeedVR2 7B'),
@@ -235,7 +246,40 @@ const IMG_H = { kind: 'image', meta: { w: 1920, h: 1080 } };
 const IMG_SQ = { kind: 'image', meta: { w: 2048, h: 2048 } };
 const vid = (w, h, frames, fps = 24, extra = {}) => ({ kind: 'video', meta: { w, h, fps, frames, duration: frames / fps,
   hasAudio: false, ...extra } });
+const aud = (duration) => ({ kind: 'audio', meta: { duration } });
 const text = (t, negative = '') => ({ text: t, negative });
+// the reference-to-video graph's prompt and what feeds its reference sounds
+// the MiniMax canvas a graph asks for: "1344x768"
+const mmSize = (gs) => {
+  const n = Object.values(gs[gs.length - 1] || {}).find((v) => /^MiniMaxH3(ImageToVideo|ReferenceToVideo)$|^EmptyMiniMaxH3LatentAV$/.test(v.class_type));
+  return n ? `${n.inputs.width}x${n.inputs.height}` : '?';
+};
+// guide nodes of a graph: "class@frame[+audio]"
+const guides = (gs) => Object.values(gs[gs.length - 1] || {}).filter((n) => /AddGuide$/.test(n.class_type))
+  .map((n) => `${n.class_type.replace('AddGuide', '')}@${n.inputs.frame_idx}${n.inputs.audio ? '+son' : ''}${n.inputs.image ? '' : '-image'}`).join(' ');
+const wantGuides = (list) => (gs) => (guides(gs) === list ? null : `guides « ${guides(gs)} » au lieu de « ${list} »`);
+// LTX extras: the two latent sizes of a two-pass graph, and Gemma's rewrite feeding the text encoder
+const ltxPasses = (gs) => {
+  const g = gs[gs.length - 1] || {};
+  const e = Object.values(g).find((n) => n.class_type === 'EmptyLTXVLatentVideo');
+  const up = Object.values(g).some((n) => n.class_type === 'LTXVLatentUpsampler');
+  return `${e ? `${e.inputs.width}x${e.inputs.height}` : '?'}${up ? '×2' : ''}`;
+};
+const enriched = (gs) => Object.values(gs[gs.length - 1] || {}).some((n) => n.class_type === 'TextGenerateLTX2Prompt')
+  && Object.values(gs[gs.length - 1]).some((n) => n.class_type === 'CLIPTextEncode' && Array.isArray(n.inputs.text)
+    && (gs[gs.length - 1][n.inputs.text[0]] || {}).class_type === 'TextGenerateLTX2Prompt');
+const wantSize = (size) => (gs) => (mmSize(gs) === size ? null : `taille ${mmSize(gs)} au lieu de ${size}`);
+// FLUX.2 Klein : la même taille sur l'image vide (9) et l'échelle de bruit (8)
+const kleinSize = (gs, size) => {
+  const a = gs[0]['9'] && gs[0]['9'].inputs, b = gs[0]['8'] && gs[0]['8'].inputs;
+  const got = a ? `${a.width}x${a.height}` : '?';
+  return got === size && b && b.width === a.width && b.height === a.height ? null : `taille ${got} (échelle ${b && b.width}x${b && b.height}) au lieu de ${size}`;
+};
+const hasLora = (gs, name) => (Object.values(gs[0]).some((n) => n.class_type === 'LoraLoaderModelOnly' && String(n.inputs.lora_name).includes(name))
+  ? null : `LoRA ${name} absent`);
+const promptStarts = (gs, id, key, start) => (String((gs[0][id] || { inputs: {} }).inputs[key] || '').startsWith(start)
+  ? null : `consigne sans « ${start} » en tête`);
+const r2vPrompt = (gs) => (Object.values(gs[0] || {}).find((n) => n.class_type === 'MiniMaxH3ReferenceToVideo') || { inputs: {} }).inputs;
 
 // executor × variant: inputs (media placeholders, arrays for multi inputs), params over the catalog defaults, mode,
 // models; assume = test-only installed models; ensure = what x.ensureLora answers; expectError = the run must fail
@@ -247,12 +291,79 @@ const VARIANTS = {
       params: { detail: 'fine', invert: true }, models: { model: INV.vda } },
     { name: 'image', inputs: { media: IMG_V }, models: { model: INV.vda } },
   ],
+  // image depuis un texte (bloc Modèle FLUX.2 Klein 9B / Qwen-Image 2.1, 25/10) : à vide, avec les vrais graphes
+  t2i: [
+    { name: 'Klein · 16:9 1K', params: { prompt: 'a lighthouse at dawn', format: '16:9', resolution: '1024' },
+      models: { model: INV.klein }, expectGraph: (gs) => kleinSize(gs, '1360x768') },
+    { name: 'Klein · 9:16 1,5K + LoRA Klein (mot déclencheur)', params: { prompt: 'a portrait', format: '9:16', resolution: '1440' },
+      models: { model: INV.klein, lora: INV.kleinLora }, assume: TEST_LORAS,
+      expectGraph: (gs) => kleinSize(gs, '1088x1920') || hasLora(gs, 'klein_style_test') || promptStarts(gs, '4', 'text', 'qntncls style') },
+    { name: 'Klein · image de départ (référence)', inputs: { image: IMG_V }, params: { prompt: 'make it night', resolution: '1024' },
+      models: { model: INV.klein }, expectGraph: (gs) => (Object.values(gs[0]).filter((n) => n.class_type === 'ReferenceLatent').length === 2
+        && gs[0]['21'].inputs.megapixels === 1 ? null : 'chaîne de l’image de départ incomplète') },
+    { name: 'Klein · LoRA Qwen 2.1 refusée', params: { prompt: 'x' }, models: { model: INV.klein, lora: INV.qwen21Lora },
+      expectError: /fait pour Qwen-Image 2\.1, pas pour FLUX\.2 Klein 9B/ },
+    { name: 'Klein · LoRA Qwen Image Edit refusée', params: { prompt: 'x' }, models: { model: INV.klein, lora: INV.qwenLora },
+      expectError: /fait pour Qwen Image, pas pour FLUX\.2 Klein 9B/ },
+    { name: 'Qwen 2.1 · 2K carré, 8 étapes', params: { prompt: 'a neon sign that reads MIA', format: '1:1', resolution: '2048' },
+      models: { model: INV.qwen21 }, expectGraph: (gs) => (gs[0]['459:456'].inputs.width === 2048 && gs[0]['459:456'].inputs.height === 2048
+        && gs[0]['459:458'].inputs.steps === 8 ? null : `taille ${gs[0]['459:456'].inputs.width}x${gs[0]['459:456'].inputs.height}, ${gs[0]['459:458'].inputs.steps} étapes`) },
+    { name: 'Qwen 2.1 · LoRA Qwen 2.1', params: { prompt: 'a poster', format: '3:4' }, models: { model: INV.qwen21, lora: INV.qwen21Lora },
+      assume: TEST_LORAS, expectGraph: (gs) => hasLora(gs, 'qwen21_style_test') },
+    { name: 'Qwen 2.1 · cadrage équilibré + LoRA (guide après la LoRA)', inputs: { layout: IMG_V },
+      params: { prompt: 'an old man, low angle', layoutFollow: 'balanced' }, models: { model: INV.qwen21, lora: INV.qwen21Lora },
+      assume: TEST_LORAS, expectGraph: (gs) => {
+        const g = gs[0];
+        const cn = Object.entries(g).find(([, n]) => n.class_type === 'QwenImageDiffsynthControlnet');
+        if (!cn) return 'pas de guide de cadrage';
+        const [id, n] = cn;
+        const lora = Object.entries(g).find(([, x]) => x.class_type === 'LoraLoaderModelOnly');
+        if (!lora || n.inputs.model[0] !== lora[0]) return 'le guide ne suit pas la LoRA';
+        if (g['459:480'].inputs.model[0] !== id) return 'le cache ne prend pas le modèle guidé';
+        if (n.inputs.strength !== 0.8 || n.inputs.end_percent !== 0.6) return `dosage ${n.inputs.strength}/${n.inputs.end_percent}`;
+        const e = g['459:456'].inputs;
+        return e.width < e.height ? null : `format ${e.width}x${e.height} au lieu de vertical (image de cadrage 9:16)`;
+      } },
+    { name: 'Qwen 2.1 · retoucher une zone (grande) : bruit masqué, recollage', inputs: { image: IMG_V, mask: IMG_V },
+      params: { prompt: 'a red coat', zoneStrength: 0.7 }, models: { model: INV.qwen21 }, expectGraph: (gs) => {
+        const g = gs[0];
+        if (g['459:456']) return 'image vide encore là';
+        const k = g['459:458'].inputs;
+        if (!Array.isArray(k.latent_image) || g[k.latent_image[0]].class_type !== 'SetLatentNoiseMask') return 'pas de bruit masqué';
+        if (k.denoise !== 0.7) return `ampleur ${k.denoise}`;
+        return Object.values(g).some((n) => n.class_type === 'ImageCrop') ? 'fenêtre alors que la zone est grande' : null;
+      } },
+    { name: 'Qwen 2.1 · retoucher une petite zone : fenêtre zoomée à 1024', inputs: { image: IMG_V, mask: { kind: 'image', meta: { w: 1080, h: 1920, zone: 'small' } } },
+      params: { prompt: 'bare feet', zoneStrength: 0.7 }, models: { model: INV.qwen21 }, expectGraph: (gs) => {
+        const g = gs[0];
+        const crops = Object.values(g).filter((n) => n.class_type === 'ImageCrop');
+        if (crops.length !== 2) return `${crops.length} découpe(s)`;
+        const c = crops[0].inputs;
+        if (c.width !== 162 || c.height !== 162) return `fenêtre ${c.width}x${c.height}`;
+        return g['9741'].inputs.width === 1024 && g['9741'].inputs.height === 1024 ? null : 'pas agrandie à 1024';
+      } },
+    { name: 'Qwen 2.1 · LoRA Klein refusée', params: { prompt: 'x' }, models: { model: INV.qwen21, lora: INV.kleinLora },
+      expectError: /fait pour FLUX\.2 Klein 9B, pas pour Qwen-Image 2\.1/ },
+    { name: 'sans consigne → refus', params: { prompt: '' }, models: { model: INV.klein }, expectError: /consigne de l’image/ },
+  ],
   edit: [
     { name: 'rapide', inputs: { image: IMG_V }, params: { prompt: 'make the walls weathered concrete' }, models: { model: INV.qwen } },
     { name: 'qualité + référence', inputs: { image: IMG_H, ref: IMG_V }, params: { prompt: 'warm sunset light', speed: 'quality' },
       models: { model: INV.qwen } },
     { name: 'consigne branchée', inputs: { image: IMG_V, prompt: text('add rain', 'blur') }, params: { prompt: '' },
       models: { model: null } },
+    // deux images d'appui : Picture 2 et 3 de l'encodeur, « image 3 » devient "Picture 3"
+    { name: '2 images d’appui · « image 3 »', inputs: { image: IMG_V, ref: [IMG_H, IMG_SQ] },
+      params: { prompt: 'put the jacket from image 2 on her and the hat of image 3' }, models: { model: INV.qwen },
+      expectGraph: (gs) => {
+        const enc = gs[0]['170:151'].inputs;
+        if (!Array.isArray(enc.image2) || !Array.isArray(enc.image3)) return 'images 2 et 3 non branchées';
+        return /Picture 3/.test(enc.prompt) ? null : `consigne : ${enc.prompt}`;
+      } },
+    { name: 'cite image 4 avec 2 images d’appui → refus', inputs: { image: IMG_V, ref: [IMG_H, IMG_SQ] },
+      params: { prompt: 'use the light of image 4' }, models: { model: INV.qwen }, expectError: /cite « image 4 », mais il n’y a que 3/ },
+    { name: '3 images d’appui → refus', inputs: { image: IMG_V, ref: [IMG_H, IMG_SQ, IMG_V] },
+      params: { prompt: 'mix them' }, models: { model: INV.qwen }, expectError: /3 images d’appui branchées : 2 au plus/ },
     { name: 'LoRA Qwen 0,7 (rapide)', inputs: { image: IMG_V }, params: { prompt: 'old poster style', loraStrength: 0.7 },
       models: { model: INV.qwen, lora: INV.qwenLora }, assume: TEST_LORAS },
     { name: 'LoRA LTX refusée (famille)', inputs: { image: IMG_V }, params: { prompt: 'x' },
@@ -282,8 +393,59 @@ const VARIANTS = {
       params: { format: '16:9', duration: 10 }, models: { model: INV.minimax, lora: INV.mmLora }, assume: TEST_LORAS },
     { name: 'MiniMax · LoRA LTX refusée', mode: 'final', inputs: { start: IMG_H },
       models: { model: INV.minimax, lora: INV.rooftop }, expectError: /fait pour LTX 2\.5, pas pour MiniMax H3/ },
+    // bloc Modèle (SPEC §23) : MiniMax depuis le texte seul, sans image de début ; 15 s, sa limite
+    { name: 'MiniMax · texte seul · 15 s', mode: 'final', params: { prompt: 'a slow ocean wave', format: '16:9', duration: 15 },
+      models: { model: INV.minimax } },
+    { name: 'MiniMax · texte seul · aperçu 9:16', mode: 'preview', inputs: { prompt: text('a dancer turns') },
+      params: { format: '9:16' }, models: { model: INV.minimax } },
+    // images-clés au milieu du plan, son à suivre, prolonger une vidéo (bloc Modèle, à l'essai)
+    { name: 'LTX · deux passes · 1080p · fin + image-clé', mode: 'final', inputs: { start: IMG_H, end: IMG_H, keys: [IMG_V] },
+      params: { resolution: '1080', format: '16:9', twoPass: true }, models: { model: INV.ltxInt8 },
+      expectGraph: (gs) => (ltxPasses(gs) === '960x544×2' ? null : `passes ${ltxPasses(gs)}`) },
+    { name: 'LTX · deux passes · 720p · consigne enrichie', mode: 'final', inputs: { start: IMG_V },
+      params: { resolution: '720', format: '9:16', twoPass: true, enhance: true, prompt: 'she smiles' }, models: { model: INV.ltxInt8 },
+      expectGraph: (gs) => (ltxPasses(gs) === '384x640×2' && enriched(gs) ? null : `passes ${ltxPasses(gs)}, enrichie ${enriched(gs)}`) },
+    { name: 'LTX · deux passes demandées en aperçu → une passe', mode: 'preview', inputs: { start: IMG_H },
+      params: { twoPass: true }, models: { model: INV.ltxInt8 }, expectGraph: (gs) => (/×2/.test(ltxPasses(gs)) ? 'deux passes en aperçu' : null) },
+    { name: 'LTX · 2 images-clés + fin', mode: 'final', inputs: { start: IMG_H, keys: [IMG_H, IMG_V], end: IMG_H },
+      params: { duration: 5, format: '16:9' }, models: { model: INV.ltxInt8 }, expectGraph: wantGuides('LTXV@-1 LTXV@40 LTXV@80') },
+    { name: 'MiniMax · 3 images-clés', mode: 'final', inputs: { start: IMG_H, keys: [IMG_H, IMG_V, IMG_SQ] },
+      params: { duration: 5, format: '16:9' }, models: { model: INV.minimax }, expectGraph: wantGuides('MiniMaxH3@31 MiniMaxH3@62 MiniMaxH3@92') },
+    { name: 'MiniMax · texte + son à suivre', mode: 'final', inputs: { audio: aud(20) },
+      params: { prompt: 'a singer on stage', duration: 5, format: '9:16' }, models: { model: INV.minimax },
+      expectGraph: (gs) => wantGuides('MiniMaxH3@0+son-image')(gs) || (gs[0]['12'].inputs.conditioning[0] === '71' ? null : 'guide non branché') },
+    { name: 'MiniMax · prolonger une vidéo (son) de 5 s', mode: 'final', inputs: { video: vid(1920, 1080, 240, 30, { hasAudio: true }) },
+      params: { prompt: 'the car keeps driving into the night', duration: 5 }, models: { model: INV.minimax },
+      expectGraph: (gs) => wantGuides('MiniMaxH3@0+son')(gs) || wantSize('1248x704')(gs) },
+    { name: 'MiniMax · prolonger une vidéo muette · aperçu', mode: 'preview', inputs: { video: vid(1080, 1920, 50, 25) },
+      params: { prompt: 'she turns around' }, models: { model: INV.minimax }, expectGraph: wantGuides('MiniMaxH3@0') },
+    { name: 'MiniMax · vidéo à prolonger trop courte → refus', mode: 'final', inputs: { video: vid(1920, 1080, 3, 30) },
+      params: { prompt: 'x' }, models: { model: INV.minimax }, expectError: /trop courte/ },
+    // 768p : la toile native de MiniMax (768 × 1344), à l'essai ; 720p reste 704 px ; l'aperçu reste petit
+    { name: 'MiniMax · 768p · 16:9', mode: 'final', inputs: { start: IMG_H }, params: { resolution: '768', format: '16:9' },
+      models: { model: INV.minimax }, expectGraph: wantSize('1344x768') },
+    { name: 'MiniMax · 720p · 9:16 (704 px)', mode: 'final', inputs: { start: IMG_V }, params: { resolution: '720', format: '9:16' },
+      models: { model: INV.minimax }, expectGraph: wantSize('704x1248') },
+    { name: 'MiniMax · 768p demandé · aperçu', mode: 'preview', inputs: { start: IMG_H }, params: { resolution: '768', format: '16:9' },
+      models: { model: INV.minimax }, expectGraph: wantSize('800x448') },
   ],
   t2v: [
+    // fiche personnage seule, sans image de début (bloc Modèle, à essayer) : gabarit officiel Ingredients, la vidéo au
+    // format de la fiche (essai GPU du 25/10 : bordée de noir dans un 16:9, la fiche était recopiée telle quelle)
+    { name: 'fiche personnage seule · 720p · au format de la fiche (carrée)', mode: 'final', inputs: { sheet: IMG_SQ },
+      params: { prompt: 'the man on the left walks into the room', format: 'auto', resolution: '720' }, models: { model: INV.ltxInt8 },
+      expectGraph: (gs) => {
+        const g = gs[gs.length - 1];
+        const guide = Object.values(g).find((n) => n.class_type === 'LTXAddVideoICLoRAGuide');
+        const crop = Object.values(g).some((n) => n.class_type === 'LTXVCropGuides');
+        const lora = Object.values(g).some((n) => n.class_type === 'LTXICLoRALoaderModelOnly');
+        const e = Object.values(g).find((n) => n.class_type === 'EmptyLTXVLatentVideo');
+        if (!guide || !crop || !lora) return 'chaîne de la fiche incomplète';
+        return e && e.inputs.width === e.inputs.height ? null : `taille ${e && e.inputs.width}x${e && e.inputs.height}`;
+      } },
+    { name: 'deux passes · 1080p · consigne enrichie', mode: 'final', params: { prompt: 'a lighthouse in a storm', resolution: '1080',
+      format: '16:9', twoPass: true, enhance: true }, models: { model: INV.ltxInt8 },
+      expectGraph: (gs) => (ltxPasses(gs) === '960x544×2' && enriched(gs) ? null : `passes ${ltxPasses(gs)}, enrichie ${enriched(gs)}`) },
     { name: 'aperçu · 16:9', mode: 'preview', params: { prompt: 'a slow ocean wave' }, models: { model: INV.ltxInt8 } },
     { name: 'final · 9:16 · LoRA lieu', mode: 'final', params: { prompt: 'the roof at dusk', format: '9:16' },
       models: { model: INV.ltxFp4, lora: INV.rooftop } },
@@ -309,6 +471,12 @@ const VARIANTS = {
       params: { prompt: 'Mara, a young woman, green vinyl jacket' }, models: { model: INV.wan } },
     { name: 'final · horizontal 10 s (2 segments)', mode: 'final', inputs: { character: IMG_H, motion: vid(1920, 1080, 240) },
       models: { model: INV.wan } },
+    { name: 'aperçu · mouvement 1,4 · ressemblance 0,6', mode: 'preview', inputs: { character: IMG_V, motion: vid(1080, 1920, 120) },
+      params: { motionFidelity: 1.4, likeness: 0.6 }, models: { model: INV.wan },
+      expectGraph: (gs) => {
+        const n = gs[0]['672:587'].inputs;
+        return n.pose_strength === 1.4 && n.reference_image_strength === 0.6 ? null : `forces ${n.pose_strength} / ${n.reference_image_strength}`;
+      } },
     { name: 'aperçu · LoRA Wan', mode: 'preview', inputs: { character: IMG_V, motion: vid(1080, 1920, 120) },
       models: { model: INV.wan, lora: INV.wanLora }, assume: TEST_LORAS },
     { name: 'LoRA LTX refusée', mode: 'preview', inputs: { character: IMG_V, motion: vid(1080, 1920, 120) },
@@ -336,6 +504,24 @@ const VARIANTS = {
       params: { prompt: 'a man and his dog on a beach', format: '21:9' }, models: { model: null } },
     { name: 'cite Image 5 avec 3 images → refus', mode: 'final', assume: PENDING, inputs: { refs: [IMG_V, IMG_H, IMG_SQ] },
       params: { prompt: 'Image 5 jumps' }, models: { model: null }, expectError: /cite « Image 5 », mais 3 image/ },
+    { name: 'final · 2 images + vidéo avec son + 2 sons (« Son 2 » → <Audio 3>)', mode: 'final', assume: PENDING,
+      inputs: { refs: [IMG_V, IMG_H], refVideos: [vid(1920, 1080, 120, 24, { hasAudio: true })], refAudios: [aud(8), aud(40)] },
+      params: { prompt: 'Image 1 chante avec la voix du Son 2, Image 2 danse sur la musique du son 1 comme dans la Vidéo 1' },
+      models: { model: null },
+      expectGraph: (gs) => {
+        const i = r2vPrompt(gs);
+        if (!/<Audio 3>/.test(i.prompt) || !/<Audio 2>/.test(i.prompt)) return `consigne : ${i.prompt}`;
+        if (!Array.isArray(i['ref_audios.ref_audio_0']) || !Array.isArray(i['ref_audios.ref_audio_1'])) return 'sons non branchés';
+        return null;
+      } },
+    { name: 'vidéos seules + 1 son, sans citation', mode: 'preview', assume: PENDING,
+      inputs: { refVideos: [vid(1080, 1920, 96, 24)], refAudios: [aud(5)] },
+      params: { prompt: 'the same dance, on this music' }, models: { model: null },
+      expectGraph: (gs) => (/<Video 1>, <Audio 1>/.test(r2vPrompt(gs).prompt) ? null : `consigne : ${r2vPrompt(gs).prompt}`) },
+    { name: 'final · 768p · 9:16', mode: 'final', assume: PENDING, inputs: { refs: [IMG_V] },
+      params: { prompt: 'Image 1 walks', resolution: '768', format: '9:16' }, models: { model: null }, expectGraph: wantSize('768x1344') },
+    { name: 'cite Son 3 avec 1 son → refus', mode: 'final', assume: PENDING, inputs: { refs: [IMG_V], refAudios: [aud(5)] },
+      params: { prompt: 'Image 1 sings Son 3' }, models: { model: null }, expectError: /cite « Son 3 », mais 1 son/ },
   ],
   guided: [
     { name: 'LTX · profondeur calculée · aperçu', mode: 'preview', inputs: { guide: vid(1920, 1080, 120) },
@@ -358,6 +544,8 @@ const VARIANTS = {
       models: { model: INV.minimax } },
     { name: 'MiniMax · aperçu · guide court', mode: 'preview', inputs: { guide: vid(1920, 1080, 40) },
       params: { prompt: 'waves' }, models: { model: INV.minimax } },
+    { name: 'MiniMax · 768p · guide 16:9', mode: 'final', inputs: { guide: vid(1920, 1080, 97) },
+      params: { prompt: 'waves', resolution: '768' }, models: { model: INV.minimax }, expectGraph: wantSize('1344x768') },
   ],
 };
 
@@ -377,7 +565,7 @@ function summary(g) {
   if (r2v) {
     const k = Object.keys(r2v.inputs);
     bits.push(`${r2v.inputs.width}×${r2v.inputs.height}·${r2v.inputs.length} réf ${k.filter((s) => s.startsWith('ref_images.')).length}i`
-      + `/${k.filter((s) => s.startsWith('ref_videos.')).length}v/${k.filter((s) => s.startsWith('ref_video_audios.')).length}son ${r2v.inputs.ref_image_size}`);
+      + `/${k.filter((s) => s.startsWith('ref_videos.')).length}v/${k.filter((s) => s.startsWith('ref_video_audios.')).length}son+${k.filter((s) => s.startsWith('ref_audios.')).length}s ${r2v.inputs.ref_image_size}`);
   }
   const sc = find('ImageScale');
   if (sc && !lat && !mm && !r2v) bits.push(`${sc.inputs.width}×${sc.inputs.height}`);
@@ -487,7 +675,7 @@ async function main() {
       const outDir = path.join(tmp, 'runs', slug);
       fs.mkdirSync(outDir, { recursive: true });
       const mediaOf = (port, spec, i = null) => {
-        const abs = path.join(tmp, 'media', `${slug}_${port}${i == null ? '' : `_${i + 1}`}.${spec.kind === 'video' ? 'mp4' : 'png'}`);
+        const abs = path.join(tmp, 'media', `${slug}_${port}${i == null ? '' : `_${i + 1}`}.${spec.kind === 'video' ? 'mp4' : spec.kind === 'audio' ? 'flac' : 'png'}`);
         fs.mkdirSync(path.dirname(abs), { recursive: true });
         fs.writeFileSync(abs, '');
         if (spec.meta.frames) fk.frames.set(path.resolve(abs), spec.meta.frames);
@@ -527,6 +715,10 @@ async function main() {
         problems.push(...r.problems);
       }
       if (!v.expectError && !fk.comfy.graphs.length) ok = false;
+      if (v.expectGraph && fk.comfy.graphs.length) {
+        const why = v.expectGraph(fk.comfy.graphs);
+        if (why) { ok = false; problems.push(why); }
+      }
       const outPorts = res ? Object.keys(res.outputs || {}) : [];
       const portOk = res && type.outputs.every((o) => outPorts.includes(o.id))
         && outPorts.every((p) => fs.existsSync(res.outputs[p].abs));

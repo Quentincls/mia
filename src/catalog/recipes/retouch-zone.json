@@ -1,0 +1,78 @@
+{
+  "id": "retouch-zone",
+  "icon": "zone",
+  "label": {
+    "fr": "Retoucher une zone",
+    "en": "Retouch a zone"
+  },
+  "desc": {
+    "fr": "Peins la zone à changer sur l’image, écris ce qu’il faut y mettre : seule la zone change, le reste reste identique au pixel près (Qwen-Image 2.1, avec ta LoRA).",
+    "en": "Paint the zone to change on the image, write what goes there: only the zone changes, the rest stays identical to the pixel (Qwen-Image 2.1, with your LoRA)."
+  },
+  "nodes": [
+    {
+      "key": "src",
+      "type": "import",
+      "x": 0,
+      "y": 0,
+      "placeholder": {
+        "kind": "image",
+        "fr": "Image à retoucher",
+        "en": "Image to retouch"
+      }
+    },
+    {
+      "key": "zone",
+      "type": "mask",
+      "x": 432,
+      "y": 0
+    },
+    {
+      "key": "gen",
+      "type": "gen",
+      "x": 864,
+      "y": 0,
+      "params": {
+        "model": "fam:qwen21"
+      }
+    },
+    {
+      "key": "cmp",
+      "type": "compare",
+      "x": 1296,
+      "y": 0
+    }
+  ],
+  "edges": [
+    [
+      "src",
+      "out",
+      "zone",
+      "image"
+    ],
+    [
+      "src",
+      "out",
+      "gen",
+      "image"
+    ],
+    [
+      "zone",
+      "mask",
+      "gen",
+      "mask"
+    ],
+    [
+      "src",
+      "out",
+      "cmp",
+      "a"
+    ],
+    [
+      "gen",
+      "out",
+      "cmp",
+      "b"
+    ]
+  ]
+}

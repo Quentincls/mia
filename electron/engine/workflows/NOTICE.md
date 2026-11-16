@@ -22,6 +22,9 @@ aggregated with Mia, not linked into its code.
 | `minimax_i2v.api.json` | Comfy-Org/workflow_templates, `templates/video_minimax_h3_i2v.json` | MIT |
 | `minimax_r2v.api.json` | Comfy-Org/workflow_templates, `templates/video_minimax_h3_r2v.json` | MIT |
 | `qwen_edit_2511.api.json` | Comfy-Org/workflow_templates, `templates/image_qwen_image_edit_2511_int8.json` | MIT |
+| `flux2_klein9b_t2i.api.json` | Comfy-Org/workflow_templates, `templates/image_flux2_klein_text_to_image.json` | MIT |
+| `flux2_klein9b_edit.api.json` | Comfy-Org/workflow_templates, `templates/image_flux2_klein_image_edit_9b_distilled.json` | MIT |
+| `qwen_image21_t2i.api.json` | Comfy-Org/workflow_templates, `templates/image_qwen_image_2_1_t2i.json` | MIT |
 | `wan_animate2.api.json` | Comfy-Org/workflow_templates, `templates/video_wan_animate2.json` | MIT |
 | `seedvr2_native.api.json` | ComfyUI, `blueprints/Upscale Video (SeedVR2 3B Int8).json` | GPL-3.0 |
 | `depth_vda.api.json` | written by the author for Mia | Apache-2.0 |
@@ -163,6 +166,31 @@ Source: `templates/image_qwen_image_edit_2511_int8.json`. Same node ids as the t
   of 16; 944 × 1664 by default).
 - `170:168` (Lightning LoRA, 4 steps) on by default: false → true.
 - `170:169` seed: random → 42; `170:151` example prompt emptied; `41` example image replaced by a placeholder.
+
+### `flux2_klein9b_t2i.api.json` and `flux2_klein9b_edit.api.json` (Model block, FLUX.2 Klein 9B)
+
+Sources: `templates/image_flux2_klein_text_to_image.json` (its distilled subgraph, flattened) and
+`templates/image_flux2_klein_image_edit_9b_distilled.json` (its subgraph, flattened). Node ids renumbered.
+
+- `1` `UNETLoader`: `flux-2-klein-9b.safetensors` (Black Forest Labs, distilled 9B; the model itself is under the
+  FLUX Non-Commercial License, not this file), instead of the 4B file (text to image) or `flux-2-klein-9b-fp8`
+  (edit); `3` `VAELoader`: `flux2-vae.safetensors` instead of `full_encoder_small_decoder`.
+- Text to image: `2` `CLIPLoader` `qwen_3_4b` → `qwen_3_8b_fp8mixed.safetensors` (the 9B encoder); width and
+  height of `8` (`Flux2Scheduler`) and `9` (`EmptyFlux2LatentImage`) set by Mia from the block's format and
+  resolution, in multiples of 16.
+- With an image: `20` `LoadImage` placeholder; `21` `ImageScaleToTotalPixels` nearest-exact / steps 1 → lanczos /
+  steps 16, megapixels set from the resolution.
+- `10` seed: random → 42; `4` example prompt emptied.
+
+### `qwen_image21_t2i.api.json` (Model block, Qwen-Image 2.1)
+
+Source: `templates/image_qwen_image_2_1_t2i.json`, its subgraph flattened (ids kept as `subgraph:node`).
+
+- Prompt enhancer branch removed (`TextGenerate`, its `CLIPLoader`, `ComfySwitchNode`, `PreviewAny`, its prompt), and
+  the top-level `ResolutionSelector` (the size comes from Mia); `461` `SaveImageAdvanced` → `SaveImage`.
+- `459:451` `UNETLoader`: `qwen_image_2.1_turbo_int8_convrot.safetensors` (Turbo; the model is under the Qwen
+  research license, not this file); `459:458` `KSampler` steps 25 → 8 (Turbo, cfg 1), seed 42.
+- `459:456` `EmptyLatentImage` width and height set by Mia from the block's format and resolution (multiples of 32).
 
 ### `wan_animate2.api.json` (block « Animer un personnage »)
 

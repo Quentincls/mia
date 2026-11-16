@@ -10,6 +10,216 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## Prochaine version — en cours (pas encore publiée)
+
+### En bref
+- **Un bloc par modèle** : « + Bloc » montre d’abord les **Modèles** (LTX, MiniMax, Wan, Qwen) et ceux **En ligne**
+  (Seedance, Kling, MiniMax 2K…). Le bloc posé porte le nom du modèle, n’a que les entrées que ce modèle sait prendre
+  (jusqu’à 30 images de référence pour Seedance 2.5) et fait ce que demandent les fils : une image de début, il
+  l’anime ; des références, il les mélange ; rien, il part du texte.
+- **Les modèles en ligne de Higgsfield** : colle ta clé dans Réglages → Comptes en ligne (gardée chiffrée sur ce
+  PC) ; les calculs se font chez eux, ta carte graphique reste libre, chaque calcul coûte des crédits et ne part
+  qu’à ton clic. L’aperçu prend la plus petite résolution et la durée la plus courte.
+- MiniMax H3 sait maintenant partir d’un texte seul, sans image.
+- **Des infobulles qui expliquent** : au survol d’une entrée d’un bloc (image de début, références, vidéo guide…),
+  ce que c’est, à quoi ça sert, et ce que le modèle choisi en fait ; au survol du modèle, où il calcule et ce qu’il sait faire.
+- **Le modèle en évidence** : dans chaque bloc de génération, le modèle est la première chose qu’on voit (sa
+  pastille, son nom, ce qu’il sait faire : « 15 S · 720P · SON »). Un clic ouvre un panneau avec recherche, onglets
+  **Local** et **Cloud**, « Choisir pour moi », épingles, et une phrase simple qui dit à quoi sert chaque modèle.
+- **Les réglages suivent le modèle** : avec MiniMax H3, la durée monte à 15 s et la cadence (toujours 24 i/s)
+  disparaît ; LTX reste à 10 s au plus. Une note dit quand une entrée branchée ne sert pas au modèle choisi.
+- Les noms longs des cartes de l’accueil passent sur deux lignes ; un titre de bloc coupé se lit en entier au survol.
+- **Des images depuis un texte, sur ce PC** : deux nouveaux modèles dans le bloc Modèle (onglet Image) —
+  **FLUX.2 Klein 9B** (une image en quelques secondes ; branche une image, il la retouche en gardant son cadrage) et
+  **Qwen-Image 2.1 Turbo** (très fidèle aux textes écrits dans l’image, jusqu’à 2K). Tailles 1K, 1,5K, 2K. Licences
+  non commerciales : proposés « à essayer », pour des essais et des projets perso. Une LoRA n’est proposée que sur le
+  modèle pour lequel elle a été entraînée (Klein 9B ou Qwen-Image 2.1, jamais l’une sur l’autre, ni sur Qwen Image Edit).
+- **Un cadrage pour Qwen-Image 2.1** : branche une image sur « Cadrage », le bloc garde sa composition (sa profondeur)
+  et ta LoRA garde son style ; « Respect du cadrage » : Strict, Équilibré, Souple. Le format suit l’image de cadrage.
+- **Les conseils d’une LoRA** : une fiche posée à côté du fichier (<nom>.mia.json) donne son mot déclencheur, sa force
+  conseillée (posée quand tu la choisis) et une aide affichée sous « Force ».
+- **Retoucher une zone** (Qwen-Image 2.1) : un nouveau bloc **Masque** où l’on peint la zone sur l’image (pinceau,
+  gomme, taille, inverser, zoom à la molette) ; seule cette zone est recalculée, avec ta LoRA, puis recollée : le
+  reste de l’image ne bouge pas d’un pixel. Une petite zone (des pieds, un œil) est agrandie toute seule pour être
+  calculée en détail. Recette « Retoucher une zone ».
+- **« + Bloc » rangé par ce que tu fabriques** : à gauche, Fabriquer (Vidéo, Image, Son), Préparer (Médias et
+  consignes, Recettes, Notes), Retravailler (Montage, Finition). Dans Vidéo et Image : les modèles « Sur ce PC », ceux
+  « En ligne », puis les blocs. Les modèles en ligne ne sont plus à part : chacun dans l’onglet de ce qu’il fait.
+- **« Partir de : » et « + Ajouter »** : un bloc Modèle vide n’impose plus d’entrée. LTX, MiniMax et les modèles en
+  ligne montrent la consigne et une ligne « Partir de : Image de début · Rendu 3D · Vidéo guide · Fiche
+  personnage » : un clic fait apparaître l’entrée, sinon le bloc part du texte. Wan et Qwen, qui ne font qu’une
+  chose, montrent leurs entrées. Le reste de ce que sait prendre le modèle se range derrière « + Ajouter », avec une
+  phrase simple pour chaque entrée. Quand tu tires
+  un fil vers le bloc, les entrées qui peuvent le recevoir apparaissent le temps du geste ; une entrée ajoutée et
+  restée vide se range d’un clic sur ×.
+- **Tout ce que savent les modèles du PC**, dans le bloc Modèle (les nouveautés portent « À essayer » tant qu’elles
+  n’ont pas été jugées à l’œil) :
+  - **Images-clés** (LTX, MiniMax) : jusqu’à 4 images par où le plan passe, entre le début et la fin (au même
+    cadrage que l’image de début, sinon le plan coupe vers elle) ;
+  - **MiniMax** : **prolonger une vidéo** (le résultat est la vidéo entière, rallongée ; raccord invisible à
+    l’essai), un **son à suivre** (la vidéo se cale sur une voix ou une musique), jusqu’à 3 **sons de référence**
+    (« Son 1 »…), et **768p** ;
+
+  - **Wan Animate 2** : « Fidélité au mouvement » et « Ressemblance au personnage » ;
+  - **Qwen Image Edit** : deux images d’appui au lieu d’une (« image 2 », « image 3 »).
+- **Plus clair quand un branchement ne suffit pas** : une image de fin, des images-clés ou une fiche seules sur LTX
+  ne font plus partir le bloc du texte en silence ; il dit en rouge ce qui manque (« Il manque pour « Animer une
+  image » : Image de début »). Une entrée reliée mais pas utilisée est grisée, avec la raison au survol.
+- **Les fils se posent où tu vises** : pendant qu’on tire un fil, les entrées qui apparaissent s’ajoutent en bas au
+  lieu de pousser celles qu’on vise ; lâcher sur le corps d’un bloc MiniMax branche les références ; la croix qui
+  coupe un fil marche enfin.
+- **LTX et les références** : LTX ne mélange pas plusieurs références séparées (c’est MiniMax, le bloc le dit et
+  propose d’y passer d’un clic) ; il sait partir d’une **fiche personnage** seule (à essayer). Nouvelle recette
+  « Vidéo à partir de mes références ».
+- **Les assistants (Claude, Codex) connaissent tout cela** : chaque modèle, ce qu’il faut lui brancher pour chaque
+  façon de faire, ses réglages, ce qui est à essayer ; et, sur la planche, ce que fait chaque bloc Modèle.
+
+### In short
+- **One block per model**: “+ Block” first shows the **Models** (LTX, MiniMax, Wan, Qwen) and the **Online** ones
+  (Seedance, Kling, MiniMax 2K…). The block is named after its model, only has the inputs that model takes (up to 30
+  reference images for Seedance 2.5) and does what its wires ask: a start image, it animates it; references, it
+  mixes them; nothing, it starts from the text.
+- **Higgsfield’s online models**: paste your key in Settings → Online accounts (kept encrypted on this PC); jobs run
+  on their servers, your graphics card stays free, each job costs credits and only leaves on your click. The preview
+  uses the smallest resolution and the shortest length.
+- MiniMax H3 can now start from text alone, without an image.
+- **Tooltips that explain**: hover an input of a block (start image, references, guide video…) to see what it is,
+  what it is for and what the chosen model does with it; hover the model to see where it runs and what it can do.
+- **The model up front**: in every generation block, the model is the first thing you see (its badge, its name,
+  what it can do: “15 S · 720P · SOUND”). One click opens a panel with search, **Local** and **Cloud** tabs,
+  “Pick for me”, pins, and a plain sentence on what each model is for.
+- **Settings follow the model**: with MiniMax H3 the length goes up to 15 s and the frame rate (always 24 fps)
+  goes away; LTX stays at 10 s at most. A note says when a connected input is not used by the chosen model.
+- Long names on home cards wrap onto two lines; a cut block title shows in full on hover.
+- **Images from text, on this PC**: two new models in the Model block (Image tab) — **FLUX.2 Klein 9B** (an image in a
+  few seconds; connect an image and it edits it, keeping its framing) and **Qwen-Image 2.1 Turbo** (very faithful to text
+  written in the image, up to 2K). Sizes 1K, 1.5K, 2K. Non-commercial licenses: offered “to try”, for trials and personal
+  projects. A LoRA is offered only on the model it was trained for (Klein 9B or Qwen-Image 2.1, never one on the other).
+- **A layout for Qwen-Image 2.1**: connect an image to “Layout” and the block keeps its composition (its depth) while
+  your LoRA keeps its style; “Layout strength”: Strict, Balanced, Loose. The format follows the layout image.
+- **A LoRA’s advice**: a file next to it (<name>.mia.json) gives its trigger word, its suggested strength (set when you
+  pick it) and advice shown under “Strength”.
+- **Retouch a zone** (Qwen-Image 2.1): a new **Mask** block where you paint the zone on the image (brush, eraser,
+  size, invert, wheel zoom); only that zone is remade, with your LoRA, then pasted back: the rest of the image does
+  not move by a pixel. A small zone (feet, an eye) is enlarged on its own to be computed in detail. Recipe “Retouch
+  a zone”.
+- **“+ Block” sorted by what you make**: on the left, Make (Video, Image, Sound), Prepare (Media and prompts, Recipes,
+  Notes), Rework (Editing, Finishing). In Video and Image: the models “On this PC”, the “Online” ones, then the blocks.
+  Online models are no longer apart: each one sits in the tab of what it makes.
+- **“Start from:” and “+ Add”**: an empty Model block no longer imposes an input. LTX, MiniMax and the online models
+  show the prompt and a line “Start from: Start image · 3D render · Guide video · Character sheet”: one click shows
+  that input, otherwise the block starts from the text. Wan and Qwen, which do one thing, show their inputs.
+  Everything else its model can take waits behind “+ Add”, with a plain sentence for each input. While you drag a wire to the block, the inputs that
+  can take it show up for the gesture; an input you added and left empty goes away with ×.
+- **Everything this PC’s models can do**, in the Model block (new features say “To try” until judged by eye):
+  keyframes (LTX, MiniMax, up to 4 between start and end, same framing as the start image); MiniMax: extend a video
+  (the result is the whole video, longer), a sound to follow, up to 3 reference sounds, 768p; Wan Animate 2: motion fidelity and character likeness; Qwen Image Edit: two helper images.
+- **Clearer when a wiring is not enough**: an end image, keyframes or a sheet alone on LTX no longer make the block
+  start from text silently; it says in red what is missing. An input connected but not used is greyed out, with the
+  reason on hover.
+- **Wires land where you aim**: while you drag a wire, the inputs that show up are added at the bottom instead of
+  pushing the one you aim at; dropping on a MiniMax block connects its references; the cross that cuts a wire works.
+- **LTX and references**: LTX does not blend several separate references (MiniMax does: the block says so and
+  switches in one click); it can start from a **character sheet** alone (to try). New recipe “Video from my
+  references”.
+- **Assistants (Claude, Codex) know all of it**: each model, what to wire for each way of working, its settings,
+  what is to try; and, on the board, what each Model block does.
+
+### Ajouté
+- **Bloc Modèle** (`gen`, SPEC §23) : entrées et réglages selon la famille de son modèle, façon de faire choisie
+  d’après les fils (règle unique `src/js/nodes/route.js`, lue aussi par le moteur), ligne « Ce que fait le bloc »,
+  entrées reliées hors du modèle barrées et ignorées ; panneau des familles Local | Cloud ; section Modèles et
+  catégorie En ligne dans « + Bloc ».
+- **En ligne (Higgsfield)** : `electron/cloud.js` (clé chiffrée par Windows, IPC `cloud:*`), exécuteur
+  `executors/cloud.js` (envoi des fichiers, demande, suivi, téléchargement, erreurs en clair, annulation en file),
+  catalogue `src/catalog/cloud-higgsfield.json` (35 familles, 71 façons de faire) relevé par
+  `tools/build-cloud-catalog.mjs` ; Réglages → Comptes en ligne ; `tools/hf-check.mjs` vérifie une clé sans rien
+  dépenser.
+- Profils de modèles `src/catalog/model-families.json` (SPEC §22) : nom, fabricant, monogramme, phrase « à quoi ça
+  sert » en français et en anglais, variantes (LTX Standard / Rapide, MiniMax Images-clés / Références, SeedVR2
+  Rapide / Qualité) et limites (durée, cadence, définitions, entrées comprises).
+- Panneau de choix du modèle : onglets Local | Cloud (Cloud = Higgsfield, annoncé, pas encore relié), recherche,
+  « Choisir pour moi » (= Auto), modèles épinglés (`prefs.pinnedModels`).
+
+- **« + Ajouter »** (`src/js/nodes/addinput.js`) : entrées montrées = consigne, entrée principale (`main` du
+  profil), ce qui est relié, ce qui manque à la façon de faire retenue et ce que l’utilisateur a ajouté
+  (`node.data.shown`) ; geste de fil : `NodeView.setReveal`.
+- Entrées et façons de faire **« à essayer »** (`trial` dans `model-families.json`) : badge dans le menu « + »,
+  l’infobulle et la ligne « Ce que fait le bloc », note dans le résultat.
+- MiniMax : `refAudios` (3 sons, `ref_audios` du nœud, « Son n » décalé après les sons des vidéos), `keys` et
+  `audio` (`MiniMaxH3AddGuide`), façon de faire « Prolonger une vidéo » (39 dernières images ancrées à l’image 0,
+  vidéo d’origine + suite), 768p (`minimaxCanvas`, toile native 768 × 1344).
+- LTX : `keys` (`LTXVAddGuide` aux images réparties), `twoPass` (`LTXVLatentUpsampler` ×2 + 3 pas distillés ;
+  caché, hors catalogue : moins net qu’une passe à l’essai GPU du 24/10), `enhance` (`TextGenerateLTX2Prompt` sur le Gemma de LTX, texte relu par `PreviewAny`).
+- Wan : `motionFidelity` / `likeness` → `pose_strength` / `reference_image_strength`. Qwen : `ref` multiple (2).
+- Pont des assistants : `choices[].ways` (needs, needsOneOf, takes, settings, trial), `howItWorks` détaillé,
+  `mia_get_board` → `model` {family, does, workflow, otherWays, connect, ignored, trial} et réglages du seul
+  modèle ; descriptions et instructions du serveur MCP ; guides mia-piloter et mia-recettes-video.
+
+### Changé
+- Audit du 25/10 (UX, textes, façons de faire) : règle de choix (une façon de faire qui ne se sert d’aucune entrée
+  branchée n’est possible que si rien n’est branché ; une entrée principale ignorée pèse plus qu’une entrée
+  d’appoint ; rien de branché = pas de choix proposé), vidéo guidée et photoréaliste prennent l’image de début comme
+  image de look, MiniMax sans « Zone libre » en vidéo guidée, consigne obligatoire dite avant le lancement, réglages
+  cachés du bloc Modèle plus envoyés au calcul (« À éviter », LoRA), Média vide compté comme branché, résolution
+  calculée = résolution affichée, format des références = 16:9 affiché, estimation et boutons de la façon de faire
+  retenue (Qwen : un seul « Lancer »), pastilles « Image n » seulement pour les références, onglets « Sur ce PC | En
+  ligne », accents des pastilles, « + Bloc » pose le nouveau bloc à droite de la sélection, recherche par nom de
+  modèle, textes simplifiés (FR/EN) ; nouveaux bancs tools/test-route.js.
+- Le modèle n’est plus jamais rangé sous « Avancé » dans un bloc de génération.
+- À égalité, la façon de faire dont les exigences sont remplies passe devant celle qui n’exige rien (des références
+  et une image-clé → « Vidéo à partir de références ») ; deux façons aux mêmes exigences restent proposées au choix.
+- « Vidéo à partir de références » accepte des vidéos de référence sans image.
+- Qwen : l’entrée « Référence » devient « Images d’appui » (jusqu’à 2).
+- **Animer une image** et **Vidéo à partir de références** : jusqu’à 15 s avec MiniMax H3 (sa limite vérifiée au
+  labo) ; le moteur ramène toute durée à la limite du modèle et le note dans le résultat.
+- Le texte reçu d’une Consigne branchée (« Vient de … ») se lit en entier au survol quand il dépasse trois lignes.
+
+### Corrigé
+- « Enrichir la consigne » (LTX) est caché : à l’essai, la consigne réécrite était du charabia et la vidéo en partait
+  (le Gemma de ce PC sait lire une consigne, pas en écrire une ; le petit modèle prévu pour n’est pas installé).
+- « Vidéo depuis une fiche personnage » (LTX, à essayer) : la vidéo prend le format de la fiche, comme le gabarit
+  officiel ; posée dans un cadre 16:9 bordé de noir, la fiche était recopiée telle quelle (essai GPU du 25/10).
+- Bloc Modèle (relecture du 25/10) : la ligne « Partir de » revient après un changement de modèle ; un bloc replié
+  reçoit de nouveau un fil ; un fil lâché sur le corps va à l’entrée choisie dans « Partir de » ; au Ctrl+glisser,
+  l’entrée décrochée ne saute plus sous le pointeur ; « Ce que fait le bloc » suit chaque fil branché ou débranché ;
+  Genjutsu (en ligne) montre ce qui lui manque ; Kling O3 propose ses références. Assistants : un fil sans entrée
+  nommée va aux références de MiniMax tant qu’il y a de la place, un son à « Son à suivre ».
+- Le résultat d’un bloc Modèle du PC se branche enfin sur un autre bloc (Finition, Animer…) : il était rangé sous un
+  autre nom que la sortie « Résultat ». Les calculs déjà faits restent lisibles.
+- Une LoRA n’est plus devinée d’après le nom de son fichier : « qwen » dans le nom ne la faisait pas aller sur Qwen Image
+  Edit ; une LoRA FLUX.2 n’est plus prise pour une LoRA FLUX.1.
+- La croix qui coupe un fil ne coupait pas : l’effet « enfoncé » faisait perdre la croix au navigateur.
+- Les blocs restaient flous après un zoom avant : la planche est redessinée nette une fois le zoom posé.
+- Higgsfield : une image en ligne avec une image de référence (Soul…) était refusée (« URL input should be a string
+  ») ; chaque champ reçoit maintenant une adresse seule ou une liste, selon ce qu’il attend.
+- Bloc Modèle en ligne : « Ce que fait le bloc » dit « Image depuis un texte + Images de référence » quand les
+  références branchées servent ; le puits du résultat n’annonce plus « ≈ 1 min » pour un calcul en ligne.
+- La recherche de « + Bloc » ouverte depuis un fil n’est plus coupée (« Chercher… »).
+- Bloc **Masque** (`mask`, `executors/mask.js`, sans GPU) : le dessin noir et blanc de l’éditeur
+  (`src/js/nodes/maskeditor.js`, écrit dans `media\` sous un nouveau nom à chaque validation, réglage `drawing`)
+  remis à la taille de l’image, bord adouci vers l’extérieur (flou puis ×2 : la zone peinte reste entière ; au plus
+  le quart du petit côté de la zone), inversé pour « Zone à protéger ». Qwen-Image 2.1 « Retoucher une zone »
+  (`image` + `mask`) : `VAEEncode` + `SetLatentNoiseMask`, « Ampleur du changement » (`zoneStrength`) en
+  débruitage, recollage `maskedmerge` de ffmpeg ; zone de moins de 300 px : fenêtre carrée de 6 fois la zone
+  (`ImageCrop`) calculée en 1024 × 1024 puis réduite et recollée. Recette `retouch-zone`.
+
+### Pour les développeurs
+- `E.maskBox(x, abs)` (`patch.js`) : rectangle de la zone blanche d’un masque (filtre `bbox` de ffmpeg) ;
+  `t2i.js` exporte `zoneWindow` et `pasteArgs`, essayés avec le vrai ffmpeg
+  (`node tools/test-light-executors.js --only=mask` : le reste de l’image identique au pixel).
+- Points de départ : `startPoints` (`src/js/nodes/ports.js`, 1re exigence de chaque façon de faire, ou son entrée de
+  tête) ; une famille à plusieurs façons de faire ne montre plus d’entrée principale d’office ; pont des assistants :
+  `model.startFrom`, `model.uses`, un fil sans port va à l’entrée principale. Cloud : `uploadsOf`/`bodyOf`
+  suivent `multi` du catalogue (`tools/test-cloud.js` vérifie les 94 champs).
+- Ports par bloc : `src/js/nodes/ports.js` (`nodeInputs`, `nodeOutputs`, `nodePortDef`) remplace la lecture directe
+  du catalogue dans l’éditeur, le geste de fil et le pont des assistants (les autres blocs lisent la même chose
+  qu’avant). Moteur : `planGen` (index.js), `executors/gen.js` (renvoie vers i2v, t2v, ref2v, guided, real, perform,
+  edit ou cloud), `gpu: "auto"`, empreinte avec le workflow et les réglages `hf.*`. Tests : `tools/test-cloud.js`.
+- Réglage `limit` ("seconds" | "fps" | "resolutions") et liste `limits` sur le réglage de modèle (puces de la
+  carte) dans `nodes.json` ; évaluation dans `src/js/nodes/profiles.js` et `params.js`, bornes moteur par
+  `patch.js` (`familyLimits`, `maxSeconds`).
+
 ## 0.5.1 — 17/10/2026
 
 ### En bref
