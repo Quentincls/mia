@@ -221,6 +221,35 @@ export async function shellDo(fn, target, okMsg = null) {
   return true;
 }
 
+// ── mesures groupées ─────────────────────────────────────────────────
+// Lire la mise en page (largeur, scrollWidth) juste après l'avoir changée oblige le navigateur à tout recalculer :
+// avec 110 blocs, une mesure par bloc à l'ouverture d'une planche figeait l'écran (28/10). Les mesures passent ici :
+// une fois par image, toutes les lectures d'abord, puis toutes les écritures.
+const measureJobs = new Set();
+let measureRaf = 0;
+/** job = { read() → valeur, write(valeur) } : mesuré à la prochaine image, avec les autres. */
+export function measureLater(job) {
+  measureJobs.add(job);
+  if (measureRaf) return;
+  measureRaf = requestAnimationFrame(() => {
+    measureRaf = 0;
+    const jobs = [...measureJobs];
+    measureJobs.clear();
+    const seen = jobs.map((j) => { try { return j.read(); } catch { return undefined; } });
+    jobs.forEach((j, i) => { try { j.write(seen[i]); } catch { /* élément retiré entre-temps */ } });
+  });
+}
+let sizeRO = null;
+/** Remesure `job` quand la taille de `node` change ; un seul ResizeObserver pour toute la page. → arrêter() */
+export function measureOnResize(node, job) {
+  if (!sizeRO && typeof ResizeObserver === 'function') {
+    sizeRO = new ResizeObserver((entries) => { for (const e of entries) if (e.target.__measure) measureLater(e.target.__measure); });
+  }
+  node.__measure = job;
+  sizeRO?.observe(node);
+  return () => { sizeRO?.unobserve(node); measureJobs.delete(job); delete node.__measure; };
+}
+
 export default {
   clamp, lerp, $, $$, uid, debounce, throttle, rafThrottle, el, escapeHtml, isTyping,
   fmtBytes, fmtDuration, fmtClock, fmtTime, relTime, baseName, fmtGB, shellDo

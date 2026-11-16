@@ -1,10 +1,17 @@
 // ── Palette « Ajouter un bloc » ───────────────────────────────────────
-// Panneau centré de 560 px (da.md §4.9) : un champ de recherche, les
-// catégories en langage simple à gauche, les recettes en tête de liste. Chaque
-// entrée dit ce que fait le bloc (la phrase entière, sur 2 lignes au plus) et,
-// sur la ligne du nom en mono, le modèle qu'il prendra par défaut et sa
-// mémoire. Quand on lâche un fil dans le vide, la palette ne
-// montre que ce qui peut s'y brancher, et le bloc posé arrive déjà relié.
+// Panneau centré (da.md §4.9, refait le 28/10 à la demande de Quentin) : la
+// recherche et « Tout · Sur ce PC · En ligne » en haut ; à gauche Tout,
+// Favoris et les catégories en langage simple ; au milieu une ligne courte
+// par entrée (nom, et en mono le modèle qu'elle prendra et sa mémoire, ou
+// « dès … $ » en ligne ; l'étoile des favoris) sous des titres qui disent ce
+// qu'elle est (modèle du PC, modèle en ligne, tâche prête, recette) ; à
+// droite, l'entrée parcourue en entier : sa phrase, quand la choisir (modèles
+// en ligne), ce qu'elle prend et ce qu'elle donne. « Tout » commence par les
+// favoris et les derniers blocs posés. Quand on lâche un fil dans le vide, la
+// palette ne montre que ce qui peut s'y brancher, et le bloc posé arrive déjà
+// relié. Favoris : prefs.favModels (modèles, partagés avec le choix du modèle)
+// et prefs.favBlocks (blocs, recettes) ; récents : prefs.recentBlocks ; filtre
+// retenu : prefs.palWhere.
 
 import { t, tl, tn, register, lang } from '../i18n.js';
 import { icon } from '../icons.js';
@@ -17,7 +24,11 @@ import {
 import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
 import { familyOf, localKeyOf, portsOfFamily, chooseWorkflow } from '../nodes/route.js';
 import { mainPorts } from '../nodes/ports.js';
-import { familyWords } from '../nodes/familypicker.js';
+import { familyWords, makerColor } from '../nodes/familypicker.js';
+import { money } from '../ui/budget.js';
+import { fromPrice, askFromPrices } from '../ui/fromprices.js';
+import { setPrefs } from '../ui/settings.js';
+import { segmented } from '../ui/controls.js';
 
 // Les onglets de « + Bloc », par ce qu'on fabrique (25/10) ; chaque bloc de tâche a le sien, un bloc nouveau suit sa
 // catégorie du catalogue en attendant
@@ -65,14 +76,43 @@ register({
     'pal.tab.notes': 'Notes',
     'pal.tab.edit': 'Montage',
     'pal.tab.finish': 'Finition',
-    'pal.sec.pc': 'Sur ce PC',
-    'pal.sec.online': 'En ligne',
-    'pal.sec.blocks': 'Blocs',
+    'pal.sec.pc': 'Modèles sur ce PC',
+    'pal.sec.online': 'Modèles en ligne · payants',
+    'pal.sec.blocks': 'Tâches prêtes',
+    'pal.sec.tabPc': '{tab} · modèles sur ce PC',
+    'pal.sec.tabOnline': '{tab} · modèles en ligne',
+    'pal.sec.tabBlocks': '{tab} · tâches prêtes',
+    'pal.favs': 'Favoris',
+    'pal.recent': 'Récents',
+    'pal.favEmpty': 'Pas encore de favori : l’étoile au bout d’une ligne (ou Ctrl+D) en ajoute un.',
+    'pal.fav': 'Ajouter aux favoris',
+    'pal.unfav': 'Retirer des favoris',
+    'pal.where.all': 'Tout',
+    'pal.where.pc': 'Sur ce PC',
+    'pal.where.online': 'En ligne',
+    'pal.whereTip.all': 'Les modèles du PC et en ligne, les blocs et les recettes.',
+    'pal.whereTip.pc': 'Ce qui calcule sur ce PC : ses modèles, les blocs et les recettes.',
+    'pal.whereTip.online': 'Les modèles en ligne seulement (Higgsfield, payants).',
+    'pal.emptyWhere': 'Rien ici avec « {where} ».',
+    'pal.seeAll': 'Tout voir',
+    'pal.d.pc': 'Sur ce PC',
+    'pal.d.online': 'En ligne · payant',
+    'pal.d.block': 'Bloc',
+    'pal.d.recipe': 'Recette',
+    'pal.d.takes': 'Ce qu’il prend',
+    'pal.d.gives': 'Ce qu’il donne',
+    'pal.d.blocks': 'Ses blocs',
+    'pal.d.plug': 'Le fil ira sur',
+    'pal.d.place': 'Poser',
+    'pal.d.favKey': 'favori',
+    'pal.d.altKey': 'favori direct',
     'pal.recipes': 'Recettes',
     'pal.models': 'Modèles',
     'pal.cloud': 'En ligne',
     'pal.online': 'En ligne',
     'pal.from': 'Se branche sur',
+    'pal.priceFrom': 'dès {price}',
+    'pal.priceTip': 'Le moins cher chez Higgsfield, sur ton compte : plus petite définition, durée la plus courte.',
     'pal.empty': 'Aucun bloc ne correspond.',
     'pal.emptyFrom': 'Aucun bloc ne peut se brancher ici.',
     'pal.nav': 'choisir',
@@ -111,14 +151,43 @@ register({
     'pal.tab.notes': 'Notes',
     'pal.tab.edit': 'Editing',
     'pal.tab.finish': 'Finishing',
-    'pal.sec.pc': 'On this PC',
-    'pal.sec.online': 'Online',
-    'pal.sec.blocks': 'Blocks',
+    'pal.sec.pc': 'Models on this PC',
+    'pal.sec.online': 'Online models · paid',
+    'pal.sec.blocks': 'Ready-made tasks',
+    'pal.sec.tabPc': '{tab} · models on this PC',
+    'pal.sec.tabOnline': '{tab} · online models',
+    'pal.sec.tabBlocks': '{tab} · ready-made tasks',
+    'pal.favs': 'Favourites',
+    'pal.recent': 'Recent',
+    'pal.favEmpty': 'No favourite yet: the star at the end of a row (or Ctrl+D) adds one.',
+    'pal.fav': 'Add to favourites',
+    'pal.unfav': 'Remove from favourites',
+    'pal.where.all': 'All',
+    'pal.where.pc': 'On this PC',
+    'pal.where.online': 'Online',
+    'pal.whereTip.all': 'Models on this PC and online, blocks and recipes.',
+    'pal.whereTip.pc': 'What runs on this PC: its models, the blocks and the recipes.',
+    'pal.whereTip.online': 'Online models only (Higgsfield, paid).',
+    'pal.emptyWhere': 'Nothing here with “{where}”.',
+    'pal.seeAll': 'Show all',
+    'pal.d.pc': 'On this PC',
+    'pal.d.online': 'Online · paid',
+    'pal.d.block': 'Block',
+    'pal.d.recipe': 'Recipe',
+    'pal.d.takes': 'What it takes',
+    'pal.d.gives': 'What it gives',
+    'pal.d.blocks': 'Its blocks',
+    'pal.d.plug': 'The wire will go into',
+    'pal.d.place': 'Place',
+    'pal.d.favKey': 'favourite',
+    'pal.d.altKey': 'favourite at once',
     'pal.recipes': 'Recipes',
     'pal.models': 'Models',
     'pal.cloud': 'Online',
     'pal.online': 'Online',
     'pal.from': 'Plugs into',
+    'pal.priceFrom': 'from {price}',
+    'pal.priceTip': 'The cheapest at Higgsfield, on your account: smallest resolution, shortest length.',
     'pal.empty': 'No block matches.',
     'pal.emptyFrom': 'No block can plug in here.',
     'pal.nav': 'choose',
@@ -152,8 +221,8 @@ export function createPalette(ed) {
   root.classList.add('g-palette');
   root.hidden = true;
   let built = false;
-  let input, cats, list, chip, foot, panel, hl;
-  let st = { at: null, from: null, cat: 'all', items: [], active: 0, prevFocus: null };
+  let input, cats, list, chip, foot, panel, hl, detail, whereSeg;
+  let st = { at: null, from: null, cat: 'all', where: 'all', items: [], active: 0, prevFocus: null };
   let mouseArmed = false;
 
   function build() {
@@ -165,11 +234,13 @@ export function createPalette(ed) {
           <span class="pal-search-ico">${icon('search', 16)}</span>
           <input class="pal-input" type="text" spellcheck="false" autocomplete="off" placeholder="${esc(t('pal.search'))}">
           <span class="pal-chip" hidden></span>
+          <span class="pal-where"></span>
           <kbd class="pal-esc">Échap</kbd>
         </div>
         <div class="pal-body">
           <nav class="pal-cats"></nav>
           <div class="pal-list" role="listbox"></div>
+          <div class="pal-detail"></div>
         </div>
         <div class="pal-foot"></div>
       </div>`;
@@ -179,10 +250,15 @@ export function createPalette(ed) {
     list = root.querySelector('.pal-list');
     chip = root.querySelector('.pal-chip');
     foot = root.querySelector('.pal-foot');
+    detail = root.querySelector('.pal-detail');
     root.querySelector('.pal-esc').textContent = t('pal.escKey');
-    foot.innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> ${esc(t('pal.nav'))}</span>`
-      + `<span><kbd>↵</kbd> ${esc(t('pal.enter'))}</span>`
-      + `<span><kbd>${esc(t('pal.escKey'))}</kbd> ${esc(t('pal.esc'))}</span>`;
+    // où ça calcule : tout, ce PC (ses modèles, les blocs, les recettes) ou en ligne ; retenu d'une fois sur l'autre
+    whereSeg = segmented({
+      size: 'sm', value: 'all',
+      options: ['all', 'pc', 'online'].map((v) => ({ value: v, label: t(`pal.where.${v}`), tip: t(`pal.whereTip.${v}`) })),
+      onChange: (v) => setWhere(v),
+    });
+    root.querySelector('.pal-where').append(whereSeg);
 
     root.querySelector('.pal-catcher').addEventListener('pointerdown', (e) => { e.preventDefault(); close(); });
     root.addEventListener('contextmenu', (e) => { if (e.target !== input) e.preventDefault(); });
@@ -193,23 +269,29 @@ export function createPalette(ed) {
     input.addEventListener('keydown', onKey);
     list.addEventListener('pointermove', (e) => {
       if (mouseArmed) return;
-      // premier vrai mouvement : la ligne sous le pointeur s'allume et peut montrer sa phrase
+      // premier vrai mouvement : la ligne sous le pointeur s'allume (et le détail la suit)
       mouseArmed = true;
       const it = e.target.closest('.pal-item');
-      if (it) { setActive(+it.dataset.i, false); scheduleSide(it); }
+      if (it) setActive(+it.dataset.i, false);
     });
     list.addEventListener('pointerover', (e) => {
       const it = e.target.closest('.pal-item');
       if (!it || !mouseArmed) return;
       if (+it.dataset.i !== st.active || !it.classList.contains('on')) setActive(+it.dataset.i, false);
-      if (e.relatedTarget && it.contains(e.relatedTarget)) return;   // on bouge dans la même ligne
-      scheduleSide(it);
     });
-    list.addEventListener('pointerleave', hideSide);
-    list.addEventListener('scroll', hideSide, { passive: true });
     list.addEventListener('click', (e) => {
+      if (e.target.closest('[data-act="all"]')) { setWhere('all'); return; }
       const it = e.target.closest('.pal-item');
-      if (it) pick(st.items[+it.dataset.i]);
+      if (!it) return;
+      if (e.target.closest('.pal-star')) { toggleFav(st.items[+it.dataset.i]); return; }
+      pick(st.items[+it.dataset.i]);
+    });
+    detail.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      const it = st.items[st.active];
+      if (!b || !it) return;
+      if (b.dataset.act === 'place') pick(it);
+      else if (b.dataset.act === 'fav') toggleFav(it);
     });
     cats.addEventListener('click', (e) => {
       const b = e.target.closest('.pal-cat');
@@ -221,6 +303,61 @@ export function createPalette(ed) {
     });
   }
 
+  function setWhere(v) {
+    if (!['all', 'pc', 'online'].includes(v)) return;
+    st.where = v;
+    whereSeg.setValue(v);
+    if (state.prefs?.palWhere !== v) setPrefs({ palWhere: v }).catch?.(() => {});
+    render(true);
+    input.focus();
+  }
+
+  // ── favoris et récents ──
+  // Les modèles partagent leurs favoris avec le choix du modèle d'un bloc (prefs.favModels) ; blocs et recettes ont
+  // les leurs (prefs.favBlocks). Les récents : les dernières entrées posées d'ici (prefs.recentBlocks).
+  const listPref = (k) => (Array.isArray(state.prefs?.[k]) ? state.prefs[k] : []);
+  const favKey = (e) => (e.kind === 'model' ? 'favModels' : 'favBlocks');
+  const isFav = (e) => listPref(favKey(e)).includes(e.key);
+  /** Les favoris parmi `all`, dans l'ordre : les modèles, puis les blocs et les recettes. */
+  const favEntries = (all) => [...listPref('favModels'), ...listPref('favBlocks')]
+    .map((k) => all.find((e) => e.key === k)).filter(Boolean);
+
+  async function toggleFav(e) {
+    if (!e) return;
+    const k = favKey(e);
+    const cur = listPref(k);
+    await setPrefs({ [k]: cur.includes(e.key) ? cur.filter((x) => x !== e.key) : [...cur, e.key] });
+    if (root.hidden) return;
+    // la liste se redessine sans sauter : la ligne parcourue reste la même (la copie d'un favori en tête de « Tout »
+    // ne la remplace pas) et reste sous le pointeur
+    const key = st.items[st.active]?.key;
+    const same = (items) => items.map((x, j) => (x.key === key ? j : -1)).filter((j) => j >= 0);
+    const n0 = same(st.items).length;
+    const occ = same(st.items.slice(0, st.active)).length;
+    const row = list.querySelector('.pal-item.on');
+    const seen = row ? row.offsetTop - list.scrollTop : 0;
+    render(false);
+    const idx = same(st.items);
+    const at = idx.length > n0 ? occ + 1 : idx.length < n0 ? Math.max(0, occ - 1) : occ;
+    if (!idx.length) return;
+    setActive(idx[Math.min(at, idx.length - 1)], false, false);
+    const now = list.querySelector('.pal-item.on');
+    if (now) list.scrollTop = now.offsetTop - seen;
+    placeHighlight(false);
+  }
+
+  function remember(item) {
+    const patch = {};
+    const rec = [item.key, ...listPref('recentBlocks').filter((k) => k !== item.key)].slice(0, 8);
+    if (rec.join() !== listPref('recentBlocks').join()) patch.recentBlocks = rec;
+    if (item.kind === 'model') {
+      // un modèle posé d'ici compte aussi parmi les récents du choix du modèle
+      const rm = [item.key, ...listPref('recentModels').filter((k) => k !== item.key)].slice(0, 5);
+      if (rm.join() !== listPref('recentModels').join()) patch.recentModels = rm;
+    }
+    if (Object.keys(patch).length) setPrefs(patch).catch?.(() => {});
+  }
+
   // ── ouverture ──
 
   /**
@@ -230,7 +367,9 @@ export function createPalette(ed) {
   function open({ at = null, from = null, category = null, origin = null } = {}) {
     if (!ed.project || ed.readonly) return;
     if (!built) build();
-    st = { at, from, cat: LEGACY_TAB[category] || category || 'all', items: [], active: 0, prevFocus: document.activeElement };
+    const where = ['all', 'pc', 'online'].includes(state.prefs?.palWhere) ? state.prefs.palWhere : 'all';
+    st = { at, from, cat: LEGACY_TAB[category] || category || 'all', where, items: [], active: 0, prevFocus: document.activeElement };
+    whereSeg.setValue(where);
     if (from) st.cat = 'all';
     input.value = '';
     input.placeholder = t(from ? 'pal.searchShort' : 'pal.search');
@@ -265,7 +404,6 @@ export function createPalette(ed) {
 
   function close() {
     if (root.hidden) return;
-    hideSide();
     root.hidden = true;
     const pf = st.prevFocus;
     st.prevFocus = null;
@@ -285,7 +423,7 @@ export function createPalette(ed) {
     if (!from) {
       for (const r of recipes()) {
         out.push({
-          kind: 'recipe', id: r.id, cat: 'recipes', tab: 'recipes', where: 'block', icon: r.icon || 'recipe',
+          kind: 'recipe', id: r.id, key: `recipe:${r.id}`, cat: 'recipes', tab: 'recipes', where: 'block', icon: r.icon || 'recipe',
           name: tl(r.label), desc: tl(r.desc),
           meta: tn('pal.blocks', r.nodes.length, { n: r.nodes.length }), recipe: r
         });
@@ -300,7 +438,7 @@ export function createPalette(ed) {
       }
       const m = from ? { text: tl(link.def.label), cls: 'port' } : modelMeta(ty);
       out.push({
-        kind: 'type', id: ty.id, cat: ty.category, tab: tabOfType(ty), where: 'block', icon: ty.icon,
+        kind: 'type', id: ty.id, key: ty.id, cat: ty.category, tab: tabOfType(ty), where: 'block', icon: ty.icon,
         name: typeLabel(ty), desc: typeDesc(ty), meta: m?.text || '', metaCls: m?.cls || '', metaTip: m?.tip || '', link
       });
     }
@@ -328,10 +466,12 @@ export function createPalette(ed) {
       if (from && !link) return;
       const desc = tl(def.desc || {});
       out.push({
-        kind: 'model', id: value, value, cat, tab: def.kind === 'image' ? 'image' : def.kind === 'audio' ? 'sound' : 'video',
-        where: cat === 'models' ? 'pc' : 'online', mark: def.mark || String(def.maker || def.name).slice(0, 2).toUpperCase(),
+        kind: 'model', id: value, key: value, value, cat, tab: def.kind === 'image' ? 'image' : def.kind === 'audio' ? 'sound' : 'video',
+        where: cat === 'models' ? 'pc' : 'online', mark: def.mark || String(def.maker || def.name).slice(0, 2).toUpperCase(), hue: makerColor(def),
         name: def.name, desc, meta: from ? tl(link.def.label) : meta, metaCls: from ? 'port' : metaCls, metaTip: from ? '' : metaTip, link,
-        words: from ? null : words, online: cat === 'cloud',
+        words: from ? null : words, online: cat === 'cloud', def, fam, missing: metaCls === 'missing',
+        // quand la choisir (cloud-strengths.json) : montré dans le détail, lu par la recherche (« 4k », « visages »)
+        pick: def.strengths ? tl(def.strengths) : '',
         src: { label: { fr: def.name, en: def.name }, desc: def.desc, keywords: { fr: `${def.maker || ''} ${familyWords(def).join(' ')}`, en: def.maker || '' } },
       });
     };
@@ -370,7 +510,7 @@ export function createPalette(ed) {
     e.wOther = words(both(src?.label));
     // le modèle qui fait tourner un bloc (« LTX 2.5 ») se cherche aussi : « ltx » trouve Animer une image… (LIVE-11)
     e.wKeys = words(`${both(src?.keywords)} ${typeof e.meta === 'string' ? e.meta : ''}`);
-    e.wDesc = words(`${both(src?.desc)} ${e.desc}`);
+    e.wDesc = words(`${both(src?.desc)} ${e.desc} ${e.pick || ''}`);
     e.wId = words(e.id);
     const lab = src?.label;
     e.whole = [e.name, ...(lab && typeof lab === 'object' ? [lab.fr, lab.en] : [])].map((s) => words(s).join(' '));
@@ -470,18 +610,30 @@ export function createPalette(ed) {
     }
     // le nom tapé en entier (« profondeur », « depth ») : le bloc passe devant la recette qui le contient
     if (e.whole.includes(qWords.join(' '))) s += 3;
+    // à égalité ou presque, les favoris puis les derniers posés passent devant (comme le menu Tab de Nuke)
+    if (isFav(e)) s += 2;
+    else if (listPref('recentBlocks').includes(e.key)) s += 1;
     return s + (e.kind === 'recipe' ? 0.5 : 0);
   }
 
+  // « Sur ce PC » : ses modèles, les blocs et les recettes (tout calcule ici) ; « En ligne » : les modèles en ligne
+  const inWhere = (e) => st.where === 'all' || (st.where === 'online' ? e.where === 'online' : e.where !== 'online');
+
   function render(resetActive) {
     const q = fold(input.value.trim());
-    const all = entries();
+    const every = entries();
+    const all = every.filter(inWhere);
     const has = (tab) => all.some((e) => e.tab === tab);
-    if (st.cat !== 'all' && !has(st.cat)) st.cat = 'all';
+    const favs = favEntries(all);
+    if (st.cat === 'favs' ? !favs.length && !listPref('favModels').length && !listPref('favBlocks').length
+      : st.cat !== 'all' && !has(st.cat)) st.cat = 'all';
 
-    // colonne : Tout, puis Fabriquer (Vidéo, Image, Son), Préparer, Retravailler — les onglets vides sont tus
-    const catBtn = (id, label) => `<button type="button" class="pal-cat${st.cat === id ? ' on' : ''}" data-cat="${esc(id)}">${esc(label)}</button>`;
+    // colonne : Tout, Favoris, puis Fabriquer (Vidéo, Image, Son), Préparer, Retravailler — les onglets vides sont tus
+    const catBtn = (id, label, n = null, ico = '') => `<button type="button" class="pal-cat${st.cat === id ? ' on' : ''}" data-cat="${esc(id)}">`
+      + (ico ? `<span class="pal-cat-ico">${icon(ico, 13)}</span>` : '')
+      + `<span class="pal-cat-lbl">${esc(label)}</span>${n != null ? `<span class="pal-cat-n">${n}</span>` : ''}</button>`;
     let nav = catBtn('all', t('pal.all'));
+    if (favs.length || st.cat === 'favs') nav += catBtn('favs', t('pal.favs'), favs.length, 'star');
     for (const g of ['make', 'start', 'rework']) {
       const tabs = TABS.filter((x) => x.group === g && has(x.id));
       if (tabs.length) nav += `<div class="pal-catgroup">${esc(t(`pal.group.${g}`))}</div>` + tabs.map((x) => catBtn(x.id, t(`pal.tab.${x.id}`))).join('');
@@ -493,6 +645,19 @@ export function createPalette(ed) {
       online ? all.filter((e) => e.tab === tab && e.where === 'online') : [],
       all.filter((e) => e.tab === tab && e.where === 'block'),
     ];
+    // les titres disent ce que sont les entrées : modèles du PC, modèles en ligne, tâches prêtes (un seul genre : le
+    // nom de l'onglet suffit) ; dans « Tout », précédés de l'onglet (« Vidéo · tâches prêtes »)
+    const titled = (tab, [pc, web, blocks], prefix) => {
+      const name = t(`pal.tab.${tab}`);
+      const secs = [
+        { title: prefix ? t('pal.sec.tabPc', { tab: name }) : t('pal.sec.pc'), items: pc },
+        { title: prefix ? t('pal.sec.tabOnline', { tab: name }) : t('pal.sec.online'), items: web },
+        { title: prefix ? t('pal.sec.tabBlocks', { tab: name }) : t('pal.sec.blocks'), items: blocks },
+      ];
+      // des blocs seuls (Montage, Recettes…) : le nom de l'onglet ; des modèles seuls gardent « sur ce PC » / « en ligne »
+      if (!pc.length && !web.length) return [{ title: name, items: blocks }];
+      return secs;
+    };
 
     // liste
     let sections;
@@ -502,42 +667,56 @@ export function createPalette(ed) {
         ? all.map((e) => ({ e, s: score(e, qWords) })).filter((x) => x.s >= 0).sort((a, b) => b.s - a.s)
         : [];
       sections = [{ title: null, items: hits.map((x) => x.e) }];
+    } else if (st.cat === 'favs') {
+      sections = [{ title: t('pal.favs'), items: favs }];
     } else if (st.cat === 'all') {
-      // un onglet après l'autre ; les modèles en ligne (nombreux) restent dans leur onglet et la recherche, sauf quand
-      // un fil attend (il faut alors tout ce qui peut le prendre)
-      sections = TABS.map((x) => ({ title: t(`pal.tab.${x.id}`), items: parts(x.id, !!st.from).flat() }));
+      // d'abord les favoris et les derniers posés, puis un onglet après l'autre ; les modèles en ligne (nombreux) restent
+      // dans leur onglet et la recherche, sauf avec « En ligne » ou quand un fil attend (il faut alors tout ce qui
+      // peut le prendre)
+      const recent = listPref('recentBlocks').map((k) => all.find((e) => e.key === k)).filter((e) => e && !favs.includes(e)).slice(0, 5);
+      const online = !!st.from || st.where === 'online';
+      sections = [{ title: t('pal.favs'), items: favs }, { title: t('pal.recent'), items: recent },
+        ...TABS.flatMap((x) => titled(x.id, parts(x.id, online), true))];
     } else {
-      const [pc, web, blocks] = parts(st.cat);
-      sections = [pc, web, blocks].filter((l) => l.length).length > 1
-        ? [{ title: t('pal.sec.pc'), items: pc }, { title: t('pal.sec.online'), items: web }, { title: t('pal.sec.blocks'), items: blocks }]
-        : [{ title: t(`pal.tab.${st.cat}`), items: [...pc, ...web, ...blocks] }];
+      sections = titled(st.cat, parts(st.cat), false);
     }
 
-    // sous le titre « En ligne » d'un onglet, « En ligne · » devant chaque modèle ne dit plus rien
-    const inTab = !q && st.cat !== 'all';
-    const metaOf = (e) => (e.words && e.online && inTab ? fitWords(e.words.filter((w) => w !== t('pal.online'))) : e.meta);
+    // sous le titre « en ligne », « En ligne · » devant chaque modèle ne dit plus rien
+    const metaOf = (e) => (e.words && e.online && !q ? fitWords(e.words.filter((w) => w !== t('pal.online'))) : e.meta);
     st.items = [];
     let html = '';
     for (const s of sections) {
       if (!s.items.length) continue;
+      const onlineSec = !q && s.items.every((e) => e.online);
       if (s.title) html += `<div class="pal-sec">${esc(s.title)}</div>`;
       for (const e of s.items) {
         const i = st.items.length;
         st.items.push(e);
-        // nom et méta (modèle, ou port qui recevra le fil) sur la 1re ligne ; la description prend toute la
-        // largeur dessous, sur 2 lignes au plus (demande de Quentin : lire la phrase, pas « … » au bout de 40 signes)
-        html += `<button type="button" class="pal-item${e.kind === 'recipe' ? ' recipe' : ''}" data-i="${i}" role="option">`
-          + (e.kind === 'model' ? `<span class="pal-glyph pal-mark">${esc(e.mark)}</span>`
+        const fav = isFav(e);
+        // une ligne : le nom, et à droite en mono ce qu'il prendra (modèle, mémoire) ou le port qui recevra le fil,
+        // « dès … $ » en ligne, l'étoile ; la phrase entière est dans le détail à droite
+        const meta = onlineSec ? metaOf(e) : e.meta;
+        html += `<button type="button" class="pal-item${e.kind === 'recipe' ? ' recipe' : ''}${e.missing ? ' missing' : ''}" data-i="${i}" role="option">`
+          + (e.kind === 'model' ? `<span class="pal-glyph pal-mark"${e.hue ? ` style="--mk:${esc(e.hue)}"` : ''}>${esc(e.mark)}</span>`
             : `<span class="pal-glyph">${icon(e.icon, 16) || icon('g-unknown', 16)}</span>`)
-          + '<span class="pal-text"><span class="pal-head">'
           + `<span class="pal-name">${esc(e.name)}</span>`
-          + (metaOf(e) ? `<span class="pal-meta ${e.metaCls || ''}"${e.metaTip ? ` data-tip="${esc(e.metaTip)}"` : ''}>${esc(metaOf(e))}</span>` : '')
-          + `</span><span class="pal-desc">${esc(e.desc)}</span></span>`
+          + (meta ? `<span class="pal-meta ${e.metaCls || ''}"${e.metaTip ? ` data-tip="${esc(e.metaTip)}"` : ''}>${esc(meta)}</span>` : '<span class="pal-meta"></span>')
+          + (e.online && e.kind === 'model' ? `<span class="pal-price" data-fam="${esc(e.value)}" data-tip="${esc(t('pal.priceTip'))}"></span>` : '')
+          + `<span class="pal-star${fav ? ' on' : ''}" role="button" aria-label="${esc(t(fav ? 'pal.unfav' : 'pal.fav'))}"`
+          + ` data-tip="${esc(t(fav ? 'pal.unfav' : 'pal.fav'))}">${icon(fav ? 'star-fill' : 'star', 14)}</span>`
           + '</button>';
       }
     }
-    if (!st.items.length) html = `<div class="pal-empty">${esc(st.from ? t('pal.emptyFrom') : t('pal.empty'))}</div>`;
+    if (!st.items.length) {
+      if (st.cat === 'favs') html = `<div class="pal-empty">${esc(t('pal.favEmpty'))}</div>`;
+      else if (st.where !== 'all' && every.length) {
+        // un filtre qui ne laisse rien : le dire, et un bouton pour tout revoir
+        html = `<div class="pal-empty">${esc(t('pal.emptyWhere', { where: t(`pal.where.${st.where}`) }))}`
+          + `<button type="button" class="btn xs pal-seeall" data-act="all">${esc(t('pal.seeAll'))}</button></div>`;
+      } else html = `<div class="pal-empty">${esc(st.from ? t('pal.emptyFrom') : t('pal.empty'))}</div>`;
+    }
     list.innerHTML = html;
+    fillPrices();
     // la surbrillance glisse d'une ligne à l'autre : un seul élément, déplacé par transform
     hl = document.createElement('div');
     hl.className = 'pal-hl';
@@ -545,50 +724,89 @@ export function createPalette(ed) {
     list.prepend(hl);
     if (resetActive) { st.active = 0; list.scrollTop = 0; }
     setActive(Math.min(st.active, st.items.length - 1), true, false);
-    hideSide();
+    paintFoot(favs.length);
   }
 
-  // ── la phrase entière d'une description coupée ──
-  // Une bulle à côté du panneau (jamais sur la ligne voisine, qu'elle cachait), et seulement
-  // quand la souris a vraiment bougé : la palette ouverte sous un pointeur immobile (fil
-  // lâché) n'affiche rien tant qu'on n'a pas bougé (même drapeau que la surbrillance).
-  let side = null, sideT = 0;
-  function hideSide() {
-    clearTimeout(sideT);
-    sideT = 0;
-    if (side && !side.hidden) side.hidden = true;
+  function paintFoot(nFavs) {
+    foot.innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> ${esc(t('pal.nav'))}</span>`
+      + `<span><kbd>↵</kbd> ${esc(t('pal.enter'))}</span>`
+      + `<span><kbd>Ctrl D</kbd> ${esc(t('pal.d.favKey'))}</span>`
+      + (nFavs ? `<span><kbd>Alt ${nFavs > 1 ? `1…${Math.min(9, nFavs)}` : '1'}</kbd> ${esc(t('pal.d.altKey'))}</span>` : '')
+      + `<span><kbd>${esc(t('pal.escKey'))}</kbd> ${esc(t('pal.esc'))}</span>`;
   }
-  function scheduleSide(item) {
-    hideSide();
-    if (!item || !mouseArmed) return;
-    sideT = setTimeout(() => showSide(item), 500);
+
+  // « dès … $ » des modèles en ligne : demandés une fois à Higgsfield (le processus principal les garde un jour) ;
+  // rien sans compte relié
+  function fillPrices() {
+    const spans = [...list.querySelectorAll('.pal-price[data-fam]')];
+    if (!spans.length) return;
+    const paint = () => {
+      for (const s of spans) {
+        const v = fromPrice(s.dataset.fam);
+        s.textContent = v != null ? t('pal.priceFrom', { price: money(v) }) : '';
+      }
+    };
+    paint();
+    askFromPrices(spans.map((s) => s.dataset.fam)).then((fresh) => {
+      if (!fresh || !spans[0].isConnected) return;
+      paint();
+      if (st.items[st.active]?.online) showDetail(st.items[st.active]);     // le prix arrive aussi dans le détail
+    });
   }
-  function showSide(item) {
-    sideT = 0;
-    if (root.hidden || !item.isConnected || !mouseArmed) return;
-    const d = item.querySelector('.pal-desc');
-    if (!d || d.scrollHeight <= d.clientHeight + 1) return;          // la phrase tient : rien à montrer
-    if (!side) {
-      side = document.createElement('div');
-      side.className = 'tooltip multi pal-side';
-      side.setAttribute('role', 'tooltip');
-      root.append(side);
+
+  // ── le détail de l'entrée parcourue (à droite) ──
+  // Ce qu'une ligne courte ne dit pas : la phrase entière, quand choisir un modèle en ligne (cloud-strengths.json), ce
+  // qu'il prend et ce qu'il donne (pastilles de la couleur des ports), les blocs d'une recette, le port qui recevra le
+  // fil. Il suit la ligne survolée ou parcourue au clavier.
+  const chipHtml = (type, label, n = 0) => `<span class="pal-d-chip"><i class="pal-dot" data-t="${esc(type || 'media')}"></i>`
+    + `${esc(label)}${n > 1 ? ` <b>×${n}</b>` : ''}</span>`;
+  function showDetail(e) {
+    if (!detail) return;
+    if (!e) { detail.innerHTML = ''; return; }
+    const fav = isFav(e);
+    let where = [], takes = [], gives = [], blocks = [];
+    if (e.kind === 'model') {
+      const price = e.online ? fromPrice(e.value) : null;
+      where = e.online ? [e.def.maker, t('pal.d.online'), price != null ? t('pal.priceFrom', { price: money(price) }) : '']
+        : [e.def.maker, e.missing ? t('pal.notInstalled') : t('pal.d.pc')];
+      const ports = portsOfFamily(e.fam);
+      takes = inputDefs('gen').filter((p) => ports[p.id]).map((p) => [p.type, tl(p.label), ports[p.id].multi ? ports[p.id].max : 0]);
+      const kind = e.def.kind || 'video';
+      gives = [[kind, ed.kindLabel(kind)]];
+    } else if (e.kind === 'recipe') {
+      where = [t('pal.d.recipe'), e.meta];
+      const n = new Map();
+      for (const nd of e.recipe.nodes || []) {
+        const ty = typeOf(nd.type);
+        const l = ty ? typeLabel(ty) : nd.type;
+        n.set(l, (n.get(l) || 0) + 1);
+      }
+      blocks = [...n];
+    } else {
+      where = [t('pal.d.block'), st.from ? '' : e.meta];
+      takes = inputDefs(e.id).map((p) => [p.type, tl(p.label) || ed.kindLabel(p.type), p.multi ? p.max || 0 : 0]);
+      gives = outputDefs(e.id).map((p) => { const k = outRule(p.type).fixed || 'media'; return [k, tl(p.label) || ed.kindLabel(k)]; });
     }
-    side.textContent = d.textContent;
-    side.style.left = '0px';
-    side.style.top = '0px';
-    side.hidden = false;
-    const pr = panel.getBoundingClientRect(), ir = item.getBoundingClientRect();
-    const w = side.offsetWidth, h = side.offsetHeight;
-    const clampY = (y) => Math.max(8, Math.min(innerHeight - h - 8, y));
-    let x = pr.right + 10, y = clampY(ir.top + ir.height / 2 - h / 2);
-    if (x + w > innerWidth - 8) x = pr.left - 10 - w;                    // pas de place à droite : à gauche
-    if (x < 8) {                                                          // fenêtre étroite : sous la ligne
-      x = Math.max(8, Math.min(innerWidth - w - 8, ir.left + 40));
-      y = clampY(ir.bottom + 6);
-    }
-    side.style.left = `${Math.round(x)}px`;
-    side.style.top = `${Math.round(y)}px`;
+    const glyph = e.kind === 'model'
+      ? `<span class="pal-glyph pal-mark lg"${e.hue ? ` style="--mk:${esc(e.hue)}"` : ''}>${esc(e.mark)}</span>`
+      : `<span class="pal-glyph lg">${icon(e.icon, 18) || icon('g-unknown', 18)}</span>`;
+    const sec = (label, body) => (body ? `<div class="pal-d-sec"><div class="pal-d-label">${esc(label)}</div>${body}</div>` : '');
+    const chips = (l) => (l.length ? `<div class="pal-d-chips">${l.join('')}</div>` : '');
+    // le contenu défile seul ; « Poser » et l'étoile restent dessous, toujours visibles
+    detail.innerHTML = '<div class="pal-d-body">'
+      + `<div class="pal-d-head">${glyph}<div class="pal-d-title"><div class="pal-d-name">${esc(e.name)}</div>`
+      + `<div class="pal-d-where">${esc(where.filter(Boolean).join(' · '))}</div></div></div>`
+      + (e.desc ? `<div class="pal-d-desc">${esc(e.desc)}</div>` : '')
+      // la phrase dit elle-même « À choisir pour… » : pas de titre au-dessus
+      + (e.pick ? `<div class="pal-d-pick">${esc(e.pick)}</div>` : '')
+      + (st.from && e.link ? sec(t('pal.d.plug'), chips([chipHtml(st.from.type, tl(e.link.def.label))])) : '')
+      + sec(t('pal.d.takes'), chips(takes.map(([ty, l, n]) => chipHtml(ty, l, n))))
+      + sec(t('pal.d.gives'), chips(gives.map(([ty, l]) => chipHtml(ty, l))))
+      + sec(t('pal.d.blocks'), chips(blocks.map(([l, n]) => `<span class="pal-d-chip">${esc(l)}${n > 1 ? ` <b>×${n}</b>` : ''}</span>`)))
+      + '</div>'
+      + `<div class="pal-d-acts"><button type="button" class="btn xs btn-primary" data-act="place">${esc(t('pal.d.place'))}</button>`
+      + `<button type="button" class="btn xs btn-ghost pal-d-fav${fav ? ' on' : ''}" data-act="fav">${icon(fav ? 'star-fill' : 'star', 13)}`
+      + `<span>${esc(t(fav ? 'pal.unfav' : 'pal.fav'))}</span></button></div>`;
   }
 
   function setActive(i, scroll, glide = true) {
@@ -601,6 +819,7 @@ export function createPalette(ed) {
       if (scroll) next.scrollIntoView({ block: 'nearest' });
     }
     placeHighlight(glide);
+    showDetail(st.items[st.active]);
   }
 
   /** La pastille de la ligne active : sa hauteur suit la ligne, sa place glisse (120 ms). */
@@ -616,8 +835,21 @@ export function createPalette(ed) {
   }
 
   function onKey(e) {
-    hideSide();
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return close(); }
+    // Ctrl+D : l'entrée parcourue entre ou sort des favoris ; Alt+1…9 : pose le favori n (par la place de la touche,
+    // pour les claviers AZERTY où le chiffre demande Maj ; AltGr = Ctrl+Alt n'y compte pas)
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyD') {
+      e.preventDefault(); e.stopPropagation();
+      toggleFav(st.items[st.active]);
+      return;
+    }
+    const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code || '');
+    if (e.altKey && !e.ctrlKey && !e.metaKey && digit) {
+      e.preventDefault(); e.stopPropagation();
+      const f = favEntries(entries().filter(inWhere))[+digit[1] - 1];
+      if (f) pick(f);
+      return;
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       if (!st.items.length) return;
@@ -649,6 +881,7 @@ export function createPalette(ed) {
   function pick(item) {
     if (!item) return;
     const { at, from } = st;
+    remember(item);
     close();
     if (item.kind === 'recipe') { ed.insertRecipe(item.recipe, at); return; }
     const typeId = item.kind === 'model' ? 'gen' : item.id;      // un modèle pose un bloc Modèle réglé sur lui

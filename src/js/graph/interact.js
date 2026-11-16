@@ -1211,7 +1211,6 @@ export function attachInteract(ed) {
     if (!sel().nodes.has(id)) ed.setSelection({ nodes: [id] });
     const ids = [...sel().nodes];
     const many = ids.length > 1;
-    const def = typeOf(node.type);
     const ro = ed.readonly;
     const out = resultOf(node);
     const items = [];
@@ -1221,10 +1220,10 @@ export function attachInteract(ed) {
           .sort((a, b) => ed.doc.node(a).x - ed.doc.node(b).x);
         for (const k of list) emit('node:run', { nodeId: k, mode: mode ?? null });
       };
-      if (def?.modes?.length) {
-        items.push({ label: t('graph.menu.runPreview'), icon: 'play', disabled: ro || node.bypass, action: () => run('preview') });
-        items.push({ label: t('graph.menu.runFinal'), icon: 'play', disabled: ro || node.bypass, action: () => run('final') });
-      } else items.push({ label: t('graph.menu.run'), icon: 'play', disabled: ro || node.bypass, action: () => run(null) });
+      // un seul « Générer », comme le bouton du bloc (les réglages décident de la durée)
+      const cat = typeOf(node.type);
+      const verb = cat?.id === 'export' ? 'graph.menu.export' : cat?.category === 'tools' ? 'graph.menu.apply' : 'graph.menu.run';
+      items.push({ label: t(verb), icon: 'play', disabled: ro || node.bypass, action: () => run(null) });
       items.push('sep');
     }
     items.push(

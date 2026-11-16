@@ -26,7 +26,7 @@
 
 import { t, tl } from '../i18n.js';
 import { icon } from '../icons.js';
-import { el, clamp } from '../util.js';
+import { el, clamp, measureLater } from '../util.js';
 import { on } from '../bus.js';
 import { state } from '../state.js';
 import { tip } from '../ui/tooltip.js';
@@ -315,11 +315,12 @@ export function mountParams(host, opts) {
   const setStack = (row, on, cls = 'np-stack') => { if (row.classList.contains(cls) !== !!on) row.classList.toggle(cls, !!on); };
   /** need() → largeur minimale du contrôle (px) ; la rangée s'empile quand la colonne est plus étroite. */
   function stackWhenNarrow(row, need, cls = 'np-stack') {
-    const ro = new ResizeObserver(() => {
-      const r = roomOf(row);
-      const n = r && need();
-      if (r && n) setStack(row, n > r.inline + 0.5, cls);
-    });
+    // lu puis posé avec les autres rangées (util.measureLater) : pas de mise en page forcée rangée par rangée
+    const job = {
+      read() { const r = roomOf(row); const n = r && need(); return r && n ? n > r.inline + 0.5 : null; },
+      write(on) { if (on != null) setStack(row, on, cls); },
+    };
+    const ro = new ResizeObserver(() => measureLater(job));
     ro.observe(probeOf(row));
     cleanups.push(() => ro.disconnect());
   }

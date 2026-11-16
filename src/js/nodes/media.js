@@ -14,7 +14,7 @@ import { ms } from '../ui/motion.js';
 import { state, mediaUrl, absUrl } from '../state.js';
 import { t, register, lang } from '../i18n.js';
 import { icon, register as registerIcons, hasIcon } from '../icons.js';
-import { el, isTyping } from '../util.js';
+import { el, isTyping, measureLater, measureOnResize } from '../util.js';
 import { on, emit } from '../bus.js';
 import { toast } from '../ui/toasts.js';
 import { openMenu, isMenuOpen } from '../ui/menu.js';
@@ -515,15 +515,17 @@ export function createWell(opts = {}) {
   // Badge méta (au survol, à gauche) et étiquette (à droite) partagent le haut du puits : quand ils ne
   // tiennent pas côte à côte (puits vertical, anglais), l'étiquette s'efface le temps du survol au lieu
   // de passer sous le badge. Mesuré quand un texte ou la largeur du puits change, jamais en continu.
-  function fitTop() {
-    const w = root.clientWidth;
-    if (!w) return;
-    const clash = !badge.hidden && !tag.hidden && badge.textContent && tag.textContent
-      && badge.scrollWidth + tag.offsetWidth + 6 + 12 > w;
-    if (tag.classList.contains('yields') !== clash) tag.classList.toggle('yields', clash);
-  }
-  const topRO = typeof ResizeObserver === 'function' ? new ResizeObserver(() => fitTop()) : null;
-  topRO?.observe(root);
+  // (lu avec les autres puits, une fois par image : util.measureLater)
+  const topFit = {
+    read() {
+      if (badge.hidden || tag.hidden || !badge.textContent || !tag.textContent) return false;
+      const w = root.clientWidth;
+      return w ? badge.scrollWidth + tag.offsetWidth + 6 + 12 > w : null;
+    },
+    write(clash) { if (clash != null && tag.classList.contains('yields') !== clash) tag.classList.toggle('yields', clash); },
+  };
+  const fitTop = () => measureLater(topFit);
+  const stopTopFit = measureOnResize(root, topFit);
 
   let layer = null;        // couche affichée { el, key, slot?, player?, video?, media? }
   let destroyed = false;
@@ -807,7 +809,7 @@ export function createWell(opts = {}) {
     kind: () => layer?.kind || null,
     destroy() {
       destroyed = true;
-      topRO?.disconnect();
+      stopTopFit();
       wells.delete(entry);
       dispose(layer);
       layer = null;

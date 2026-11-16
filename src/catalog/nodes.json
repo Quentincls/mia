@@ -578,10 +578,6 @@
               }
             }
           ],
-          "hint": {
-            "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
-            "en": "Previews stay low resolution; the resolution applies to the final render."
-          },
           "limit": "resolutions"
         },
         {
@@ -1106,10 +1102,6 @@
               }
             }
           ],
-          "hint": {
-            "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
-            "en": "Previews stay low resolution; the resolution applies to the final render."
-          },
           "limit": "resolutions"
         },
         {
@@ -1380,10 +1372,6 @@
               }
             }
           ],
-          "hint": {
-            "fr": "L’aperçu reste en basse définition ; la résolution s’applique au rendu final.",
-            "en": "Previews stay low resolution; the resolution applies to the final render."
-          },
           "limit": "resolutions"
         },
         {

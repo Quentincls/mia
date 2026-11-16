@@ -15,6 +15,7 @@ const ROOT = path.resolve(__dirname, '..');
 const { createService } = require(path.join(ROOT, 'electron', 'cloud.js'));
 const route = require(path.join(ROOT, 'electron', 'engine', 'route.js'));
 const cloudExec = require(path.join(ROOT, 'electron', 'engine', 'executors', 'cloud.js'));
+const { createPrices } = require(path.join(ROOT, 'electron', 'engine', 'cloudprice.js'));
 
 const KEY = 'id-essai:secret-essai-123';
 let pass = 0;
@@ -25,7 +26,7 @@ const ok = (cond, what, extra = '') => {
 
 // ── le faux Higgsfield ──────────────────────────────────────────────
 const S = { uploads: new Map(), requests: new Map(), lastBody: null, lastPath: null, cancels: 0, submitMode: 'ok', steps: ['queued', 'in_progress', 'completed'],
-  usage: [], usageCalls: [], usageMode: 'ok' };
+  usage: [], usageCalls: [], usageMode: 'ok', estimates: [] };
 let port = 0;
 const server = http.createServer(async (req, res) => {
   const body = await new Promise((r) => { const c = []; req.on('data', (d) => c.push(d)); req.on('end', () => r(Buffer.concat(c))); });
@@ -41,6 +42,17 @@ const server = http.createServer(async (req, res) => {
     const id = `f${S.uploads.size + 1}_${Date.now()}`;
     return send(200, { public_url: `http://127.0.0.1:${port}/files/${id}`, upload_url: `http://127.0.0.1:${port}/put/${id}`,
       content_type: JSON.parse(body).content_type, upload_headers: { 'x-amz-tagging': 'retention=temporary' } });
+  }
+  // faux tarif : 0,10 $ la seconde, +0,20 $ en Pro
+  if (req.method === 'POST' && u.pathname.startsWith('/estimate/')) {
+    const b = JSON.parse(body);
+    const path0 = u.pathname.slice(1);
+    S.estimates.push({ path: path0, body: b });
+    if (/genjutsu/.test(path0)) return send(422, { detail: [{ msg: 'video_url: could not read the file' }] });
+    if (/cinema-studio/.test(path0)) return send(200, { credits: 3 });                       // répond sans prix
+    if (/wan-3\.0\/text/.test(path0)) return send(500, { detail: 'down' });
+    const usd = 0.1 * (Number(b.duration) || 5) + (/\/pro\//.test(path0) ? 0.2 : 0);
+    return send(200, { usd: usd.toFixed(3) });
   }
   if (u.pathname === '/models/usage') {
     const q = u.searchParams;
@@ -193,6 +205,49 @@ async function main() {
   await cloudExec.run(t.x);
   ok(S.lastPath === 'kling-video/v3.0/std/image-to-video', 'le palier choisit l’adresse', S.lastPath);
   ok(S.lastBody.sound === 'off' && typeof S.lastBody.image_url === 'string', 'interrupteur rendu en « on/off », image au bon champ', JSON.stringify(S.lastBody));
+  t = xFor(svc, 'hf:kling-3-0', { start: { abs: img, kind: 'image' } }, {});
+  await cloudExec.run(t.x);
+  ok(S.lastPath === 'kling-video/v3.0/pro/image-to-video', 'qualité jamais touchée : « Pro », celle que montre le bloc (plus la 4K, la 1re de la liste)', S.lastPath);
+
+  console.log('Prix avant de lancer (POST /estimate)');
+  const prices = createPrices(svc);
+  const upBefore = S.uploads.size;
+  S.estimates = [];
+  let pr = await prices.priceOf({ family: 'hf:kling-3-0', params: { 'hf.duration': 10 }, ports: ['start'] });
+  const est = S.estimates[0] || {};
+  ok(pr.ok && pr.usd === 1.2, 'prix du bloc : 10 s en Pro = 1,20 $ (faux tarif)', JSON.stringify(pr));
+  ok(est.path === 'estimate/kling-video/v3.0/pro/image-to-video' && /example\.com/.test(est.body.image_url) && est.body.duration === 10,
+    'la demande que le bloc enverrait, l’image remplacée par une adresse factice', JSON.stringify(est));
+  ok(S.uploads.size === upBefore && !S.requests.has(est.id), 'rien d’envoyé ni de lancé pour un prix');
+  pr = await prices.priceOf({ family: 'hf:kling-3-0', params: { 'hf.duration': 10 }, ports: ['start'] });
+  ok(S.estimates.length === 1 && pr.usd === 1.2, 'mêmes réglages : prix gardé, aucun nouvel appel');
+  let from = await prices.fromPrices(['hf:kling-3-0', 'hf:seedance-2-5', 'hf:inconnu']);
+  ok(typeof from['hf:kling-3-0'] === 'number' && typeof from['hf:seedance-2-5'] === 'number' && from['hf:inconnu'] === null,
+    '« dès … $ » pour chaque famille, rien pour une inconnue', JSON.stringify(from));
+  const cheap = S.estimates.find((e) => /seedance-2\.5/.test(e.path));
+  ok(cheap && cheap.path === 'estimate/bytedance/seedance-2.5/text-to-video' && cheap.body.duration === 4 && cheap.body.resolution === '480p',
+    '« dès » = la façon la moins chère : 1re façon de faire, plus petite résolution, durée la plus courte', JSON.stringify(cheap));
+  const k3 = S.estimates.filter((e) => /^estimate\/kling-video\/v3\.0/.test(e.path) && !e.body.image_url);
+  ok(k3.length === 4 && from['hf:kling-3-0'] === Math.min(...k3.map((e) => Math.round((0.1 * e.body.duration + (/\/pro\//.test(e.path) ? 0.2 : 0)) * 1000) / 1000)),
+    'Kling 3.0 : chaque qualité demandée, le plus bas gardé (plus la 4K, la 1re de la liste)', JSON.stringify({ from: from['hf:kling-3-0'], paths: k3.map((e) => e.path) }));
+  const n0 = S.estimates.length;
+  from = await createPrices(svc).fromPrices(['hf:kling-3-0', 'hf:seedance-2-5']);
+  ok(S.estimates.length === n0 && from['hf:seedance-2-5'] === 0.4, 'gardés un jour dans cloud.json : aucun appel au redémarrage', JSON.stringify(from));
+  ok(!(await createPrices({ linked: () => false }).priceOf({ family: 'hf:genjutsu' })).ok, 'sans compte relié : pas de prix, aucun appel');
+  pr = await prices.priceOf({ family: 'hf:genjutsu', params: {}, ports: ['refs', 'motion'] });
+  const errs = JSON.parse(fs.readFileSync(file, 'utf8')).priceErrors || {};
+  const gErr = Object.entries(errs).find(([k]) => /genjutsu/.test(k));
+  ok(!pr.ok && /could not read the file/.test(pr.error) && gErr && gErr[1].status === 422 && /could not read/.test(gErr[1].message),
+    'prix refusé : la raison de Higgsfield revient au bloc et reste dans cloud.json (sans la clé)', JSON.stringify({ pr, gErr }));
+  ok(!JSON.stringify(errs).includes(KEY), 'aucune trace de la clé dans les raisons gardées');
+  // plusieurs refus en même temps (« + Bloc » demande trois prix à la fois) : aucun ne se perd dans le fichier (28/10)
+  from = await createPrices(svc).fromPrices(['hf:cinema-studio-4-0', 'hf:wan-3-0', 'hf:genjutsu', 'hf:kling-2-6-motion-control', 'hf:kling-2-6']);
+  const errs2 = JSON.parse(fs.readFileSync(file, 'utf8')).priceErrors || {};
+  const has = (re) => Object.keys(errs2).some((k) => re.test(k));
+  ok(has(/cinema-studio/) && has(/wan-3\.0\/text/) && has(/genjutsu/) && from['hf:kling-2-6'] > 0 && from['hf:cinema-studio-4-0'] == null
+    && /sans prix/.test((Object.entries(errs2).find(([k]) => /cinema/.test(k)) || [])[1]?.message || '')
+    && JSON.parse(fs.readFileSync(file, 'utf8')).prices['hf:kling-2-6'],
+    'refus simultanés : chacun gardé dans cloud.json, avec les prix obtenus', JSON.stringify({ keys: Object.keys(errs2), from }));
 
   console.log('Seedance 2.5 · aperçu moins cher');
   t = xFor(svc, 'hf:seedance-2-5', {}, { 'hf.resolution': '1080p', 'hf.duration': 12 }, { mode: 'preview' });

@@ -549,6 +549,10 @@ async function main() {
   check('règle currentRun (unitaire)', I.currentRun([{ runId: 'p2', mode: 'preview' }, { runId: 'f1', mode: 'final' }, { runId: 'p1', mode: 'preview' }]).runId === 'f1'
     && I.currentRun([{ runId: 'p2', mode: 'preview' }]).runId === 'p2' && I.currentRun([{ runId: 'x', mode: null }, { runId: 'f', mode: 'final' }]).runId === 'x'
     && I.currentRun([]) === null);
+  // un seul « Générer » (28/10) : sans mode demandé, les réglages tels quels (« final ») ; l'aperçu seulement demandé
+  check('sans mode : « final » (unitaire)', I.pickMode({ modes: ['preview', 'final'] }, null) === 'final'
+    && I.pickMode({ modes: ['preview', 'final'] }, 'preview') === 'preview' && I.pickMode({ modes: ['preview', 'final'] }, 'nope') === 'final'
+    && I.pickMode({ modes: ['solo'] }, null) === 'solo' && I.pickMode({}, 'final') === null);
 
   // ================================================================ LoRA + empreinte
   section('LoRA et empreinte (tous les réglages comptent)');
@@ -616,6 +620,16 @@ async function main() {
   const st3 = await waitFor((e) => e.jobId === r.jobId && e.kind === 'start', 3000, 'start seq3');
   await waitEnd(r.jobId);
   check('2 clips : estimation (4 min) × rapport, pas la durée apprise d’un clip', Math.abs(st3.eta - Math.round(240 * tk.ratio)) <= 1, { eta: st3.eta, want: 240 * tk.ratio });
+  // « ≈ 4 min » à côté de « Générer » : la même estimation, demandée avant de lancer, sans rien mettre en file
+  const jobsBefore = engine.jobs.size;
+  const e3 = await invoke('engine:estimate', { projectId: 'p_test', nodeId: 'n_seq3', graph: clone(graph) });
+  const tkNow = engine.timings['sequence|-'];          // le rapport appris après les deux calculs
+  check('avant de lancer : la durée prévue (estimation × rapport appris), apprise de ce PC',
+    e3.ok && Math.abs(e3.seconds - Math.round(240 * tkNow.ratio)) <= 1 && e3.learned === true && engine.jobs.size <= jobsBefore,
+    { e3, want: 240 * tkNow.ratio, jobs: engine.jobs.size });
+  const eNo = await invoke('engine:estimate', { projectId: 'p_test', nodeId: 'n_txt', graph: clone(graph) });
+  const eBad = await invoke('engine:estimate', { projectId: 'p_absent', nodeId: 'n_seq3', graph: clone(graph) });
+  check('une Consigne sans réécriture, un projet inconnu : pas de durée', !eNo.ok && !eBad.ok, { eNo, eBad });
   check('VRAM : réservé de torch retiré ; chiffres incohérents → null', I.vramUsedGB({ vram_total: 24 * 2 ** 30, vram_free: 10 * 2 ** 30, torch_vram_free: 2 * 2 ** 30 }) === 16
     && I.vramUsedGB({ vram_total: 24 * 2 ** 30, vram_free: 34 * 2 ** 30 }) === null);
   T.cfg = {};

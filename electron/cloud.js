@@ -37,6 +37,7 @@ const STR = {
     down: 'Higgsfield est indisponible pour l’instant ({status}) : réessaie plus tard.',
     notFound: 'Higgsfield ne connaît pas ce modèle pour ton compte ({detail}).',
     badAmount: 'Indique un montant en dollars, par exemple 50.',
+    noPrice: 'Higgsfield a répondu sans donner de prix pour ce modèle.',
   },
   en: {
     noCrypto: 'Windows cannot encrypt the key on this account: Mia does not keep it.',
@@ -53,6 +54,7 @@ const STR = {
     down: 'Higgsfield is unavailable for now ({status}): try again later.',
     notFound: 'Higgsfield does not know this model for your account ({detail}).',
     badAmount: 'Give an amount in dollars, for example 50.',
+    noPrice: 'Higgsfield answered without a price for this model.',
   },
 };
 const DAY = 24 * 3600 * 1000;
@@ -72,11 +74,17 @@ function createService({ file, safe, lang: langFn, log, base = BASE }) {
   function read() {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')) || {}; } catch { return {}; }
   }
-  async function save(next) {
+  // one write at a time, always of the latest state: several prices answered together (« + Bloc » asks three at a
+  // time) once left an older file behind, and the reasons Higgsfield gave were lost (28/10)
+  let writing = Promise.resolve();
+  function save(next) {
     state = next;
-    const tmp = `${file}.tmp`;
-    await fsp.writeFile(tmp, JSON.stringify(next, null, 1));
-    await fsp.rename(tmp, file);
+    writing = writing.catch(() => {}).then(async () => {
+      const tmp = `${file}.tmp`;
+      await fsp.writeFile(tmp, JSON.stringify(state, null, 1));
+      await fsp.rename(tmp, file);
+    });
+    return writing;
   }
   /** The key in clear, only in memory and only for a call. */
   function secret() {
@@ -264,7 +272,35 @@ function createService({ file, safe, lang: langFn, log, base = BASE }) {
     return { ok: true, topUp: next.topUp || null };
   }
 
-  return { linked, status, call, upload, download, setKey, removeKey, checkLinked, spent, budget, setTopUp, base, tr };
+  /** The price of one request before it is sent: POST /estimate/<endpoint>, the same body → USD (free). */
+  async function estimate(endpoint, body, { signal } = {}) {
+    // why Higgsfield gives no price, kept for the log and cloud.json (never the key, never a real file address)
+    const remember = async (status, message) => {
+      const why = { status, message: String(message || '').slice(0, 300), at: Date.now() };
+      if (log) log(`[cloud] pas de prix pour ${endpoint} (${why.status || '?'}) : ${why.message}`);
+      const errs = { ...(state.priceErrors || {}), [endpoint]: why };
+      const keep = Object.fromEntries(Object.entries(errs).sort((a, b) => b[1].at - a[1].at).slice(0, 60));
+      await save({ ...state, priceErrors: keep }).catch(() => {});
+    };
+    let j;
+    try {
+      j = await call('POST', `estimate/${String(endpoint).replace(/^\/+/, '')}`, body, { signal });
+    } catch (e) {
+      await remember(e.status || null, e.userMessage || e.message);
+      throw e;
+    }
+    const usd = Number(j && j.usd);
+    if (j && j.usd != null && Number.isFinite(usd)) return Math.round(usd * 1000) / 1000;
+    // an answer without a price (28/10: Genjutsu, Seedance, Wan 3.0, Cinema Studio): kept as it came, to read it
+    await remember(200, `réponse sans prix : ${JSON.stringify(j).slice(0, 260)}`);
+    return null;
+  }
+  // « dès … $ » of « + Bloc », kept a day across restarts (engine/cloudprice.js)
+  const savedPrices = () => ({ ...(state.prices || {}) });
+  const savePrices = (fresh) => save({ ...state, prices: { ...(state.prices || {}), ...fresh } });
+
+  return { linked, status, call, upload, download, setKey, removeKey, checkLinked, spent, budget, setTopUp, estimate,
+    savedPrices, savePrices, base, tr };
 }
 
 function register(ctx) {
@@ -276,6 +312,11 @@ function register(ctx) {
   ctx.ipcMain.handle('cloud:check', () => svc.checkLinked());
   ctx.ipcMain.handle('cloud:budget', (_e, o) => svc.budget({ fresh: !!(o && o.fresh) }));
   ctx.ipcMain.handle('cloud:setTopUp', (_e, p) => svc.setTopUp(p));
+  // prices before running (engine/cloudprice.js: the cloud executor's own request, placeholders for the media)
+  let prices = null;
+  const pricing = () => (prices = prices || require('./engine/cloudprice').createPrices(svc));
+  ctx.ipcMain.handle('cloud:price', (_e, block) => pricing().priceOf(block));
+  ctx.ipcMain.handle('cloud:fromPrices', (_e, keys) => pricing().fromPrices(Array.isArray(keys) ? keys : []));
   ctx.cloud = svc;
   return svc;
 }

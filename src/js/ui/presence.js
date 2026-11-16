@@ -1603,8 +1603,10 @@ const METHODS = {
     const variants = p.variants == null ? 0 : Math.max(2, Math.min(8, Math.round(Number(p.variants)) || 4));
     if (variants && !variantsOk(e, n)) fail('noVariants', { block: blockName(n) });
     let mode = p.mode ? String(p.mode) : null;
+    // un seul « Générer », comme à l'écran : les réglages du bloc tels quels (le mode final) ; l'aperçu (petite
+    // définition, plus court) reste possible quand l'assistant le demande
     if (Array.isArray(def.modes) && def.modes.length) {
-      if (!mode) mode = def.modes.includes('preview') ? 'preview' : def.modes[0];
+      if (!mode) mode = def.modes.includes('final') ? 'final' : def.modes[0];
       else if (!def.modes.includes(mode)) fail('badMode', { mode, list: def.modes.join(', ') });
     } else mode = null;
     const R = await getRuns();
@@ -1614,7 +1616,7 @@ const METHODS = {
     if (st && ACTIVE.has(st.kind) && st.jobId) return { jobId: st.jobId, nodeId: n.id, ...where, mode, already: true };
 
     await ensureVisible(e, boxOf(e, n));
-    const btnSel = rewriting ? '.nb-rw .btn' : variants || mode === 'final' ? '.nb-foot button:not(.shiny)'
+    const btnSel = rewriting ? '.nb-rw .btn' : variants ? '.nb-foot .nb-actions button:not(.shiny)'
       : '.nb-foot button.shiny, .nb-foot .btn-primary';
     await glideTo(elPoint(e, n, btnSel, 0.5, 0.5));
     await pace();

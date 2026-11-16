@@ -19,6 +19,7 @@ import { closeMenu, isMenuOpen, installTextMenus } from './ui/menu.js';
 import { isModalOpen, closeTopModal, alert } from './ui/modal.js';
 import { toast } from './ui/toasts.js';
 import { installTooltips, hideTip } from './ui/tooltip.js';
+import { warmIcons } from './icons.js';
 import { mountSettingsButton, openSettings, setPrefs, applyTheme } from './ui/settings.js';
 
 register({
@@ -186,6 +187,7 @@ async function boot() {
   import('./ui/presence.js').then((m) => m.mountPresence?.()).catch((err) => console.warn('[app] presence :', err?.message || err));
   await homeShown;
   home.renderRecipes();            // the block glyphs are registered by now
+  warmIcons();                     // measured now, on the small home page, not in the middle of a board being built
   await restoreActiveTab();
   emit('app:ready', {});
 }

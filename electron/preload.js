@@ -75,6 +75,7 @@ const INVOKE = {
   engine: {
     status: 'engine:status',
     run: 'engine:run',
+    estimate: 'engine:estimate',     // ({projectId, nodeId, graph, mode}) → {ok, seconds, learned} — « ≈ 4 min »
     cancel: 'engine:cancel',
     jobs: 'engine:jobs',
     startComfy: 'engine:startComfy',
@@ -102,7 +103,9 @@ const INVOKE = {
     removeKey: 'cloud:removeKey',    // () → {ok, status}
     check: 'cloud:check',            // () → {ok, error?} — a free call to Higgsfield
     budget: 'cloud:budget',          // ({fresh}?) → {linked, currency, month, topUp, sinceTopUp, left, at} | {…, error}
-    setTopUp: 'cloud:setTopUp'       // ({amount, at?} | null) → {ok, topUp?, error?} — the last top-up, for « left »
+    setTopUp: 'cloud:setTopUp',      // ({amount, at?} | null) → {ok, topUp?, error?} — the last top-up, for « left »
+    price: 'cloud:price',            // ({family, workflow?, params, ports}) → {ok, usd?, error?} — a block's price
+    fromPrices: 'cloud:fromPrices'   // ([« hf:… »]) → {key: usd|null} — « dès … $ » of « + Bloc », kept a day
   }
 };
 /* channels:invoke:end */

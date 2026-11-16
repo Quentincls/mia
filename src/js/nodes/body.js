@@ -18,7 +18,7 @@
 import { on, emit } from '../bus.js';
 import { t, tl } from '../i18n.js';
 import { icon, register as registerIcons, hasIcon } from '../icons.js';
-import { el, fmtBytes } from '../util.js';
+import { el, fmtBytes, measureLater, measureOnResize } from '../util.js';
 import { state, mediaUrl } from '../state.js';
 import { tip } from '../ui/tooltip.js';
 import { toast } from '../ui/toasts.js';
@@ -33,6 +33,7 @@ import { blockWorkflow, isModelBlock } from './ports.js';
 import { portsOfWorkflow } from './route.js';
 import { typeOf } from '../catalog.js';
 import { openMaskEditor } from './maskeditor.js';
+import { money } from '../ui/budget.js';
 import './viewer.js';      // écoute viewer:open
 import './inspector.js';   // écoute inspector:open
 
@@ -44,14 +45,17 @@ strings({
   'node.waitingGpu': 'En attente du GPU',
   'node.waitingWho': 'Pris par « {who} »',
   'node.running': 'Calcul en cours…',
-  'node.preview': 'Aperçu',
-  'node.final': 'Rendu final',
-  'node.launch': 'Lancer',
+  'node.generate': 'Générer',
+  'node.apply': 'Appliquer',
+  'node.export': 'Exporter',
+  'node.generateTip': 'Calculé chez Higgsfield avec les réglages du bloc, tels quels : coûte le prix affiché.',
+  'node.generateLocalTip': 'Calculé sur ce PC avec les réglages du bloc : la définition, la durée et le nombre d’étapes décident du temps.',
+  'node.timeTip': 'Temps prévu d’après tes derniers calculs sur ce PC.',
+  'node.timeTipFirst': 'Première estimation : elle se règle sur ce PC dès les premiers calculs.',
+  'node.priceTip': 'Prix donné par Higgsfield pour ces réglages, sur ton compte, avant de lancer.',
+  'node.priceNone': 'prix ?',
+  'node.priceNoneTip': 'Higgsfield ne donne pas de prix pour ces réglages : {why}',
   'node.cancel': 'Annuler',
-  'node.estPreview': 'Aperçu {est}',
-  'node.estFinal': 'Rendu final {est}',
-  'node.previewTip': 'Court et rapide, pour juger avant le vrai calcul',
-  'node.finalTip': 'Pleine qualité, plus long',
   'node.errDetail': 'Voir le détail',
   'node.stale': 'Réglages ou entrées changés : relance pour mettre à jour',
   'node.source': 'Source · {label}',
@@ -104,14 +108,17 @@ strings({
   'node.waitingGpu': 'Waiting for the GPU',
   'node.waitingWho': 'Held by “{who}”',
   'node.running': 'Computing…',
-  'node.preview': 'Preview',
-  'node.final': 'Final render',
-  'node.launch': 'Run',
+  'node.generate': 'Generate',
+  'node.apply': 'Apply',
+  'node.export': 'Export',
+  'node.generateTip': 'Computed at Higgsfield with the block’s settings, as they are: costs the price shown.',
+  'node.generateLocalTip': 'Computed on this PC with the block’s settings: resolution, length and step count decide the time.',
+  'node.timeTip': 'Expected time, from your latest jobs on this PC.',
+  'node.timeTipFirst': 'First estimate: it adjusts to this PC after the first jobs.',
+  'node.priceTip': 'Price given by Higgsfield for these settings, on your account, before running.',
+  'node.priceNone': 'price?',
+  'node.priceNoneTip': 'Higgsfield gives no price for these settings: {why}',
   'node.cancel': 'Cancel',
-  'node.estPreview': 'Preview {est}',
-  'node.estFinal': 'Final {est}',
-  'node.previewTip': 'Short and fast, to judge before the real job',
-  'node.finalTip': 'Full quality, takes longer',
   'node.errDetail': 'See details',
   'node.stale': 'Settings or inputs changed: run again to update',
   'node.source': 'Source · {label}',
@@ -286,6 +293,14 @@ function variantsOk(ctx) {
   return (r.workflow.params || []).some((p) => (typeof p === 'string' ? p : p.id) === 'seed');
 }
 
+/** Bloc Modèle en ligne : { ports } (les entrées branchées, pour son prix), sinon null. */
+function onlineOf(ctx) {
+  if (!isModelBlock(ctx.node)) return null;
+  const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+  const r = blockWorkflow(ctx.node, conn);
+  return r && r.fam.provider !== 'local' ? { ports: conn } : null;
+}
+
 /**
  * Bloc Modèle : le type de bloc de la façon de faire retenue (ses modes, son estimation) ; en ligne, sans estimation
  * en minutes (un calcul en ligne coûte des crédits, sa durée dépend de leur file). Autres blocs : leur propre type.
@@ -297,6 +312,23 @@ function targetTypeOf(ctx) {
   if (!r) return ctx.type;
   if (r.fam.provider !== 'local') return { ...ctx.type, estimate: null };
   return typeOf(r.workflow.as) || ctx.type;
+}
+
+/**
+ * Les blocs touchés par un changement de réglages (graph:changed avec ids) : eux et tout ce qui est en aval. Calculé
+ * une fois par évènement (gardé sur lui), quel que soit le nombre de blocs qui le reçoivent.
+ */
+function affectedBy(p) {
+  if (p._affected) return p._affected;
+  const out = new Set(p.ids);
+  let edges = [];
+  try { edges = window.__mia?.editor?.getGraph?.()?.edges || []; } catch { edges = []; }
+  for (const todo = [...p.ids]; todo.length;) {
+    const k = todo.pop();
+    for (const e of edges) if (e.from?.node === k && e.to?.node && !out.has(e.to.node)) { out.add(e.to.node); todo.push(e.to.node); }
+  }
+  Object.defineProperty(p, '_affected', { value: out });
+  return out;
 }
 
 /** Entrées obligatoires non branchées → libellés. */
@@ -476,7 +508,59 @@ function mountRunChrome(ctx) {
   };
 }
 
-// ── pied : estimation + Aperçu / Rendu final / Lancer / Annuler ──────
+// ── pied : durée prévue (et prix en ligne) + « Générer » / Annuler ──
+
+/**
+ * Le verbe du bouton d'un bloc : « Générer » pour ce qui fabrique une image, une vidéo, une passe (demande de Quentin
+ * du 28/10 : un seul bouton), « Exporter » sur Exporter, « Appliquer » sur les outils (couper, redimensionner, son…).
+ */
+export function runVerbKey(type) {
+  if (type?.id === 'export') return 'node.export';
+  return type?.category === 'tools' ? 'node.apply' : 'node.generate';
+}
+
+/** « ≈ 40 s », « ≈ 4 min », « ≈ 1 h 20 » : une durée prévue, arrondie à ce qui se lit d'un coup d'œil. */
+function approxTime(s) {
+  if (!(s > 0)) return '';
+  if (s < 60) return `≈ ${Math.max(5, Math.round(s / 5) * 5)} s`;
+  if (s < 3600) return `≈ ${Math.max(1, Math.round(s / 60))} min`;
+  const m = Math.round(s / 60);
+  return `≈ ${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
+}
+
+// la durée prévue des blocs : deux questions au moteur à la fois au plus (une planche de 100 blocs qui s'ouvre) ;
+// un calcul fini, n'importe où, peut changer ce que ce PC a appris : les blocs redemandent à leur prochain dessin
+let estBusy = 0;
+const estWaiting = [];
+let learnedEpoch = 0;
+on('engine:event', (e) => { if (e && e.kind === 'done') learnedEpoch++; });
+function askEngine(payload) {
+  return new Promise((resolve) => {
+    const go = async () => {
+      estBusy++;
+      let r = null;
+      try { r = await window.mia?.engine?.estimate?.(payload); } catch { r = null; }
+      estBusy--;
+      resolve(r);
+      estWaiting.shift()?.();
+    };
+    if (estBusy < 2) go(); else estWaiting.push(go);
+  });
+}
+// le graphe n'est lu qu'une fois par salve de questions, et seul l'amont du bloc part au moteur
+let graphNow = null;
+function upstreamGraph(ed, id) {
+  if (!graphNow) { graphNow = ed?.getGraph?.() || null; setTimeout(() => { graphNow = null; }, 0); }
+  const g = graphNow;
+  if (!g || !Array.isArray(g.nodes)) return null;
+  const edges = g.edges || [];
+  const keep = new Set([id]);
+  for (const todo = [id]; todo.length;) {
+    const k = todo.pop();
+    for (const e of edges) if (e.to?.node === k && e.from?.node && !keep.has(e.from.node)) { keep.add(e.from.node); todo.push(e.from.node); }
+  }
+  return { nodes: g.nodes.filter((n) => keep.has(n.id)), edges: edges.filter((e) => keep.has(e.to?.node) && keep.has(e.from?.node)) };
+}
 
 function mountFooter(ctx, host) {
   const est = el('span', { class: 'nb-est' });
@@ -489,35 +573,96 @@ function mountFooter(ctx, host) {
   const foot = el('div', { class: 'nb-foot' }, install, est, actions);
   host.append(foot);
   for (const x of [actions, install]) { x.addEventListener('pointerdown', stop); x.addEventListener('dblclick', stop); }
-  // bloc Modèle : estimation et boutons de la façon de faire retenue (Qwen : un seul « Lancer », Wan : ses vraies
-  // durées), jamais « ≈ 1 min » pour un modèle en ligne, qui coûte des crédits (audit 25/10, UX-12)
+  // bloc Modèle : la façon de faire retenue (ses modes, son estimation de départ)
   const targetType = () => targetTypeOf(ctx);
   let ttype = targetType();
-  let modes = ttype.modes || null;
+  let twoModes = (ttype.modes || []).includes('final');
   let shape = null;          // 'active' | 'idle' | 'blocked|<raison>'
   let estDefault = '';
   let active = false;
   let blocked = null;
+
+  // ── un seul « Générer » (demande de Quentin, 28/10) : ce que règle le bloc décide de la durée et du prix ;
+  // un bloc à deux modes calcule en « final » (l'aperçu reste aux assistants qui le demandent) ──
+
+  // la durée prévue avec CES réglages, d'après les calculs de ce PC (engine.estimate : estimation × rapport appris)
+  let time = '';
+  let timeLearned = false;
+  let timeSig = null;
+  let timeTimer = 0;
+  function askTime() {
+    const conn = (ctx.type.inputs || []).filter((i) => ctx.connected(i.id)).map((i) => i.id);
+    const sig = JSON.stringify([ctx.node.params, conn, runs.list(ctx.id).length, learnedEpoch]);
+    if (sig === timeSig) return;
+    timeSig = sig;
+    clearTimeout(timeTimer);
+    timeTimer = setTimeout(async () => {
+      const graph = upstreamGraph(ctx.ed(), ctx.id);
+      const projectId = state.project?.id;
+      const r = graph && projectId ? await askEngine({ projectId, nodeId: ctx.id, graph, mode: twoModes ? 'final' : null }) : null;
+      if (sig !== timeSig) return;                        // les réglages ont changé entre-temps
+      time = r && r.ok ? approxTime(r.seconds) : '';
+      timeLearned = !!(r && r.learned);
+      if (!active && !blocked) { estDefault = idleText(); showEst(estDefault); }
+    }, 500);
+  }
+
+  // bloc Modèle en ligne : son prix, demandé à Higgsfield avant de lancer (engine/cloudprice.js)
+  let online = null;
+  let price = '';
+  let priceWhy = '';                                      // la raison de Higgsfield quand il ne donne pas de prix
+  let priceSig = null;
+  let priceTimer = 0;
+  function askPrice() {
+    const sig = online ? JSON.stringify([ctx.node.params?.model, ctx.node.params?.workflow, ctx.node.params, online.ports]) : null;
+    if (sig === priceSig) return;
+    priceSig = sig;
+    clearTimeout(priceTimer);
+    price = '';                                           // l'ancien prix ne vaut plus pour ces réglages
+    priceWhy = '';
+    if (!sig) return;
+    priceTimer = setTimeout(async () => {
+      let r = null;
+      try {
+        r = await window.mia?.cloud?.price?.({ family: ctx.node.params?.model, workflow: ctx.node.params?.workflow || null,
+          params: { ...(ctx.node.params || {}) }, ports: online.ports });
+      } catch { r = null; }
+      if (sig !== priceSig) return;
+      // refusé par Higgsfield : « prix ? », sa raison au survol (sans compte relié : rien du tout)
+      priceWhy = r && !r.ok && r.error ? r.error : '';
+      price = r && r.ok && r.usd != null ? money(r.usd) : priceWhy ? t('node.priceNone') : '';
+      if (!active && !blocked) { estDefault = idleText(); showEst(estDefault); }
+    }, 400);
+  }
+
+  // au repos : le prix (en ligne) puis la durée ; tant que le moteur n'a pas répondu, l'estimation du catalogue
+  const idleText = () => [online ? price : '', time || (online ? '' : estimateText(ttype, twoModes ? 'final' : null))]
+    .filter(Boolean).join(' · ');
+
   // calculée au survol seulement : mesurer le texte à chaque dessin forcerait une mise en page
   tip(est, () => {
     if (blocked) return blocked.sub || '';
-    if (modes && !active) {
-      return [t('node.estPreview', { est: estimateText(ttype, 'preview') }), t('node.estFinal', { est: estimateText(ttype, 'final') })].join(' · ');
-    }
-    return est.scrollWidth > est.clientWidth ? est.textContent : '';
+    if (active) return est.scrollWidth > est.clientWidth ? est.textContent : '';
+    // estimation effacée ou coupée faute de place (carte rétrécie, texte long) : elle se lit ici en entier
+    const parts = est.classList.contains('is-cut') || est.scrollWidth > est.clientWidth + 1 ? [est.textContent] : [];
+    if (online && priceWhy) parts.push(t('node.priceNoneTip', { why: priceWhy }));
+    else if (online && price) parts.push(t('node.priceTip'));
+    if (time) parts.push(t(timeLearned ? 'node.timeTip' : 'node.timeTipFirst'));
+    return parts.join(' ');
   });
   // Carte rétrécie : moins de 90 % du texte (ou moins de 8 signes) visibles, l'estimation s'efface
-  // plutôt que de laisser « ≈… » seul. Mesurée seulement quand sa taille ou son texte change ;
-  // `visibility` ne change pas la mise en page (pas de boucle).
-  const fitEst = () => {
-    const was = est.classList.contains('is-cut');
-    if (was) est.classList.remove('is-cut');
-    const full = est.scrollWidth, room = est.clientWidth;
-    const cut = full > room + 1 && (room / full < 0.9 || Math.floor(est.textContent.length * room / full) < 8);
-    if (cut) est.classList.add('is-cut');
+  // plutôt que de laisser « ≈… » seul. Mesurée seulement quand sa taille ou son texte change, avec les
+  // autres blocs (util.measureLater) ; `visibility` ne change pas la mise en page (pas de boucle).
+  const estFit = {
+    read() {
+      if (!est.isConnected || est.hidden || !est.textContent) return false;
+      const full = est.scrollWidth, room = est.clientWidth;
+      return full > room + 1 && (room / full < 0.9 || Math.floor(est.textContent.length * room / full) < 8);
+    },
+    write(cut) { if (cut != null && est.classList.contains('is-cut') !== cut) est.classList.toggle('is-cut', cut); },
   };
-  new ResizeObserver(fitEst).observe(est);
-  const showEst = (s) => { if (est.textContent !== s) { setText(est, s); fitEst(); } };
+  const stopEstFit = measureOnResize(est, estFit);
+  const showEst = (s) => { if (est.textContent !== s) { setText(est, s); measureLater(estFit); } };
 
   const run = (m) => emit('node:run', { nodeId: ctx.id, mode: m });
 
@@ -527,35 +672,24 @@ function mountFooter(ctx, host) {
       actions.append(button({ label: t('node.cancel'), icon: 'stop', kind: 'ghost', size: 'sm', onClick: () => runs.cancel(ctx.id) }));
       return;
     }
-    // Modèle absent : les boutons restent visibles mais éteints, avec la raison au survol.
+    // Modèle absent : le bouton reste visible mais éteint, avec la raison au survol.
     const why = blocked ? t('node.model.cantRun', { why: blocked.sub || blocked.title }) : null;
     // (un bouton éteint ne reçoit pas la souris : l'infobulle est sur son enveloppe)
     const wrap = (b) => (why ? el('span', { class: 'nb-act-off', 'data-tip': why }, b) : b);
-    if (modes && modes.includes('preview')) {
-      const fin = button({ label: t('node.final'), kind: 'ghost', size: 'sm', disabled: !!why, onClick: () => run('final') });
-      const pre = button({ label: t('node.preview'), icon: 'play', kind: why ? 'ghost' : 'shiny', size: 'sm', disabled: !!why, onClick: () => run('preview') });
-      if (!why) {
-        fin.dataset.tip = t('node.finalTip');
-        pre.dataset.tip = t('node.previewTip');
-        // l'estimation suit le bouton survolé : on sait ce que coûte chaque choix
-        const hover = (m) => () => { showEst(estimateText(ttype, m) || estDefault); };
-        fin.addEventListener('pointerenter', hover('final'));
-        pre.addEventListener('pointerenter', hover('preview'));
-        for (const b of [fin, pre]) b.addEventListener('pointerleave', () => { showEst(estDefault); });
-      }
-      // modèle absent : un seul bouton éteint suffit, la place va à « Installer le modèle »
-      actions.append(...(why ? [wrap(pre)] : [wrap(fin), wrap(pre)]));
-    } else {
-      // images sur ce PC : 4 graines d'un coup, à comparer dans les versions (l'étoile choisit)
-      if (!why && variantsOk(ctx)) {
-        const four = button({ label: t('node.variants'), icon: 'dice', kind: 'ghost', size: 'sm', onClick: () => {
-          runs.runVariants(ctx.id, { count: 4 }).then((r) => { if (r.error) toast(r.error, { kind: 'error', ms: 5200 }); });
-        } });
-        four.dataset.tip = t('node.variantsTip');
-        actions.append(four);
-      }
-      actions.append(wrap(button({ label: t('node.launch'), icon: 'play', kind: why ? 'ghost' : 'shiny', size: 'sm', disabled: !!why, onClick: () => run(null) })));
+    // images sur ce PC : 4 graines d'un coup, à comparer dans les versions (l'étoile choisit)
+    if (!why && variantsOk(ctx)) {
+      const four = button({ label: t('node.variants'), icon: 'dice', kind: 'ghost', size: 'sm', onClick: () => {
+        runs.runVariants(ctx.id, { count: 4, mode: twoModes ? 'final' : null })
+          .then((r) => { if (r.error) toast(r.error, { kind: 'error', ms: 5200 }); });
+      } });
+      four.dataset.tip = t('node.variantsTip');
+      actions.append(four);
     }
+    const verb = runVerbKey(ctx.type);
+    const go = button({ label: t(verb), icon: 'play', kind: why ? 'ghost' : 'shiny', size: 'sm',
+      disabled: !!why, onClick: () => run(twoModes ? 'final' : null) });
+    if (!why && verb === 'node.generate') go.dataset.tip = t(online ? 'node.generateTip' : 'node.generateLocalTip');
+    actions.append(wrap(go));
   }
 
   return {
@@ -564,9 +698,11 @@ function mountFooter(ctx, host) {
       active = ACTIVE.has(st.kind);
       blocked = !active && problem ? problem : null;
       ttype = targetType();
-      modes = ttype.modes || null;
-      const want = (active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle') + `|${(modes || []).join(',')}`
-        + (variantsOk(ctx) ? '|4' : '');
+      online = onlineOf(ctx);
+      twoModes = online || (ttype.modes || []).includes('final');
+      if (!active && !blocked) { askPrice(); askTime(); }
+      const want = (active ? 'active' : blocked ? `blocked|${blocked.title}|${blocked.sub}` : 'idle')
+        + (twoModes ? '|2' : '') + (variantsOk(ctx) ? '|4' : '') + (online ? '|online' : '');
       if (want !== shape) { shape = want; build(); }
       if (st.kind === 'running') {
         estDefault = runs.endText(st.endAt) || t('node.running');
@@ -577,7 +713,7 @@ function mountFooter(ctx, host) {
       } else if (blocked) {
         estDefault = blocked.title;
       } else {
-        estDefault = estimateText(ttype, modes ? 'preview' : null);
+        estDefault = idleText();
       }
       foot.classList.toggle('is-blocked', !!blocked);
       install.hidden = !blocked;
@@ -585,7 +721,7 @@ function mountFooter(ctx, host) {
       if (blocked) install.dataset.tip = blocked.sub || blocked.title || '';
       showEst(estDefault);
     },
-    destroy() { foot.remove(); },
+    destroy() { stopEstFit(); clearTimeout(timeTimer); clearTimeout(priceTimer); foot.remove(); },
   };
 }
 
@@ -788,8 +924,8 @@ function computeBody(ctx) {
     if (empty.length) return { title: t('node.notComputed'), sub: t('node.fillFirst', { list: empty.join(', ') }), ratio };
     const gone = goneSource(ctx);
     if (gone) return { title: t('node.src.missing', { name: gone.name }), sub: t('node.src.missingSub', { block: gone.block }), icon: 'warn', ratio };
-    const tt = targetTypeOf(ctx);
-    return { title: t('node.notComputed'), sub: estimateText(tt, tt.modes ? 'preview' : null), ratio };
+    // la durée prévue est dans le pied, à côté de « Générer » (une seule, d'après ce PC)
+    return { title: t('node.notComputed'), sub: '', ratio };
   }
 
   function renderWell(st = runs.state(ctx.id), problem = modelProblem(type, ctx.node)) {
@@ -1306,6 +1442,10 @@ export function mountBody(node, type, slots, api = {}) {
     const layout = runs.LAYOUT_ONLY.has(p?.reason);
     // un déplacement peut changer l'ordre des références (Image 1, Image 2…)
     if (layout) { if (p?.reason === 'move' && (type.inputs || []).some((i) => i.multi)) schedule('inputs'); return; }
+    // un réglage changé (une lettre tapée dans une consigne), un retour en arrière : seuls les blocs nommés et ceux en
+    // aval sont concernés (« à relancer », ce qui leur arrive) ; les autres d'une grande planche ne se redessinent
+    // plus tous (28/10)
+    if (Array.isArray(p?.ids) && !affectedBy(p).has(ctx.id)) return;
     const fresh = ctx.ed()?.getNode?.(ctx.id);
     // l'éditeur peut muter le même objet : on compare à la dernière valeur vue
     const pinChanged = fresh && (fresh.pinnedRun || null) !== ctx.lastPinned;

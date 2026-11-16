@@ -50,18 +50,29 @@ export function localKeyOf(m, fams) {
   return null;
 }
 
+// Mémoire des calculs ci-dessous, par définition de famille ou de workflow (des objets du catalogue, qui ne changent
+// pas) : une planche de 110 blocs les refaisait des centaines de fois à son ouverture (28/10). Les résultats sont
+// partagés : les lire, jamais les modifier.
+const MEMO_WF = new WeakMap();
+const MEMO_FAM = new WeakMap();
+const MEMO_CHOICE = new WeakMap();
+
 /** Entrées d'un workflow : { port: { max, multi } } (la Consigne y est toujours). */
 export function portsOfWorkflow(wf) {
+  if (wf && typeof wf === 'object' && MEMO_WF.has(wf)) return MEMO_WF.get(wf);
   const out = { prompt: { max: 1, multi: false } };
   for (const [k, v] of Object.entries((wf && wf.ports) || {})) {
     out[k] = { max: Number(v && v.max) || 1, multi: !!(v && v.multi) };
     if (v && v.trial) out[k].trial = true;      // « À essayer » : pas encore validé à l'œil au labo
   }
+  if (wf && typeof wf === 'object') MEMO_WF.set(wf, out);
   return out;
 }
 
 /** Entrées de toute la famille (l'union de ses workflows, au plus grand nombre permis). */
 export function portsOfFamily(fam) {
+  const def = fam && fam.def;
+  if (def && typeof def === 'object' && MEMO_FAM.has(def)) return MEMO_FAM.get(def);
   const out = { prompt: { max: 1, multi: false } };
   for (const wf of (fam && fam.def && fam.def.workflows) || []) {
     for (const [k, v] of Object.entries(portsOfWorkflow(wf))) {
@@ -71,6 +82,7 @@ export function portsOfFamily(fam) {
       if (o.trial && v.trial) out[k].trial = true;   // à l'essai seulement si aucune façon de faire ne l'a validée
     }
   }
+  if (def && typeof def === 'object') MEMO_FAM.set(def, out);
   return out;
 }
 
@@ -93,6 +105,16 @@ const MAIN_PORTS = ['start', 'refs', 'refVideos', 'guide', 'video', 'image', 'ch
  * - quand rien ne va, la plus proche est d'abord une façon de faire qui se sert de ce qui est branché.
  */
 export function chooseWorkflow(fam, connected, choice) {
+  const def = fam && fam.def;
+  const key = `${[...new Set(connected || [])].join(',')}|${choice || ''}`;
+  const memo = def && typeof def === 'object' ? (MEMO_CHOICE.get(def) || new Map()) : null;
+  if (memo && memo.has(key)) return memo.get(key);
+  const res = chooseWorkflowNow(fam, connected, choice);
+  if (memo) { if (memo.size > 200) memo.clear(); memo.set(key, res); MEMO_CHOICE.set(def, memo); }
+  return res;
+}
+
+function chooseWorkflowNow(fam, connected, choice) {
   const wfs = (fam && fam.def && fam.def.workflows) || [];
   const famPorts = portsOfFamily(fam);
   const all = [...new Set((connected || []).filter((p) => p !== 'prompt'))];
