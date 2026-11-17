@@ -1,0 +1,133 @@
+/* Mia — the user's green light for assistants (SPEC §13.7): the request card and « À générer ».
+   Same islands as the dock (panel, hairline, large shadow); one accent, for the ticked boxes only. */
+
+.gl-stack {
+  position: fixed; left: 50%; bottom: 76px;      /* above the dock and the zoom bar (20 + 44 + 12) */
+  z-index: 34;                                    /* over the board, under the cursors (36) and the menus */
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  width: min(600px, calc(100vw - 36px));
+  pointer-events: none;
+}
+.gl-stack > * { pointer-events: auto; }
+.gl-stack:empty { display: none; }
+body.thumbing .gl-stack, body.thumbing .gl-side { display: none; }
+
+/* « À générer »: a tall panel on the right, where the board is usually empty (asked by Quentin, 17/11/2026) */
+.gl-side {
+  position: fixed; right: 18px; top: 60px; bottom: 124px;   /* under the title bar, above the queue chip and the zoom bar */
+  z-index: 34;
+  width: min(360px, calc(100vw - 36px));
+  display: flex; flex-direction: column; align-items: flex-end;
+  pointer-events: none;
+}
+.gl-side > * { pointer-events: auto; }
+.gl-side:empty { display: none; }
+.gl-side .gl-tray { display: flex; flex-direction: column; max-height: 100%; min-height: 0; }
+.gl-card.gl-in-side { animation: gl-in-side var(--dur-card) var(--ease-out); }
+@keyframes gl-in-side { from { opacity: 0; transform: translateX(12px); } }
+
+.gl-card {
+  width: 100%; box-sizing: border-box;
+  border-radius: var(--r-lg, 14px);
+  background: var(--panel);
+  backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-lg);
+  color: var(--txt);
+}
+.gl-card.gl-in { animation: gl-in var(--dur-card) var(--ease-out); }
+@keyframes gl-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* ── the request ─────────────────────────────────────────────────────── */
+.gl-ask-head { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 14px; }
+.gl-glyph { flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--surface-3); color: var(--txt-2); }
+.gl-glyph svg { fill: currentColor; stroke: none; }
+.gl-ask-txt { flex: 1 1 auto; min-width: 0; }
+.gl-ask-title { font: 600 13px/18px var(--font-ui); }
+.gl-ask-sub { font: 400 12.5px/17px var(--font-ui); color: var(--txt-2); overflow-wrap: anywhere; }
+.gl-ask-acts { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; }
+.gl-ask-more { padding: 2px 14px 12px 54px; border-top: 1px solid var(--line); }
+.gl-ask-more[hidden] { display: none; }
+.gl-steps { margin: 10px 0 8px; padding: 0 0 0 18px; font: 400 12.5px/19px var(--font-ui); color: var(--txt-2); }
+.gl-refuse { margin-left: -9px; }
+
+/* ── a quiet reminder: a request put aside, or the folded list ───────── */
+.gl-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 30px; padding: 0 12px 1px 10px;
+  border-radius: 9px; border: 1px solid var(--line-2);
+  background: var(--panel); backdrop-filter: var(--panel-blur);
+  box-shadow: var(--shadow-md);
+  color: var(--txt-2);
+  font: 500 11px/1 var(--font-kicker, var(--font-mono));
+  letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
+  animation: gl-in var(--dur-card) var(--ease-out);
+}
+.gl-chip:hover { color: var(--txt); }
+.gl-chip:active { scale: .97; }
+.gl-chip[disabled] { cursor: default; }
+.gl-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--txt-2); }
+
+/* ── « À générer » ───────────────────────────────────────────────────── */
+.gl-tray-head { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-bottom: 1px solid var(--line); }
+.gl-tray-title { font: 600 13px/18px var(--font-ui); }
+.gl-tray-by { flex: 1 1 auto; min-width: 0; font: 400 12px/18px var(--font-ui); color: var(--txt-3, var(--txt-2)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-icon { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 7px; background: transparent; color: var(--txt-2); cursor: pointer; transition: background var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out); }
+.gl-icon:hover { background: var(--surface-3); color: var(--txt); }
+.gl-icon:active { scale: .9; }
+.gl-rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 0; }
+.gl-row { display: flex; align-items: center; gap: 10px; padding: 6px 14px; font: 400 12.5px/18px var(--font-ui); }
+.gl-row:hover { background: var(--surface-3); }
+.gl-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.gl-sub { flex: 0 1 auto; min-width: 0; max-width: 55%; color: var(--txt-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gl-sub.is-bad { color: var(--state-err, #e5484d); }
+.gl-row.is-off .gl-name, .gl-row.is-off .gl-sub, .gl-row.is-gone .gl-name { color: var(--txt-3, var(--txt-2)); }
+.gl-check {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 16px; height: 16px; padding: 0;
+  border-radius: 5px; border: 1px solid var(--line-2);
+  background: transparent; color: transparent; cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), scale var(--dur-pop) var(--ease-out);
+}
+.gl-check:hover { border-color: var(--txt-2); }
+.gl-check:active { scale: .9; }
+.gl-check { position: relative; }
+.gl-check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gl-dash { display: none; position: absolute; left: 3px; right: 3px; top: 6px; height: 2px; border-radius: 1px; background: #fff; }
+.gl-check[aria-checked="mixed"] { background: var(--accent); border-color: var(--accent); }
+.gl-check[aria-checked="mixed"] .gl-dash { display: block; }
+
+/* one group per plan: its own box ticks or unticks the whole plan */
+.gl-group { display: flex; align-items: center; gap: 10px; padding: 10px 14px 4px; }
+.gl-group:first-child { padding-top: 6px; }
+.gl-group-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--txt-2); font: 500 11px/16px var(--font-kicker, var(--font-mono)); letter-spacing: .04em; text-transform: uppercase; }
+.gl-group-n { color: var(--txt-3, var(--txt-2)); font: 400 11px/16px var(--font-kicker, var(--font-mono)); font-variant-numeric: tabular-nums; }
+.gl-row.in-group { padding-left: 40px; }
+.gl-row.is-pulled .gl-sub { color: var(--txt-2); font-style: normal; }
+.gl-check[disabled] { opacity: .4; cursor: default; }
+.gl-else { padding: 4px 14px 8px; font: 400 12px/16px var(--font-ui); color: var(--txt-3, var(--txt-2)); }
+.gl-tray-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 14px; border-top: 1px solid var(--line); }
+.gl-total { min-width: 0; font: 400 12.5px/18px var(--font-ui); color: var(--txt-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ── pause, in the title bar pill (presence.js) ──────────────────────── */
+.pr-pause {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 8px 1px 7px; margin-left: 4px;
+  border: 0; border-radius: 6px;
+  background: transparent; color: inherit;
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  cursor: pointer;
+  transition: background var(--dur-menu) var(--ease), scale var(--dur-pop) var(--ease-out);
+}
+.pr-pause[hidden] { display: none; }
+.pr-pause:hover { background: var(--surface-4, var(--line-2)); color: var(--txt); }
+.pr-pause:active { scale: .96; }
+.pr-pause[aria-pressed="true"] { background: var(--surface-4, var(--line-2)); color: var(--txt); box-shadow: inset 0 0 0 1px var(--line-2); }
+.pr-pause svg { fill: currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-card.gl-in, .gl-card.gl-in-side, .gl-chip { animation: none; }
+}

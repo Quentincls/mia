@@ -69,8 +69,10 @@ Mia is for people who make films and images with local AI models and want to thi
 - **A frame-accurate player** in every video block: frame counter, step by one or ten frames, speed, grab a frame
   into a new block.
 - **Your LoRAs**: drop a `.safetensors` on Mia, name it, set its strength; its trigger word is added for you.
-- **Assistants on the board**: Claude or Codex can build a board through Mia's MCP server while you watch
-  their cursor place and wire blocks. Every action can be undone.
+- **Assistants on the board, on your go-ahead**: Claude or Codex can build a board through Mia's MCP server while
+  you watch their cursors place and wire blocks, several at once, one colour per shot. Nothing moves before you
+  click "Go ahead", and what they want to compute waits in a "To generate" list where you tick what you want.
+  Every action can be undone.
 - **Local first.** Mia listens on `127.0.0.1` only. It goes online only for the model downloads you start and,
   if you link a Higgsfield account, for the online jobs you run and to show what the account spent.
 
@@ -234,8 +236,8 @@ Settings). Each board is a plain folder: `graph.json`, `media\` (your originals,
 
 ## Assistants
 
-Mia includes a dependency-free MCP server, [`mcp/mia-mcp.js`](mcp/mia-mcp.js), with 24 tools
-(`mia_create_project`, `mia_add_block`, `mia_connect`, `mia_run`, `mia_snapshot`…). It talks to Mia through a
+Mia includes a dependency-free MCP server, [`mcp/mia-mcp.js`](mcp/mia-mcp.js), with 26 tools
+(`mia_request`, `mia_create_project`, `mia_add_block`, `mia_connect`, `mia_run`, `mia_snapshot`…). It talks to Mia through a
 local bridge (`127.0.0.1`, random token) and starts Mia if it is closed. Declare it once, with Node.js installed:
 
 ```json
@@ -249,6 +251,13 @@ With the installer, the server is `%LOCALAPPDATA%\Programs\Mia\resources\app\mcp
 in the JSON, see [mcp/README.md](mcp/README.md)). For Codex, the same in `~/.codex/config.toml` under
 `[mcp_servers.mia]`. The [skills](skills/README.md) teach an assistant how to drive Mia and which recipes work for
 which shot.
+
+You stay in charge. An assistant first shows what it is about to do in a small card, "Claude is waiting for your
+go-ahead", and acts only after your click; "Pause" in the title bar stops it where it is. Heavy or paid computations
+are never started by the assistant: they land in the "To generate" panel, grouped by shot, online ones unticked, with
+the expected time and price. Ask for several shots at once and each gets its own coloured cursor; a chip per
+assistant lets you pick which one your camera follows. Settings → Assistants → "Ask for my go-ahead" turns the
+go-ahead off.
 
 ---
 

@@ -13,6 +13,10 @@
  *  - a short bubble near the cursor for mia_say (6 s);
  *  - a discreet pill in the title bar, « Claude pilote Mia », while the assistant is active.
  * Actions are paced (~350 ms apart) so they can be followed with the eye.
+ * The user's green light (SPEC §13.7, greenlight.js): nothing that changes Mia runs before « C'est parti », a
+ * « Pause » holds the actions, and a heavy or paid run is listed in « À générer » instead of started.
+ * Several at once (SPEC §13.5): a call may say who makes it (« as »); each « who » has its own coloured cursor,
+ * bubble and queue, a chip in the title bar, and the user picks which one the camera follows.
  *
  * mountPresence() is called once by app.js (D). Errors go back to the assistant as readable sentences.
  *
@@ -33,10 +37,15 @@ import { nodeInputs, nodeOutputs, isModelBlock, blockWorkflow, startPoints, main
 import { familyOf, localKeyOf, chooseWorkflow, tierOf, tierAllows } from '../nodes/route.js';
 import { modePorts } from '../nodes/ports.js';
 import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
+import GL from './greenlight.js';
 
 register({
   fr: {
     'presence.pill': '{name} pilote Mia',
+    'presence.pillMany': '{n} {name} pilotent Mia',
+    'presence.pillMixed': '{n} assistants pilotent Mia',
+    'presence.follow': 'Suivre {name} avec la caméra',
+    'presence.following': 'La caméra suit {name}. Clique encore pour revoir tout le monde.',
     'presence.pillTip': '{name} pilote Mia par le pont des assistants. Chacune de ses actions s’annule avec Ctrl+Z.',
     'presence.err.unknownMethod': 'Action inconnue : « {method} ».',
     'presence.err.noEditor': 'La planche de Mia n’est pas disponible.',
@@ -99,6 +108,18 @@ register({
     'presence.err.emptyText': 'Le texte est vide.',
     'presence.err.needIds': 'Donne au moins un id de bloc.',
     'presence.err.busy': 'Mia n’a pas pu finir cette action (fenêtre réduite ou occupée). Réessaie.',
+    'presence.err.needGo': 'L’utilisateur n’a pas encore donné son feu vert. Appelle d’abord mia_request {title, summary, steps, runs} : il voit ta demande dans Mia et clique « C’est parti ». Rien ne bouge avant.',
+    'presence.err.declined': 'L’utilisateur a refusé cette demande dans Mia. N’agis pas ; demande-lui ce qu’il préfère.',
+    'presence.err.paused': 'L’utilisateur a mis les assistants en pause dans Mia. Attends qu’il clique « Reprendre », puis réessaie cette action.',
+    'presence.note.goPending': 'L’utilisateur n’a pas encore répondu. Dis-lui que tu attends son feu vert dans Mia, puis rappelle mia_request {requestId} pour continuer d’attendre.',
+    'presence.note.goAccepted': 'Feu vert donné : tu peux agir. Les calculs lourds ou payants que tu lances (mia_run) vont dans sa liste « À générer » : c’est lui qui les coche et les démarre.',
+    'presence.note.goOff': 'Le feu vert n’est pas demandé (réglage coupé) : tu peux agir.',
+    'presence.note.toGenerate': 'Pas lancé : ajouté à la liste « À générer » de l’utilisateur, qui coche ce qu’il veut et le démarre lui-même. Ne relance pas. mia_pending dit ce que chaque demande est devenue (jobId une fois lancée, à suivre avec mia_wait).',
+    'presence.pause': 'Pause',
+    'presence.resume': 'Reprendre',
+    'presence.pauseTip': 'Arrêter les assistants là où ils en sont. Rien n’est annulé.',
+    'presence.resumeTip': 'Laisser les assistants continuer.',
+    'presence.pillPaused': 'Assistants en pause',
     'presence.note.hidden': 'Réglage enregistré mais masqué tant que « {param} » ne le permet pas.',
     'presence.note.partial': '{n} fichier(s) n’ont pas pu être importés : voir le message dans Mia.',
     'presence.note.preview': 'Aperçu lancé : regarde le résultat, puis relance en mode « final » si c’est bon.',
@@ -112,6 +133,10 @@ register({
   },
   en: {
     'presence.pill': '{name} is driving Mia',
+    'presence.pillMany': '{n} {name} are driving Mia',
+    'presence.pillMixed': '{n} assistants are driving Mia',
+    'presence.follow': 'Follow {name} with the camera',
+    'presence.following': 'The camera follows {name}. Click again to see everyone.',
     'presence.pillTip': '{name} drives Mia through the assistant bridge. Every action can be undone with Ctrl+Z.',
     'presence.err.unknownMethod': 'Unknown action: “{method}”.',
     'presence.err.noEditor': 'Mia’s board is not available.',
@@ -174,6 +199,18 @@ register({
     'presence.err.emptyText': 'The text is empty.',
     'presence.err.needIds': 'Give at least one block id.',
     'presence.err.busy': 'Mia could not finish this action (window minimised or busy). Try again.',
+    'presence.err.needGo': 'The user has not given the go-ahead yet. Call mia_request {title, summary, steps, runs} first: they see your request in Mia and click “Go ahead”. Nothing moves before that.',
+    'presence.err.declined': 'The user declined this request in Mia. Do not act; ask them what they prefer.',
+    'presence.err.paused': 'The user paused the assistants in Mia. Wait until they click “Resume”, then try this action again.',
+    'presence.note.goPending': 'The user has not answered yet. Tell them you are waiting for their go-ahead in Mia, then call mia_request {requestId} again to keep waiting.',
+    'presence.note.goAccepted': 'Go-ahead given: you may act. Heavy or paid computations you start (mia_run) go to their “To generate” list: they tick and start them themselves.',
+    'presence.note.goOff': 'The go-ahead is not asked (setting off): you may act.',
+    'presence.note.toGenerate': 'Not started: added to the user’s “To generate” list; they tick what they want and start it themselves. Do not run it again. mia_pending tells what became of each one (jobId once started, to follow with mia_wait).',
+    'presence.pause': 'Pause',
+    'presence.resume': 'Resume',
+    'presence.pauseTip': 'Stop the assistants where they are. Nothing is undone.',
+    'presence.resumeTip': 'Let the assistants carry on.',
+    'presence.pillPaused': 'Assistants paused',
     'presence.note.hidden': 'Setting saved but hidden while “{param}” does not allow it.',
     'presence.note.partial': '{n} file(s) could not be imported: see the message in Mia.',
     'presence.note.preview': 'Preview started: look at the result, then run again in “final” mode if it is good.',
@@ -199,6 +236,7 @@ const STUCK_IMPORT_MS = 110000;  // big videos take a while to copy (the bridge 
 const GAP_X = 96;            // recipes: 336-wide blocks every 432
 const GAP_Y = 48;
 const GRID = 24;
+const LANE_H = 960;          // several at once: the height kept for one worker's chain (a Model block is that tall)
 // the board's useful area: floating title bar on top, docks below (same as the editor)
 const INSETS = { top: 92, right: 56, bottom: 104, left: 56 };
 const ACTIVE = new Set(['queued', 'waiting-gpu', 'running']);
@@ -208,13 +246,38 @@ const EASE_OUT = bezier(0.16, 1, 0.3, 1);
 
 let mounted = false;
 let dom = null;
-let lastAction = 0;
-let lastPlaced = null;       // the block the assistant placed last: the next one goes to its right
-let lastMedia = null;        // the media it imported last: the next one goes below
 let runsMod = null;
-let chain = Promise.resolve();
 
-const cur = { world: null, visible: false, anim: null, raf: 0, idleT: 0, hideT: 0, sayT: 0, hold: 0, name: 'Assistant' };
+// Several assistants at once (SPEC §13.5): each call may say who makes it (« as »); every « who » is an actor
+// with its own cursor, colour, bubble, queue of actions and place on the board. Without « as »: one actor per
+// assistant, exactly as before. Each actor keeps: lastPlaced (the block it placed last: the next one goes to
+// its right), lastMedia (the media it imported last: the next one goes below), box (where it works).
+const MAX_ACTORS = 8;
+const COLORS = 8;                   // presence.css: .pr-cursor[data-c="1"…"8"]
+const ACTOR_TTL_MS = 90000;         // forgotten after 90 s without a call
+const LIVE_MS = 12000;              // « at work » for the title bar: a call in the last 12 s
+const actors = new Map();           // key « Claude#2 » → actor
+const pending = new Set();          // places taken by blocks about to arrive (two actors never pick the same)
+let follow = 'auto';                // who the camera follows: 'auto' (alone: it; several: all in view) or a key
+let pillClient = 'Assistant';
+let holdUntil = 0;                  // a capture is being taken: cursors and bubbles stay
+let raf = 0;
+let sweepT = 0;
+// Board changes (another tab opened, a board created, tidying) run alone; everything else runs side by side.
+let excl = Promise.resolve();
+const running = new Set();
+let switching = false;
+let lastSwitch = null;              // key of the actor that changed the open board last (null: the user did)
+const EXCLUSIVE = new Set(['create_project', 'open_project', 'arrange']);
+// Green light (SPEC §13.7): what an assistant may not do before the user said « C'est parti » (reading and
+// talking stay free), and the pause of the title bar.
+const NEEDS_GO = new Set(['create_project', 'open_project', 'create_folder', 'add_block', 'connect', 'set_params', 'rename_block',
+  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'focus', 'add_section']);
+const PAUSE_WAIT_MS = 40000;        // a paused action waits that long for « Reprendre », then says so
+let paused = false;
+let resumeWaiters = [];
+const BOARD_METHODS = new Set(['get_board', 'add_block', 'connect', 'set_params', 'rename_block', 'remove_blocks',
+  'import_media', 'insert_recipe', 'arrange', 'run', 'get_output', 'focus', 'add_section']);
 
 // ── public ──────────────────────────────────────────────────────────────
 
@@ -223,8 +286,19 @@ export function mountPresence() {
   mounted = true;
   ensureCss();
   buildDom();
-  on('view:changed', ({ view } = {}) => { if (view !== 'board') hideCursor(true); });
-  on('project:closing', () => { hideCursor(true); cur.world = null; lastPlaced = null; lastMedia = null; });
+  GL.mountGreenlight({ editor: () => ed(), runs: () => runsMod, launch: launchPending });
+  getRuns();
+  on('view:changed', ({ view } = {}) => { if (view !== 'board') hideAll(true); });
+  on('project:closing', () => {
+    hideAll(true);
+    // the user changed board himself: nobody is sent back to « its » board
+    if (!switching) lastSwitch = null;
+    for (const A of actors.values()) {
+      A.world = null; A.lastPlaced = null; A.lastMedia = null; A.box = null; A.lane = null; A.mine.clear();
+      if (!switching) A.boardId = null;
+    }
+    pending.clear();
+  });
 
   const bridge = window.mia?.bridge;
   if (!bridge || typeof bridge.onCall !== 'function') {
@@ -242,15 +316,59 @@ export default { mountPresence };
 function enqueue(msg) {
   if (!msg || typeof msg.method !== 'string') return;
   if (msg.method === 'activity') {                                // a main-side call: no answer expected
-    if (msg.params?.method === 'snapshot_done') cur.hold = 0;       // the capture is taken: back to normal
-    touch(msg.client);
+    if (msg.params?.method === 'snapshot_done') holdUntil = 0;      // the capture is taken: back to normal
+    touch(msg.client, null);
     return;
   }
-  chain = chain.then(() => handle(msg)).catch((err) => console.error('[presence]', err));
+  // one queue per actor: its own actions stay in order, two actors work at the same time
+  const A = actorFor(msg.client, msg.params?.as);
+  A.busy++;
+  A.chain = A.chain.then(() => gated(msg, A)).catch((err) => console.error('[presence]', err)).finally(() => { A.busy--; });
 }
 
-async function handle({ id, method, params, client }) {
-  touch(client);
+/**
+ * Runs a call beside the others, or alone when it changes the open board (the others finish first, the next
+ * ones wait). An actor whose board was replaced by another actor goes back to its own board first.
+ */
+async function gated(msg, A) {
+  const { as: _as, ...params } = msg.params && typeof msg.params === 'object' ? msg.params : {};
+  const onBoard = BOARD_METHODS.has(msg.method);
+  if (NEEDS_GO.has(msg.method)) {
+    // nothing moves before the user's green light; a paused assistant waits a little, then is told
+    if (!GL.allowed(A.name)) { touch(msg.client, null); if (msg.id != null) reply(msg.id, { ok: false, error: t('presence.err.needGo') }); return; }
+    if (paused) {
+      await Promise.race([new Promise((r) => resumeWaiters.push(r)), sleep(PAUSE_WAIT_MS)]);
+      if (paused) { if (msg.id != null) reply(msg.id, { ok: false, error: t('presence.err.paused') }); return; }
+    }
+  }
+  for (;;) {
+    const g = excl;
+    await g;
+    if (g !== excl) continue;
+    const open = state.project?.id || null;
+    if (onBoard && !params.boardId && !params.projectId && A.boardId && open !== A.boardId && lastSwitch && lastSwitch !== A.key) params.boardId = A.boardId;
+    const want = params.boardId || params.projectId;
+    if (!(EXCLUSIVE.has(msg.method) || (onBoard && want && want !== open))) {
+      const run = handle(msg, params, A);
+      running.add(run);
+      try { await run; } finally { running.delete(run); }
+      return;
+    }
+    let release;
+    excl = new Promise((r) => { release = r; });
+    await Promise.allSettled([...running]);
+    switching = true;
+    try { await handle(msg, params, A); } finally {
+      switching = false;
+      if ((state.project?.id || null) !== open) lastSwitch = A.key;
+      release();
+    }
+    return;
+  }
+}
+
+async function handle({ id, method, client }, params, A) {
+  touch(client, A);
   const fn = Object.prototype.hasOwnProperty.call(METHODS, method) ? METHODS[method] : null;
   let payload;
   if (!fn) payload = { ok: false, error: t('presence.err.unknownMethod', { method }) };
@@ -259,8 +377,9 @@ async function handle({ id, method, params, client }) {
     try {
       // one stuck action (an animation in a window that draws nothing) never blocks the ones after it
       const stuck = new Promise((_, reject) => { watchdog = setTimeout(() => reject(Object.assign(new Error(t('presence.err.busy')), { user: true })), method === 'import_media' ? STUCK_IMPORT_MS : STUCK_MS); });
-      const result = await Promise.race([fn(params && typeof params === 'object' ? params : {}, client), stuck]);
+      const result = await Promise.race([fn(params, A), stuck]);
       payload = { ok: true, result: result === undefined ? null : result };
+      if (BOARD_METHODS.has(method) || EXCLUSIVE.has(method)) A.boardId = state.project?.id || null;
     } catch (err) {
       if (!err?.user) console.error(`[presence] ${method}`, err);
       payload = { ok: false, error: err?.message || String(err) };
@@ -713,28 +832,45 @@ function allBoxes(e) {
  * Where a new block goes: to the right of `near` (or of the assistant's last block), a media below the
  * last imported media, else beside everything; never on top of another block.
  */
-function placeFor(e, { w, h, near, media = false }) {
-  const boxes = allBoxes(e);
+function placeFor(e, A, { w, h, near, media = false }) {
+  // the places other actors are about to fill count as taken
+  const boxes = [...allBoxes(e), ...pending];
   let anchor = null;
   if (near) anchor = nodeOf(e, near);
   let x, y;
   if (anchor) {
     const b = boxOf(e, anchor);
     x = b.x + b.w + GAP_X; y = b.y;
-  } else if (media && lastMedia && e.getNode(lastMedia)) {
-    const b = boxOf(e, e.getNode(lastMedia));
+  } else if (media && A.lastMedia && e.getNode(A.lastMedia)) {
+    const b = boxOf(e, e.getNode(A.lastMedia));
     x = b.x; y = b.y + b.h + GAP_Y;
-  } else if (!media && lastPlaced && e.getNode(lastPlaced)) {
-    const b = boxOf(e, e.getNode(lastPlaced));
+  } else if (!media && A.lastPlaced && e.getNode(A.lastPlaced)) {
+    const b = boxOf(e, e.getNode(A.lastPlaced));
+    x = b.x + b.w + GAP_X; y = b.y;
+  } else if (!media && A.tag != null && A.lastMedia && e.getNode(A.lastMedia)) {
+    const b = boxOf(e, e.getNode(A.lastMedia));
     x = b.x + b.w + GAP_X; y = b.y;
   } else if (!boxes.length) {
     const c = viewCenter(e);
     x = c.x - w / 2; y = c.y - h / 2;
+  } else if (A.tag != null) {
+    // one of several (« as »): its first block opens a row of its own, under everything and under the rows
+    // the others keep for their chains (their tall blocks are not there yet)
+    const bb = union([...boxes, ...[...actors.values()].filter((a) => a !== A && a.lane).map((a) => laneBox(e, a))]);
+    x = bb.x; y = bb.y + bb.h + GAP_Y * 3;
   } else {
     const bb = union(boxes);
     if (media) { x = bb.x - w - GAP_X; y = bb.y; } else { x = bb.x + bb.w + GAP_X; y = bb.y; }
   }
-  return freeSpot(boxes, x, y, w, h);
+  const spot = freeSpot(boxes, x, y, w, h);
+  if (A.tag != null && !A.lane) A.lane = { x: spot.x, y: spot.y };
+  return spot;
+}
+
+/** The band a worker keeps for its chain: from its first block, LANE_H tall at least, and around what it placed. */
+function laneBox(e, a) {
+  const own = [...a.mine].map((id) => e.getNode(id)).filter(Boolean).map((n) => boxOf(e, n));
+  return union([{ x: a.lane.x, y: a.lane.y, w: 336, h: LANE_H }, ...own]);
 }
 
 function stageRect() {
@@ -752,8 +888,17 @@ function viewCenter(e) {
 }
 
 /** Bring a world box into the useful part of the view: a gentle camera move, only when needed. */
-async function ensureVisible(e, box) {
+async function ensureVisible(e, box, A) {
+  if (A && box) A.box = box;
   if (!box || typeof e.camera !== 'function' || typeof e.setCamera !== 'function') return;
+  if (A) {
+    // several at work: the camera moves only for the one the user follows; nobody chosen = all of them in view
+    if (!cameraFollows(A)) return;
+    if (follow === 'auto') {
+      const others = [...actors.values()].filter((a) => a !== A && a.box && (a.visible || a.busy));
+      if (others.length) box = union([box, ...others.map((a) => a.box)]);
+    }
+  }
   const r = stageRect();
   const cam = e.camera() || { x: 0, y: 0, z: 1 };
   const uw = r.width - INSETS.left - INSETS.right;
@@ -822,14 +967,14 @@ const nextFrame = () => new Promise((resolve) => {
   setTimeout(go, 34);
 });
 
-/** At least PACE_MS between two visible actions. */
-async function pace() {
-  const wait = PACE_MS - (performance.now() - lastAction);
+/** At least PACE_MS between two visible actions of the same actor. */
+async function pace(A) {
+  const wait = PACE_MS - (performance.now() - (A?.lastAction || 0));
   await sleep(Math.max(90, wait));
 }
-function acted() { lastAction = performance.now(); }
+function acted(A) { if (A) A.lastAction = performance.now(); }
 
-// ── the cursor ──────────────────────────────────────────────────────────
+// ── the cursors: one per assistant at work (SPEC §13.5) ─────────────────
 
 function ensureCss() {
   if (document.querySelector('link[data-presence]')) return;
@@ -841,163 +986,316 @@ function ensureCss() {
 }
 
 function buildDom() {
-  const cursor = document.createElement('div');
-  cursor.className = 'pr-cursor';
-  cursor.setAttribute('aria-hidden', 'true');
-  cursor.innerHTML = '<svg class="pr-arrow" viewBox="0 0 20 20" width="22" height="22"><path d="M3.2 2.4 17 9.3l-6.6 1.5-3.1 6.4z"/></svg>'
-    + '<span class="pr-label"></span><div class="pr-bubble"></div>';
-  document.body.append(cursor);
-
   const pill = document.createElement('div');
   pill.className = 'pr-pill';
   pill.setAttribute('role', 'status');
-  pill.innerHTML = '<i class="pr-pill-dot"></i><span class="pr-pill-txt"></span>';
+  pill.innerHTML = '<i class="pr-pill-dot"></i><span class="pr-pill-txt"></span><span class="pr-who"></span>'
+    + '<button type="button" class="pr-pause" hidden><svg viewBox="0 0 20 20" width="11" height="11" aria-hidden="true"><path d=""/></svg><span></span></button>';
   const host = document.getElementById('tb-actions');
   if (host) host.prepend(pill);
   else document.getElementById('titlebar')?.append(pill);
-  try { tip(pill, () => t('presence.pillTip', { name: cur.name }), { placement: 'bottom' }); } catch { /* tooltips not ready */ }
-
-  dom = {
-    cursor,
-    arrow: cursor.querySelector('.pr-arrow'),
-    label: cursor.querySelector('.pr-label'),
-    bubble: cursor.querySelector('.pr-bubble'),
-    pill,
-    pillTxt: pill.querySelector('.pr-pill-txt'),
-    pillT: 0
-  };
+  const pillTxt = pill.querySelector('.pr-pill-txt');
+  try { tip(pillTxt, () => t('presence.pillTip', { name: pillClient }), { placement: 'bottom' }); } catch { /* tooltips not ready */ }
+  const pause = pill.querySelector('.pr-pause');
+  pause.addEventListener('click', (ev) => { ev.stopPropagation(); setPaused(!paused); });
+  try { tip(pause, () => t(paused ? 'presence.resumeTip' : 'presence.pauseTip'), { placement: 'bottom' }); } catch { /* tooltips not ready */ }
+  dom = { pill, pillTxt, who: pill.querySelector('.pr-who'), pause, pillT: 0 };
 }
 
-/** A call arrived: name the assistant, show the pill, keep the cursor awake. */
-function touch(client) {
+const cleanName = (client) => String(client || '').trim() || 'Assistant';
+
+/** « as » of a call: a number (Claude 2) or a few words (Claude · Plan 02); nothing = the assistant itself. */
+function tagOf(as) {
+  if (as == null || as === '') return null;
+  if (typeof as === 'number') return Number.isFinite(as) ? String(Math.max(1, Math.min(99, Math.round(as)))) : null;
+  return String(as).replace(/\s+/g, ' ').trim().slice(0, 24).trim() || null;
+}
+
+/**
+ * A colour that no cursor has. A number asks for its own (Claude 2 is the same colour every time) and names
+ * take theirs from the other end, so the two rarely meet; a colour already taken is never given twice.
+ */
+function slotFor(tag) {
+  if (tag == null) return 0;                                   // the assistant alone: the neutral tone
+  const used = new Set([...actors.values()].map((a) => a.slot));
+  const num = /^\d+$/.test(tag);
+  const own = num ? ((Number(tag) - 1) % COLORS) + 1 : 0;
+  if (own && !used.has(own)) return own;
+  for (let k = 0; k < COLORS; k++) { const i = num ? k + 1 : COLORS - k; if (!used.has(i)) return i; }
+  return own || (actors.size % COLORS) + 1;
+}
+
+/** The cursor of this call — made on its first action, forgotten after a while without any. */
+function actorFor(client, as) {
+  const name = cleanName(client);
+  const tag = tagOf(as);
+  const key = `${name}#${tag == null ? '' : tag.toLowerCase()}`;
+  let A = actors.get(key);
+  if (A) return A;
+  sweep();
+  if (actors.size >= MAX_ACTORS) {
+    // too many at once: the quietest idle one leaves; if all are at work, this call shares a cursor
+    const idle = [...actors.values()].filter((a) => !a.busy).sort((a, b) => a.seen - b.seen)[0];
+    if (idle) dropActor(idle);
+    else return actors.get(`${name}#`) || [...actors.values()][0];
+  }
+  A = {
+    key, name, tag, slot: slotFor(tag),
+    label: tag == null ? name : /^\d+$/.test(tag) ? `${name} ${tag}` : `${name} · ${tag}`,
+    el: null, bubble: null, chip: null,
+    world: null, visible: false, anim: null, idleT: 0, hideT: 0, sayT: 0,
+    lastAction: 0, lastPlaced: null, lastMedia: null, box: null, boardId: null,
+    lane: null, mine: new Set(),          // several at once: where its row starts, the blocks it placed
+    chain: Promise.resolve(), busy: 0, seen: performance.now()
+  };
+  buildCursor(A);
+  actors.set(key, A);
+  refreshPill();
+  return A;
+}
+
+function buildCursor(A) {
+  const el = document.createElement('div');
+  el.className = 'pr-cursor';
+  el.setAttribute('aria-hidden', 'true');
+  if (A.slot) el.dataset.c = String(A.slot);
+  el.innerHTML = '<svg class="pr-arrow" viewBox="0 0 20 20" width="22" height="22"><path d="M3.2 2.4 17 9.3l-6.6 1.5-3.1 6.4z"/></svg>'
+    + '<span class="pr-label"></span><div class="pr-bubble"></div>';
+  el.querySelector('.pr-label').textContent = A.label;
+  document.body.append(el);
+  A.el = el;
+  A.labelEl = el.querySelector('.pr-label');
+  A.bubble = el.querySelector('.pr-bubble');
+
+  // its chip in the title bar: a click makes the camera follow this one (again: back to the overview)
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = 'pr-chip';
+  if (A.slot) chip.dataset.c = String(A.slot);
+  chip.innerHTML = '<i></i><span></span>';
+  chip.querySelector('span').textContent = A.tag ?? A.name;
+  chip.addEventListener('click', (ev) => { ev.stopPropagation(); setFollow(A.key); });
+  try { tip(chip, () => t(follow === A.key ? 'presence.following' : 'presence.follow', { name: A.label }), { placement: 'bottom' }); } catch { /* tooltips not ready */ }
+  A.chip = chip;
+  dom?.who.append(chip);
+}
+
+function dropActor(A) {
+  clearTimeout(A.idleT); clearTimeout(A.hideT); clearTimeout(A.sayT);
+  if (A.anim) A.anim.done();
+  A.el?.remove();
+  A.chip?.remove();
+  actors.delete(A.key);
+  if (follow === A.key) follow = 'auto';
+}
+
+/** Cursors that did nothing for a while leave (their colour is free again). */
+function sweep() {
+  const now = performance.now();
+  for (const A of [...actors.values()]) {
+    if (A.busy || A.visible || now - A.seen < ACTOR_TTL_MS) continue;
+    dropActor(A);
+  }
+  refreshPill();                                   // who is still at work (LIVE_MS)
+  clearTimeout(sweepT);
+  sweepT = actors.size ? setTimeout(sweep, 4000) : 0;
+}
+
+/** « Claude pilote Mia », or « 3 Claude pilotent Mia » with one chip each. */
+function refreshPill() {
   if (!dom) return;
-  const name = String(client || '').trim() || 'Assistant';
-  if (name !== cur.name) cur.name = name;
-  dom.label.textContent = cur.name;
-  dom.pillTxt.textContent = t('presence.pill', { name: cur.name });
+  const now = performance.now();
+  const live = [...actors.values()].filter((a) => a.visible || (a.tag != null && (a.busy || now - a.seen < LIVE_MS)) || follow === a.key);
+  if (follow !== 'auto' && !actors.has(follow)) follow = 'auto';
+  let text;
+  if (live.length <= 1) text = t('presence.pill', { name: live[0]?.name || pillClient });
+  else if (new Set(live.map((a) => a.name)).size === 1) text = t('presence.pillMany', { n: live.length, name: live[0].name });
+  else text = t('presence.pillMixed', { n: live.length });
+  if (paused) text = t('presence.pillPaused');
+  if (dom.pillTxt.textContent !== text) dom.pillTxt.textContent = text;
+  // « Pause » while someone works under a green light (and « Reprendre » for as long as it is paused)
+  const working = live.some((a) => a.busy || a.visible);
+  dom.pause.hidden = !(paused || (GL.enabled() && working));
+  dom.pause.setAttribute('aria-pressed', paused ? 'true' : 'false');
+  dom.pause.querySelector('path').setAttribute('d', paused ? 'M6 3.5v13l10-6.5z' : 'M5 3.5h3.4v13H5zM11.6 3.5H15v13h-3.4z');
+  dom.pause.querySelector('span').textContent = t(paused ? 'presence.resume' : 'presence.pause');
+  dom.who.hidden = live.length < 2;
+  // chips in a steady order: numbers first (1, 2, 3…), then names
+  const rank = (a) => (a.tag == null ? -1 : /^\d+$/.test(a.tag) ? Number(a.tag) : 1000);
+  const order = [...actors.values()].filter((a) => a.chip).sort((a, b) => rank(a) - rank(b));
+  if (order.some((a, i) => dom.who.children[i] !== a.chip)) for (const a of order) dom.who.append(a.chip);
+  for (const A of order) {
+    A.chip.hidden = !live.includes(A);
+    A.chip.setAttribute('aria-pressed', follow === A.key ? 'true' : 'false');
+  }
+}
+
+/** « Pause » of the title bar: actions wait where they are; « Reprendre » lets them go on. */
+function setPaused(v) {
+  paused = !!v;
+  if (!paused) for (const r of resumeWaiters.splice(0)) r();
+  refreshPill();
+  if (paused && dom) { dom.pill.classList.add('on'); clearTimeout(dom.pillT); }
+  else if (dom) { clearTimeout(dom.pillT); dom.pillT = setTimeout(() => dom.pill.classList.remove('on'), PILL_MS); }
+}
+
+/** The user picks who the camera follows (a chip of the title bar); the same chip again = the overview. */
+function setFollow(key) {
+  follow = follow === key || !actors.has(key) ? 'auto' : key;
+  refreshPill();
+  const A = actors.get(follow);
+  const e = ed();
+  if (A && A.box && e && boardShown()) ensureVisible(e, A.box, A).catch(() => { /* view stays */ });
+}
+
+/** Does the camera move for this one? Alone: yes. Several: the one the user chose, else all of them in view. */
+function cameraFollows(A) {
+  return follow === 'auto' || follow === A.key || !actors.has(follow);
+}
+
+/** A call arrived: show the pill, keep the cursor awake. */
+function touch(client, A) {
+  if (!dom) return;
+  pillClient = cleanName(client);
+  const now = performance.now();
+  if (A) A.seen = now;
+  refreshPill();
   if (!dom.pill.isConnected) {
     const host = document.getElementById('tb-actions');
     if (host) host.prepend(dom.pill);
   }
   dom.pill.classList.add('on');
   clearTimeout(dom.pillT);
-  dom.pillT = setTimeout(() => dom.pill.classList.remove('on'), PILL_MS);
-  if (cur.visible) wake();
+  dom.pillT = setTimeout(() => { if (!paused) dom.pill.classList.remove('on'); }, PILL_MS);
+  if (A) { if (A.visible) wake(A); }
+  else for (const a of actors.values()) if (a.name === pillClient && a.visible) { a.seen = now; wake(a); }
+  if (!sweepT && actors.size) sweepT = setTimeout(sweep, 4000);
 }
 
 function boardShown() { return state.view === 'board' && !!ed()?.loaded; }
 
-function wake() {
+function wake(A) {
   if (!boardShown()) return;
-  clearTimeout(cur.idleT);
-  clearTimeout(cur.hideT);
-  if (!cur.visible) {
-    cur.visible = true;
-    dom.cursor.classList.add('on');
-    void getComputedStyle(dom.cursor).opacity;   // start the fade now, even if no frame is drawn yet
+  clearTimeout(A.idleT);
+  clearTimeout(A.hideT);
+  if (!A.visible) {
+    A.visible = true;
+    A.el.classList.add('on');
+    void getComputedStyle(A.el).opacity;   // start the fade now, even if no frame is drawn yet
   }
   loop();
-  cur.idleT = setTimeout(() => {
-    if (dom.bubble.classList.contains('on') || performance.now() < cur.hold) { wake(); return; }
-    hideCursor(false);
+  A.idleT = setTimeout(() => {
+    if (!actors.has(A.key)) return;
+    if (A.busy || A.bubble.classList.contains('on') || performance.now() < holdUntil) { wake(A); return; }
+    hideCursor(A, false);
   }, IDLE_MS);
 }
 
-function hideCursor(now) {
-  clearTimeout(cur.idleT);
-  dom?.cursor.classList.remove('on');
-  if (dom && now) { dom.bubble.classList.remove('on'); clearTimeout(cur.sayT); }
-  clearTimeout(cur.hideT);
-  cur.hideT = setTimeout(() => { cur.visible = false; }, now ? 0 : 450);
+function hideCursor(A, now) {
+  clearTimeout(A.idleT);
+  A.el?.classList.remove('on');
+  if (now) { A.bubble?.classList.remove('on'); clearTimeout(A.sayT); }
+  clearTimeout(A.hideT);
+  A.hideT = setTimeout(() => { A.visible = false; }, now ? 0 : 450);
 }
 
+function hideAll(now) { for (const A of actors.values()) hideCursor(A, now); }
+
 function loop() {
-  if (!cur.raf) cur.raf = requestAnimationFrame(frame);
+  if (!raf) raf = requestAnimationFrame(frame);
 }
 
 function frame(now) {
-  cur.raf = 0;
-  const a = cur.anim;
-  if (a) {
-    const k = Math.min(1, (now - a.t0) / a.ms);
-    const q = EASE_OUT(k);
-    cur.world = { x: a.from.x + (a.to.x - a.from.x) * q, y: a.from.y + (a.to.y - a.from.y) * q };
-    if (k >= 1) { cur.anim = null; a.done(); }
+  raf = 0;
+  let more = false;
+  for (const A of actors.values()) {
+    const a = A.anim;
+    if (a) {
+      const k = Math.min(1, (now - a.t0) / a.ms);
+      const q = EASE_OUT(k);
+      A.world = { x: a.from.x + (a.to.x - a.from.x) * q, y: a.from.y + (a.to.y - a.from.y) * q };
+      if (k >= 1) { A.anim = null; a.done(); }
+    }
+    place(A);
+    if (A.anim || A.visible) more = true;
   }
-  place();
-  if (cur.anim || cur.visible) loop();
+  if (more) loop();
 }
 
 /** World → screen every frame: the cursor stays on its block while the camera moves. */
-function place() {
+function place(A) {
   const e = ed();
-  if (!e || !cur.world || !boardShown()) { dom.cursor.style.visibility = 'hidden'; return; }
-  const s = e.worldToScreen(cur.world);
-  dom.cursor.style.visibility = '';
-  dom.cursor.style.transform = `translate3d(${Math.round(s.x * 2) / 2}px, ${Math.round(s.y * 2) / 2}px, 0)`;
+  const el = A.el;
+  if (!el) return;
+  if (!e || !A.world || !boardShown()) { el.style.visibility = 'hidden'; return; }
+  const s = e.worldToScreen(A.world);
+  el.style.visibility = '';
+  el.style.transform = `translate3d(${Math.round(s.x * 2) / 2}px, ${Math.round(s.y * 2) / 2}px, 0)`;
   // Près du bord droit ou bas de la fenêtre, la bulle (et l'étiquette) passent de l'autre côté de la pointe
   // au lieu de sortir de l'écran. Tailles de mise en page (offsetWidth : la bulle naît à scale .88).
   const M = 8;
-  const bubbleOn = dom.bubble.classList.contains('on') || !!dom.bubble.textContent;
-  const bw = bubbleOn ? dom.bubble.offsetWidth : 0, bh = bubbleOn ? dom.bubble.offsetHeight : 0;
-  const lw = dom.label.offsetWidth;
+  const bubbleOn = A.bubble.classList.contains('on') || !!A.bubble.textContent;
+  const bw = bubbleOn ? A.bubble.offsetWidth : 0, bh = bubbleOn ? A.bubble.offsetHeight : 0;
+  const lw = A.labelEl.offsetWidth;
   const flipX = s.x + 13 + Math.max(bw, lw) > innerWidth - M && s.x - 6 - Math.max(bw, lw) >= M;
   const flipY = bubbleOn && s.y + 42 + bh > innerHeight - M && s.y - 6 - bh >= M;
-  if (dom.cursor.classList.contains('pr-flip-x') !== flipX) dom.cursor.classList.toggle('pr-flip-x', flipX);
-  if (dom.cursor.classList.contains('pr-flip-y') !== flipY) dom.cursor.classList.toggle('pr-flip-y', flipY);
+  if (el.classList.contains('pr-flip-x') !== flipX) el.classList.toggle('pr-flip-x', flipX);
+  if (el.classList.contains('pr-flip-y') !== flipY) el.classList.toggle('pr-flip-y', flipY);
 }
 
-/** Glide the cursor's tip to a world point. */
-function glideTo(world, ms = GLIDE_MS) {
-  if (!world || !boardShown()) return Promise.resolve();
+/** Glide a cursor's tip to a world point. */
+function glideTo(A, world, ms = GLIDE_MS) {
+  if (!world || !boardShown() || !A?.el) return Promise.resolve();
   const e = ed();
-  if (!cur.world || !cur.visible) {
+  if (!A.world || !A.visible) {
     // it comes in from a little up-left of its target, like a hand entering the frame
     const z = e?.camera?.()?.z || 1;
-    cur.world = { x: world.x - 70 / z, y: world.y - 46 / z };
+    A.world = { x: world.x - 70 / z, y: world.y - 46 / z };
   }
-  wake();
-  if (cur.anim) cur.anim.done();
+  wake(A);
+  if (A.anim) A.anim.done();
   return new Promise((resolve) => {
-    const a = { from: { ...cur.world }, to: { ...world }, t0: performance.now(), ms, done: null, timer: 0 };
+    const a = { from: { ...A.world }, to: { ...world }, t0: performance.now(), ms, done: null, timer: 0 };
     let settled = false;
     // ends on its last frame, or on time when no frame comes (minimised window)
     a.done = () => {
       if (settled) return;
       settled = true;
       clearTimeout(a.timer);
-      if (cur.anim === a) { cur.anim = null; cur.world = { ...a.to }; place(); }
+      if (A.anim === a) { A.anim = null; A.world = { ...a.to }; place(A); }
       resolve();
     };
     a.timer = setTimeout(a.done, ms + 120);
-    cur.anim = a;
+    A.anim = a;
     loop();
   });
 }
 
 /** The little press of a click (run, wire dropped, block placed). */
-function press() {
-  if (!dom) return;
-  dom.cursor.classList.remove('press');
-  void dom.cursor.offsetWidth;
-  dom.cursor.classList.add('press');
-  setTimeout(() => dom.cursor.classList.remove('press'), 220);
+function press(A) {
+  const el = A?.el;
+  if (!el) return;
+  el.classList.remove('press');
+  void el.offsetWidth;
+  el.classList.add('press');
+  setTimeout(() => el.classList.remove('press'), 220);
 }
 
-function say(text) {
-  dom.bubble.textContent = text;
-  dom.bubble.classList.add('on');
-  void getComputedStyle(dom.bubble).opacity;
-  clearTimeout(cur.sayT);
+function say(A, text) {
+  A.bubble.textContent = text;
+  A.bubble.classList.add('on');
+  void getComputedStyle(A.bubble).opacity;
+  clearTimeout(A.sayT);
   const ms = Math.min(12000, SAY_MS + Math.max(0, text.length - 120) * 25);
   const end = () => {
-    if (performance.now() < cur.hold) { cur.sayT = setTimeout(end, 500); return; }   // a capture is being taken
-    dom.bubble.classList.remove('on');
-    wake();
+    if (performance.now() < holdUntil) { A.sayT = setTimeout(end, 500); return; }   // a capture is being taken
+    A.bubble.classList.remove('on');
+    if (actors.has(A.key)) wake(A);
   };
-  cur.sayT = setTimeout(end, ms);
-  wake();
+  A.sayT = setTimeout(end, ms);
+  wake(A);
 }
+
 
 // ── reading the board ───────────────────────────────────────────────────
 
@@ -1353,12 +1651,13 @@ const METHODS = {
       readOnly: !!state.readOnly,
       blocks: g ? g.nodes.length : null,
       selection: e?.loaded ? e.selection() : [],
+      tabs: openTabs(),
       lang: state.prefs?.lang || 'fr'
     };
   },
 
   /** A new board — inside a project (folder) when one is named, the project created if needed. */
-  async create_project(p) {
+  async create_project(p, A) {
     await whenAppReady();
     const app = appApi();
     if (!app || !ed()) fail('noEditor');
@@ -1385,16 +1684,16 @@ const METHODS = {
     const e = ed();
     let blocks = [];
     if (rec && e?.loaded) {
-      await pace();
+      await pace(A);
       const ids = e.insertRecipe(rec) || [];
       blocks = mapRecipe(rec, ids, e);
-      acted();
+      acted(A);
       try { await app.flushSave?.(); } catch { /* the debounced save follows */ }
       requestAnimationFrame(() => { try { e.fit(); } catch { /* view stays */ } });
     }
     if (e?.loaded) {
       await sleep(120);
-      await glideTo(viewCenter(e));
+      await glideTo(A, viewCenter(e));
     }
     const out = {
       boardId: r.id, name: state.project?.name || r.name || name, dir: state.project?.dir || null,
@@ -1406,7 +1705,7 @@ const METHODS = {
   },
 
   /** A board by id, name, « Projet / Planche », {folder, name}, or a project alone (its latest board). */
-  async open_project(p) {
+  async open_project(p, A) {
     await whenAppReady();
     const app = appApi();
     if (!app) fail('noEditor');
@@ -1432,7 +1731,7 @@ const METHODS = {
   },
 
   /** A project (folder of boards); an existing one with that name is returned rather than doubled. */
-  async create_folder(p) {
+  async create_folder(p, A) {
     await whenAppReady();
     const api = foldersApi();
     if (!api) fail('noFolders');
@@ -1461,7 +1760,7 @@ const METHODS = {
     });
   },
 
-  async get_board(p) {
+  async get_board(p, A) {
     const e = await board(p);
     const R = await getRuns();
     const g = e.getGraph();
@@ -1472,11 +1771,14 @@ const METHODS = {
       wires: g.edges.map((x) => ({ id: x.id, from: { ...x.from }, to: { ...x.to } })),
       sections: (g.groups || []).map((s) => ({ id: s.id, title: s.title || null, x: s.x, y: s.y, w: s.w, h: s.h })),
       selection: e.selection(),
-      camera: g.camera || null
+      camera: g.camera || null,
+      // what the user has on screen right now (ids of the blocks in view) and the other boards open in tabs
+      inView: inView(e),
+      tabs: openTabs()
     };
   },
 
-  async add_block(p) {
+  async add_block(p, A) {
     const e = await board(p, { write: true });
     const def = findType(p.type);
     if (!def) fail('unknownType', { type: p.type ?? '', list: typeList() });
@@ -1486,16 +1788,23 @@ const METHODS = {
     const h = estimateH(def);
     let pos;
     if (p.at && Number.isFinite(+p.at.x) && Number.isFinite(+p.at.y)) pos = { x: Math.round(+p.at.x), y: Math.round(+p.at.y) };
-    else pos = placeFor(e, { w, h, near: p.near });
-    await ensureVisible(e, { x: pos.x, y: pos.y, w, h });
-    await glideTo({ x: pos.x + 26, y: pos.y + 18 });
-    await pace();
-    press();
-    const id = e.addNode(def.id, pos, { params });
-    acted();
+    else pos = placeFor(e, A, { w, h, near: p.near });
+    // the place is kept while the cursor travels: another actor placing now goes elsewhere
+    const held = { x: pos.x, y: pos.y, w, h };
+    pending.add(held);
+    let id;
+    try {
+      await ensureVisible(e, { x: pos.x, y: pos.y, w, h }, A);
+      await glideTo(A, { x: pos.x + 26, y: pos.y + 18 });
+      await pace(A);
+      press(A);
+      id = e.addNode(def.id, pos, { params });
+    } finally { pending.delete(held); }
+    acted(A);
     if (!id) fail(state.readOnly ? 'readOnly' : 'addFailed');
     if (p.title) e.updateNode(id, { title: String(p.title).trim().slice(0, 80) }, { history: false });
-    lastPlaced = id;
+    A.lastPlaced = id;
+    A.mine.add(id);
     // the real height is known now: if the block grew onto a neighbour, it slides down (same undo step)
     await nextFrame();
     const n = e.getNode(id);
@@ -1515,7 +1824,7 @@ const METHODS = {
     };
   },
 
-  async connect(p) {
+  async connect(p, W) {
     const e = await board(p, { write: true });
     const from = endOf(p.from), to = endOf(p.to);
     const A = nodeOf(e, from.node), B = nodeOf(e, to.node);
@@ -1575,14 +1884,14 @@ const METHODS = {
     // never replace a wire on a guessed input: only when the assistant named that input
     if (replaced.length && !to.port) fail('wouldReplace', { b, port: tl(pick.i.label), list: portLabelList(ins) });
 
-    await ensureVisible(e, union([boxOf(e, A), boxOf(e, B)]));
-    await glideTo(portPoint(e, A.id, pick.o.id, 'out'));
+    await ensureVisible(e, union([boxOf(e, A), boxOf(e, B)]), W);
+    await glideTo(W, portPoint(e, A.id, pick.o.id, 'out'));
     await sleep(80);
-    await glideTo(portPoint(e, B.id, pick.i.id, 'in'), GLIDE_MS + 60);
-    await pace();
-    press();
+    await glideTo(W, portPoint(e, B.id, pick.i.id, 'in'), GLIDE_MS + 60);
+    await pace(W);
+    press(W);
     const edgeId = e.connect(A.id, pick.o.id, B.id, pick.i.id);
-    acted();
+    acted(W);
     if (!edgeId) fail('refused');
     const out = { wireId: edgeId, from: { node: A.id, port: pick.o.id }, to: { node: B.id, port: pick.i.id }, type: pick.ot, replaced };
     // bloc Modèle : le fil sert-il au mode retenu ? (sinon il est ignoré au calcul : le dire, et le mode qui s'en sert)
@@ -1615,19 +1924,19 @@ const METHODS = {
     return out;
   },
 
-  async set_params(p) {
+  async set_params(p, A) {
     const e = await board(p, { write: true });
     const n = nodeOf(e, p.nodeId);
     const def = typeOf(n.type);
     const modeNotes = [];
     const clean = checkParams(def || { params: [] }, p.params || {}, blockName(n), n, modeNotes);
     if (!Object.keys(clean).length) return { nodeId: n.id, params: shownParams(n, { ...defaults(n.type), ...(n.params || {}) }), notes: modeNotes };
-    await ensureVisible(e, boxOf(e, n));
+    await ensureVisible(e, boxOf(e, n), A);
     const controls = safe(() => e.slotEls(n.id)?.controls) || '.nb-foot';
-    await glideTo(elPoint(e, n, controls, 0.42, 0.3));
-    await pace();
+    await glideTo(A, elPoint(e, n, controls, 0.42, 0.3));
+    await pace(A);
     e.updateNode(n.id, { params: clean });
-    acted();
+    acted(A);
     const after = { ...defaults(n.type), ...(e.getNode(n.id)?.params || {}) };
     const shown = shownParams(e.getNode(n.id) || n, after);
     const notes = [...hiddenNotes(def || {}, after).filter((x) => Object.keys(clean).some((k) => x.startsWith(`${k}:`))), ...modeNotes];
@@ -1636,34 +1945,36 @@ const METHODS = {
     return { nodeId: n.id, params: shown, notes, ...(model ? { model } : {}) };
   },
 
-  async rename_block(p) {
+  async rename_block(p, A) {
     const e = await board(p, { write: true });
     const n = nodeOf(e, p.nodeId);
-    await ensureVisible(e, boxOf(e, n));
-    await glideTo(elPoint(e, n, '.n-title', 0.3, 0.6));
-    await pace();
+    await ensureVisible(e, boxOf(e, n), A);
+    await glideTo(A, elPoint(e, n, '.n-title', 0.3, 0.6));
+    await pace(A);
     e.updateNode(n.id, { title: p.title == null ? null : String(p.title).trim().slice(0, 80) || null });
-    acted();
+    acted(A);
     return { nodeId: n.id, title: e.getNode(n.id)?.title || null, block: blockName(e.getNode(n.id)) };
   },
 
-  async remove_blocks(p) {
+  async remove_blocks(p, A) {
     const e = await board(p, { write: true });
     const ids = (Array.isArray(p.nodeIds) ? p.nodeIds : p.nodeIds ? [p.nodeIds] : []).map(String);
     if (!ids.length) fail('needIds');
     const nodes = ids.map((id) => nodeOf(e, id));
-    await ensureVisible(e, union(nodes.map((n) => boxOf(e, n))));
-    await glideTo(elPoint(e, nodes[0], '.n-head', 0.5, 0.5));
-    await pace();
-    press();
+    await ensureVisible(e, union(nodes.map((n) => boxOf(e, n))), A);
+    await glideTo(A, elPoint(e, nodes[0], '.n-head', 0.5, 0.5));
+    await pace(A);
+    press(A);
     e.removeNodes(nodes.map((n) => n.id));
-    acted();
-    if (lastPlaced && !e.getNode(lastPlaced)) lastPlaced = null;
-    if (lastMedia && !e.getNode(lastMedia)) lastMedia = null;
+    acted(A);
+    for (const a of actors.values()) {
+      if (a.lastPlaced && !e.getNode(a.lastPlaced)) a.lastPlaced = null;
+      if (a.lastMedia && !e.getNode(a.lastMedia)) a.lastMedia = null;
+    }
     return { removed: nodes.map((n) => ({ id: n.id, block: blockName(n) })) };
   },
 
-  async import_media(p) {
+  async import_media(p, A) {
     const e = await board(p, { write: true });
     const paths = Array.isArray(p.paths) ? p.paths : [];
     let into = null;
@@ -1673,23 +1984,29 @@ const METHODS = {
     }
     const def = typeOf('import');
     const w = def?.width || 336;
-    let at;
+    let at, held = null;
     if (into) {
-      await ensureVisible(e, boxOf(e, into));
-      await glideTo(elPoint(e, into, null, 0.5, 0.35));
+      await ensureVisible(e, boxOf(e, into), A);
+      await glideTo(A, elPoint(e, into, null, 0.5, 0.35));
     } else {
-      const pos = placeFor(e, { w, h: 300, near: p.near, media: !p.near });
+      const pos = placeFor(e, A, { w, h: 300, near: p.near, media: !p.near });
       at = { x: pos.x + w / 2, y: pos.y + 18 };          // the editor puts the block's top-left at (x - w/2, y - 18)
-      await ensureVisible(e, { x: pos.x, y: pos.y, w, h: 300 });
-      await glideTo({ x: pos.x + 26, y: pos.y + 18 });
+      held = { x: pos.x, y: pos.y, w, h: 300 * Math.max(1, paths.length) };
+      pending.add(held);                                  // kept while the files are copied (see add_block)
+      await ensureVisible(e, { x: pos.x, y: pos.y, w, h: 300 }, A);
+      await glideTo(A, { x: pos.x + 26, y: pos.y + 18 });
     }
-    await pace();
-    press();
-    const ids = (await e.importFiles(paths, at, into ? into.id : undefined)) || [];
-    acted();
+    let ids;
+    try {
+      await pace(A);
+      press(A);
+      ids = (await e.importFiles(paths, at, into ? into.id : undefined)) || [];
+    } finally { if (held) pending.delete(held); }
+    acted(A);
     if (!ids.length) fail('importFailed');
-    lastMedia = ids[ids.length - 1];
-    if (!into) lastPlaced = lastPlaced && e.getNode(lastPlaced) ? lastPlaced : null;
+    A.lastMedia = ids[ids.length - 1];
+    for (const id of ids) A.mine.add(id);
+    if (!into) A.lastPlaced = A.lastPlaced && e.getNode(A.lastPlaced) ? A.lastPlaced : null;
     const blocks = ids.map((id) => {
       const n = e.getNode(id);
       return { nodeId: id, block: blockName(n), name: n?.data?.name || null, kind: n?.data?.kind || null, path: abs(n?.data?.src), meta: compactMeta(n?.data?.meta), x: n?.x, y: n?.y };
@@ -1699,7 +2016,7 @@ const METHODS = {
     return out;
   },
 
-  async insert_recipe(p) {
+  async insert_recipe(p, A) {
     const e = await board(p, { write: true });
     const rec = findRecipe(p.recipe);
     if (!rec) fail('noRecipe', { q: p.recipe ?? '', list: recipeList() });
@@ -1712,38 +2029,39 @@ const METHODS = {
         const rw = Math.max(...xs) - Math.min(...xs) + 336, rh = Math.max(...ys) - Math.min(...ys) + 420;
         const bb = union(boxes);
         at = { x: bb.x + bb.w + GAP_X * 2 + rw / 2, y: bb.y + rh / 2 };
-        await ensureVisible(e, { x: at.x - rw / 2, y: at.y - rh / 2, w: rw, h: rh });
+        await ensureVisible(e, { x: at.x - rw / 2, y: at.y - rh / 2, w: rw, h: rh }, A);
       }
     }
-    await glideTo(at || viewCenter(e));
-    await pace();
-    press();
+    await glideTo(A, at || viewCenter(e));
+    await pace(A);
+    press(A);
     const ids = e.insertRecipe(rec, at || undefined) || [];
-    acted();
+    acted(A);
     const blocks = mapRecipe(rec, ids, e);
-    if (blocks.length) lastPlaced = blocks[blocks.length - 1].nodeId;
+    if (blocks.length) A.lastPlaced = blocks[blocks.length - 1].nodeId;
+    for (const b of blocks) A.mine.add(b.nodeId);
     return { recipe: rec.id, blocks };
   },
 
-  async arrange(p) {
+  async arrange(p, A) {
     const e = await board(p, { write: true });
     const g = e.getGraph();
     if (!g.nodes.length) fail('noNodes');
-    await glideTo(viewCenter(e));
-    await pace();
+    await glideTo(A, viewCenter(e));
+    await pace(A);
     let moved;
     // the editor's own arrange glides on animation frames: a minimised window gives none, so it never
     // holds the assistant longer than a few seconds (it finishes when the window comes back)
     if (typeof e.arrange === 'function') moved = await Promise.race([e.arrange(), sleep(3000)]);
     else moved = await arrangeFallback(e);
-    acted();
+    acted(A);
     await sleep(60);
     try { e.fit(); } catch { /* view stays */ }
     await sleep(CAMERA_MS);
     return { arranged: g.nodes.length, moved: typeof moved === 'number' ? moved : null };
   },
 
-  async run(p) {
+  async run(p, A) {
     const e = await board(p);
     const n = nodeOf(e, p.nodeId);
     const def = typeOf(n.type);
@@ -1765,46 +2083,26 @@ const METHODS = {
     const where = { boardId: state.project.id, projectId: state.project.id };
     if (st && ACTIVE.has(st.kind) && st.jobId) return { jobId: st.jobId, nodeId: n.id, ...where, mode, already: true };
 
-    await ensureVisible(e, boxOf(e, n));
+    // feu vert (SPEC §13.7) : un calcul lourd ou payant demandé par un assistant n'est pas lancé, il est proposé
+    // dans « À générer » ; un calcul léger du PC (extraire une image, couper…) part tout de suite
+    const online = n.type === 'gen' && String(n.params?.model || '').startsWith('hf:');
+    if (GL.enabled() && !rewriting && (online || def.engine?.gpu !== 'none')) {
+      await ensureVisible(e, boxOf(e, n), A);
+      await glideTo(A, elPoint(e, n, '.nb-foot button.shiny, .nb-foot .btn-primary', 0.5, 0.5));
+      acted(A);
+      const item = GL.addRun({ nodeId: n.id, boardId: state.project.id, mode, variants, by: A.label, online });
+      return { awaitingUser: true, pendingId: item.id, nodeId: n.id, ...where, block: blockName(n), mode, note: t('presence.note.toGenerate') };
+    }
+    await ensureVisible(e, boxOf(e, n), A);
     const btnSel = rewriting ? '.nb-rw .btn' : variants ? '.nb-foot .nb-actions button:not(.shiny)'
       : '.nb-foot button.shiny, .nb-foot .btn-primary';
-    await glideTo(elPoint(e, n, btnSel, 0.5, 0.5));
-    await pace();
-    press();
-    if (variants) {
-      const r = await R.runVariants(n.id, { count: variants, mode });
-      acted();
-      if (!r?.ok) {
-        const err = new Error(t('presence.err.runFailed', { why: r?.error || '?' }));
-        err.user = true;
-        throw err;
-      }
-      // mia_wait sur le dernier job : il finit après les autres (la file passe les calculs lourds un par un)
-      const out = { jobId: r.jobIds[r.jobIds.length - 1], jobIds: r.jobIds, seeds: r.seeds, nodeId: n.id, ...where, block: blockName(n), mode };
-      if (r.error) out.note = r.error;
-      return out;
-    }
-    let res;
-    try {
-      res = await window.mia.engine.run({ projectId: state.project.id, nodeId: n.id, graph: e.getGraph(), mode });
-    } catch (err) {
-      res = { ok: false, error: err?.message || String(err) };
-    }
-    acted();
-    if (!res || res.ok === false) {
-      const missing = Array.isArray(res?.missing) && res.missing.length
-        ? t('presence.err.missing', { list: res.missing.map((m) => (typeof m === 'string' ? m : m?.message || m?.label || JSON.stringify(m))).join(' ; ') })
-        : '';
-      const err = new Error(t('presence.err.runFailed', { why: res?.error || '?' }) + missing);
-      err.user = true;
-      throw err;
-    }
-    const out = { jobId: res.jobId || null, nodeId: n.id, ...where, block: blockName(n), mode };
-    if (mode === 'preview') out.note = t('presence.note.preview');
-    return out;
+    await glideTo(A, elPoint(e, n, btnSel, 0.5, 0.5));
+    await pace(A);
+    press(A);
+    return launchRun(e, n, mode, variants, where, A);
   },
 
-  async get_output(p) {
+  async get_output(p, A) {
     const e = await board(p);
     const n = nodeOf(e, p.nodeId);
     const name = blockName(n);
@@ -1836,7 +2134,7 @@ const METHODS = {
     return { nodeId: n.id, block: name, stale: !!safe(() => R.isStale?.(n.id)), busy: !!(st && ACTIVE.has(st.kind)), ...info };
   },
 
-  async focus(p) {
+  async focus(p, A) {
     const e = await board(p);
     const ids = (Array.isArray(p.nodeIds) ? p.nodeIds : p.nodeIds ? [p.nodeIds] : p.nodeId ? [p.nodeId] : []).map(String);
     if (!ids.length) fail('needIds');
@@ -1844,12 +2142,12 @@ const METHODS = {
     if (nodes.length === 1) e.focusNode(nodes[0].id);
     else { e.select(nodes.map((n) => n.id)); e.fit(nodes.map((n) => n.id)); }
     await sleep(CAMERA_MS + 40);
-    await glideTo(elPoint(e, nodes[0], '.n-title', 0.5, 0.9));
-    acted();
+    await glideTo(A, elPoint(e, nodes[0], '.n-title', 0.5, 0.9));
+    acted(A);
     return { focused: nodes.map((n) => n.id) };
   },
 
-  async add_section(p) {
+  async add_section(p, A) {
     const e = await board(p, { write: true });
     const ids = (Array.isArray(p.nodeIds) ? p.nodeIds : p.nodeIds ? [p.nodeIds] : []).map(String);
     if (!ids.length) fail('needIds');
@@ -1859,26 +2157,50 @@ const METHODS = {
     const gid = e.addSection({ around: nodes.map((n) => n.id) }, { title, tone: tones.includes(p.tone) ? p.tone : null, edit: false, select: false });
     if (!gid) fail('needIds');
     const g = (e.getGraph()?.groups || []).find((x) => x.id === gid);
-    if (g) await glideTo({ x: g.x + 24, y: g.y - 10 });
-    acted();
+    if (g) await glideTo(A, { x: g.x + 24, y: g.y - 10 });
+    acted(A);
     return { sectionId: gid, title: g ? g.title : title, around: nodes.map((n) => n.id) };
   },
 
-  async say(p) {
+  async say(p, A) {
     await whenAppReady();
     const text = String(p.text ?? '').trim().slice(0, 400);
     if (!text) fail('emptyText');
     if (!dom) return { shown: false };
     const e = ed();
     if (boardShown() && e) {
-      if (!cur.world) await glideTo(viewCenter(e));
-      say(text);
+      if (!A.world) await glideTo(A, viewCenter(e));
+      say(A, text);
       return { shown: true };
     }
     return { shown: false, view: state.view };
   },
 
-  async snapshot_prepare(p) {
+  /** The assistant says what it is about to do and waits for the user's green light (SPEC §13.7). */
+  async request(p, A) {
+    await whenAppReady();
+    if (!GL.enabled()) return { state: 'accepted', note: t('presence.note.goOff') };
+    const r = GL.request({ client: A.name, id: p.requestId ? String(p.requestId) : null, title: p.title, summary: p.summary, steps: p.steps, runs: p.runs });
+    const st = await Promise.race([r.answered, sleep(PAUSE_WAIT_MS).then(() => 'pending')]);
+    const out = { requestId: r.id, state: st };
+    if (st === 'pending') out.note = t('presence.note.goPending');
+    else if (st === 'accepted') out.note = t('presence.note.goAccepted');
+    else out.note = t('presence.err.declined');
+    return out;
+  },
+
+  /** The request, the green light, the pause, and what became of each computation proposed (« À générer »). */
+  async pending() {
+    await whenAppReady();
+    const e = ed();
+    const snap = GL.snapshot();
+    return {
+      ...snap, paused,
+      toGenerate: snap.toGenerate.map((x) => ({ ...x, block: x.boardId === state.project?.id && e?.loaded && e.getNode(x.nodeId) ? blockName(e.getNode(x.nodeId)) : null }))
+    };
+  },
+
+  async snapshot_prepare(p, A) {
     await whenAppReady();
     let rect = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
     const e = ed();
@@ -1901,7 +2223,8 @@ const METHODS = {
     }
     await sleep(260);                                // the bubble and the blocks finish fading in
     // the cursor and the bubble stay until the capture is taken (a hidden window can take seconds)
-    if (cur.visible) { cur.hold = performance.now() + 20000; wake(); }
+    holdUntil = performance.now() + 20000;
+    for (const a of actors.values()) if (a.visible) wake(a);
     return {
       rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) },
       view: state.view || null,
@@ -1909,6 +2232,76 @@ const METHODS = {
     };
   }
 };
+
+/** The boards open in tabs, left to right; active = the one on screen (none on the home page). */
+function openTabs() {
+  const tabs = appApi()?.tabs;
+  if (!tabs || typeof tabs.ids !== 'function') return [];
+  return safe(() => tabs.ids().map((id) => {
+    const fid = safe(() => tabs.folderOf?.(id)) || null;
+    const f = fid ? safe(() => tabs.folder?.(fid)) : null;
+    return { id, name: safe(() => tabs.name?.(id)) || null, folder: f?.name || null, active: state.view === 'board' && state.project?.id === id };
+  })) || [];
+}
+
+/** Ids of the blocks the user can see now (the board's useful area, under the title bar, over the docks). */
+function inView(e) {
+  if (!boardShown()) return [];
+  const r = stageRect();
+  const a = e.screenToWorld({ x: r.left, y: r.top }), b = e.screenToWorld({ x: r.left + r.width, y: r.top + r.height });
+  return (e.getGraph()?.nodes || []).filter((n) => {
+    const box = boxOf(e, n);
+    return box.x < b.x && box.x + box.w > a.x && box.y < b.y && box.y + box.h > a.y;
+  }).map((n) => n.id);
+}
+
+/** Starts a block's computation (the engine's queue, like « Générer »): for an assistant, or from « À générer ». */
+async function launchRun(e, n, mode, variants, where, A) {
+  const R = await getRuns();
+  if (variants) {
+    const r = await R.runVariants(n.id, { count: variants, mode });
+    acted(A);
+    if (!r?.ok) {
+      const err = new Error(t('presence.err.runFailed', { why: r?.error || '?' }));
+      err.user = true;
+      throw err;
+    }
+    // mia_wait sur le dernier job : il finit après les autres (la file passe les calculs lourds un par un)
+    const out = { jobId: r.jobIds[r.jobIds.length - 1], jobIds: r.jobIds, seeds: r.seeds, nodeId: n.id, ...where, block: blockName(n), mode };
+    if (r.error) out.note = r.error;
+    return out;
+  }
+  let res;
+  try {
+    res = await window.mia.engine.run({ projectId: state.project.id, nodeId: n.id, graph: e.getGraph(), mode });
+  } catch (err) {
+    res = { ok: false, error: err?.message || String(err) };
+  }
+  acted(A);
+  if (!res || res.ok === false) {
+    const missing = Array.isArray(res?.missing) && res.missing.length
+      ? t('presence.err.missing', { list: res.missing.map((m) => (typeof m === 'string' ? m : m?.message || m?.label || JSON.stringify(m))).join(' ; ') })
+      : '';
+    const err = new Error(t('presence.err.runFailed', { why: res?.error || '?' }) + missing);
+    err.user = true;
+    throw err;
+  }
+  const out = { jobId: res.jobId || null, nodeId: n.id, ...where, block: blockName(n), mode };
+  if (mode === 'preview') out.note = t('presence.note.preview');
+  return out;
+}
+
+/** « Générer la sélection »: one line of the user's list, on the open board. */
+async function launchPending(item) {
+  const e = ed();
+  if (!e?.loaded || state.project?.id !== item.boardId) return { ok: false, error: t('presence.err.noProject') };
+  const n = e.getNode(item.nodeId);
+  if (!n) return { ok: false, error: t('presence.err.noNode', { id: item.nodeId, list: '' }) };
+  try {
+    const out = await launchRun(e, n, item.mode || null, item.variants || 0, { boardId: item.boardId, projectId: item.boardId }, null);
+    return { ok: true, jobId: out.jobId || null, jobIds: out.jobIds || null };
+  } catch (err) { return { ok: false, error: err?.message || String(err) }; }
+}
 
 function mapRecipe(rec, ids, e) {
   const keys = (rec.nodes || []).filter((n) => typeOf(n.type)).map((n) => n);

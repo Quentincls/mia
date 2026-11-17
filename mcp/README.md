@@ -138,13 +138,14 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 
 | Outil | Ce qu'il fait |
 |---|---|
-| `mia_status` | Mia ouverte ? planche affichée (et son projet), moteur ComfyUI, GPU, file de calcul, capacités installées |
+| `mia_status` | Mia ouverte ? planche affichée (et son projet), ta sélection, les planches ouvertes en onglets (`mia.tabs`), moteur ComfyUI, GPU, file de calcul, capacités installées |
+| `mia_request` · `mia_pending` | te demander ton feu vert avant d'agir (carte « Claude attend ton feu vert ») ; savoir où en sont le feu vert, la pause et la liste « À générer » |
 | `mia_catalog` | tous les blocs (« Profondeur », « Animer une image »…), leurs entrées/sorties, réglages et valeurs permises, recettes, modèles, LoRA |
-| `mia_list_projects` | tes projets et toutes les planches (avec le projet de chacune) |
+| `mia_list_projects` | tes projets et toutes les planches (avec le projet de chacune ; `open` = ouverte dans un onglet, `active` = celle à l'écran) |
 | `mia_create_folder` | créer un projet (dossier de planches), avec sa couleur ; s'il existe déjà, il est repris tel quel |
 | `mia_create_project` | créer une planche (nouvel onglet), dans un projet (`folder`, créé s'il manque), avec une recette au besoin |
 | `mia_open_project` | ouvrir une planche : par son nom, « Projet / Planche », ou la dernière d'un projet |
-| `mia_get_board` | la planche : blocs, réglages, fils, états, résultats avec leurs chemins complets |
+| `mia_get_board` | la planche : blocs, réglages, fils, états, résultats avec leurs chemins complets, ta sélection, les blocs à l'écran (`inView`) |
 | `mia_add_block` | poser un bloc (à droite du bloc qui l'alimente, jamais par-dessus un autre) |
 | `mia_connect` | relier deux blocs (port deviné s'il n'est pas donné) |
 | `mia_set_params` · `mia_rename_block` | régler un bloc (valeurs vérifiées), lui donner un titre |
@@ -155,6 +156,28 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 | `mia_get_output` · `mia_snapshot` | les fichiers du résultat ; une capture de Mia pour que l'assistant regarde |
 | `mia_add_section` | encadrer des blocs dans une section nommée, à la manière de Figma ou Miro |
 | `mia_focus` · `mia_say` | te montrer des blocs ; t'écrire un mot dans une bulle |
+
+### Ton feu vert, et « À générer »
+
+Rien ne bouge sans toi. Quand tu demandes quelque chose, une petite carte apparaît en bas de Mia : « Claude attend
+ton feu vert », avec ce qu'il veut faire. « C'est parti » le laisse agir, « Plus tard » range la carte dans une
+pastille, « Détail » montre les étapes et le bouton « Refuser ». Pendant qu'il travaille, « Pause » dans la barre de
+titre l'arrête là où il en est.
+
+Ensuite, aucun calcul ne part tout seul : ce que l'assistant veut générer arrive dans le panneau « À générer », à
+droite de la planche, rangé par plan (une case par plan, une case par calcul). Tu
+coches ce que tu veux (les calculs en ligne, payants, arrivent décochés), tu lis le temps prévu et le prix, puis
+« Générer la sélection ». Pour revenir à l'ancien comportement : Réglages → Assistants → « Demander mon feu vert ».
+
+### Plusieurs assistants à la fois
+
+Demande plusieurs plans d'un coup (« prépare ces deux plans LTX en parallèle ») : l'assistant lance un sous-agent par
+plan, et chacun signe ses appels avec `as` (un nombre ou quelques mots). Tu vois alors un curseur de couleur par
+plan (« Claude 1 », « Claude 2 », « Claude · Plan 03 »…), chacun avec sa bulle, qui travaillent en même temps, chacun
+sur sa rangée de la planche. La barre de titre affiche « 3 Claude pilotent Mia » et une pastille par Claude :
+**clique une pastille pour que la caméra le suive**, clique encore pour revoir tout le monde. Les calculs du PC
+restent un à la fois (ils se suivent dans la file) ; les calculs en ligne partent ensemble. Sans `as`, rien ne
+change : un seul curseur, comme avant.
 
 Les erreurs reviennent en français clair (« Le bloc « Profondeur » n'a pas d'entrée « image ». Entrées : media… »).
 Les arguments sont vérifiés d'après le schéma de chaque outil avant d'agir : un champ inconnu (`toPort` au lieu de

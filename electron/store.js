@@ -329,6 +329,7 @@ function defaultPrefs() {
     activeTab: null,
     snap: false,
     minimap: false,
+    assistantAsk: true,       // SPEC §13.7: assistants wait for the user's green light, their runs go to « À générer »
     wires: 'sober',
     winBounds: null,
     loraFolders: [],          // SPEC §12.1: folders whose LoRA become usable directly (scanner reads them)

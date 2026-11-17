@@ -106,6 +106,8 @@ register({
     'set.bridgeOff': 'Inactif',
     'set.bridgeChecking': 'Vérification…',
     'set.bridgeLast': 'Dernier passage : {who}, {when}',
+    'set.assistAsk': 'Demander mon feu vert',
+    'set.assistAskHint': 'Un assistant montre d’abord ce qu’il veut faire et attend ton « C’est parti ». Ses calculs lourds ou payants vont dans « À générer » : tu coches ce que tu veux lancer.',
     'set.assist1': 'Dis à Claude ou à Codex ce que tu veux faire (« anime cette image », « passe ce clip en profondeur ») : tu les vois créer la planche, poser et relier les blocs, régler et lancer le calcul, ici même. Ctrl+Z annule ce qu’ils font.',
     'set.assist2': 'Ensuite, il la trouve sous le nom « mia » et l’ouvre si elle est fermée. Tout reste sur ce PC.',
     'set.assistAdd': 'Ajoute Mia à ton assistant, une seule fois :',
@@ -217,6 +219,8 @@ register({
     'set.bridgeOff': 'Off',
     'set.bridgeChecking': 'Checking…',
     'set.bridgeLast': 'Last visit: {who}, {when}',
+    'set.assistAsk': 'Ask for my go-ahead',
+    'set.assistAskHint': 'An assistant first shows what it wants to do and waits for your “Go ahead”. Its heavy or paid computations go to “To generate”: you tick what you want to start.',
     'set.assist1': 'Tell Claude or Codex what you want to do (“animate this picture”, “make a depth pass of this clip”): you see them create the board, place and wire the blocks, set them and start the run, right here. Ctrl+Z undoes what they do.',
     'set.assist2': 'Then it finds Mia under the name “mia”, and opens it if it is closed. Everything stays on this PC.',
     'set.assistAdd': 'Add Mia to your assistant, once:',
@@ -769,6 +773,7 @@ export function openSettings(opts = {}) {
 
       section('set.secAssist'),
       rowEl(t('set.bridge'), bridgeHint, bridgeState),
+      rowEl(t('set.assistAsk'), t('set.assistAskHint'), toggle({ value: p.assistantAsk !== false, label: t('set.assistAsk'), onChange: (v) => setPrefs({ assistantAsk: v }) })),
       assist,
 
       section('set.secAbout'),

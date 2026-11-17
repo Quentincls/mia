@@ -10,6 +10,67 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## 0.9.0 — 17/11/2026
+
+### En bref
+- **Ton feu vert avant que l’assistant agisse** : quand tu demandes quelque chose à Claude ou à Codex, une petite
+  carte apparaît en bas de Mia, « Claude attend ton feu vert », avec ce qu’il veut faire. Rien ne bouge avant
+  « C’est parti ». « Détail » montre les étapes, « Plus tard » range la carte, « Refuser » dit non.
+- **« À générer »** : l’assistant ne lance plus de calcul lourd ou payant, il le propose. Un panneau à droite de la
+  planche liste ce qu’il veut générer, rangé par plan : tu coches ce que tu veux (une case par plan, une par
+  calcul), tu lis le temps prévu et le prix, puis « Générer la sélection ». Les calculs en ligne arrivent décochés.
+- **Plusieurs Claude à la fois** : quand tu demandes plusieurs plans d’un coup, chaque plan a son curseur de
+  couleur (« Claude 1 », « Claude · Taxi »…), sa bulle et sa rangée sur la planche ; ils travaillent en même temps.
+  La barre de titre affiche « 3 Claude pilotent Mia » et une pastille par Claude : un clic et ta caméra le suit, un
+  second clic et tu revois tout le monde.
+- **« Pause »** dans la barre de titre pendant qu’ils travaillent : ils s’arrêtent là où ils en sont, « Reprendre »
+  les relance. Rien n’est annulé.
+- **L’assistant sait ce qui est ouvert** : les planches ouvertes en onglets, celle à l’écran, ta sélection et les
+  blocs visibles. « Ce bloc » veut enfin dire celui que tu regardes.
+- **Tu gardes la main** : Réglages → Assistants → « Demander mon feu vert » coupe tout cela et revient à l’ancien
+  comportement (l’assistant agit et calcule tout de suite).
+
+### In short
+- **Your go-ahead before an assistant acts**: when you ask Claude or Codex for something, a small card appears at
+  the bottom of Mia, “Claude is waiting for your go-ahead”, with what it is about to do. Nothing moves before
+  “Go ahead”. “Details” shows the steps, “Later” puts the card aside, “Decline” says no.
+- **“To generate”**: an assistant no longer starts a heavy or paid computation, it proposes it. A panel on the right
+  of the board lists what it wants to generate, grouped by shot: tick what you want (one box per shot, one per
+  computation), read the expected time and the price, then “Generate the selection”. Online jobs arrive unticked.
+- **Several Claudes at once**: ask for several shots in one go and each shot gets its own coloured cursor
+  (“Claude 1”, “Claude · Taxi”…), its bubble and its row on the board; they work at the same time. The title bar
+  shows “3 Claude are driving Mia” and a chip per Claude: click one and your camera follows it, click again to see
+  everyone.
+- **“Pause”** in the title bar while they work: they stop where they are, “Resume” lets them go on. Nothing is undone.
+- **The assistant knows what is open**: the boards open in tabs, the one on screen, your selection and the blocks
+  in view.
+- **You stay in charge**: Settings → Assistants → “Ask for my go-ahead” turns all this off and brings back the
+  former behaviour (the assistant acts and computes at once).
+
+### Ajouté
+- Carte « Claude attend ton feu vert » (Détail, Plus tard, C’est parti, Refuser) et sa pastille de rappel.
+- Panneau « À générer » : groupes par plan (chaîne de blocs reliés), case par plan, total du temps sur ce PC et du
+  montant en ligne, « calculé pour la suite » sur une ligne décochée dont un calcul coché a besoin, « Tout retirer ».
+- Curseurs de couleur des assistants, une rangée par assistant, pastilles « qui la caméra suit », « Pause ».
+- Réglage « Demander mon feu vert » (Réglages → Assistants), activé par défaut.
+- Outils MCP `mia_request` et `mia_pending` ; paramètre `as` sur les outils qui agissent sur la planche.
+
+### Changé
+- Avec le feu vert activé, un outil d’assistant qui modifie Mia répond d’abord de demander le feu vert, et
+  `mia_run` d’un calcul lourd ou en ligne le propose au lieu de le lancer. Les petits calculs du PC (extraire une
+  image, couper, redimensionner) partent toujours tout de suite.
+- `mia_status`, `mia_list_projects` et `mia_get_board` disent ce qui est ouvert (onglets, planche à l’écran,
+  sélection, blocs visibles).
+- Guide `mia-piloter` : le feu vert d’abord, puis le travail à plusieurs (un sous-agent par plan).
+
+### Pour les développeurs
+- Pont des assistants : paramètre `as` (SPEC §13.5), un acteur par `as` dans `presence.js` (file, curseur,
+  placement), changements de planche exécutés seuls ; `mia.tabs`, `open` / `active`, `inView` (SPEC §13.6).
+- Feu vert (SPEC §13.7) : `mia_request`, `mia_pending`, `src/js/ui/greenlight.js`, `src/css/greenlight.css`,
+  `prefs.assistantAsk`. Le serveur MCP passe de 24 à 26 outils.
+- `tools/test-bridge.js` : plusieurs assistants à la fois, ce qui est ouvert, feu vert, pause, « À générer »
+  (`MIA_CDP_PORT` pour changer le port de contrôle de la Mia de test).
+
 ## 0.8.0 — 31/10/2026
 
 ### En bref

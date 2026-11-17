@@ -127,6 +127,47 @@ mia_say {text:"C’est prêt : regarde le bloc « Repeinte du plan 05 »."}
 - `mia_snapshot` pour vérifier la mise en page. Montre à l'utilisateur ce que tu as regardé, avec la liste
   honnête des défauts vus ; `mia_focus` + `mia_say` pour lui montrer le bloc dans Mia.
 
+## Le feu vert d'abord (depuis le 17/11)
+Rien ne bouge dans Mia sans le clic de l'utilisateur.
+1. **Lis d'abord** (libre) : `mia_status`, `mia_catalog`, `mia_list_projects`, `mia_get_board`.
+2. **`mia_request {title, summary, steps, runs}`** avant toute action qui modifie Mia, une fois par chose demandée :
+   une carte « Claude attend ton feu vert » apparaît dans Mia. `title` = la demande en quelques mots, `summary` = une
+   phrase simple (combien de fichiers, de blocs), `steps` = lignes courtes pour « Détail », `runs` = nombre de
+   calculs que tu proposeras. Réponse : `accepted` (agis), `declined` (n'agis pas), `pending` (pas encore répondu :
+   dis-lui que tu attends son feu vert dans Mia, puis rappelle avec `requestId`).
+3. Sans feu vert, les outils qui modifient répondent « appelle d'abord mia_request » : fais-le, ne contourne pas.
+4. **`mia_run` ne lance plus les calculs lourds ou payants** : il les propose dans sa liste « À générer »
+   (`awaitingUser: true`). C'est lui qui coche et démarre. Ne relance pas, n'attends pas : dis-lui que c'est prêt à
+   cocher. `mia_pending` dit ce que chaque demande est devenue (`launched` + `jobId` → `mia_wait`). Les calculs
+   légers (extraire une image, couper…) partent tout de suite.
+5. `mia_pending` → `paused: true` : il a mis les assistants en pause, attends.
+6. En parallèle (ci-dessous) : **toi seul** demandes le feu vert, puis tu lances les sous-agents.
+Réglage coupé (Réglages → Assistants → « Demander mon feu vert ») : `mia_request` répond `accepted` tout de suite
+et `mia_run` lance comme avant.
+
+## Plusieurs à la fois (sous-agents, « as »)
+Quand l'utilisateur demande plusieurs plans ou images d'un coup, travaille en parallèle : il voit alors un curseur de
+couleur par plan, comme si plusieurs personnes étaient sur la planche.
+- **Les appels d'un même assistant s'exécutent l'un après l'autre** : le vrai parallèle, c'est **un sous-agent par
+  plan** (outil Agent, tous lancés dans le même message). Sans sous-agents, fais les plans à la suite.
+- **Toi d'abord, seul** : `mia_status`, `mia_catalog`, la planche (créée ou ouverte), le choix de la méthode. Puis
+  donne à chaque sous-agent : l'id de la planche, son fichier source (chemin complet), la chaîne de blocs et les
+  réglages exacts, et **son « as »** (1, 2, 3… ou un nom court comme « Plan 02 »).
+- **Chaque sous-agent met son `as` sur tous ses appels** qui l'acceptent (`mia_import_media`, `mia_add_block`,
+  `mia_connect`, `mia_set_params`, `mia_run`, `mia_say`…). Curseurs « Claude 1 », « Claude 2 », « Claude · Plan 02 ».
+- **Tous sur la même planche** : le premier bloc de chacun ouvre sa propre rangée, la suite se pose avec `near`. Un
+  sous-agent n'ouvre ni ne crée de planche et ne lance pas `mia_arrange` (cela changerait la planche des autres).
+- **Calculs** : chaque sous-agent lance son `mia_run` puis attend (`mia_wait`). Sur le PC les calculs lourds se
+  suivent dans la file ; en ligne ils partent ensemble.
+- L'utilisateur choisit dans la barre de titre quel Claude sa caméra suit : n'appelle pas `mia_focus` pendant le
+  travail en parallèle.
+- À la fin, toi seul (sans `as`) : `mia_add_section` par plan si utile, puis un `mia_say` de bilan.
+
+## Savoir ce qui est ouvert
+`mia_status` → `mia.tabs` (planches ouvertes en onglets, `active` = celle à l'écran) et `mia.selection`.
+`mia_list_projects` → `open` / `active` sur chaque planche. `mia_get_board` → `selection` (quand l'utilisateur dit
+« ce bloc », c'est le plus souvent sa sélection), `inView` (les blocs qu'il a à l'écran) et `tabs`.
+
 ## Pièges
 - **Les ids sont ceux de la planche ouverte** : après `mia_open_project` / `mia_create_project`, les ids d'une autre
   planche échouent (« Le bloc … n'existe pas sur la planche »). `mia_run` / `mia_wait` / `mia_get_board` acceptent

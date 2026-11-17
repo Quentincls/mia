@@ -49,7 +49,7 @@ const IMPORT_MAX = 64;
 const RELAYED = new Set([
   'ui_state', 'create_project', 'open_project', 'get_board', 'add_block', 'connect', 'set_params', 'rename_block',
   'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'get_output', 'focus', 'say', 'add_section',
-  'create_folder'
+  'create_folder', 'request', 'pending'
 ]);
 
 const STR = {
@@ -357,7 +357,7 @@ class Bridge {
     if (typeof this.ctx.focusWindow !== 'function') return;
     const win = this.win();
     if (!win || win.isDestroyed()) return;
-    const quiet = method === 'ui_state' || method === 'get_board' || method === 'get_output';
+    const quiet = method === 'ui_state' || method === 'get_board' || method === 'get_output' || method === 'pending';
     if (method === 'create_project' || method === 'open_project' || (!quiet && win.isMinimized())) {
       try { this.ctx.focusWindow(); } catch { /* best effort */ }
     }
@@ -434,7 +434,7 @@ class Bridge {
     switch (method) {
       case 'ping': return { ok: true, result: { app: 'mia', version: this.version, pid: process.pid, ui: this.rendererReady } };
       case 'status': this.notifyActivity(method, client); return { ok: true, result: await this.status(client) };
-      case 'list_projects': this.notifyActivity(method, client); return { ok: true, result: await this.listProjects() };
+      case 'list_projects': this.notifyActivity(method, client); return { ok: true, result: await this.listProjects(client) };
       case 'catalog': this.notifyActivity(method, client); return { ok: true, result: await this.catalog(params) };
       case 'jobs': return { ok: true, result: await this.jobs() };
       case 'wait': this.notifyActivity(method, client); return { ok: true, result: await this.wait(params) };
@@ -492,7 +492,9 @@ class Bridge {
         folder: ui ? ui.folder || null : null,
         readOnly: ui ? !!ui.readOnly : false,
         blocks: ui ? ui.blocks : null,
-        selection: ui ? ui.selection : []
+        selection: ui ? ui.selection : [],
+        // every board open in a tab, left to right; active = the one on screen (none on the home page)
+        tabs: ui && Array.isArray(ui.tabs) ? ui.tabs : []
       },
       engine: eng ? {
         comfy: eng.comfy ? { state: eng.comfy.state, version: eng.comfy.version || null, error: eng.comfy.error || null } : null,
@@ -544,7 +546,15 @@ class Bridge {
    * SPEC §18.5: { folders:[{id, name, color, boards}], boards:[{id, name, folderId, folder, blocks, …}] }
    * — projects are folders of boards; a board outside any project has folderId null.
    */
-  async listProjects() {
+  async listProjects(client) {
+    // which boards are open in a tab right now, and which one is on screen (the interface knows)
+    let tabs = [];
+    const win = this.win();
+    if (client !== undefined && win && !win.isDestroyed() && this.rendererReady) {
+      const r = await this.relay('ui_state', {}, client, 5000).catch(() => null);
+      if (r && r.ok && r.result && Array.isArray(r.result.tabs)) tabs = r.result.tabs;
+    }
+    const open = new Map(tabs.map((t) => [t.id, t]));
     let list;
     const store = this.store();
     try { list = await store.list(); } catch { list = await this.invokeLocal('projects:list'); }
@@ -557,7 +567,8 @@ class Bridge {
       if (fid) count.set(fid, (count.get(fid) || 0) + 1);
       return {
         id: p.id, name: p.name, folderId: fid, folder: fid ? names.get(fid) || null : null,
-        blocks: p.nodes ?? null, dir: p.dir || null, updated: p.updated || null, opened: p.opened || null
+        blocks: p.nodes ?? null, dir: p.dir || null, updated: p.updated || null, opened: p.opened || null,
+        open: open.has(p.id), active: !!(open.get(p.id) && open.get(p.id).active)
       };
     });
     return {

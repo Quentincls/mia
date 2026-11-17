@@ -189,7 +189,7 @@ async function main() {
     const names = (list.result?.tools || []).map((t) => t.name);
     const expected = ['mia_status', 'mia_catalog', 'mia_list_projects', 'mia_create_folder', 'mia_create_project', 'mia_open_project', 'mia_get_board', 'mia_add_block', 'mia_connect',
       'mia_set_params', 'mia_rename_block', 'mia_remove_blocks', 'mia_import_media', 'mia_insert_recipe', 'mia_arrange', 'mia_run', 'mia_wait', 'mia_jobs',
-      'mia_cancel', 'mia_get_output', 'mia_snapshot', 'mia_focus', 'mia_add_section', 'mia_say'];
+      'mia_cancel', 'mia_get_output', 'mia_snapshot', 'mia_focus', 'mia_add_section', 'mia_say', 'mia_request', 'mia_pending'];
     check(expected.every((n) => names.includes(n)) && names.length === expected.length, `tools/list: ${names.length} tools`, names);
     check((list.result?.tools || []).every((t) => t.inputSchema && t.inputSchema.type === 'object' && t.description), 'every tool has a schema and a description');
     // before SPEC §18 a board was a « project »: projectId stays accepted (deprecated) beside boardId
@@ -203,6 +203,8 @@ async function main() {
 
     const st = await mcp.tool('mia_status');
     check(!st.isError && st.json?.mia?.interfaceReady === true, 'mia_status (interface ready)', st.text);
+    // the checks below drive Mia directly, as before SPEC §13.7; the green light has its own part (testGreenlight)
+    await askGo(false);
 
     const cat = await mcp.tool('mia_catalog', { type: 'depth' });
     const depthDef = cat.json?.types?.[0];
@@ -350,6 +352,8 @@ async function main() {
 
     await testFolders(mcp, pid);
     await testCloudModes(mcp, image);
+    await testParallel(mcp, image);
+    await testGreenlight(mcp);
   } catch (e) {
     failures++;
     console.log('  FAIL', e && e.stack ? e.stack : e);
@@ -376,6 +380,155 @@ async function main() {
 
 // ---------------------------------------------------------------- online Model blocks: mode, tier, notes (30/10)
 // Nothing is ever sent to Higgsfield: the blocks are only placed, wired and set (no mia_run).
+/** Turns the user's green light on or off in the test Mia (Réglages → Assistants → « Demander mon feu vert »). */
+async function askGo(on) {
+  await cdpEval(`(async () => { await window.mia.prefs.set({ assistantAsk: ${on ? 'true' : 'false'} }); window.__mia.state.prefs.assistantAsk = ${on ? 'true' : 'false'}; })()`);
+}
+
+// The user's green light (SPEC §13.7): nothing moves before « C'est parti », « Pause », and « À générer ».
+async function testGreenlight(mcp) {
+  console.log('· green light: request card, pause, « À générer »');
+  await askGo(true);
+  const count = () => cdpEval('window.__mia.editor.getGraph().nodes.length');
+  const n0 = await count();
+  const early = await mcp.tool('mia_add_block', { type: 'depth' });
+  check(early.isError && /mia_request/.test(early.text) && (await count()) === n0, 'no green light yet: nothing is placed, the error says to call mia_request', early.text.slice(0, 160));
+  const read = await mcp.tool('mia_get_board');
+  check(!read.isError, 'reading the board needs no green light', read.text.slice(0, 120));
+
+  // declined
+  const no = mcp.tool('mia_request', { title: 'Poser une profondeur', summary: 'Un bloc sur ta planche.', steps: ['Poser le bloc Profondeur'], runs: 1 });
+  await sleep(700);
+  const card = await cdpEval(`(() => { const c = document.querySelector('.gl-ask'); return c ? { title: c.querySelector('.gl-ask-title').textContent, sub: c.querySelector('.gl-ask-sub').textContent, btns: [...c.querySelectorAll('.gl-ask-acts .btn')].map((b) => b.textContent) } : null; })()`);
+  check(card && /Claude attend ton feu vert/.test(card.title) && /Poser une profondeur/.test(card.sub) && /1 calcul/.test(card.sub) && card.btns.join('|') === 'Détail|Plus tard|C’est parti', 'the request card: who, what, how many computations, three buttons', card);
+  await cdpEval(`document.querySelectorAll('.gl-ask-acts .btn')[1].click()`);
+  const chip = await cdpEval(`(() => { const c = document.querySelector('.gl-stack .gl-chip'); const t = c && c.textContent; if (c) c.click(); return t; })()`);
+  check(/attend ton feu vert/.test(chip || '') && (await cdpEval(`!!document.querySelector('.gl-ask')`)), '« Plus tard » leaves a chip; a click brings the card back', chip);
+  await cdpEval(`(() => { document.querySelectorAll('.gl-ask-acts .btn')[0].click(); document.querySelector('.gl-refuse').click(); })()`);
+  const refused = await no;
+  check(!refused.isError && refused.json?.state === 'declined', '« Refuser » → the assistant is told', refused.text.slice(0, 160));
+  const still = await mcp.tool('mia_add_block', { type: 'depth' });
+  check(still.isError && (await count()) === n0, 'declined: still nothing placed', still.text.slice(0, 120));
+
+  // accepted
+  const yes = mcp.tool('mia_request', { title: 'Poser une profondeur', summary: 'Un bloc sur ta planche, puis son calcul.', runs: 1 });
+  await sleep(700);
+  await cdpEval(`document.querySelector('.gl-ask-acts .btn-primary').click()`);
+  const ok = await yes;
+  check(!ok.isError && ok.json?.state === 'accepted' && !(await cdpEval(`!!document.querySelector('.gl-ask')`)), '« C’est parti » → accepted, the card leaves', ok.text.slice(0, 160));
+  const src = (read.json?.blocks || []).find((b) => b.type === 'import');
+  const dep = await mcp.tool('mia_add_block', { type: 'depth', near: src?.id });
+  const wire = await mcp.tool('mia_connect', { from: { node: src?.id }, to: { node: dep.json?.nodeId } });
+  check(!dep.isError && !wire.isError && (await count()) === n0 + 1, 'with the green light the assistant acts', [dep.text.slice(0, 100), wire.text.slice(0, 100)]);
+
+  // pause
+  await cdpEval(`document.querySelector('.pr-pause').click()`);
+  const held = mcp.tool('mia_rename_block', { nodeId: dep.json?.nodeId, title: 'Profondeur du test' });
+  await sleep(1500);
+  const during = await cdpEval(`({ title: window.__mia.editor.getNode(${JSON.stringify(dep.json?.nodeId)}).title || null, pill: document.querySelector('.pr-pill-txt').textContent, btn: document.querySelector('.pr-pause').textContent })`);
+  check(during && during.title === null && /pause/i.test(during.pill) && during.btn === 'Reprendre', '« Pause »: the action waits, the title bar says so', during);
+  await cdpEval(`document.querySelector('.pr-pause').click()`);
+  const resumed = await held;
+  check(!resumed.isError && resumed.json?.title === 'Profondeur du test', '« Reprendre »: the action goes on', resumed.text.slice(0, 120));
+
+  // « À générer »
+  const run = await mcp.tool('mia_run', { nodeId: dep.json?.nodeId });
+  const jobs = await mcp.tool('mia_jobs');
+  check(!run.isError && run.json?.awaitingUser === true && run.json?.pendingId && !run.json?.jobId, 'a heavy run is proposed, not started', run.text.slice(0, 200));
+  const again = await mcp.tool('mia_run', { nodeId: dep.json?.nodeId });
+  const tray = await cdpEval(`(() => { const c = document.querySelector('.gl-tray'); return c ? { rows: [...c.querySelectorAll('.gl-row')].map((r) => r.querySelector('.gl-name').textContent + '|' + r.querySelector('.gl-check').getAttribute('aria-checked')), go: c.querySelector('.gl-tray-foot .btn').textContent } : null; })()`);
+  check(again.json?.pendingId === run.json?.pendingId && tray && tray.rows.join() === 'Profondeur du test|true' && /\(1\)/.test(tray.go), '« À générer »: one line per block, ticked, « Générer la sélection (1) »', { tray, jobs: jobs.text.slice(0, 80) });
+  const pend = await mcp.tool('mia_pending');
+  check(!pend.isError && pend.json?.granted === true && pend.json?.paused === false && (pend.json?.toGenerate || []).some((x) => x.pendingId === run.json.pendingId && x.state === 'waiting' && x.ticked === true), 'mia_pending: granted, the run is waiting for the user', pend.text.slice(0, 300));
+  await cdpEval(`document.querySelector('.gl-tray .gl-check').click()`);
+  const off = await cdpEval(`({ go: document.querySelector('.gl-tray-foot .btn').disabled, total: document.querySelector('.gl-total').textContent })`);
+  check(off && off.go === true && off.total === 'Rien de coché', 'unticked: nothing to generate', off);
+  await cdpEval(`document.querySelector('.gl-tray .gl-check').click()`);
+  await cdpEval(`document.querySelector('.gl-tray-foot .btn').click()`);
+  await sleep(1200);
+  // this test Mia refuses heavy computations (MIA_NO_GPU): the click reaches the engine, which says no on the line
+  const after = await mcp.tool('mia_pending');
+  const mine = (after.json?.toGenerate || []).find((x) => x.pendingId === run.json.pendingId);
+  const line = await cdpEval(`(() => { const r = document.querySelector('.gl-tray .gl-sub'); return r ? r.textContent : null; })()`);
+  check(mine && (mine.state === 'launched' || (mine.state === 'waiting' && line)), '« Générer la sélection » sends the ticked run to the engine (started, or its refusal shown on the line)', { mine, line });
+  await cdpEval(`(() => { const b = document.querySelector('.gl-tray-head .btn'); if (b) b.click(); })()`);
+  check(!(await cdpEval(`!!document.querySelector('.gl-tray')`)), '« Tout retirer » empties the list', null);
+  await askGo(false);
+  const free = await mcp.tool('mia_request', { title: 'Sans feu vert' });
+  check(!free.isError && free.json?.state === 'accepted', 'setting off: mia_request answers accepted at once', free.text.slice(0, 120));
+}
+
+// Several assistants at once (SPEC §13.5) and what is open in Mia (tabs, selection, blocks in view).
+async function testParallel(mcp, image) {
+  console.log('· several workers at once (as), what is open');
+  const made = await mcp.tool('mia_create_project', { name: `Parallèle ${STAMP}` });
+  const pid = made.json?.boardId;
+  check(!made.isError && pid, 'a board for the workers', made.text.slice(0, 200));
+  await sleep(4600);                                   // the plain cursor has faded: only the workers count below
+  const lane = async (as) => {
+    const t0 = Date.now();
+    const im = await mcp.tool('mia_import_media', { paths: [image], as });
+    const src = im.json?.blocks?.[0]?.nodeId;
+    const dep = await mcp.tool('mia_add_block', { type: 'depth', near: src, as });
+    const wire = await mcp.tool('mia_connect', { from: { node: src }, to: { node: dep.json?.nodeId }, as });
+    const said = await mcp.tool('mia_say', { text: `Plan ${as} prêt.`, as });
+    return { ms: Date.now() - t0, errors: [im, dep, wire, said].filter((r) => r.isError).map((r) => r.text.slice(0, 160)), y: im.json?.blocks?.[0]?.y };
+  };
+  const t0 = Date.now();
+  const seen = (async () => { await sleep(1200); return cdpEval(`[...document.querySelectorAll('.pr-cursor.on')].map((c) => (c.dataset.c || '0') + ' ' + c.querySelector('.pr-label').textContent)`); })();
+  const res = await Promise.all([lane(1), lane(2), lane('Plan 03')]);
+  const total = Date.now() - t0;
+  const live = await seen;
+  check(res.every((r) => !r.errors.length), 'three workers: every action succeeded', res.map((r) => r.errors));
+  check(total < res.reduce((a, r) => a + r.ms, 0) * 0.6, 'three workers act at the same time', { total, each: res.map((r) => r.ms) });
+  check(Array.isArray(live) && live.length === 3 && new Set(live.map((x) => x.split(' ')[0])).size === 3
+    && live.includes('1 Claude 1') && live.includes('2 Claude 2') && live.some((x) => /^[3-8] Claude · Plan 03$/.test(x)), 'three cursors, three colours, named « Claude 1 », « Claude 2 », « Claude · Plan 03 »', live);
+  check(new Set(res.map((r) => r.y)).size === 3, 'each worker opens a row of its own', res.map((r) => r.y));
+  const ui = await cdpEval(`(() => { const ed = window.__mia.editor; const g = ed.getGraph();
+    const b = g.nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, w: n.w, h: ed.nodeEl(n.id).offsetHeight }));
+    const hits = []; for (const a of b) for (const c of b) if (a.id < c.id && a.x < c.x + c.w && a.x + a.w > c.x && a.y < c.y + c.h && a.y + a.h > c.y) hits.push(a.id + '/' + c.id);
+    return { nodes: g.nodes.length, edges: g.edges.length, hits, pill: document.querySelector('.pr-pill-txt').textContent,
+      chips: [...document.querySelectorAll('.pr-chip:not([hidden])')].map((c) => c.textContent),
+      bubbles: document.querySelectorAll('.pr-bubble.on').length }; })()`);
+  check(ui && ui.nodes === 6 && ui.edges === 3 && ui.hits.length === 0, '6 blocks, 3 wires, none on top of another', ui);
+  check(ui && /^3 Claude /.test(ui.pill) && ui.chips.join('|') === '1|2|Plan 03' && ui.bubbles === 3, 'title bar: « 3 Claude pilotent Mia », a chip each; three bubbles', ui);
+
+  // the user picks who the camera follows (a click on a chip)
+  await cdpEval(`document.querySelector('.pr-chip[data-c="2"]').click()`);
+  await sleep(700);
+  const cam0 = await cdpEval('JSON.stringify(window.__mia.editor.camera())');
+  const far1 = await mcp.tool('mia_add_block', { type: 'depth', at: { x: 9000, y: 9000 }, as: 1 });
+  const cam1 = await cdpEval('JSON.stringify(window.__mia.editor.camera())');
+  check(!far1.isError && cam0 === cam1, 'camera on worker 2: a far action of worker 1 does not move it', [cam0, cam1]);
+  const far2 = await mcp.tool('mia_add_block', { type: 'depth', at: { x: -9000, y: 9000 }, as: 2 });
+  const cam2 = await cdpEval('JSON.stringify(window.__mia.editor.camera())');
+  check(!far2.isError && cam2 !== cam1, 'camera on worker 2: its own far action moves it', [cam1, cam2]);
+  await cdpEval(`document.querySelector('.pr-chip[data-c="2"]').click()`);
+  const bad = await mcp.tool('mia_add_block', { type: 'depth', as: { n: 1 } });
+  check(bad.isError && /as/.test(bad.text), '« as » must be a number or a short text', bad.text.slice(0, 160));
+
+  // what is open: tabs in mia_status and mia_list_projects, selection and blocks in view in mia_get_board
+  const st = await mcp.tool('mia_status');
+  const tabs = st.json?.mia?.tabs || [];
+  check(!st.isError && tabs.length >= 2 && tabs.filter((t) => t.active).length === 1 && tabs.find((t) => t.active)?.id === pid, 'mia_status: the open tabs, the one on screen', tabs);
+  const pr = await mcp.tool('mia_list_projects');
+  const boards = pr.json?.boards || [];
+  check(!pr.isError && boards.filter((b) => b.active).map((b) => b.id).join() === pid && boards.filter((b) => b.open).length === tabs.length, 'mia_list_projects: open and active boards', boards.filter((b) => b.open).map((b) => b.id));
+  await cdpEval(`(() => { const ed = window.__mia.editor; ed.select([${JSON.stringify(far2.json?.nodeId)}]); })()`);
+  const gb = await mcp.tool('mia_get_board');
+  check(!gb.isError && gb.json?.selection?.[0] === far2.json?.nodeId && Array.isArray(gb.json?.inView) && gb.json.inView.includes(far2.json?.nodeId) && !gb.json.inView.includes(far1.json?.nodeId)
+    && Array.isArray(gb.json?.tabs), 'mia_get_board: selection, blocks in view, tabs', { sel: gb.json?.selection, inView: gb.json?.inView });
+
+  // a worker opens another board: the one that was at work here comes back to its own board by itself
+  const other = tabs.find((t) => !t.active)?.id;
+  const sw = await mcp.tool('mia_open_project', { id: other, as: 2 });
+  const back = await mcp.tool('mia_add_block', { type: 'depth', as: 1 });
+  const st2 = await mcp.tool('mia_status');
+  const gb2 = await mcp.tool('mia_get_board');
+  check(!sw.isError && !back.isError && st2.json?.mia?.board?.id === pid && (gb2.json?.blocks || []).some((b) => b.id === back.json?.nodeId),
+    'another worker changed the board: worker 1 goes back to its own before acting', { sw: sw.text.slice(0, 80), back: back.text.slice(0, 120), board: st2.json?.mia?.board });
+}
+
 async function testCloudModes(mcp, image) {
   console.log('· online Model blocks: mode, tier, notes, prompt tokens; LTX passes; a cp1252 body');
   const created = await mcp.tool('mia_create_project', { name: `Modes en ligne ${STAMP}` });

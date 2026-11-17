@@ -304,7 +304,7 @@ with the assistant's name glides to each block it places, wires or sets, a short
 every action enters the undo history.
 
 `mcp/mia-mcp.js` is a stdio MCP server without dependencies. It reads `bridge.json`, starts Mia if needed, and
-exposes 24 tools: status, catalogue, projects and boards, blocks, wires, settings, media import, recipes,
+exposes 26 tools: the user's go-ahead (request, pending), status, catalogue, projects and boards, blocks, wires, settings, media import, recipes,
 sections, arrange, run, wait, jobs, cancel, outputs, snapshot, focus and say. Assistant jobs share the same
 queue and GPU lock as the user's clicks. The bridge never deletes a file and only imports existing paths.
 

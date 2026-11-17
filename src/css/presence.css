@@ -1,5 +1,6 @@
-/* Mia — the assistant at work (SPEC §13): presence cursor, mia_say bubble, title bar pill.
-   One neutral tone (light on the dark theme, dark on the light one), no glow, no gradient. */
+/* Mia — the assistants at work (SPEC §13): presence cursors, mia_say bubbles, title bar pill.
+   One assistant alone: one neutral tone (light on the dark theme, dark on the light one). Several at once
+   (SPEC §13.5, asked by Quentin on 17/11/2026): one flat colour each. No glow, no gradient. */
 
 /* ── the cursor ───────────────────────────────────────────────────────── */
 .pr-cursor {
@@ -18,6 +19,16 @@
   --pr-ink: #ffffff;
   --pr-edge: rgba(255, 255, 255, 0.9);
 }
+/* several at once: one colour per worker (same on both themes; dark ink reads on all eight) */
+.pr-cursor[data-c], .pr-chip[data-c] { --pr-ink: #0b0b0d; }
+[data-c="1"].pr-cursor, [data-c="1"].pr-chip { --pr-fill: #e9806e; }
+[data-c="2"].pr-cursor, [data-c="2"].pr-chip { --pr-fill: #e2ae45; }
+[data-c="3"].pr-cursor, [data-c="3"].pr-chip { --pr-fill: #5cbd84; }
+[data-c="4"].pr-cursor, [data-c="4"].pr-chip { --pr-fill: #9c8aec; }
+[data-c="5"].pr-cursor, [data-c="5"].pr-chip { --pr-fill: #45b9b4; }
+[data-c="6"].pr-cursor, [data-c="6"].pr-chip { --pr-fill: #e27fb2; }
+[data-c="7"].pr-cursor, [data-c="7"].pr-chip { --pr-fill: #a9c44a; }
+[data-c="8"].pr-cursor, [data-c="8"].pr-chip { --pr-fill: #e9955a; }
 .pr-cursor.on { opacity: 1; transition-duration: var(--dur-exit); }
 
 /* the arrow's tip is the cursor's point */
@@ -86,6 +97,23 @@
 }
 .pr-pill.on { display: inline-flex; opacity: 1; animation: pr-pill-in var(--dur-card) var(--ease-out); }
 .pr-pill:hover { background: var(--surface-3); color: var(--txt); }
+
+/* one chip per worker when several drive Mia: a click makes the camera follow that one */
+.pr-who { display: inline-flex; align-items: center; gap: 2px; margin-right: -6px; }
+.pr-who[hidden], .pr-chip[hidden] { display: none; }
+.pr-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 7px 1px 6px;
+  border: 0; border-radius: 6px;
+  background: transparent; color: inherit;
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  cursor: pointer;
+  transition: background var(--dur-menu) var(--ease), transform var(--dur-menu) var(--ease);
+}
+.pr-chip i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--pr-fill, var(--txt-2)); }
+.pr-chip:hover { background: var(--surface-4, var(--line-2)); color: var(--txt); }
+.pr-chip:active { transform: scale(0.96); }
+.pr-chip[aria-pressed="true"] { background: var(--surface-4, var(--line-2)); color: var(--txt); box-shadow: inset 0 0 0 1px var(--line-2); }
 .pr-pill-dot {
   width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%;
   background: var(--txt-2);
@@ -98,5 +126,5 @@ body.tiny .pr-pill { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .pr-pill-dot { animation: none; }
-  .pr-cursor, .pr-bubble, .pr-arrow { transition: none; }
+  .pr-cursor, .pr-bubble, .pr-arrow, .pr-chip { transition: none; }
 }

@@ -74,8 +74,10 @@ en plans, pas en graphes.
   extraire l'image courante dans un nouveau bloc.
 - **Vos LoRA** : glisser un `.safetensors` sur Mia, le nommer, régler sa force ; son mot déclencheur est ajouté tout
   seul à la consigne.
-- **Des assistants sur la planche** : Claude ou Codex construisent une planche par le serveur MCP de Mia, sous vos
-  yeux (un curseur à leur nom pose et relie les blocs). Chaque action s'annule avec Ctrl+Z.
+- **Des assistants sur la planche, avec votre feu vert** : Claude ou Codex construisent une planche par le serveur
+  MCP de Mia, sous vos yeux, à plusieurs à la fois (un curseur de couleur par plan). Rien ne bouge avant votre
+  « C'est parti », et ce qu'ils veulent calculer attend dans une liste « À générer » où vous cochez ce que vous
+  voulez. Chaque action s'annule avec Ctrl+Z.
 - **Le local d'abord.** Mia n'écoute que `127.0.0.1`. Elle ne va sur Internet que pour les téléchargements de
   modèles que vous lancez et, si vous reliez un compte Higgsfield, pour les calculs en ligne que vous lancez et pour
   afficher ce que le compte a dépensé.
@@ -241,8 +243,8 @@ recompressés), `outputs\<bloc>\<calcul>\` (chaque résultat avec son `run.json`
 
 ## Assistants
 
-Mia contient un serveur MCP sans dépendance, [`mcp/mia-mcp.js`](mcp/mia-mcp.js), avec 24 outils
-(`mia_create_project`, `mia_add_block`, `mia_connect`, `mia_run`, `mia_snapshot`…). Il parle à Mia par un pont
+Mia contient un serveur MCP sans dépendance, [`mcp/mia-mcp.js`](mcp/mia-mcp.js), avec 26 outils
+(`mia_request`, `mia_create_project`, `mia_add_block`, `mia_connect`, `mia_run`, `mia_snapshot`…). Il parle à Mia par un pont
 local (`127.0.0.1`, jeton aléatoire) et lance Mia si elle est fermée. À déclarer une fois, avec Node.js installé :
 
 ```json
@@ -257,6 +259,13 @@ Avec l'installateur, le serveur est `%LOCALAPPDATA%\Programs\Mia\resources\app\m
 entier dans le JSON, voir [mcp/README.md](mcp/README.md)). Pour Codex, la même chose dans `~/.codex/config.toml`,
 sous `[mcp_servers.mia]`. Les [skills](skills/README.md) apprennent à un assistant à piloter Mia et quelles
 recettes marchent pour quel plan.
+
+Vous gardez la main. Un assistant montre d'abord ce qu'il veut faire dans une petite carte, « Claude attend ton feu
+vert », et n'agit qu'après votre clic ; « Pause », dans la barre de titre, l'arrête là où il en est. Il ne lance
+jamais lui-même un calcul lourd ou payant : ses demandes arrivent dans le panneau « À générer », rangées par plan,
+les calculs en ligne décochés, avec le temps prévu et le prix. Demandez plusieurs plans d'un coup : chacun a son
+curseur de couleur, et une pastille par assistant permet de choisir lequel la caméra suit. Réglages → Assistants →
+« Demander mon feu vert » coupe le feu vert.
 
 ---
 
