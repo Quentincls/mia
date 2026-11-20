@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "about": "Modèles sur lesquels Mia sait entraîner un LoRA, et leurs réglages par défaut. « family » : la famille du bloc de génération qui essaie le LoRA fini (« Essayer sur une planche »). « tried » : un essai court a réussi sur une machine ; sans lui le modèle reste grisé. « enabled:false » : invisible.",
+  "minImages": 10,
+  "adviseImages": 20,
+  "kinds": ["character", "place", "style"],
+  "samplePrompts": {
+    "character": "{trigger}, close-up of the face, soft natural light, photoreal film still",
+    "place": "{trigger}, wide shot, daylight",
+    "style": "a street at night, {trigger}"
+  },
+  "bases": [
+    {
+      "id": "ltx25",
+      "label": { "fr": "LTX 2.5", "en": "LTX 2.5" },
+      "media": "video",
+      "family": "ltx",
+      "tool": "ltx",
+      "toolVersion": "1.6.2",
+      "suffix": "ltx25",
+      "enabled": true,
+      "tried": true,
+      "weights": [
+        { "role": "model", "dir": "diffusion_models", "file": "ltx-2.5-22b-dev-transformer-bf16.safetensors", "sizeGB": 39.1 },
+        { "role": "text_encoder", "dir": "text_encoders", "file": "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors", "sizeGB": 24.5 },
+        { "role": "video_vae", "dir": "vae", "file": "ltx-2.5-video-vae-conv-bf16.safetensors", "sizeGB": 1.4 }
+      ],
+      "arch": null,
+      "name_or_path": null,
+      "minSide": 1024,
+      "needCommitGB": 45,
+      "defaults": {
+        "rank": 32,
+        "lr": 0.0001,
+        "batch": 1,
+        "optimizer": "adamw",
+        "resolutions": [[1024, 1536], [1536, 1024], [1024, 1024]],
+        "saveEvery": 250,
+        "sampleEvery": 500
+      },
+      "lengths": { "short": 1500, "normal": 2500, "long": 3000 },
+      "sample": {
+        "kind": "video",
+        "width": 448,
+        "height": 768,
+        "frames": 49,
+        "fps": 24,
+        "steps": 25,
+        "cfg": 3,
+        "stg": 1,
+        "stgBlocks": [28],
+        "rescale": 0.7,
+        "negative": "blurry, deformed face, asymmetrical eyes, extra limbs, disfigured hands, flicker, text, watermark"
+      },
+      "measured": { "sPerStep": 5.8, "sampleSec": 180, "loadSec": 180, "encodeSecPerImage": 4, "peakVramGB": 46, "checkpointMB": 327 },
+      "disk": { "cacheMBPerImage": 10, "reserveGB": 5 }
+    },
+    {
+      "id": "qwen21",
+      "label": { "fr": "Qwen-Image 2.1", "en": "Qwen-Image 2.1" },
+      "media": "image",
+      "family": "qwen21",
+      "tool": "aitk",
+      "toolVersion": null,
+      "suffix": "qwenimage21",
+      "enabled": true,
+      "tried": false,
+      "weights": [
+        { "role": "model", "dir": "diffusion_models", "file": "qwen_image_2.1_bf16.safetensors", "sizeGB": 13.3 },
+        { "role": "text_encoder", "dir": "text_encoders", "file": "qwen3vl_8b_bf16.safetensors", "sizeGB": 16.3 },
+        { "role": "vae", "dir": "vae", "file": "qwen_image_2.1_vae_bf16.safetensors", "sizeGB": 0.6 }
+      ],
+      "arch": "qwen_image_2",
+      "name_or_path": "Qwen/Qwen-Image-2.1",
+      "minSide": 768,
+      "needCommitGB": 0,
+      "defaults": {
+        "rank": 32,
+        "lr": 0.0001,
+        "batch": 2,
+        "optimizer": "adamw8bit",
+        "resolutions": [768, 1024],
+        "saveEvery": 250,
+        "sampleEvery": 250
+      },
+      "lengths": { "short": 1500, "normal": 2000, "long": 2500 },
+      "sample": { "kind": "image", "width": 832, "height": 1024, "steps": 30, "guidance": 4 },
+      "measured": { "sPerStep": null, "sampleSec": null, "loadSec": null, "encodeSecPerImage": null, "peakVramGB": null, "checkpointMB": 700 },
+      "disk": { "cacheMBPerImage": 2, "reserveGB": 5 }
+    },
+    {
+      "id": "flux2klein9b",
+      "label": { "fr": "Flux 2 Klein 9B", "en": "Flux 2 Klein 9B" },
+      "media": "image",
+      "tool": "aitk",
+      "toolVersion": null,
+      "suffix": "flux2klein9b",
+      "enabled": false,
+      "tried": false,
+      "weights": [],
+      "arch": null,
+      "name_or_path": null,
+      "minSide": 768,
+      "needCommitGB": 0,
+      "defaults": { "rank": 32, "lr": 0.0001, "batch": 1, "optimizer": "adamw", "resolutions": [768, 1024], "saveEvery": 250, "sampleEvery": 250 },
+      "lengths": { "short": 1500, "normal": 2000, "long": 2500 },
+      "sample": { "kind": "image" },
+      "measured": { "sPerStep": null, "sampleSec": null, "loadSec": null, "encodeSecPerImage": null, "peakVramGB": null, "checkpointMB": null },
+      "disk": { "cacheMBPerImage": 2, "reserveGB": 5 }
+    },
+    {
+      "id": "minimaxh3",
+      "label": { "fr": "MiniMax H3", "en": "MiniMax H3" },
+      "media": "video",
+      "tool": "aitk",
+      "toolVersion": null,
+      "suffix": "minimaxh3",
+      "enabled": false,
+      "tried": false,
+      "weights": [],
+      "arch": null,
+      "name_or_path": null,
+      "minSide": 768,
+      "needCommitGB": 0,
+      "defaults": { "rank": 32, "lr": 0.0001, "batch": 1, "optimizer": "adamw", "resolutions": [768, 1024], "saveEvery": 250, "sampleEvery": 500 },
+      "lengths": { "short": 1500, "normal": 2000, "long": 2500 },
+      "sample": { "kind": "video" },
+      "measured": { "sPerStep": null, "sampleSec": null, "loadSec": null, "encodeSecPerImage": null, "peakVramGB": null, "checkpointMB": null },
+      "disk": { "cacheMBPerImage": 2, "reserveGB": 5 }
+    }
+  ]
+}

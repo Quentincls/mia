@@ -99,6 +99,26 @@ const STR = {
     fr: 'Ce dossier ne contient pas l’outillage IA : « {file} » est introuvable.',
     en: 'This folder does not hold the AI tooling: “{file}” cannot be found.'
   },
+  trainRootBusy: {
+    fr: 'Le dossier des entraînements ne peut pas changer pendant un entraînement : mets-le en pause ou attends la fin.',
+    en: 'The trainings folder cannot change while a training is running: pause it or wait for the end.'
+  },
+  trainInEngine: {
+    fr: 'Le dossier des entraînements ne peut pas être dans le dossier du moteur (« {dir} ») : Mia n’écrit jamais dans le moteur.',
+    en: 'The trainings folder cannot be inside the engine folder (“{dir}”): Mia never writes into the engine.'
+  },
+  trainInProjects: {
+    fr: 'Le dossier des entraînements ne peut pas être dans le dossier des projets (« {dir} »).',
+    en: 'The trainings folder cannot be inside the projects folder (“{dir}”).'
+  },
+  trainInScanned: {
+    fr: 'Le dossier des entraînements ne peut pas être dans un dossier de LoRA ou de modèles (« {dir} ») : ses points de contrôle y passeraient pour des LoRA.',
+    en: 'The trainings folder cannot be inside a LoRA or model folder (“{dir}”): its checkpoints would pass for LoRAs.'
+  },
+  trainNoDrive: {
+    fr: 'Le disque « {drive} » est introuvable sur ce PC.',
+    en: 'The drive “{drive}” cannot be found on this PC.'
+  },
   busyRemove: {
     fr: 'Un calcul est en cours dans « {name} » : annule-le ou attends la fin avant de mettre la planche à la corbeille.',
     en: 'A job is running in “{name}”: cancel it or wait for the end before moving the board to the Recycle Bin.'
@@ -130,6 +150,7 @@ const S = {
   gen: 0,                 // bumped by every create/rename/duplicate/remove (see touch())
   touched: new Map(),     // projectId → gen of its last folder change (reconcile must not undo it)
   isBusy: () => false,    // projectId → a job of this project is queued or running (set by main.js)
+  trainBusy: () => false, // a LoRA training is active (set by main.js): the trainings folder must not change
   prefsListeners: new Set(),
   closing: false,
   lastReconcile: 0,
@@ -324,6 +345,7 @@ function defaultPrefs() {
     engineRoot: '',           // none: the first-launch check adopts an engine it finds or offers to install one
     comfyUrl: 'http://127.0.0.1:8188',
     extraModelRoots: [],
+    formerEngineRoots: [],    // SPEC §7: engine folders used before this one (model ids made under them stay known)
     order: 'updated',
     openTabs: [],
     activeTab: null,
@@ -334,7 +356,15 @@ function defaultPrefs() {
     winBounds: null,
     loraFolders: [],          // SPEC §12.1: folders whose LoRA become usable directly (scanner reads them)
     playerUnit: 'frames',     // SPEC §14: counter of the precise player (frames | seconds | timecode)
-    pinnedModels: []          // SPEC §22: models pinned at the top of the model panel (inventory ids)
+    pinnedModels: [],         // SPEC §22: models pinned at the top of the model panel (inventory ids)
+    // Training a LoRA. '' = the default place (places.trainingRoot / trainingTools: beside the engine when its
+    // « entrainement » folder exists, else in Mia's data), so a change of engine folder is followed.
+    trainRoot: '',            // the trainings folder
+    trainRoots: [],           // trainings folders used before: their trainings stay listed, nothing is moved
+    trainTools: '',           // where the training tools are installed (venv-ltx, venv-aitk, src)
+    // « Générer pendant un entraînement » (SPEC §8.7): a local job may start beside a training when the memory
+    // allows it. Missing from an older prefs.json: on (sanitizePrefs).
+    trainGenBeside: true
   };
 }
 
@@ -345,6 +375,12 @@ const absList = (v) => (Array.isArray(v) ? v : [])
   .filter((x, i, a) => a.findIndex((y) => y.toLowerCase() === x.toLowerCase()) === i);
 
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const sameDir = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+
+/** Engine folders used before the current one: most recent first, never the current one, 8 at most. */
+const MAX_FORMER_ROOTS = 8;
+const formerRoots = (list, engineRoot) => absList(list).filter((x) => !sameDir(x, engineRoot)).slice(0, MAX_FORMER_ROOTS);
 
 /** Keep unknown keys (other modules store their own), but never let a known key hold nonsense. */
 function sanitizePrefs(p) {
@@ -364,6 +400,7 @@ function sanitizePrefs(p) {
   if (typeof out.comfyUrl !== 'string' || !/^https?:\/\//.test(out.comfyUrl)) out.comfyUrl = d.comfyUrl;
   out.extraModelRoots = absList(out.extraModelRoots);
   out.loraFolders = absList(out.loraFolders);
+  out.formerEngineRoots = formerRoots(out.formerEngineRoots, out.engineRoot);
   if (typeof out.playerUnit !== 'string' || !/^[a-z]{1,16}$/.test(out.playerUnit)) out.playerUnit = d.playerUnit;
   if (!['updated', 'opened', 'created', 'name'].includes(out.order)) out.order = d.order;
   if (!Array.isArray(out.openTabs)) out.openTabs = [];
@@ -371,6 +408,11 @@ function sanitizePrefs(p) {
     .filter((x) => typeof x === 'string' && x.length <= 128).slice(0, 64);
   for (const k of ['snap', 'minimap']) out[k] = !!out[k];
   if (out.winBounds !== null && typeof out.winBounds !== 'object') out.winBounds = null;
+  for (const k of ['trainRoot', 'trainTools']) {     // '' = the default place; anything else is an absolute folder
+    out[k] = typeof out[k] === 'string' && path.isAbsolute(out[k]) ? (absList([out[k]])[0] || '') : '';
+  }
+  out.trainRoots = absList(out.trainRoots).filter((x) => !sameDir(x, out.trainRoot)).slice(0, MAX_FORMER_ROOTS);
+  out.trainGenBeside = out.trainGenBeside !== false;   // only false switches it off; anything unreadable keeps it on
   return out;
 }
 
@@ -408,9 +450,6 @@ function effectivePrefs() {
 
 function getPrefs() { return effectivePrefs(); }
 
-/** Merge a patch (never the whole object — Slate lost settings that way), persist, notify. */
-const sameDir = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
-
 /**
  * The two big folders must stay apart (SPEC §10: Mia never writes in the engine), and an engine folder
  * must hold a Python: Mia's engine (env\venv) or a ComfyUI portable (python_embeded). Checked only when
@@ -434,6 +473,31 @@ function checkRoots(before, next) {
   }
 }
 
+/**
+ * A trainings folder chosen in the settings (prefs.trainRoot; '' = the default place, always fine) must stay out of
+ * the folders Mia reads on its own: the engine (Mia never writes there), the projects (every subfolder is a board or
+ * a folder of boards) and the folders the scanner reads (a checkpoint would pass for a LoRA). Its drive must exist.
+ * Checked when it or one of those folders changes; nothing is created here (the trainer makes the folder of a
+ * training when the first draft is made, in the folder chosen). Throws a readable error.
+ */
+function checkTrainRoot(before, next) {
+  const tr0 = next.trainRoot;
+  if (!tr0) return;
+  const keys = ['trainRoot', 'engineRoot', 'projectsRoot', 'loraFolders', 'extraModelRoots'];
+  if (keys.every((k) => JSON.stringify(before[k]) === JSON.stringify(next[k]))) return;
+  const within = (dir) => sameDir(tr0, dir) || isInside(tr0, dir);
+  const er = places.engineRoot(next);
+  if (er && within(er)) throw userError(tr(STR.trainInEngine, { dir: er }));
+  const pr = S.rootOverride || next.projectsRoot;
+  if (pr && within(pr)) throw userError(tr(STR.trainInProjects, { dir: pr }));
+  const scanned = [...(next.loraFolders || []), ...(next.extraModelRoots || [])].find(within);
+  if (scanned) throw userError(tr(STR.trainInScanned, { dir: scanned }));
+  if (!sameDir(before.trainRoot, tr0)) {
+    const drive = path.parse(path.resolve(tr0)).root;
+    if (drive && !fs.existsSync(drive)) throw userError(tr(STR.trainNoDrive, { drive }));
+  }
+}
+
 /** Merge a patch (never the whole object — Slate lost settings that way), persist, notify. */
 function setPrefs(patch) {
   return serial('prefs', async () => {
@@ -445,6 +509,24 @@ function setPrefs(patch) {
     const before = S.prefs;
     const next = sanitizePrefs(Object.assign({}, before, p));
     checkRoots(before, next);
+    checkTrainRoot(before, next);
+    // The engine folder moves: the one it leaves is remembered (most recent first), so the ids of its models —
+    // sha1 of their path, kept in boards and in the fingerprints of results — stay known (scanner aliases, SPEC §7).
+    // `was` and `now` are the folders really in use: the one of the settings, else the lab found on its own (so
+    // an unrelated setting changed while the lab is used without being written in the settings moves nothing).
+    const was = places.engineRoot(before);
+    const now = places.engineRoot(next);
+    if (was && !sameDir(was, now)) {
+      next.formerEngineRoots = formerRoots([was, ...next.formerEngineRoots], now || next.engineRoot);
+    }
+    // The trainings folder moves: refused while a training runs (its files are being written there); nothing is
+    // moved, and the folder it leaves stays listed (trainRoots), so its trainings do not vanish from the list.
+    const trainWas = places.trainingRoot(before, S.userData);
+    const trainNow = places.trainingRoot(next, S.userData);
+    if (!sameDir(trainWas, trainNow)) {
+      if (S.trainBusy()) throw userError(tr(STR.trainRootBusy));
+      next.trainRoots = absList([trainWas, ...next.trainRoots]).filter((x) => !sameDir(x, trainNow)).slice(0, MAX_FORMER_ROOTS);
+    }
     const changed = new Set();
     for (const k of new Set([...Object.keys(before), ...Object.keys(next)])) {
       if (JSON.stringify(before[k]) !== JSON.stringify(next[k])) changed.add(k);
@@ -476,7 +558,9 @@ function projectsRoot() { return S.rootOverride || S.prefs.projectsRoot; }
 /** Folders the protocol (mia://m/…) and the shell actions may touch outside a project. */
 function allowedRoots() {
   const p = effectivePrefs();
-  return [p.projectsRoot, places.engineRoot(p), S.userData, ...(p.extraModelRoots || []), ...(p.loraFolders || [])].filter(Boolean);
+  // the trainings folders too: the samples and the thumbnails of a training are shown from there
+  return [p.projectsRoot, places.engineRoot(p), S.userData, ...(p.extraModelRoots || []), ...(p.loraFolders || []),
+    ...places.trainingRoots(p, S.userData)].filter(Boolean);
 }
 
 // ---------------------------------------------------------------- names, ids, folders
@@ -2186,6 +2270,8 @@ function setClosing(v) { S.closing = !!v; }
 
 /** main.js: (projectId) → is a job of this project queued or running? (the engine knows) */
 function setBusyCheck(fn) { S.isBusy = typeof fn === 'function' ? fn : () => false; }
+/** main.js: () → a LoRA training is active (the trainings folder must not change under it). */
+function setTrainBusyCheck(fn) { S.trainBusy = typeof fn === 'function' ? fn : () => false; }
 
 /**
  * Run fn in the board's own queue — the one its saves, its moves and its project's renames hold —
@@ -2215,6 +2301,7 @@ module.exports = {
   thumb,
   status,
   setBusyCheck,
+  setTrainBusyCheck,
   listRuns,
   scanRuns,
   reconcile,

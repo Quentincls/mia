@@ -27,7 +27,7 @@
  *   tokenNote(opts)                 la note « licence à accepter + jeton » (accueil et bibliothèque)
  */
 import { t, tn, tl, register, locale } from '../i18n.js';
-import { on } from '../bus.js';
+import { on, emit } from '../bus.js';
 import { state } from '../state.js';
 import { icon, register as registerIcons } from '../icons.js';
 import { el, debounce, relTime, fmtClock } from '../util.js';
@@ -37,6 +37,8 @@ import { button, segmented, textField } from './controls.js';
 import { toast } from './toasts.js';
 import { openModal, confirm } from './modal.js';
 import { ms } from './motion.js';
+import { findModel } from '../nodes/route.js';
+import { machineGB, needGB, fitOf as memFit } from '../nodes/memory.js';
 
 register({
   fr: {
@@ -101,6 +103,8 @@ register({
     'lib.hint.partials': 'Fichiers jamais terminés. Mia ne supprime rien\u00a0: à toi de voir.',
     'lib.training.one': '{n} étape d’entraînement',
     'lib.training.other': '{n} étapes d’entraînement',
+    'lib.training.orphan.one': '{n} étape sans son LoRA final',
+    'lib.training.orphan.other': '{n} étapes sans leur LoRA final',
     'lib.appCount.one': '{n} modèle · {size}',
     'lib.appCount.other': '{n} modèles · {size}',
     'lib.app.showFiles': 'Voir les fichiers',
@@ -163,8 +167,11 @@ register({
     'model.license.forbidden': 'Interdit',
     'model.auto': 'Auto',
     'model.autoTip': 'Choisi par «\u00a0Auto\u00a0» pour\u00a0: {caps}',
-    'model.fit.over': 'Trop lourd · plus lent',
-    'model.fitTip.over': 'Pointe à {n} Go\u00a0: plus que ta carte de {card} Go. Il passe par la mémoire du PC, beaucoup plus lentement.',
+    'model.status.blocked': 'Recette non validée',
+    'model.version': 'Version',
+    'model.pair': 'Encodeur de texte',
+    'model.fit.over': 'Trop lourd',
+    'model.fitTip.over': '≈ {n} Go\u00a0: plus que les {card} Go de cette machine. Le calcul déborde, beaucoup plus lentement.',
     'model.gb': '{n} Go',
     'model.mb': '{n} Mo',
     'model.mbTiny': '< 1 Mo',
@@ -172,11 +179,15 @@ register({
     'model.speed': 'Vitesse',
     'model.quality': 'Qualité',
     'model.memory': 'Mémoire',
-    'model.memoryVal': '≈ {n} Go en pointe',
-    'model.memoryFit.light': '≈ {n} Go en pointe\u00a0: à l’aise sur ta carte de {card} Go',
-    'model.memoryFit.comfy': '≈ {n} Go en pointe\u00a0: tient sur ta carte de {card} Go',
-    'model.memoryFit.tight': '≈ {n} Go en pointe\u00a0: serré sur ta carte de {card} Go (Mia libère la mémoire entre deux étapes ; évite d’ouvrir autre chose sur le GPU)',
-    'model.memoryFit.over': '≈ {n} Go en pointe\u00a0: plus que ta carte de {card} Go, beaucoup plus lent',
+    'model.memoryVal': '≈ {n} Go',
+    'model.memoryFit.light': '≈ {n} Go\u00a0: léger pour les {card} Go de cette machine',
+    'model.memoryFit.comfy': '≈ {n} Go\u00a0: à l’aise dans les {card} Go de cette machine',
+    'model.memoryFit.tight': '≈ {n} Go\u00a0: juste dans les {card} Go de cette machine (ferme les autres logiciels lourds avant de lancer)',
+    'model.memoryFit.over': '≈ {n} Go\u00a0: plus que les {card} Go de cette machine, beaucoup plus lent',
+    'model.memoryAt.measured': 'Mesuré en {w} × {h}, {f} images.',
+    'model.memoryAt.measuredImage': 'Mesuré pour une image en {w} × {h}.',
+    'model.memoryAt.derived': 'D’après la mesure de la version RTX 50 ({w} × {h}, {f} images).',
+    'model.memoryAt.file': 'D’après la taille du fichier.',
     'model.usedFor': 'Sert à',
     'model.madeFor': 'Fait pour',
     'model.genre': 'Genre',
@@ -197,7 +208,7 @@ register({
     'model.copyPath': 'Copier le chemin',
     'model.speed.1': 'lent', 'model.speed.2': 'moyen', 'model.speed.3': 'rapide',
     'model.quality.1': 'correcte', 'model.quality.2': 'bonne', 'model.quality.3': 'excellente',
-    'model.qc.full': 'Pleine qualité', 'model.qc.compact': 'Compact', 'model.qc.ultra': 'Ultra-compact (RTX 50)', 'model.qc.very': 'Très compact',
+    'model.qc.full': 'Pleine', 'model.qc.compact': 'Compacte', 'model.qc.ultra': 'Compacte · RTX 50', 'model.qc.very': 'Très compacte',
   },
   en: {
     'lib.button': 'Models',
@@ -261,6 +272,8 @@ register({
     'lib.hint.partials': 'Files never finished. Mia deletes nothing: your call.',
     'lib.training.one': '{n} training step',
     'lib.training.other': '{n} training steps',
+    'lib.training.orphan.one': '{n} step without its final LoRA',
+    'lib.training.orphan.other': '{n} steps without their final LoRA',
     'lib.appCount.one': '{n} model · {size}',
     'lib.appCount.other': '{n} models · {size}',
     'lib.app.showFiles': 'Show the files',
@@ -323,8 +336,11 @@ register({
     'model.license.forbidden': 'Forbidden',
     'model.auto': 'Auto',
     'model.autoTip': 'Picked by “Auto” for: {caps}',
-    'model.fit.over': 'Too big · slower',
-    'model.fitTip.over': 'Peaks at {n} GB: more than your {card} GB card. It spills into the PC memory, much slower.',
+    'model.status.blocked': 'Recipe not validated',
+    'model.version': 'Version',
+    'model.pair': 'Text encoder',
+    'model.fit.over': 'Too big',
+    'model.fitTip.over': '≈ {n} GB: more than this machine’s {card} GB. The computation spills over, much slower.',
     'model.gb': '{n} GB',
     'model.mb': '{n} MB',
     'model.mbTiny': '< 1 MB',
@@ -332,11 +348,15 @@ register({
     'model.speed': 'Speed',
     'model.quality': 'Quality',
     'model.memory': 'Memory',
-    'model.memoryVal': '≈ {n} GB at peak',
-    'model.memoryFit.light': '≈ {n} GB at peak: easy on your {card} GB card',
-    'model.memoryFit.comfy': '≈ {n} GB at peak: fits your {card} GB card',
-    'model.memoryFit.tight': '≈ {n} GB at peak: tight on your {card} GB card (Mia frees memory between steps; avoid other GPU apps)',
-    'model.memoryFit.over': '≈ {n} GB at peak: more than your {card} GB card, much slower',
+    'model.memoryVal': '≈ {n} GB',
+    'model.memoryFit.light': '≈ {n} GB: light for this machine’s {card} GB',
+    'model.memoryFit.comfy': '≈ {n} GB: comfortable in this machine’s {card} GB',
+    'model.memoryFit.tight': '≈ {n} GB: tight in this machine’s {card} GB (close other heavy apps before running)',
+    'model.memoryFit.over': '≈ {n} GB: more than this machine’s {card} GB, much slower',
+    'model.memoryAt.measured': 'Measured at {w} × {h}, {f} frames.',
+    'model.memoryAt.measuredImage': 'Measured for an image at {w} × {h}.',
+    'model.memoryAt.derived': 'From the RTX 50 version’s measurement ({w} × {h}, {f} frames).',
+    'model.memoryAt.file': 'From the file size.',
     'model.usedFor': 'Used for',
     'model.madeFor': 'Made for',
     'model.genre': 'Kind',
@@ -357,7 +377,58 @@ register({
     'model.copyPath': 'Copy path',
     'model.speed.1': 'slow', 'model.speed.2': 'medium', 'model.speed.3': 'fast',
     'model.quality.1': 'fair', 'model.quality.2': 'good', 'model.quality.3': 'excellent',
-    'model.qc.full': 'Full quality', 'model.qc.compact': 'Compact', 'model.qc.ultra': 'Ultra-compact (RTX 50)', 'model.qc.very': 'Very compact',
+    'model.qc.full': 'Full', 'model.qc.compact': 'Compact', 'model.qc.ultra': 'Compact · RTX 50', 'model.qc.very': 'Very compact',
+  },
+});
+
+// LoRA entraînés dans Mia (CONCEPTION-entrainement §2.6, §4.6) : le bouton d'en-tête de « Mes LoRA », la mention
+// « ENTRAÎNÉ ICI », « Voir l'entraînement » et « Retirer de Mes LoRA » (fichier et fiche à la corbeille, sur demande).
+register({
+  fr: {
+    'lib.lora.train': 'Entraîner un LoRA',
+    'lib.lora.trainTip': 'Ouvre l’écran des entraînements sur un nouveau brouillon',
+    'lib.lora.trainUnavailable': 'Cette version de Mia ne sait pas encore entraîner de LoRA.',
+    'lib.lora.trainFailed': 'Le brouillon n’a pas pu être créé : {msg}',
+    'lib.lora.trainedHere.one': 'Entraîné ici · {n} pas',
+    'lib.lora.trainedHere.other': 'Entraîné ici · {n} pas',
+    'lib.lora.showTraining': 'Voir l’entraînement',
+    'lib.lora.trainingGone': 'L’entraînement de ce LoRA n’est plus dans Mia.',
+    'lib.lora.removeMine': 'Retirer de Mes LoRA',
+    'lib.lora.removeMineTitle': 'Retirer « {name} » de Mes LoRA ?',
+    'lib.lora.removeMineBody': 'Le fichier et sa fiche vont à la corbeille de Windows. Le point de contrôle reste dans l’entraînement : tu pourras le remettre dans Mes LoRA.',
+    'lib.lora.removeMineBodyAlone': 'Le fichier et sa fiche vont à la corbeille de Windows. Son entraînement n’est plus dans Mia : ce fichier en est la seule copie.',
+    'lib.lora.removeMineOk': 'Mettre à la corbeille',
+    'lib.lora.removedMine': '« {name} » retiré de Mes LoRA. Le fichier et sa fiche sont dans la corbeille.',
+    'lib.lora.origin.mia': 'Entraîné dans Mia',
+    'lib.lora.training': 'Entraînement',
+    'lib.lora.trainingStep': 'pas {step} / {steps}',
+    'lib.lora.trainingImages.one': '{n} image',
+    'lib.lora.trainingImages.other': '{n} images',
+    'lib.lora.steps.one': '{n} étape intermédiaire',
+    'lib.lora.steps.other': '{n} étapes intermédiaires',
+  },
+  en: {
+    'lib.lora.train': 'Train a LoRA',
+    'lib.lora.trainTip': 'Opens the trainings screen on a new draft',
+    'lib.lora.trainUnavailable': 'This version of Mia cannot train LoRAs yet.',
+    'lib.lora.trainFailed': 'The draft could not be created: {msg}',
+    'lib.lora.trainedHere.one': 'Trained here · {n} step',
+    'lib.lora.trainedHere.other': 'Trained here · {n} steps',
+    'lib.lora.showTraining': 'Show training',
+    'lib.lora.trainingGone': 'This LoRA’s training is no longer in Mia.',
+    'lib.lora.removeMine': 'Remove from My LoRAs',
+    'lib.lora.removeMineTitle': 'Remove “{name}” from My LoRAs?',
+    'lib.lora.removeMineBody': 'The file and its card go to the Windows Recycle Bin. The checkpoint stays in the training: you can put it back in My LoRAs.',
+    'lib.lora.removeMineBodyAlone': 'The file and its card go to the Windows Recycle Bin. Its training is no longer in Mia: this file is its only copy.',
+    'lib.lora.removeMineOk': 'Move to Recycle Bin',
+    'lib.lora.removedMine': '“{name}” removed from My LoRAs. The file and its card are in the Recycle Bin.',
+    'lib.lora.origin.mia': 'Trained in Mia',
+    'lib.lora.training': 'Training',
+    'lib.lora.trainingStep': 'step {step} / {steps}',
+    'lib.lora.trainingImages.one': '{n} image',
+    'lib.lora.trainingImages.other': '{n} images',
+    'lib.lora.steps.one': '{n} intermediate step',
+    'lib.lora.steps.other': '{n} intermediate steps',
   },
 });
 
@@ -553,7 +624,8 @@ const unfolded = new Set();   // sections repliées par défaut que l'utilisateu
 const folded = new Set();     // sections ouvertes par défaut que l'utilisateur a repliées
 const openApps = new Set();   // autres applications dont on montre les fichiers
 let showTraining = false;
-let returnFocus = null;       // élément focalisé avant l'ouverture du panneau
+const openSteps = new Set();  // LoRA entraînés dans Mia dont on montre les étapes intermédiaires (id du LoRA final)
+let returnFocus = null;      // élément focalisé avant l'ouverture du panneau
 let userScan = null;          // { kind: 'rescan' | 'deep' } pendant un scan lancé d'ici
 let progress = null;          // dernier models:progress reçu
 const painters = new Set();   // fonctions à rappeler quand l'inventaire change (bouton, accueil, panneau)
@@ -603,28 +675,38 @@ export function famTag(m) {
   return name.includes(first) ? '' : f;
 }
 
-// Mémoire de la carte, en Go « Windows » (25,6 milliards d'octets = 24 Go) : c'est le chiffre qu'il connaît.
-function cardGB() {
-  const g = inv()?.machine?.vramGB ?? state.engine?.gpu?.vramTotalGB;
-  return g ? Math.round((g * 1e9) / 2 ** 30) : 24;
-}
-// Place en mémoire (models.md §6.2) : seuils pensés pour 24 Go, le débordement suit la vraie carte. Rien pour un
-// modèle qu'on ne peut pas utiliser (interdit, incomplet, autre appli…) : la pastille n'aurait pas de sens.
-function fitOf(m) {
-  const v = Number(m.vramGB);
-  if (!isFinite(v) || v <= 0 || m.hidden || m.role === 'lora' || m.status !== 'ready' || m.license === 'forbidden') return null;
-  const card = cardGB();
-  if (v < 8) return 'light';
-  if (v < 16) return 'comfy';
-  if (v <= card - 1) return 'tight';
-  return 'over';
+// Mémoire de la machine, en Go « Windows » (octets / 2^30) : UN seul total, celui que ComfyUI annonce et que le scanner
+// retient (SPEC §7), le même que sur la puce GPU. Pas encore connu : 24, comme toujours.
+const machineTotal = () => machineGB(inv(), state.engine);
+const cardGB = () => num(machineTotal() ?? 24, 1);
+// Place en mémoire : la règle partagée (nodes/memory.js), avec la mémoire que le scanner prévoit pour CETTE machine
+// (`m.mem`). Rien pour un modèle qu'on ne peut pas utiliser (interdit, incomplet, autre appli…) : la pastille n'aurait
+// pas de sens.
+const fitOf = (m) => memFit(m, machineTotal());
+// « ≈ 71 » : le nombre seul, 1 décimale au plus
+const memNum = (m) => num(needGB(m), 1);
+// D'où vient le chiffre : mesuré (à quelle définition), déduit de la mesure d'une autre version, ou lu sur le fichier.
+function memOrigin(m) {
+  const b = m.mem?.basis, at = m.mem?.at;
+  // une image mesurée n'a pas de nombre d'images (`at` sans frames, scanner-rules) : la phrase sans durée
+  if (b === 'measured' && at && !at.frames) return t('model.memoryAt.measuredImage', { w: at.w, h: at.h });
+  if ((b === 'measured' || b === 'derived') && at) return t('model.memoryAt.' + b, { w: at.w, h: at.h, f: at.frames });
+  return b === 'file' ? t('model.memoryAt.file') : '';
 }
 
-const byId = (id) => inv()?.models.find((m) => m.id === id) || null;
+const byId = (id) => findModel(inv(), id);   // l'id d'aujourd'hui, ou celui d'avant un déménagement du dossier du moteur
 const readyCount = (i) => (i ? i.models.filter((m) => m.status === 'ready' && !m.hidden && m.license !== 'forbidden').length : 0);
 const isLoraEntry = (m) => m && m.role === 'lora' && (m.caps || []).includes('lora');
-const canRemove = (m) => isLoraEntry(m) && (m.origin === 'added' || m.origin === 'folder');
+// Un LoRA entraîné dans Mia (rangé dans models\loras\mia avec sa fiche) se retire aussi : « Retirer de Mes LoRA »
+// met son fichier et sa fiche à la corbeille, après une question (removeMine).
+const isTrained = (m) => isLoraEntry(m) && m.trainedHere === true;
+const canRemove = (m) => isLoraEntry(m) && (m.origin === 'added' || m.origin === 'folder' || isTrained(m));
 const canEdit = (m) => isLoraEntry(m) && m.origin !== 'training' && m.status !== 'duplicate';
+// « Voir l'entraînement » : toute entrée dont la fiche nomme un entraînement de Mia
+const hasTraining = (m) => isLoraEntry(m) && !!(m.training && m.training.id);
+const removeLabel = (m) => t(isTrained(m) ? 'lib.lora.removeMine' : 'lib.lora.remove');
+const removeAny = (m) => (isTrained(m) ? removeMine(m) : removeLora(m));
+const samePath = (a, b) => String(a || '').replace(/\//g, '\\').toLowerCase() === String(b || '').replace(/\//g, '\\').toLowerCase();
 
 // ── actions sur un fichier ───────────────────────────────────────────
 async function reveal(abs) {
@@ -662,9 +744,10 @@ function fileMenu(abs, at, m = null) {
       label: genreLabel(g), icon: m.genre === g ? 'check' : null, action: () => saveLora(m, { kind: g }) })) });
     items.push('sep');
   }
+  if (m && hasTraining(m)) items.push({ label: t('lib.lora.showTraining'), icon: 'arrow-right', action: () => openTrainingOf(m) });
   items.push({ label: t('model.reveal'), icon: 'reveal', action: () => reveal(abs) });
   items.push({ label: t('model.copyPath'), icon: 'copy', action: () => copyPath(abs) });
-  if (m && canRemove(m)) items.push('sep', { label: t('lib.lora.remove'), icon: 'trash', danger: true, action: () => removeLora(m) });
+  if (m && canRemove(m)) items.push('sep', { label: removeLabel(m), icon: 'trash', danger: true, action: () => removeAny(m) });
   openMenu(items, at);
 }
 
@@ -1686,7 +1769,16 @@ function section(g, items) {
     el('span', { class: 'lib-sec-count' }, num(count, 0)),
     el('span', { class: 'lib-sec-chev', html: icon('chevron', 12) }));
   head.addEventListener('click', () => toggleFold(g));
-  const sec = el('section', { class: ['lib-sec', 'lib-sec-' + g] }, head);
+  // « Mes LoRA » : « Entraîner un LoRA » dans l'en-tête, à côté du pli (pas pendant une recherche ni un filtre d'un bloc)
+  const trainHere = g === 'loras' && !query && (!filterCaps || filterCaps.includes('lora')) && !!mia().train;
+  let sec;
+  if (trainHere) {
+    const train = button({ label: t('lib.lora.train'), icon: 'plus', kind: 'ghost', size: 'sm', tip: t('lib.lora.trainTip'), onClick: trainNew });
+    train.classList.add('lib-train');
+    sec = el('section', { class: ['lib-sec', 'lib-sec-' + g] }, el('div', { class: 'lib-sec-headrow' }, head, train));
+  } else {
+    sec = el('section', { class: ['lib-sec', 'lib-sec-' + g] }, head);
+  }
   if (foldedNow) return sec;
   if (HINTED.has(g)) sec.append(el('p', { class: 'lib-sec-hint' }, t('lib.hint.' + g)));
   if (g === 'partials') {
@@ -1695,12 +1787,39 @@ function section(g, items) {
     appsSection(sec, items);
   } else if (g === 'loras') {
     const main = items.filter((m) => !loraFolded(m));
-    const steps = items.filter(loraFolded);
-    for (const m of main) sec.append(...modelRow(m));
+    const all = items.filter(loraFolded);
+    // Les étapes intermédiaires d'un entraînement fait dans Mia se replient sous leur LoRA final (même entraînement,
+    // CONCEPTION-entrainement §2.6) ; les autres (dossiers d'entraînement d'avant, copies identiques, étape sans son
+    // final) restent dans le pli commun « N étapes d'entraînement », comme avant.
+    const finals = new Map(main.filter((m) => m.trainedHere && m.training?.id).map((m) => [m.training.id, m]));
+    const nested = new Map();
+    const steps = [];
+    for (const s of all) {
+      const f = s.trainedHere && s.trainingStep && s.status !== 'duplicate' && s.training?.id ? finals.get(s.training.id) : null;
+      if (f) { if (!nested.has(f.id)) nested.set(f.id, []); nested.get(f.id).push(s); } else steps.push(s);
+    }
+    for (const m of main) {
+      sec.append(...modelRow(m));
+      const sub = nested.get(m.id);
+      if (!sub) continue;
+      const open = openSteps.has(m.id) || !!query;
+      const tog = el('button', { class: ['lib-sub-toggle', 'lib-steps-toggle', open && 'open'], type: 'button', 'aria-expanded': open ? 'true' : 'false', dataset: { final: m.id } },
+        el('span', { html: icon('chevron-right', 12) }), tn('lib.lora.steps', sub.length));
+      tog.addEventListener('click', () => { if (openSteps.has(m.id)) openSteps.delete(m.id); else openSteps.add(m.id); paintList(); });
+      sec.append(tog);
+      if (open) {
+        const box = el('div', { class: 'lib-app-files lib-steps', dataset: { final: m.id } });
+        for (const s of sub) box.append(...modelRow(s));
+        sec.append(box);
+      }
+    }
     if (steps.length) {
       const open = showTraining || !!query;
+      // said by what it holds: steps of a training done here whose final LoRA is not in Mes LoRA (« sans son LoRA
+      // final »), else the old common name (folders of earlier trainings, identical copies…)
+      const orphans = steps.every((s) => s.trainedHere && s.trainingStep && s.status !== 'duplicate');
       const tog = el('button', { class: ['lib-sub-toggle', open && 'open'], type: 'button' },
-        el('span', { html: icon('chevron-right', 12) }), tn('lib.training', steps.length));
+        el('span', { html: icon('chevron-right', 12) }), tn(orphans ? 'lib.training.orphan' : 'lib.training', steps.length));
       tog.addEventListener('click', () => { showTraining = !showTraining; paintList(); });
       sec.append(tog);
       if (open) for (const m of steps) sec.append(...modelRow(m));
@@ -1756,11 +1875,12 @@ function modelRow(m, { inApps = false, quietUnused = false } = {}) {
   const isAuto = (m.default || []).length > 0;
   const side = el('div', { class: 'lib-row-side' });
   // La mémoire ne se signale que si elle pose problème ; le détail donne toujours le chiffre.
-  if (fit === 'over') side.append(badge(t('model.fit.over'), 'fit-over', t('model.fitTip.over', { n: num(m.vramGB, 0), card: cardGB() })));
+  if (fit === 'over') side.append(badge(t('model.fit.over'), 'fit-over', t('model.fitTip.over', { n: memNum(m), card: cardGB() })));
   if (m.license && m.license !== 'ok') side.append(badge(t('model.license.' + m.license), 'lic-' + m.license, tl(m.licenseNote)));
   // Une seule pastille d'état : « Interdit » suffit, « Autre appli » est dit par la section, « Inutilisé » aussi.
-  const quiet = (inApps && m.status === 'other-app') || (quietUnused && m.status === 'unused') || (m.license === 'forbidden' && m.status === 'unused');
-  if (m.status && m.status !== 'ready' && !quiet) side.append(badge(t('model.status.' + m.status), 'st-' + m.status, tl(m.statusNote)));
+  const quiet = (inApps && m.status === 'other-app') || (quietUnused && m.status === 'unused' && !m.blocked) || (m.license === 'forbidden' && m.status === 'unused');
+  // Reconnu mais pas proposé (le modèle complet, non distillé) : « Recette non validée » dit pourquoi, pas « Inutilisé ».
+  if (m.status && m.status !== 'ready' && !quiet) side.append(badge(t(m.blocked ? 'model.status.blocked' : 'model.status.' + m.status), 'st-' + m.status, tl(m.statusNote)));
   side.append(el('span', { class: 'lib-size' }, gbText(m.sizeGB)));
 
   // Ligne du dessous : pour un LoRA, son genre et à quoi il sert (« PERSONNAGE  pour LTX 2.5 · « mra woman » ») ;
@@ -1786,7 +1906,9 @@ function modelRow(m, { inApps = false, quietUnused = false } = {}) {
   el('div', { class: 'lib-row-main' },
     el('div', { class: 'lib-row-top' },
       el('span', { class: 'lib-name' }, tl(m.label)),
-      isAuto ? el('span', { class: 'lib-auto', tip: t('model.autoTip', { caps: m.default.map(capLabel).join(', ') }) }, t('model.auto')) : null),
+      isAuto ? el('span', { class: 'lib-auto', tip: t('model.autoTip', { caps: m.default.map(capLabel).join(', ') }) }, t('model.auto')) : null,
+      // « ENTRAÎNÉ ICI · 2 500 PAS » : un LoRA que Mia a entraîné et rangé (le pas de CE fichier)
+      lora && isTrained(m) && m.training ? el('span', { class: 'lib-badge lib-trained' }, tn('lib.lora.trainedHere', m.training.step)) : null),
     el('div', { class: 'lib-row-sub' },
       kicker ? el('span', { class: 'lib-fam' }, kicker) : null,
       el('span', { class: 'lib-desc' }, sub))),
@@ -1823,16 +1945,32 @@ function detail(m) {
     line(t('model.madeFor'), m.loraFor ? (baseFull(m.loraFor) || tl(m.loraForLabel)) : t('lib.lora.unknownBase'));
     if (m.genre) line(t('model.genre'), genreLabel(m.genre));
     line(t('model.trigger'), m.trigger || t('lib.lora.noTrigger'), m.trigger ? 'mono' : null);
-    if (m.origin) line(t('lib.lora.origin'), t('lib.lora.origin.' + m.origin));
-    if (m.origin === 'added' || m.origin === 'folder') line(t('lib.lora.placed'), m.placed || t('lib.lora.placeLater'), m.placed ? 'mono' : null);
+    if (isTrained(m)) line(t('lib.lora.origin'), t('lib.lora.origin.mia'));
+    else if (m.origin) line(t('lib.lora.origin'), t('lib.lora.origin.' + m.origin));
+    if (m.training) line(t('lib.lora.training'), trainingText(m));
+    if (!isTrained(m) && (m.origin === 'added' || m.origin === 'folder')) line(t('lib.lora.placed'), m.placed || t('lib.lora.placeLater'), m.placed ? 'mono' : null);
   } else if ((m.caps || []).length) {
     line(t('model.usedFor'), m.caps.map(capLabel).join(' · '));
   }
   if (m.speed) line(t('model.speed'), el('span', { class: 'lib-meter-wrap' }, meter(m.speed), t('model.speed.' + m.speed)));
   if (m.quality) line(t('model.quality'), el('span', { class: 'lib-meter-wrap' }, meter(m.quality), t('model.quality.' + m.quality)));
-  if (m.vramGB && !m.hidden && m.role !== 'lora') {
+  // La version lue dans le fichier (Compacte, Pleine, Complète) : son nom seul, la phrase du modèle dit déjà ce qu'elle change.
+  if (m.version && !lora) line(t('model.version'), tl(m.version.tag));
+  // Pas de mémoire pour un modèle reconnu mais pas proposé : il ne sera pas lancé, et le chiffre du fichier tromperait.
+  if (needGB(m) != null && !m.hidden && m.role !== 'lora' && !m.blocked) {
+    // toujours une estimation (« ≈ »), avec d'où vient le chiffre : mesuré à telle définition, ou lu sur le fichier
     const fit = fitOf(m);
-    line(t('model.memory'), fit ? t('model.memoryFit.' + fit, { n: num(m.vramGB, 0), card: cardGB() }) : t('model.memoryVal', { n: num(m.vramGB, 0) }));
+    const val = fit ? t('model.memoryFit.' + fit, { n: memNum(m), card: cardGB() }) : t('model.memoryVal', { n: memNum(m) });
+    line(t('model.memory'), [val, memOrigin(m)].filter(Boolean).join('\n'), 'pre');
+  }
+  // L'encodeur de texte assorti à cette version (pièce « ltx-te ») : lequel, sa précision, son poids, et la note quand
+  // la version assortie n'est pas installée.
+  const te = !lora && m.parts ? m.parts['ltx-te'] : null;
+  if (te && (m.version || m.partNote)) {
+    const part = byId(te.id);
+    const what = [part ? tl(part.label) : te.file, te.quantClass ? t('model.qc.' + te.quantClass) : null, te.sizeGB ? gbText(te.sizeGB) : null]
+      .filter(Boolean).join(' · ');
+    line(t('model.pair'), [what, m.partNote ? tl(m.partNote) : null].filter(Boolean).join('\n'), 'pre');
   }
   if (m.trigger && !lora) line(t('model.trigger'), m.trigger, 'mono');
   if (m.licenseNote) line(t('model.licenseLbl'), tl(m.licenseNote));
@@ -1864,7 +2002,8 @@ function detail(m) {
   actions.append(button({ label: t('model.reveal'), icon: 'reveal', kind: 'ghost', size: 'sm', onClick: () => reveal(m.path) }));
   // Pour un LoRA, « Copier le chemin » reste dans le clic droit : une seule rangée d'actions.
   if (!canEdit(m)) actions.append(button({ label: t('model.copyPath'), icon: 'copy', kind: 'ghost', size: 'sm', onClick: () => copyPath(m.path) }));
-  if (canRemove(m)) actions.append(button({ label: t('lib.lora.remove'), icon: 'trash', kind: 'ghost', size: 'sm', onClick: () => removeLora(m) }));
+  if (hasTraining(m)) actions.append(button({ label: t('lib.lora.showTraining'), icon: 'arrow-right', kind: 'ghost', size: 'sm', onClick: () => openTrainingOf(m) }));
+  if (canRemove(m)) actions.append(button({ label: removeLabel(m), icon: 'trash', kind: 'ghost', size: 'sm', onClick: () => removeAny(m) }));
   return el('div', { class: 'lib-detail', dataset: { path: m.path, id: m.id } },
     el('p', { class: 'lib-detail-desc' }, tl(m.desc)), note, el('div', { class: 'lib-kvs' }, ...rows), actions);
 }
@@ -2020,6 +2159,82 @@ async function removeLora(m) {
   adopt(res.inventory);
   repaint();
   toast(res.warning || t('lib.lora.removed', { name }), { kind: res.warning ? 'info' : 'ok' });
+}
+
+// ── LoRA entraînés dans Mia ──────────────────────────────────────────
+// « LTX 2.5 · pas 2 500 / 2 500 · 32 images · 19 novembre 2026 » : ce que dit la fiche, en une ligne.
+function trainingText(m) {
+  const tr = m.training || {};
+  let date = '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(tr.date || '')) {
+    const [y, mo, d] = tr.date.split('-').map(Number);
+    try { date = new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(y, mo - 1, d)); } catch { date = tr.date; }
+  }
+  return [m.loraFor ? baseShort(m.loraFor) || tl(m.loraForLabel) : '',
+    tr.step && tr.steps ? t('lib.lora.trainingStep', { step: num(tr.step, 0), steps: num(tr.steps, 0) }) : '',
+    tr.images ? tn('lib.lora.trainingImages', tr.images) : '', date].filter(Boolean).join(' · ');
+}
+
+// « Entraîner un LoRA » : un brouillon neuf, puis l'écran des entraînements dessus (ui/train.js écoute « train:open »).
+async function trainNew() {
+  const api = mia().train;
+  if (!api || typeof api.create !== 'function') { toast(t('lib.lora.trainUnavailable'), { kind: 'error' }); return; }
+  let r = null;
+  try { r = await api.create({}); } catch (err) { r = { ok: false, error: String(err?.message || err) }; }
+  if (!r || r.ok === false || !(r.id || r.trainingId)) { toast(t('lib.lora.trainFailed', { msg: r?.error || '—' }), { kind: 'error', ms: 7000 }); return; }
+  closeLibrary();
+  emit('train:open', { id: r.id || r.trainingId });
+}
+
+// « Voir l'entraînement » : l'écran des entraînements sur celui qui a produit ce LoRA, s'il est encore dans Mia.
+async function openTrainingOf(m) {
+  const api = mia().train;
+  const id = m.training?.id;
+  let rows = null;
+  if (id && api && typeof api.list === 'function') { try { rows = await api.list(); } catch { rows = null; } }
+  if (!Array.isArray(rows) || !rows.some((r) => r && r.id === id && !r.missing)) { toast(t('lib.lora.trainingGone'), { kind: 'info' }); return; }
+  closeLibrary();
+  emit('train:open', { id });
+}
+
+/**
+ * « Retirer de Mes LoRA » (CONCEPTION-entrainement §2.6, §4.6) : rien ne part sans la question. Le fichier et sa fiche
+ * vont à la corbeille de Windows (jamais supprimés) ; le point de contrôle reste dans l'entraînement. Quand c'est
+ * l'entraînement qui a rangé CE fichier, c'est lui qui le retire (il oublie « DANS MES LORA ») ; sinon le scanner.
+ */
+async function removeMine(m) {
+  const models = mia().models;
+  const train = mia().train;
+  if (!models || typeof models.removeLora !== 'function') { toast(t('lib.lora.unavailable'), { kind: 'error' }); return; }
+  const id = m.training?.id, step = m.training?.step;
+  let ck = null;
+  if (id && train && typeof train.get === 'function') {
+    try {
+      const s = await train.get(id);
+      if (s && s.ok !== false && !s.missing) ck = (s.checkpoints || []).find((c) => c && c.step === step) || null;
+    } catch { ck = null; }
+  }
+  const viaTrainer = !!(ck && ck.added && samePath(ck.added.file, m.path) && typeof train.removeFromLoras === 'function');
+  const name = tl(m.label);
+  const yes = await confirm({ title: t('lib.lora.removeMineTitle', { name }), body: t(ck ? 'lib.lora.removeMineBody' : 'lib.lora.removeMineBodyAlone'),
+    ok: t('lib.lora.removeMineOk'), danger: true });
+  if (!yes) return;
+  let res = null, invNow = null;
+  try {
+    if (viaTrainer) {
+      res = await train.removeFromLoras(id, step);
+      if (res && res.ok !== false && typeof models.scan === 'function') invNow = await models.scan({ queue: true });
+    } else {
+      res = await models.removeLora(m.id);
+      invNow = res && res.inventory;
+    }
+  } catch (err) { res = { ok: false, error: String(err?.message || err) }; }
+  if (!res || res.ok === false) { toast(t('lib.lora.failed', { msg: res?.error || '—' }), { kind: 'error', ms: 7000 }); return; }
+  expanded.delete(m.id);
+  openSteps.delete(m.id);
+  if (invNow && Array.isArray(invNow.models)) adopt(invNow);
+  repaint();
+  toast(t('lib.lora.removedMine', { name }), { kind: 'ok' });
 }
 
 // « Ajouter un LoRA… » : le sélecteur de fichiers de Windows, en secours du glisser-déposer.

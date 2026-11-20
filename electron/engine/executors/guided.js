@@ -140,6 +140,9 @@ async function runLtx(x, c) {
   const L = F <= real.WINDOW ? E.ceil8k1(F) : real.WINDOW;
   const geo = real.geometry(meta, preview, { short: E.shortSide(x, { preview, previewCap: PREVIEW_SHORT }), mult: 64 });
   const unet = c.m && c.m.comfy && c.m.comfy.name && /ltx/i.test(c.m.comfy.name) ? c.m.comfy.name : LTX_INT8;
+  // the text encoder paired with this transformer (SPEC §7): the full one with the full model, else the template's
+  const lp = E.ltxParts(x);
+  if (lp.note) notes.push(lp.note);
 
   const ctl = await controlOf(x, c.guide, meta, follow, notes, [0, 0.14]);
   const control = ctl.src;
@@ -199,6 +202,7 @@ async function runLtx(x, c) {
     P.set(g, '5508', 'value', c.prompt);
     P.set(g, '5509', 'value', c.negative);
     P.set(g, '5004:5602', 'unet_name', unet);
+    P.set(g, '5004:5605', 'clip_name', lp.clip);
     P.set(g, '5516:4832', 'noise_seed', c.seed);
     P.setInputs(g, '5004:5606', { lora_name: UNION, strength_model: c.strength });
     P.bypass(g, '9002:9042', GUIDE_PASSTHROUGH);           // no look image at RoPE -1 (Layout-To-Render only)

@@ -137,6 +137,9 @@ async function run(x) {
   const name = m && m.comfy && m.comfy.name;
   const unet = name && /ltx/i.test(name) ? name : LTX_INT8;
   if (name && unet !== name) notes.push(E.t(TXT.notLtx));
+  // the text encoder paired with this transformer (SPEC §7): the full one with the full model, else the template's
+  const lp = E.ltxParts(x);
+  if (lp.note) notes.push(lp.note);
   const seed = E.seedOf(x);
 
   // progress budget: 4 % look upload, windows share 4–88 %, joining 88–92 %, final encode 92–100 %
@@ -169,6 +172,7 @@ async function run(x) {
       P.set(g, '5508', 'value', prompt);
       P.set(g, '5509', 'value', negative);
       P.set(g, '5004:5602', 'unet_name', unet);
+      P.set(g, '5004:5605', 'clip_name', lp.clip);
       P.set(g, '5516:4832', 'noise_seed', seed);
       if (lora) E.addLora(g, '5004:5606', lora, '9710');     // after the Layout-To-Render IC-LoRA
       if (k > 0) {

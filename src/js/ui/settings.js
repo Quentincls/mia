@@ -107,7 +107,7 @@ register({
     'set.bridgeChecking': 'Vérification…',
     'set.bridgeLast': 'Dernier passage : {who}, {when}',
     'set.assistAsk': 'Demander mon feu vert',
-    'set.assistAskHint': 'Un assistant montre d’abord ce qu’il veut faire et attend ton « C’est parti ». Ses calculs lourds ou payants vont dans « À générer » : tu coches ce que tu veux lancer.',
+    'set.assistAskHint': 'Un assistant montre d’abord ce qu’il veut faire et attend ton « C’est parti ». Ses calculs lourds ou payants vont dans « À générer » : tu coches ce que tu veux lancer. Coupé, c’est « Claude agit seul » (aussi en bas à gauche de la planche) : il lance tout sans te demander, y compris les calculs en ligne payants.',
     'set.assist1': 'Dis à Claude ou à Codex ce que tu veux faire (« anime cette image », « passe ce clip en profondeur ») : tu les vois créer la planche, poser et relier les blocs, régler et lancer le calcul, ici même. Ctrl+Z annule ce qu’ils font.',
     'set.assist2': 'Ensuite, il la trouve sous le nom « mia » et l’ouvre si elle est fermée. Tout reste sur ce PC.',
     'set.assistAdd': 'Ajoute Mia à ton assistant, une seule fois :',
@@ -134,7 +134,33 @@ register({
     'set.newsLess': 'Masquer les versions précédentes',
     'set.newsMissing': 'Le journal des versions est introuvable dans cette copie de Mia.',
     'set.newsNoSection': 'Rien de noté pour la version {v}.',
-    'set.newsFrOnly': ''
+    'set.newsFrOnly': '',
+    // Réglages → Entraînement (CONCEPTION-entrainement §2.6, §4.2)
+    'set.secTrain': 'Entraînement',
+    'set.trainRoot': 'Dossier des entraînements',
+    'set.trainRootHint': 'Chaque entraînement de LoRA y a son dossier : images, points de contrôle, essais (environ 5 Go pour LTX). Changer de dossier ne déplace rien.',
+    'set.trainTools': 'Outils d’entraînement',
+    'set.trainToolsHint': 'Le dossier qui contient venv-ltx, venv-aitk et leurs sources (src).',
+    'set.trainDefault': 'Par défaut',
+    'set.trainDefaultTip': 'Revenir à l’emplacement par défaut : {dir}',
+    'set.trainIsDefault': 'Emplacement par défaut',
+    'set.trainFree': '{gb} Go libres',
+    'set.trainFormer': 'Dossiers précédents : leurs entraînements restent dans la liste.',
+    'set.trainTest': 'Instance de test : ses entraînements restent dans ses propres données.',
+    'set.trainBusy': 'Un entraînement est en cours ({name}) : le dossier ne peut pas changer.',
+    'set.trainBeside': 'Générer pendant un entraînement',
+    'set.trainBesideHint': 'Une génération sur ce PC part à côté de l’entraînement quand la mémoire le permet : l’entraînement ralentit un peu pendant le calcul. Sinon, Mia attend que la mémoire se libère ou que l’entraînement finisse, et le dit sur le bloc. Une vidéo attend toujours la fin.',
+    'set.toolLtx': 'LTX',
+    'set.toolAitk': 'Qwen / Flux',
+    'set.toolFake': 'Faux outil (test)',
+    'set.toolReady': '{tool} : prêt',
+    'set.toolReadyV': '{tool} : prêt · {v}',
+    'set.toolVersion': '{tool} : version {v} non validée',
+    'set.toolMissing': '{tool} : introuvable',
+    'set.toolNoDir': '{tool} : aucun dossier d’outils',
+    'set.toolUntried': 'pas encore essayé sur cette machine',
+    'set.toolsWait': 'Recherche des outils…',
+    'set.toolsNone': 'État des outils indisponible.'
   },
   en: {
     'set.title': 'Settings',
@@ -220,7 +246,7 @@ register({
     'set.bridgeChecking': 'Checking…',
     'set.bridgeLast': 'Last visit: {who}, {when}',
     'set.assistAsk': 'Ask for my go-ahead',
-    'set.assistAskHint': 'An assistant first shows what it wants to do and waits for your “Go ahead”. Its heavy or paid computations go to “To generate”: you tick what you want to start.',
+    'set.assistAskHint': 'An assistant first shows what it wants to do and waits for your “Go ahead”. Its heavy or paid computations go to “To generate”: you tick what you want to start. Off, it is “Claude acts alone” (also at the bottom left of the board): it starts everything without asking you, including paid online computations.',
     'set.assist1': 'Tell Claude or Codex what you want to do (“animate this picture”, “make a depth pass of this clip”): you see them create the board, place and wire the blocks, set them and start the run, right here. Ctrl+Z undoes what they do.',
     'set.assist2': 'Then it finds Mia under the name “mia”, and opens it if it is closed. Everything stays on this PC.',
     'set.assistAdd': 'Add Mia to your assistant, once:',
@@ -247,27 +273,71 @@ register({
     'set.newsLess': 'Hide earlier versions',
     'set.newsMissing': 'The release notes cannot be found in this copy of Mia.',
     'set.newsNoSection': 'Nothing noted for version {v}.',
-    'set.newsFrOnly': 'These notes are only written in French.'
+    'set.newsFrOnly': 'These notes are only written in French.',
+    'set.secTrain': 'Training',
+    'set.trainRoot': 'Trainings folder',
+    'set.trainRootHint': 'Each LoRA training gets its own folder there: images, checkpoints, samples (about 5 GB for LTX). Changing the folder moves nothing.',
+    'set.trainTools': 'Training tools',
+    'set.trainToolsHint': 'The folder that holds venv-ltx, venv-aitk and their sources (src).',
+    'set.trainDefault': 'Default',
+    'set.trainDefaultTip': 'Back to the default place: {dir}',
+    'set.trainIsDefault': 'Default place',
+    'set.trainFree': '{gb} GB free',
+    'set.trainFormer': 'Former folders: their trainings stay in the list.',
+    'set.trainTest': 'Test instance: its trainings stay in its own data folder.',
+    'set.trainBusy': 'A training is running ({name}): the folder cannot change.',
+    'set.trainBeside': 'Generate during a training',
+    'set.trainBesideHint': 'A generation on this PC starts alongside the training when the memory allows it: the training slows down a little meanwhile. Otherwise Mia waits for memory to free up or for the training to finish, and says so on the block. A video always waits for the end.',
+    'set.toolLtx': 'LTX',
+    'set.toolAitk': 'Qwen / Flux',
+    'set.toolFake': 'Fake tool (test)',
+    'set.toolReady': '{tool}: ready',
+    'set.toolReadyV': '{tool}: ready · {v}',
+    'set.toolVersion': '{tool}: version {v} not validated',
+    'set.toolMissing': '{tool}: not found',
+    'set.toolNoDir': '{tool}: no tools folder',
+    'set.toolUntried': 'not tried on this machine yet',
+    'set.toolsWait': 'Looking for the tools…',
+    'set.toolsNone': 'Tools status unavailable.'
   }
 });
 
 // ── prefs & theme ─────────────────────────────────────────────────────
+// setPrefs: the last call that wrote each key (its number), while its answer has not come back
+let prefSeq = 0;
+const prefLast = new Map();
 /**
  * Write a patch of prefs; keeps `state.prefs` in step and tells everyone.
  * Resolves to the full prefs, or null when the main process refused.
  */
 export async function setPrefs(patch) {
   const before = state.prefs;
+  const mine = ++prefSeq;
+  const keys = Object.keys(patch || {});
+  for (const k of keys) prefLast.set(k, mine);
   state.prefs = { ...state.prefs, ...patch };   // optimistic: the UI moves at once
+  // a key written again since this call (two clicks in a row): the newer value stays — the answer to this older
+  // call never brings back, even for a moment, a value the user has already left (« Claude agit seul » → « Je valide »)
+  const newer = (k) => prefLast.has(k) && prefLast.get(k) !== mine;
+  const done = () => { for (const k of keys) if (prefLast.get(k) === mine) prefLast.delete(k); };
   try {
     const r = await window.mia.prefs.set(patch);
     if (r && typeof r === 'object' && r.ok === false) throw new Error(r.error || '?');
-    if (r && typeof r === 'object' && !('ok' in r)) state.prefs = { ...state.prefs, ...r };
+    if (r && typeof r === 'object' && !('ok' in r)) {
+      const next = { ...state.prefs, ...r };
+      for (const k of Object.keys(r)) if (newer(k)) next[k] = state.prefs[k];
+      state.prefs = next;
+    }
+    done();
     emit('prefs:changed', { prefs: state.prefs, patch });
     return state.prefs;
   } catch (err) {
     console.error('[settings] prefs.set', err);
-    state.prefs = before;
+    // back to the value from before, except for a key written again since (the newer call says what it becomes)
+    const back = { ...state.prefs };
+    for (const k of keys) if (!newer(k)) { if (before && k in before) back[k] = before[k]; else delete back[k]; }
+    state.prefs = back;
+    done();
     toast(t('set.failed', { why: err?.message || '?' }), { kind: 'error' });
     return null;
   }
@@ -363,6 +433,25 @@ const ASSIST_CSS = `
 .set-assist-after { margin-top: 10px !important; }
 .set-assist-after[hidden] { display: none; }
 `;
+// Réglages → Entraînement: one line under each folder (default place, free space, test instance), the former
+// folders, and one line per training tool — a dot (white = ready, grey = not), mono text, the path cut from the left
+const TRAIN_CSS = `
+.set-row.folder .set-ctl .btn[hidden], .set-list[hidden] { display: none; }
+.set-train-note { flex: 1 1 100%; font-family: var(--font-mono); font-size: 11px; color: var(--txt-3); margin-top: -2px; }
+.set-train-note:empty, .set-train-note[hidden] { display: none; }
+.set-train-note.warn { color: var(--txt-2); }
+.set-tools { display: flex; flex-direction: column; gap: 2px; padding: 0 0 10px; border-bottom: 1px solid var(--line); }
+.set-tool {
+  display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 10px;
+  border-radius: var(--r-xs); background: var(--surface-3); border: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 11px; color: var(--txt-2); min-width: 0;
+}
+.set-tool::before { content: ''; flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--txt-3); }
+.set-tool.on { color: var(--txt); }
+.set-tool.on::before { background: var(--txt); }
+.set-tool-text { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set-tool .set-path { flex: 1 1 0; min-width: 0; max-width: none; margin: 0; color: var(--txt-3); }
+`;
 
 // ── the gear ──────────────────────────────────────────────────────────
 export function mountSettingsButton(host = $('#tb-actions')) {
@@ -377,7 +466,11 @@ export function mountSettingsButton(host = $('#tb-actions')) {
 let current = null;
 
 export function openSettings(opts = {}) {
-  if (current) { if (opts.section === 'cloud') current.box?.querySelector?.('.set-cloud')?.scrollIntoView({ block: 'center' }); return current; }
+  if (current) {
+    if (opts.section === 'cloud') current.box?.querySelector?.('.set-cloud')?.scrollIntoView({ block: 'center' });
+    if (opts.section === 'train') current.box?.querySelector?.('.set-train-sec')?.scrollIntoView({ block: 'start' });
+    return current;
+  }
   const p = state.prefs;
   const timers = [];
 
@@ -722,6 +815,133 @@ export function openSettings(opts = {}) {
   pollBridge();
   timers.push(setInterval(pollBridge, 4000));
 
+  // ── training a LoRA (CONCEPTION-entrainement §2.6, §4.2): the trainings folder, the tools folder and what Mia found
+  // there. prefs.trainRoot / prefs.trainTools '' = the default place (beside the engine), so a new engine folder is
+  // followed. The main process refuses a trainings folder inside the engine, the projects or a scanned folder, and any
+  // change of it while a training runs (store.js). Nothing is created here: the trainer makes a training's folder in
+  // the folder chosen when the first draft is made. What is in use comes from train:options (trainer.js).
+  ensureCss('mia-settings-train-css', TRAIN_CSS);
+  let trainOpts = null;
+  let trainAsked = false;
+  const trainFolders = () => trainOpts?.folders || null;
+  const trainNow = (key) => (key === 'trainRoot' ? trainFolders()?.root : trainFolders()?.tools) || state.prefs[key] || '';
+  const trainDefault = (key) => (key === 'trainRoot' ? trainFolders()?.defaultRoot : trainFolders()?.defaultTools) || '';
+  function trainFolderRow(key, name, hint) {
+    const field = textField({ value: state.prefs[key] || '', size: 'sm', mono: true, placeholder: t('set.notSet'), onChange: (v) => applyTrain(key, v, row) });
+    field.spellcheck = false;
+    field.classList.add('set-dir');
+    const showEnd = () => { if (document.activeElement !== field) field.scrollLeft = field.scrollWidth; };
+    field.addEventListener('blur', () => requestAnimationFrame(showEnd));
+    new ResizeObserver(showEnd).observe(field);
+    tip(field, () => (document.activeElement !== field && field.scrollWidth > field.clientWidth + 1 ? field.value : ''));
+    const browse = button({ label: t('set.browse'), size: 'sm', onClick: async () => { const f = await pickFolder(); if (f) applyTrain(key, f, row); } });
+    const back = button({ label: t('set.trainDefault'), size: 'sm', kind: 'ghost', onClick: () => applyTrain(key, '', row) });
+    tip(back, () => t('set.trainDefaultTip', { dir: trainDefault(key) || t('set.notSet') }));
+    const open = button({ icon: 'folder', size: 'sm', kind: 'ghost', tip: t('set.openTip'), onClick: () => openFolder(trainNow(key)) });
+    const note = el('div', { class: 'set-train-note' });
+    const row = el('div', { class: 'set-row folder', 'data-train': key },
+      el('div', { class: 'set-label' }, el('div', { class: 'set-name' }, name), el('div', { class: 'set-hint' }, hint)),
+      el('div', { class: 'set-ctl' }, field, browse, back, open),
+      note);
+    acceptFolderDrop(row, (f) => { if (!row.locked) applyTrain(key, f, row); });
+    Object.assign(row, { field, browse, back, open, note, locked: false });
+    return row;
+  }
+
+  async function applyTrain(key, raw, row) {
+    const was = state.prefs[key] || '';
+    const restore = () => paintTrainRow(key, row);
+    if (row.locked) return restore();
+    let v = cleanPath(raw);
+    if (v && !isAbsPath(v)) { toast(t('set.badPath'), { kind: 'error' }); return restore(); }
+    // the default place is kept as '' (it follows the engine folder), whether typed, emptied or « Par défaut »
+    const dflt = trainDefault(key);
+    if (!v || (dflt && norm(v) === norm(dflt))) v = '';
+    if (v === was || (v && was && norm(v) === norm(was))) return restore();
+    const r = await setPrefs({ [key]: v });
+    if (!r) return restore();
+    toast(t('set.folderChanged'), { kind: 'ok' });
+    await refreshTrain();
+  }
+
+  const trainRootRow = trainFolderRow('trainRoot', t('set.trainRoot'), t('set.trainRootHint'));
+  const trainFormer = el('div', { class: 'set-list', hidden: true });
+  const trainToolsRow = trainFolderRow('trainTools', t('set.trainTools'), t('set.trainToolsHint'));
+  const toolsBox = el('div', { class: 'set-tools' }, el('div', { class: 'set-tool' }, el('span', { class: 'set-tool-text' }, t('set.toolsWait'))));
+
+  const fmtGB = (gb) => (Math.round(gb * 10) / 10).toLocaleString(lang() === 'en' ? 'en-US' : 'fr-FR', { maximumFractionDigits: 1 });
+  function paintTrainRow(key, row) {
+    const f = trainFolders();
+    const own = state.prefs[key] || '';
+    row.field.setValue(own || trainNow(key));
+    if (document.activeElement !== row.field) requestAnimationFrame(() => { row.field.scrollLeft = row.field.scrollWidth; });
+    row.back.hidden = !own;
+    const notes = [];
+    let warn = false;
+    if (key === 'trainRoot') {
+      const act = trainOpts?.active;
+      row.locked = !!act;
+      for (const c of [row.field, row.browse, row.back]) c.setDisabled(row.locked);
+      if (act) { notes.push(t('set.trainBusy', { name: act.name || '—' })); warn = true; }
+      else if (f?.test) { notes.push(t('set.trainTest', { dir: f.root })); warn = true; }
+      else if (!own) notes.push(t('set.trainIsDefault'));
+      const gb = trainOpts?.disk?.freeGB;
+      if (!act && gb != null) notes.push(t('set.trainFree', { gb: fmtGB(gb) }));
+    } else if (!own && f) notes.push(t('set.trainIsDefault'));
+    row.note.textContent = notes.join(' · ');
+    row.note.classList.toggle('warn', warn);
+  }
+
+  function toolLine(id, d, bases) {
+    const tool = t(id === 'ltx' ? 'set.toolLtx' : id === 'aitk' ? 'set.toolAitk' : 'set.toolFake');
+    const extra = [];
+    let text;
+    let at = '';
+    if (d.ok) {
+      text = d.version ? t('set.toolReadyV', { tool, v: id === 'fake' ? d.version : `${d.label} ${d.version}` }) : t('set.toolReady', { tool });
+      // a base of this tool not tried yet on this PC stays greyed in the draft (catalog « tried »): said here too
+      if ((bases || []).some((b) => b.tool === id && b.why && b.why.code === 'untried')) extra.push(t('set.toolUntried'));
+    } else if (d.why && d.why.code === 'version') text = t('set.toolVersion', { tool, v: d.why.version || '?' });
+    else if (d.why && d.why.path) { text = t('set.toolMissing', { tool }); at = d.why.path; }
+    else text = t('set.toolNoDir', { tool });
+    const line = el('div', { class: 'set-tool' + (d.ok ? ' on' : ''), 'data-tool': id, 'data-ok': d.ok ? '1' : '0' },
+      el('span', { class: 'set-tool-text' }, [text, ...extra].join(' · ')),
+      at ? pathLine(at) : null);
+    return line;
+  }
+
+  function paintTrain() {
+    paintTrainRow('trainRoot', trainRootRow);
+    paintTrainRow('trainTools', trainToolsRow);
+    const f = trainFolders();
+    const former = (f?.roots || []).slice(1);
+    trainFormer.innerHTML = '';
+    trainFormer.hidden = !former.length;
+    if (former.length) {
+      trainFormer.append(el('div', { class: 'set-train-note' }, t('set.trainFormer')));
+      for (const d of former) {
+        trainFormer.append(el('div', { class: 'set-item' }, pathLine(d),
+          button({ icon: 'folder', size: 'xs', kind: 'ghost', tip: t('set.openTip'), onClick: () => openFolder(d) })));
+      }
+    }
+    if (!trainAsked) return;                       // « Recherche des outils… » until train:options answers
+    toolsBox.innerHTML = '';
+    const tools = trainOpts?.tools;
+    if (!tools) { toolsBox.append(el('div', { class: 'set-tool' }, el('span', { class: 'set-tool-text' }, t('set.toolsNone')))); return; }
+    for (const id of ['ltx', 'aitk', 'fake']) if (tools[id]) toolsBox.append(toolLine(id, tools[id], trainOpts.bases));
+  }
+
+  async function refreshTrain() {
+    let o = null;
+    try { o = await window.mia?.train?.options?.(); } catch (err) { console.error('[settings] train options', err); o = null; }
+    trainOpts = o && o.ok !== false ? o : null;
+    trainAsked = true;
+    paintTrain();
+    return trainOpts;
+  }
+  paintTrain();
+  refreshTrain();
+
   // ── about: version and its date (CHANGELOG.md, SPEC §21.1), « Nouveautés » ──
   const versionLine = el('span', { class: 'set-about-meta' });
   const paintVersion = (info, date) => {
@@ -768,6 +988,12 @@ export function openSettings(opts = {}) {
       engineRow,
       rowEl(t('set.comfy'), t('set.comfyHint'), comfyCtl),
 
+      el('div', { class: 'set-sec kicker set-train-sec' }, t('set.secTrain')),
+      trainRootRow, trainFormer,
+      trainToolsRow, toolsBox,
+      // SPEC §8.7: one local job alongside a training when the memory allows it (prefs.trainGenBeside, on unless false)
+      rowEl(t('set.trainBeside'), t('set.trainBesideHint'), toggle({ value: p.trainGenBeside !== false, label: t('set.trainBeside'), onChange: (v) => setPrefs({ trainGenBeside: v }) })),
+
       section('set.secCloud'),
       hfRow,
 
@@ -791,6 +1017,8 @@ export function openSettings(opts = {}) {
   current = handle;
   // ouvert depuis le choix d'un modèle en ligne : droit sur le compte Higgsfield
   if (opts.section === 'cloud') requestAnimationFrame(() => { hfRow.scrollIntoView({ block: 'center' }); hfField.focus(); });
+  // ouvert sur « Entraînement » (l'écran d'entraînement, un outil introuvable) : la section en haut
+  if (opts.section === 'train') requestAnimationFrame(() => content.querySelector('.set-train-sec')?.scrollIntoView({ block: 'start' }));
 
   // the app info arrives once; fill in what was missing when it does
   if (!state.info) {

@@ -64,6 +64,13 @@
 .q-row:hover { background: var(--wash); }
 .q-label { font-size: 12.5px; font-weight: 550; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .q-sub { font-size: 11px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* la raison d'attendre derrière un entraînement (forme courte, la raison d'abord) : deux lignes au plus, en entier au
+   survol ; l'état reste en haut à droite */
+.q-sub.is-why {
+  white-space: normal; line-height: 15px; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+.q-line:has(> .q-sub.is-why) { align-items: flex-start; }
 /* l'état garde sa largeur (c'est ce qu'on vient lire) ; « mode · planche » cède à côté */
 .q-st {
   flex: 0 0 auto; min-width: 0; max-width: 72%; font: 500 10px/1.4 var(--font-kicker, var(--font-mono)); letter-spacing: .08em;

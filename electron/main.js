@@ -15,7 +15,7 @@
  *   MIA_HEADLESS=1        the window is never shown (tests)
  *   MIA_SKIP_MODULES=a,b  do not load these modules (scanner, engine, bridge) — tests of the shell alone
  */
-const { app, BrowserWindow, ipcMain, protocol, Menu, nativeTheme, screen, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, Menu, nativeTheme, screen, shell, dialog, powerSaveBlocker } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
@@ -52,6 +52,7 @@ const places = require('./places');
 const ffmpeg = require('./ffmpeg');
 const { createMedia } = require('./media');
 const { createShellOps } = require('./shellops');
+const { createTrainShell } = require('./trainshell');
 
 // No application menu at all: no Alt menu bar, and none of its hidden accelerators (Ctrl+R reload,
 // Ctrl+± page zoom, Ctrl+Shift+I…) — those exist only through the default menu's roles, so the
@@ -119,6 +120,7 @@ if (!gotLock) app.quit();
 
 let win = null;
 let rendererReady = false;   // index.html loaded: it can answer app:flush
+let trainShell = null;       // taskbar progress, flash and sleep blocker of a LoRA training (trainshell.js)
 let media = null;
 let shellops = null;
 
@@ -437,14 +439,39 @@ function createWindow() {
     win.on(ev, () => send('win:state', winState()));
   }
   for (const ev of ['resize', 'move', 'maximize', 'unmaximize']) win.on(ev, saveBoundsSoon);
+  win.on('focus', () => { if (trainShell) trainShell.focused(); });      // the end of a training stops flashing
+  // the trainer starts before the window: a training already running gets its taskbar progress at once
+  win.once('ready-to-show', () => { if (trainShell) trainShell.update(); });
 
   // ---- closing: the page saves first (app:flush → app:flushed, 2 s at most), then queued writes land.
   // app:flush carries { activeJobs }: with jobs running, the page may ask Quentin first — it answers
   // flushed({hold:true}) at once (the wait becomes HOLD_MS), then flushed({quit:true}) to quit or
   // flushed({cancel:true}) to keep Mia open. Without a hold, a bare flushed() means: saved, go.
+  // app:flush also carries { training }: the active LoRA training (trainer.brief()) or null.
   const HOLD_MS = 5 * 60 * 1000;
-  const finishClose = async () => {
+  const TRAIN_STOP_MS = 7 * 60 * 1000;        // beyond the service's own deadlines (a sample that ends: 6 min)
+  const finishClose = async (o = {}) => {
+    // A LoRA training is stopped on EVERY way out (answer « quit », page gone, crashed or mute, deadline): it gets
+    // the time to write its checkpoint (trainer.stopForQuit). flushed({now:true}) — at once with « quit » or
+    // later, while Mia waits — is « Quitter sans attendre »: the tool is killed, the training filed as interrupted.
+    const t = modules.get('trainer');
+    if (t && typeof t.stopForQuit === 'function') {
+      const hurry = (ev, answer) => {
+        if (ev.sender !== wc || !answer || typeof answer !== 'object' || !answer.now) return;
+        log('[window] quit without waiting for the training');
+        Promise.resolve().then(() => t.stopForQuit({ now: true })).catch(() => {});
+      };
+      ipcMain.on('app:flushed', hurry);
+      try {
+        await Promise.race([t.stopForQuit({ now: !!o.now }), sleep(TRAIN_STOP_MS)]);
+      } catch (e) {
+        log('[window] training not stopped before closing:', e && e.message);   // the engine's shutdown kills it
+      }
+      ipcMain.removeListener('app:flushed', hurry);
+    }
     await Promise.race([store.idle(), sleep(1500)]);
+    // the PC may sleep again and the taskbar icon is cleared, even if the training could not be stopped in time
+    if (trainShell) trainShell.release();
     allowClose = true;
     if (win && !win.isDestroyed()) win.destroy();
   };
@@ -467,37 +494,45 @@ function createWindow() {
       clearTimeout(timer);
       ipcMain.removeListener('app:flushed', onFlushed);
     };
-    const finish = () => {
+    const finish = (a) => {
       if (done) return;
       stop();
-      finishClose();
+      finishClose({ now: !!(a && a.now) });
+    };
+    const training = activeTraining();       // for the hold's deadline below (the page gets its own copy)
+    const cancel = (why) => {
+      stop();
+      closing = false;
+      store.setClosing(false);
+      log(why);
     };
     const onFlushed = (ev, answer) => {
       if (ev.sender !== wc || done) return;
       const a = answer && typeof answer === 'object' ? answer : {};
       if (a.cancel) {                          // Quentin chose to keep Mia open (a job is running)
-        stop();
-        closing = false;
-        store.setClosing(false);
-        log('[window] close cancelled from the page');
+        cancel('[window] close cancelled from the page');
         return;
       }
       if (a.hold) {                            // the page is asking Quentin: wait for the answer
         held = true;
         clearTimeout(timer);
-        timer = setTimeout(() => { log('[window] no answer to the close question: closing'); finish(); }, HOLD_MS);
+        // with a training running, no answer means « Rester » (test 16): Mia stays open, the training goes on
+        timer = setTimeout(() => {
+          if (training) cancel('[window] no answer to the close question: a training runs, Mia stays open');
+          else { log('[window] no answer to the close question: closing'); finish(); }
+        }, HOLD_MS);
         return;
       }
       // once on hold, only an explicit answer counts (a plain « saved » from another listener does not)
       if (held && !a.quit) return;
-      finish();
+      finish(a);
     };
     timer = setTimeout(() => {
       log('[window] the page did not answer app:flush within 2 s');
       finish();
     }, 2000);
     ipcMain.on('app:flushed', onFlushed);
-    wc.send('app:flush', { activeJobs: activeJobs() });
+    wc.send('app:flush', { activeJobs: activeJobs(), training: activeTraining() });
   });
   win.on('closed', () => { win = null; });
 
@@ -679,6 +714,11 @@ function engineJobs() {
   return [];
 }
 const activeJobs = () => engineJobs().length;
+/** The active LoRA training in a few fields ({id, name, state, step, steps…}), or null: the page asks before closing over it. */
+const activeTraining = () => {
+  const t = modules.get('trainer');
+  try { return t && typeof t.brief === 'function' ? t.brief() : null; } catch { return null; }
+};
 
 /** A job of this board is queued or running: its folder must not move nor go to the Recycle Bin. */
 function projectBusy(id) {
@@ -767,6 +807,7 @@ function buildCtx() {
     focusWindow,
     headless: HEADLESS,
     get engine() { return modules.get('engine') || null; },
+    get trainer() { return modules.get('trainer') || null; },
     media,
     shell: shellops,
     paths: {
@@ -936,10 +977,27 @@ async function boot() {
   // it drives the other two. Each one may fail alone: Mia still opens.
   // the model installer (SPEC §21.4) reads ctx.models: after the scanner
   // the online accounts (SPEC §23.3) before the engine: its cloud executor reads ctx.cloud
-  for (const name of ['scanner', 'installer', 'cloud', 'engine', 'bridge']) {
+  // the LoRA trainer after the engine (it shares its GPU lock) and before the bridge, which drives it too
+  for (const name of ['scanner', 'installer', 'cloud', 'engine', 'trainer', 'bridge']) {
     if (skip.has(name)) moduleErrors.set(name, new Error('skipped (MIA_SKIP_MODULES)'));
     else registerModule(name);
   }
+  // a LoRA training outside the window: taskbar progress, a flash at its end, no sleep meanwhile
+  {
+    const t = modules.get('trainer');
+    if (t && typeof t.onChange === 'function' && typeof t.brief === 'function') {
+      trainShell = createTrainShell({
+        trainer: t, getWin: () => (win && !win.isDestroyed() ? win : null), powerSaveBlocker, headless: HEADLESS, log: logger('trainshell')
+      });
+      t.onChange(() => trainShell.update());
+      trainShell.update();
+    }
+  }
+  // the trainings folder must not change under a training that is running
+  store.setTrainBusyCheck(() => {
+    const t = modules.get('trainer');
+    return !!(t && typeof t.active === 'function' && t.active());
+  });
   stubMissingChannels();
   watchEngineForStore();
 

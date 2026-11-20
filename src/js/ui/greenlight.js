@@ -7,17 +7,35 @@
  *  2. « À générer »: a heavy or paid computation asked by an assistant is not started, it is listed in a panel on
  *     the right, one group per chain of wired blocks (a « plan »); the user ticks what he wants and starts it
  *     himself. Online (paid) ones arrive unticked.
- * Off (Réglages → Assistants → « Demander mon feu vert »): assistants act and compute at once, as before.
+ * Off (Réglages → Assistants → « Demander mon feu vert », or the switch « Je valide · Claude agit seul » at the bottom
+ * left of the board — one preference, prefs.assistantAsk, both sides): assistants act and compute at once, heavy jobs
+ * of the PC and paid online ones included (Quentin's decision, 19/11/2026: « Oui ils partent aussi pour les calculs
+ * payants »), with neither card nor « À générer ».
+ * Switching (SPEC §13.7, « Je valide · Claude agit seul »):
+ *  - to « agit seul » while a request card waits: that request is accepted (the assistant goes on);
+ *  - to « agit seul » while « À générer » holds lines: they STAY there, unticked ones unticked, with a line that says so —
+ *    the switch never starts computations nobody looked at (paid ones arrive unticked); an assistant that asks for the
+ *    same block again (mia_run) starts it at once, and its line leaves the list (launched);
+ *  - back to « Je valide »: the green light given before is taken back, the next action of every assistant asks
+ *    again (mia_request); nothing already started is cancelled;
+ *  - « Pause » (title bar) keeps its role in both: it holds the assistants where they are.
  *
- * presence.js owns the calls; this module owns the state and the two cards. Nothing is kept across a restart.
+ * A LoRA training (SPEC « Entraîner un LoRA ») goes through the same two doors: the request says « Il prépare un
+ * entraînement de LoRA » (mia_request {training:true}), and mia_train_start only SUGGESTS: a card « Claude propose
+ * un entraînement » [Voir] [Refuser] [Plus tard] [Lancer] waits in the same island. That card is drawn from
+ * train.json.proposal (main process: train:list at mount, then train:event), never from this module's memory, so
+ * it comes back as it was after a reload; its buttons go through train:start / train:update.
+ *
+ * presence.js owns the calls; this module owns the state and the cards. Nothing else is kept across a restart.
  */
 import { state } from '../state.js';
 import { t, register } from '../i18n.js';
-import { on } from '../bus.js';
+import { on, emit } from '../bus.js';
 import { tip } from './tooltip.js';
 import { money } from './budget.js';
 import { typeOf } from '../catalog.js';
 import { tl } from '../i18n.js';
+import { setPrefs } from './settings.js';
 
 register({
   fr: {
@@ -51,6 +69,28 @@ register({
     'gl.tray.onPc': '{time} sur ce PC',
     'gl.tray.paid': '{price} en ligne',
     'gl.tray.check': 'Générer « {name} »',
+    'gl.ask.training': 'Il prépare un entraînement de LoRA. Tu le lanceras toi-même ensuite.',
+    'gl.train.title': '{name} propose un entraînement',
+    'gl.train.titleResume': '{name} propose de reprendre {training} au pas {step}',
+    'gl.train.steps': '{n} pas',
+    'gl.train.view': 'Voir',
+    'gl.train.decline': 'Refuser',
+    'gl.train.later': 'Plus tard',
+    'gl.train.start': 'Lancer',
+    'gl.train.resume': 'Reprendre',
+    'gl.train.chip': '{name} propose un entraînement',
+    'gl.train.chipResume': '{name} propose de reprendre {training}',
+    'gl.train.chipTip': 'Voir ce que {name} propose',
+    'gl.train.failed': 'Le départ n’a pas pu se faire.',
+    'gl.mode.group': 'Feu vert des assistants',
+    'gl.mode.ask': 'Je valide',
+    'gl.mode.auto': 'Claude agit seul',
+    // a narrow window shows only the chosen mode: « Je valide » alone would read as a button to validate something
+    'gl.mode.askTight': 'Claude demande',
+    'gl.mode.askTip': 'Claude te montre ce qu’il veut faire et attend ton « C’est parti ». Ses calculs lourds ou payants vont dans « À générer ».',
+    'gl.mode.autoTip': 'Claude lance tout sans te demander, y compris les calculs en ligne payants.',
+    'gl.mode.flip': 'Clic : passer en « {mode} ».',
+    'gl.tray.before': 'Proposés avant « Claude agit seul » : ils attendent ta coche.',
   },
   en: {
     'gl.ask.title': '{name} is waiting for your go-ahead',
@@ -83,6 +123,27 @@ register({
     'gl.tray.onPc': '{time} on this PC',
     'gl.tray.paid': '{price} online',
     'gl.tray.check': 'Generate “{name}”',
+    'gl.ask.training': 'It is preparing a LoRA training. You will start it yourself afterwards.',
+    'gl.train.title': '{name} suggests a training',
+    'gl.train.titleResume': '{name} suggests resuming {training} at step {step}',
+    'gl.train.steps': '{n} steps',
+    'gl.train.view': 'View',
+    'gl.train.decline': 'Decline',
+    'gl.train.later': 'Later',
+    'gl.train.start': 'Start',
+    'gl.train.resume': 'Resume',
+    'gl.train.chip': '{name} suggests a training',
+    'gl.train.chipResume': '{name} suggests resuming {training}',
+    'gl.train.chipTip': 'See what {name} suggests',
+    'gl.train.failed': 'It could not start.',
+    'gl.mode.group': 'Assistants’ go-ahead',
+    'gl.mode.ask': 'I approve',
+    'gl.mode.auto': 'Claude acts alone',
+    'gl.mode.askTight': 'Claude asks',
+    'gl.mode.askTip': 'Claude shows you what it wants to do and waits for your “Go ahead”. Its heavy or paid computations go to “To generate”.',
+    'gl.mode.autoTip': 'Claude starts everything without asking you, including paid online computations.',
+    'gl.mode.flip': 'Click: switch to “{mode}”.',
+    'gl.tray.before': 'Proposed before “Claude acts alone”: they wait for your tick.',
   }
 });
 
@@ -95,7 +156,11 @@ let grant = null;          // { client, until }
 const items = [];          // « À générer »: { id, nodeId, boardId, mode, variants, by, checked, error }
 const settled = new Map(); // pendingId → { state: launched|removed, jobId?, jobIds? } (what became of an item)
 let folded = false;
-let hooks = { launch: null, editor: () => null, runs: () => null };
+// openTraining(id): shows the « Entraînements » screen on that training (set by the screen when it mounts)
+let hooks = { launch: null, editor: () => null, runs: () => null, openTraining: null };
+// Suggestions of a LoRA training (mia_train_start): training id → { id, at, by, resume, name, base, baseLabel, step,
+// steps, seconds, later, error, busy }. A mirror of train.json.proposal, rebuilt from the main process.
+const proposals = new Map();
 
 const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; };
 const svg = (d, size = 14) => `<svg viewBox="0 0 20 20" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
@@ -108,11 +173,29 @@ const ICON = {
 
 // ── public ──────────────────────────────────────────────────────────────
 
-/** Is the green light asked at all? (Réglages → Assistants ; on unless turned off) */
+/** Is the green light asked at all? (« Je valide », the default; « Claude agit seul » = off. Réglages → Assistants too) */
 export function enabled() { return state.prefs?.assistantAsk !== false; }
+
+/** « ask » (Je valide) or « auto » (Claude agit seul): what the bridge tells the assistants (mia_request, mia_pending). */
+export function mode() { return enabled() ? 'ask' : 'auto'; }
+
+// The mode seen last: a change is followed wherever it comes from (the switch, Réglages, a preference set without the
+// bus): prefs:changed, and every call of the assistants (allowed, request, snapshot) looks again.
+let seenAsk = null;
+function follow() {
+  const on = enabled();
+  if (seenAsk === on) return;
+  const was = seenAsk;
+  seenAsk = on;
+  if (!on) answer('accepted');                 // « agit seul »: the request waiting on its card is accepted
+  else if (was === false) grant = null;        // back to « Je valide »: every next action asks again
+  paintMode();
+  if (was !== null) paintTray();
+}
 
 /** May this assistant act now? Each allowed call keeps its green light alive. */
 export function allowed(client) {
+  follow();
   if (!enabled()) return true;
   const now = Date.now();
   if (grant && grant.client === client && now < grant.until) { grant.until = now + GRANT_MS; return true; }
@@ -127,11 +210,19 @@ export function mountGreenlight(h = {}) {
   document.body.append(stack);
   const side = el('div', 'gl-side');
   document.body.append(side);
-  dom = { stack, side, ask: null, tray: null };
+  dom = { stack, side, ask: null, tray: null, train: [], mode: null };
+  seenAsk = enabled();
+  mountMode();
   on('project:opened', () => paintTray());
-  on('view:changed', () => paintTray());
+  on('view:changed', () => { paintTray(); paintTrain(); });
+  // the training screen shows another training (or the list): its card comes back, the shown one's goes
+  on('train:shown', () => paintTrain());
   on('graph:changed', () => { if (items.length) scheduleTray(); });
-  on('prefs:changed', () => { if (!enabled()) { answer('accepted'); } });
+  // the switch of the board and Réglages → Assistants are the same preference: each follows the other
+  on('prefs:changed', () => { follow(); paintMode(); });
+  // the suggestions of a training live in the main process: read now, then followed
+  try { window.mia?.train?.onEvent?.((ev) => onTrainEvent(ev)); } catch { /* a preload without training */ }
+  syncTraining();
 }
 
 /**
@@ -139,7 +230,8 @@ export function mountGreenlight(h = {}) {
  * replaces the previous one and takes back any green light given before: one click per thing asked.
  * → { id, state, answered: Promise<state> }
  */
-export function request({ client, id, title, summary, steps, runs }) {
+export function request({ client, id, title, summary, steps, runs, training }) {
+  follow();
   if (ask && ask.state === 'pending' && id && ask.id === id) return handle(ask);
   if (ask && id && ask.id === id) return handle(ask);                       // already answered: say so
   if (ask && ask.state === 'pending') settle(ask, 'replaced');
@@ -149,6 +241,7 @@ export function request({ client, id, title, summary, steps, runs }) {
     title: clean(title, 90), summary: clean(summary, 220),
     steps: (Array.isArray(steps) ? steps : []).map((s) => clean(s, 140)).filter(Boolean).slice(0, 12),
     runs: Number.isFinite(+runs) ? Math.max(0, Math.round(+runs)) : null,
+    training: training === true,            // a LoRA training is being prepared: the card says a second click will follow
     state: 'pending', later: false, open: false, waiters: []
   };
   paintAsk(true);
@@ -157,10 +250,13 @@ export function request({ client, id, title, summary, steps, runs }) {
 
 /** What the assistants may read: the request, the green light, and what became of each proposed computation. */
 export function snapshot() {
+  follow();
   return {
     enabled: enabled(),
+    mode: mode(),                                       // « ask » (Je valide) or « auto » (Claude agit seul)
     request: ask ? { requestId: ask.id, state: ask.state, title: ask.title } : null,
-    granted: !!(grant && Date.now() < grant.until),
+    // may the assistants act now: always in « agit seul », with a green light still alive in « Je valide »
+    granted: !enabled() || !!(grant && Date.now() < grant.until),
     toGenerate: [
       ...items.map((i) => ({ pendingId: i.id, nodeId: i.nodeId, boardId: i.boardId, mode: i.mode || null, ticked: i.checked, state: 'waiting' })),
       ...[...settled.entries()].slice(-40).map(([pendingId, s]) => ({ pendingId, ...s }))
@@ -179,6 +275,19 @@ export function addRun({ nodeId, boardId, mode, variants, by, online }) {
   folded = false;
   paintTray(true);
   return it;
+}
+
+/**
+ * « Claude agit seul »: an assistant started a block itself (mia_run) — its line of « À générer », proposed before the
+ * switch, leaves the list, marked launched (mia_pending), as if the user had ticked and started it. → true when one left.
+ */
+export function launched({ nodeId, boardId, jobId, jobIds }) {
+  const it = items.find((i) => i.nodeId === nodeId && i.boardId === boardId);
+  if (!it) return false;
+  settled.set(it.id, { state: 'launched', nodeId, boardId, jobId: jobId || null, ...(jobIds ? { jobIds } : {}) });
+  items.splice(items.indexOf(it), 1);
+  paintTray();
+  return true;
 }
 
 // ── the request card ────────────────────────────────────────────────────
@@ -236,7 +345,11 @@ function paintAsk(fresh = false) {
   txt.append(el('div', 'gl-ask-title', t('gl.ask.title', { name: a.client })));
   // one sentence each: what, how much, how many computations
   const dot = (x) => (x && !/[.!?…:]$/.test(x) ? `${x}.` : x);
-  const what = [dot(a.title || a.summary || t('gl.ask.none')), a.title && a.summary ? dot(a.summary) : '', runsLine(a)].filter(Boolean).join(' ');
+  // a training: its own sentence takes the place of « Il veut modifier ta planche. » and of the computations line
+  const lead = a.title || a.summary;
+  const what = (a.training
+    ? [dot(lead), a.title && a.summary ? dot(a.summary) : '', t('gl.ask.training')]
+    : [dot(lead || t('gl.ask.none')), a.title && a.summary ? dot(a.summary) : '', runsLine(a)]).filter(Boolean).join(' ');
   txt.append(el('div', 'gl-ask-sub', what));
   const acts = el('div', 'gl-ask-acts');
   const detail = el('button', 'btn sm btn-ghost', t('gl.ask.detail'));
@@ -264,6 +377,164 @@ function paintAsk(fresh = false) {
   refuse.addEventListener('click', () => answer('declined'));
   dom.ask = card;
   dom.stack.prepend(card);
+}
+
+// ── the suggestion of a LoRA training ───────────────────────────────────
+
+/**
+ * train.json.proposal is the truth: give this a row of train:list, the summary of a train:event or the answer of
+ * train:get ({id, name, base, step, steps, proposal:{by, at, resume} | null}). A proposal draws (or refreshes) the
+ * card; none removes it. Called here at mount and at every train:event; the training screen may call it too.
+ */
+export function proposeTraining(s) {
+  if (!s || !s.id) return;
+  if (!s.proposal || s.missing) {
+    if (proposals.delete(s.id)) paintTrain();
+    return;
+  }
+  let p = proposals.get(s.id);
+  const fresh = !p || p.at !== s.proposal.at;
+  if (fresh) {
+    p = { id: s.id, at: s.proposal.at, later: false, error: '', busy: false, baseLabel: '', seconds: null };
+    proposals.set(s.id, p);
+  }
+  Object.assign(p, { by: clean(s.proposal.by, 24) || 'Assistant', resume: !!s.proposal.resume, name: clean(s.name, 60), base: s.base || '', step: +s.step || 0, steps: +s.steps || 0 });
+  readTraining(p, s);
+  paintTrain(fresh ? s.id : null);
+  // a row of the list has neither the model's name nor the expected length: read the whole training once
+  if (s.estimate === undefined) refreshTraining(p);
+}
+
+/** Every suggestion waiting in the main process: at mount, after a reload, when the list changed. */
+export async function syncTraining() {
+  let list;
+  try { list = await window.mia?.train?.list?.(); } catch { list = null; }
+  if (!Array.isArray(list)) return;
+  const seen = new Set();
+  for (const row of list) { if (row && row.proposal && !row.missing) seen.add(row.id); proposeTraining(row); }
+  let gone = false;
+  for (const id of [...proposals.keys()]) if (!seen.has(id)) { proposals.delete(id); gone = true; }
+  if (gone) paintTrain();
+}
+
+let syncT = 0;
+function onTrainEvent(ev) {
+  if (!ev) return;
+  if (ev.id && ev.summary) proposeTraining(ev.summary);
+  else if (ev.list) { clearTimeout(syncT); syncT = setTimeout(syncTraining, 200); }
+}
+
+/** What train:get knows beyond a row: the model's name, how long it should last. */
+function readTraining(p, s) {
+  if (s.baseLabel) p.baseLabel = typeof s.baseLabel === 'object' ? tl(s.baseLabel) : String(s.baseLabel);
+  const est = s.state === 'pret' ? s.estimate : s.eta;
+  if (est !== undefined) p.seconds = est && Number.isFinite(+est.seconds) ? +est.seconds : null;
+}
+
+/** The values shown are those of train.json now — read again when the card appears, and before every start. */
+async function refreshTraining(p) {
+  let s;
+  try { s = await window.mia?.train?.get?.(p.id); } catch { s = null; }
+  if (!s || s.ok === false || proposals.get(p.id) !== p) return;
+  if (!s.proposal) { proposals.delete(p.id); paintTrain(); return; }
+  const before = `${p.name}|${p.baseLabel}|${p.steps}|${p.step}|${p.seconds}`;
+  Object.assign(p, { name: clean(s.name, 60), base: s.base || p.base, step: +s.step || 0, steps: +s.steps || 0 });
+  readTraining(p, s);
+  if (before !== `${p.name}|${p.baseLabel}|${p.steps}|${p.step}|${p.seconds}`) paintTrain();
+}
+
+const num = (n) => Math.round(+n || 0).toLocaleString(state.prefs?.lang === 'en' ? 'en-US' : 'fr-FR');
+/** « ≈ 4 h 20 min » — the same words in French and in English. */
+function about(seconds) {
+  if (!(seconds > 0)) return '';
+  const m = Math.max(1, Math.round(seconds / 60));
+  return m < 60 ? `≈ ${m} min` : `≈ ${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`;
+}
+
+function canOpenTraining() { return typeof hooks.openTraining === 'function' || !!document.getElementById('view-train'); }
+function openTraining(id) {
+  if (typeof hooks.openTraining === 'function') { try { hooks.openTraining(id); } catch (err) { console.error('[greenlight] openTraining', err); } return; }
+  emit('train:open', { id });
+}
+
+async function answerTraining(p, how) {
+  if (p.busy) return;
+  const api = window.mia?.train;
+  p.busy = true;
+  p.error = '';
+  paintTrain();
+  let r;
+  try {
+    // the main process checks everything again at the click: the draft unchanged since the suggestion, no other
+    // training running, the disk, the model…
+    r = how === 'start' ? await api.start(p.id, { proposal: true }) : await api.update(p.id, { proposal: null });
+  } catch (err) { r = { ok: false, error: err?.message || String(err) }; }
+  p.busy = false;
+  if (proposals.get(p.id) !== p) return;                 // answered meanwhile (a train:event removed or replaced it)
+  if (r && r.ok !== false) { proposals.delete(p.id); paintTrain(); return; }
+  // the suggestion itself is gone (draft changed, already answered): nothing left to click
+  if (r && (r.code === 'proposalChanged' || r.code === 'noProposal' || r.code === 'unknown')) { proposals.delete(p.id); paintTrain(); return; }
+  // refused (another training running, disk…): the reason is shown and the card stays
+  p.error = clean(r && r.error, 300) || t('gl.train.failed');
+  p.later = false;
+  paintTrain();
+}
+
+function paintTrain(freshId = null) {
+  if (!dom) return;
+  for (const x of dom.train) x.remove();
+  dom.train = [];
+  const list = [...proposals.values()].sort((a, b) => (a.at || 0) - (b.at || 0));
+  // the screen of this very training is open: its banner (« CLAUDE PROPOSE … [Refuser] [Lancer] ») and its foot carry
+  // the decision already — a card on top would hide ÉVÈNEMENTS or the images, and say the same thing a third time
+  const shown = state.view === 'train' ? (document.getElementById('view-train')?.dataset.training || '') : '';
+  for (const p of list) {
+    if (shown && p.id === shown) continue;
+    if (p.later) {
+      // « Plus tard »: a quiet chip that keeps the suggestion one click away
+      const chip = el('button', 'gl-chip gl-train-chip');
+      chip.type = 'button';
+      chip.dataset.training = p.id;
+      chip.innerHTML = '<i class="gl-dot"></i><span></span>';
+      chip.querySelector('span').textContent = p.resume ? t('gl.train.chipResume', { name: p.by, training: p.name }) : t('gl.train.chip', { name: p.by });
+      chip.addEventListener('click', () => { p.later = false; paintTrain(p.id); });
+      try { tip(chip, () => t('gl.train.chipTip', { name: p.by }), { placement: 'top' }); } catch { /* tooltips not ready */ }
+      dom.train.push(chip);
+      dom.stack.append(chip);
+      continue;
+    }
+    const card = el('div', 'gl-card gl-train' + (freshId === p.id ? ' gl-in' : ''));
+    card.setAttribute('role', 'alertdialog');
+    card.dataset.training = p.id;
+    const head = el('div', 'gl-ask-head');
+    const glyph = el('span', 'gl-glyph');
+    glyph.innerHTML = svg(ICON.arrow, 16);
+    const txt = el('div', 'gl-ask-txt');
+    txt.append(el('div', 'gl-ask-title', p.resume
+      ? t('gl.train.titleResume', { name: p.by, training: p.name, step: num(p.step) })
+      : t('gl.train.title', { name: p.by })));
+    const sub = [p.name, p.baseLabel || p.base, t('gl.train.steps', { n: num(p.steps) }), p.resume ? '' : about(p.seconds)].filter(Boolean).join(' · ');
+    txt.append(el('div', 'gl-ask-sub', sub));
+    if (p.error) txt.append(el('div', 'gl-train-err', p.error));
+    const acts = el('div', 'gl-ask-acts');
+    const view = el('button', 'btn sm btn-ghost', t('gl.train.view'));
+    const no = el('button', 'btn sm btn-ghost', t('gl.train.decline'));
+    const later = el('button', 'btn sm btn-ghost', t('gl.train.later'));
+    const go = el('button', 'btn sm btn-primary', t(p.resume ? 'gl.train.resume' : 'gl.train.start'));
+    for (const b of [view, no, later, go]) b.type = 'button';
+    view.dataset.act = 'view'; no.dataset.act = 'decline'; later.dataset.act = 'later'; go.dataset.act = 'start';
+    view.hidden = !canOpenTraining();
+    no.disabled = go.disabled = !!p.busy;
+    acts.append(view, no, later, go);
+    head.append(glyph, txt, acts);
+    card.append(head);
+    view.addEventListener('click', () => openTraining(p.id));
+    no.addEventListener('click', () => answerTraining(p, 'decline'));
+    later.addEventListener('click', () => { p.later = true; paintTrain(); });
+    go.addEventListener('click', () => answerTraining(p, 'start'));
+    dom.train.push(card);
+    dom.stack.append(card);
+  }
 }
 
 // ── « À générer » ───────────────────────────────────────────────────────
@@ -458,6 +729,8 @@ function paintTray(fresh = false) {
   }
   card.append(list);
   if (elsewhere) card.append(el('div', 'gl-else', elsewhere === 1 ? t('gl.tray.elsewhere1') : t('gl.tray.elsewhere', { n: elsewhere })));
+  // « Claude agit seul »: what was proposed before the switch does not start by itself — it waits for the tick
+  if (!enabled()) card.append(el('div', 'gl-before', t('gl.tray.before')));
 
   const foot = el('div', 'gl-tray-foot');
   const total = el('span', 'gl-total');
@@ -491,6 +764,103 @@ function paintTray(fresh = false) {
   list.scrollTop = scroll;
 }
 
+// ── « Je valide · Claude agit seul » (bottom left of the board) ─────────
+
+/**
+ * The switch, an island of its own right of the dock (« Bloc · Recettes · Section »), in the dock's style: two
+ * choices, one click. « Claude agit seul » on = the one accent of Mia (a filled dot and a ring), visible at a glance.
+ * Same preference as Réglages → Assistants → « Demander mon feu vert » (prefs.assistantAsk).
+ */
+function mountMode() {
+  const board = document.getElementById('view-board');
+  if (!board || dom.mode) return;
+  const root = el('div', 'gl-mode');
+  root.id = 'gl-mode';
+  root.setAttribute('role', 'radiogroup');
+  const glyph = el('span', 'gl-mode-glyph');
+  glyph.innerHTML = svg(ICON.arrow, 13);
+  const opt = (value) => {
+    const b = el('button', 'gl-mode-opt');
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.dataset.mode = value;
+    if (value === 'auto') b.append(el('i', 'gl-mode-dot'));
+    // a narrow window (.tight): a small switch in front of the one mode shown says it is a switch (greenlight.css)
+    b.append(el('i', 'gl-mode-sw'), el('span', 'gl-mode-txt'));
+    // narrow window (.tight): only the chosen one shows, and a click on it switches to the other
+    b.addEventListener('click', () => {
+      const other = value === 'auto' ? 'ask' : 'auto';
+      pick(root.classList.contains('tight') && mode() === value ? other : value);
+    });
+    const tipText = () => {
+      const own = t(value === 'auto' ? 'gl.mode.autoTip' : 'gl.mode.askTip');
+      if (!root.classList.contains('tight')) return own;
+      return `${own} ${t('gl.mode.flip', { mode: t(value === 'auto' ? 'gl.mode.askTight' : 'gl.mode.auto') })}`;
+    };
+    try { tip(b, tipText, { placement: 'top' }); } catch { /* tooltips not ready */ }
+    return b;
+  };
+  const askBtn = opt('ask');
+  const autoBtn = opt('auto');
+  root.append(glyph, askBtn, autoBtn);
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    pick(mode() === 'ask' ? 'auto' : 'ask');
+    (mode() === 'ask' ? askBtn : autoBtn).focus();
+  });
+  const dock = document.getElementById('dock');
+  (dock && dock.parentNode === board ? dock : board.lastElementChild)?.after(root);
+  // right of the dock, whatever its width (language, read-only board…)
+  // …and short of the zoom bar (its Higgsfield amount comes and goes): too narrow, only the chosen mode shows (.tight)
+  const zoom = document.getElementById('zoombar');
+  const place = () => {
+    if (!dock || !dock.offsetWidth) return;
+    const left = dock.offsetLeft + dock.offsetWidth + 10;
+    root.style.left = `${left}px`;
+    // measured with both choices and their own words, then narrowed (its words change: paintMode)
+    root.classList.remove('tight');
+    paintMode();
+    if (zoom && zoom.offsetWidth && root.offsetWidth > zoom.offsetLeft - 10 - left) { root.classList.add('tight'); paintMode(); }
+  };
+  try { const ro = new ResizeObserver(place); ro.observe(dock); if (zoom) ro.observe(zoom); ro.observe(board); } catch { /* no dock: the CSS place */ }
+  // measured again before its tooltip says what a click does (a window without frames gets no ResizeObserver call)
+  root.addEventListener('pointerenter', place);
+  dom.mode = { root, askBtn, autoBtn };
+  place();
+  paintMode();
+}
+
+async function pick(value) {
+  if (mode() === value) return;
+  const want = value === 'ask';
+  const p = setPrefs({ assistantAsk: want });         // the state moves at once, the file follows
+  follow();
+  paintMode();
+  await p;
+  follow();
+  paintMode();
+}
+
+function paintMode() {
+  const m = dom?.mode;
+  if (!m) return;
+  const cur = mode();
+  m.root.setAttribute('aria-label', t('gl.mode.group'));
+  m.root.classList.toggle('is-auto', cur === 'auto');
+  for (const b of [m.askBtn, m.autoBtn]) {
+    const on = b.dataset.mode === cur;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+    // narrow (.tight): « Claude demande » rather than « Je valide » — alone, it must say whose mode it is
+    const tight = m.root.classList.contains('tight');
+    const txt = t(b.dataset.mode === 'auto' ? 'gl.mode.auto' : (tight ? 'gl.mode.askTight' : 'gl.mode.ask'));
+    const s = b.querySelector('.gl-mode-txt');
+    if (s.textContent !== txt) s.textContent = txt;
+  }
+}
+
 function ensureCss() {
   if (document.querySelector('link[data-greenlight]')) return;
   const link = document.createElement('link');
@@ -500,4 +870,4 @@ function ensureCss() {
   document.head.append(link);
 }
 
-export default { mountGreenlight, enabled, allowed, request, snapshot, addRun };
+export default { mountGreenlight, enabled, mode, allowed, request, snapshot, addRun, launched, proposeTraining, syncTraining };

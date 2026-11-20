@@ -76,6 +76,7 @@ const under = (pLow, dirLow) => pLow.startsWith(dirLow.endsWith('/') ? dirLow : 
 const sha1 = (buf) => crypto.createHash('sha1').update(buf).digest('hex');
 const now = () => Number(process.hrtime.bigint() / 1000000n);
 const round2 = (x) => Math.round(x * 100) / 100;
+const round1 = (x) => Math.round(x * 10) / 10;
 const gb = (bytes) => Math.round(bytes / 1e6) / 1000;          // Go au Mo près : un petit fichier n'est jamais « 0 Go »
 
 async function isDir(p) { try { return (await fsp.stat(p)).isDirectory(); } catch { return false; } }
@@ -239,6 +240,30 @@ function loraSidecar(file) {
     const j = JSON.parse(fs.readFileSync(String(file).replace(/\.[^.\\/]+$/, '.mia.json'), 'utf8'));
     return j && typeof j === 'object' ? j : null;
   } catch { return null; }
+}
+
+/**
+ * L'entraînement que décrit une fiche (champ `training`, écrit par electron/trainer.js addToLoras), nettoyé ; null
+ * s'il manque, ou si ses pas ne sont pas des entiers positifs (une fiche abîmée ne fait jamais une « étape »).
+ * → { id, base, tool, steps, step, images, rank, date }
+ */
+function sidecarTraining(side) {
+  const t = side && side.training;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
+  const int = (v) => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
+  const s = (v, max) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+  const steps = int(t.steps), step = int(t.step);
+  if (!steps || !step) return null;
+  return { id: s(t.id, 80), base: s(t.base, 40), tool: s(t.tool, 80), steps, step: Math.min(step, steps),
+    images: int(t.images), rank: int(t.rank), date: s(t.date, 10) };
+}
+
+/** Les dossiers où Mia range ses LoRA entraînés (clés en minuscules) : <moteur>\models\loras\mia + ceux d'une Mia de test. */
+function miaLoraDirSet(env) {
+  const out = new Set();
+  if (env && env.engineRoot) out.add(lowKey(`${env.engineRoot}/models/loras/mia`));
+  for (const d of (env && env.miaLoraDirs) || []) out.add(lowKey(d));
+  return out;
 }
 
 // Indices par le nom, lus sur le chemin RELATIF à la racine (sinon tout KimodoStudio\ devient « Kimodo »).
@@ -750,6 +775,12 @@ function makeEnv(opts = {}) {
   return {
     // sans moteur : là où l'installer le mettrait (rien n'y est encore : aucune racine, des chemins d'aide justes)
     engineRoot: P(opts.engineRoot || places.labRoot() || places.suggestEngineDir()),
+    // dossiers du moteur d'avant (prefs.formerEngineRoots, le plus récent d'abord) : les ids faits sous eux restent
+    // connus (aliasIds). L'ordre compte : aliases[i] d'un modèle répond à formerRoots[i].
+    formerRoots: (Array.isArray(opts.formerEngineRoots) ? opts.formerEngineRoots : []).filter((x) => typeof x === 'string' && x.trim()).map(P),
+    // dossiers où Mia range les LoRA qu'elle a entraînés, EN PLUS de <moteur>\models\loras\mia (toujours compté) :
+    // une Mia de test range les siens dans <userData>\loras-mia (electron/trainer.js lorasDir), jamais dans le moteur
+    miaLoraDirs: (Array.isArray(opts.miaLoraDirs) ? opts.miaLoraDirs : []).filter((x) => typeof x === 'string' && path.isAbsolute(x)).map(P),
     home, local, roaming,
     hfHome: P(process.env.HF_HOME || path.join(home, '.cache', 'huggingface')),
     ollama: P(process.env.OLLAMA_MODELS || path.join(home, '.ollama', 'models')),
@@ -911,6 +942,8 @@ async function resolveRoots(env, { extraRoots = [], foundRoots = [], loraFolders
   for (const p of extraRoots || []) await add({ path: p, kind: 'user', label: { fr: 'Mes dossiers de modèles', en: 'My model folders' } });
   // Dossiers de LoRA (SPEC §12.1, réglages) : 4 niveaux au plus, seuls les LoRA y sont retenus.
   for (const p of loraFolders || []) await add({ path: p, kind: 'loras', maxDepth: 4, label: { fr: 'Mes dossiers de LoRA', en: 'My LoRA folders' } });
+  // LoRA entraînés dans une Mia de test (<userData>\loras-mia) : le dossier lui-même, sans sous-dossier
+  for (const p of env.miaLoraDirs || []) await add({ path: p, kind: 'loras', mia: true, maxDepth: 0, label: { ...R.MIA_LORA_LABEL } });
   // LoRA ajoutés un par un (glisser-déposer) : chaque fichier est sa propre « racine ».
   for (const p of loraFiles || []) await add({ path: p, kind: 'added', file: true, label: { fr: 'Ajouté par toi', en: 'Added by you' } });
   for (const p of foundRoots || []) await add({ path: p, kind: 'found', label: { fr: 'Trouvé sur ce PC', en: 'Found on this PC' } });
@@ -1030,15 +1063,25 @@ async function comfyProbe(url, timeoutMs = COMFY_TIMEOUT_MS) {
     try { const v = await get('/models/' + encodeURIComponent(f)); if (Array.isArray(v)) folders[f] = v; } catch { /* dossier inconnu */ }
   }));
   const sys = (stats && stats.system) || {};
-  const dev = (stats && stats.devices && stats.devices[0]) || null;
   return {
     reachable: true, url: base, version: sys.comfyui_version || null, argv: Array.isArray(sys.argv) ? sys.argv : null,
     folders, listed: Object.keys(folders),
-    machine: {
-      gpu: dev ? String(dev.name || '').replace(/^cuda:\d+\s*/, '').replace(/\s*:\s*\w+$/, '') : null,
-      vramGB: dev && dev.vram_total ? round2(dev.vram_total / 1e9) : null,
-      ramGB: sys.ram_total ? round2(sys.ram_total / 1e9) : null,
-    },
+    machine: machineOf(stats),
+  };
+}
+
+/**
+ * La machine d'après /system_stats de ComfyUI. memGB = LE total de mémoire de la machine pour Mia (SPEC §7) : octets
+ * / 2^30, une décimale — l'unité de la puce de mémoire et de nvidia-smi. vramGB (octets / 10^9) est l'ancien champ, gardé.
+ */
+function machineOf(stats) {
+  const sys = (stats && stats.system) || {};
+  const dev = (stats && stats.devices && stats.devices[0]) || null;
+  return {
+    gpu: dev ? String(dev.name || '').replace(/^cuda:\d+\s*/, '').replace(/\s*:\s*\w+$/, '') : null,
+    memGB: dev && dev.vram_total ? round1(dev.vram_total / 2 ** 30) : null,
+    vramGB: dev && dev.vram_total ? round2(dev.vram_total / 1e9) : null,
+    ramGB: sys.ram_total ? round2(sys.ram_total / 1e9) : null,
   };
 }
 
@@ -1113,8 +1156,9 @@ function matchWhen(w, r) {
     if (Array.isArray(cond)) return cond.includes(val);
     return val === cond;
   };
-  return ok(r.family, w.family) && ok(r.role, w.role) && ok(r.rule, w.rule)
-    && (!w.name || w.name.test(r.nameLow)) && (!w.path || w.path.test(r.pathLow))
+  // quantClass : la précision LUE dans l'en-tête (pas le nom du fichier) ; notName : ce que le nom ne doit pas dire
+  return ok(r.family, w.family) && ok(r.role, w.role) && ok(r.rule, w.rule) && ok(r.quantClass, w.quantClass)
+    && (!w.name || w.name.test(r.nameLow)) && (!w.notName || !w.notName.test(r.nameLow)) && (!w.path || w.path.test(r.pathLow))
     && (!w.flag || (r.flags || []).includes(w.flag)) && (w.bundle == null || !!r.isBundle === w.bundle);
 }
 const catalogFor = (r) => R.CATALOG.find((c) => matchWhen(c.when, r)) || null;
@@ -1154,6 +1198,42 @@ function partialName(p) {
   return pretty(segs[segs.length - 1].replace(/\.(part|partial|download|crdownload|incomplete)$/i, ''));
 }
 const modelId = (p) => sha1(lowKey(p)).slice(0, 12);
+// « Auto » prend-il une version pleine quand la machine a la place (catalogue : autoOver / autoCaps) ? NON pour
+// l'instant. Mesure du 18/11/2026 sur RTX Spark (LTX 2.5, 960x544, 121 images, graines 42 et 43) : la version pleine
+// (bf16 + Gemma bf16) et la compacte int8 donnent la même image à l'œil (écart moyen 3,1 à 3,6 sur 255, autant que
+// deux décodages du même calcul), pour 13 s et 32 Go de plus. Le mécanisme reste (et ses bancs, tools\test-variants.js)
+// pour le jour où une version pleine apporte vraiment quelque chose : la pleine se choisit à la main.
+const AUTO_BY_MEMORY = false;
+
+/**
+ * Les ids qu'avait ce fichier quand le dossier du moteur était ailleurs (SPEC §7) : un id est fait du chemin absolu,
+ * il change donc quand le moteur déménage, alors que les planches, les résultats et leurs empreintes gardent l'ancien.
+ * Pour un fichier du dossier du moteur : un alias par ancien dossier (env.formerRoots), fait du même chemin relatif
+ * sous cet ancien dossier ; aliases[i] répond à formerRoots[i]. Hors du dossier du moteur (un dossier de LoRA de
+ * l'utilisateur ne déménage pas avec lui) ou sans ancien dossier : aucun.
+ */
+function aliasIds(p, env) {
+  const formers = (env && env.formerRoots) || [];
+  if (!formers.length || !env.engineRoot) return [];
+  const k = lowKey(p);
+  const base = lowKey(env.engineRoot);
+  if (!under(k, base)) return [];
+  const rel = k.slice(base.endsWith('/') ? base.length : base.length + 1);
+  return formers.map((f) => modelId(`${f.replace(/\/+$/, '')}/${rel}`));
+}
+
+/** La résolution unique d'une référence de modèle (id, alias, id du registre des LoRA, chemin) : src/js/nodes/route.js. */
+const findRef = (inv, ref) => require('./engine/route').rules().findModel(inv, ref);
+
+/** Table plate alias → id actuel. Un alias qui est aussi l'id d'un vrai modèle est écarté : l'id réel gagne toujours. */
+function aliasTable(models) {
+  const ids = new Set(models.map((m) => m.id));
+  const out = {};
+  for (const m of models) {
+    for (const a of m.aliases || []) if (a && !ids.has(a) && !(a in out)) out[a] = m.id;
+  }
+  return out;
+}
 const LIC_ORDER = { ok: 0, rd: 1, trial: 2, forbidden: 9 };
 
 function selectable(m, caps) {
@@ -1223,7 +1303,7 @@ function buildModels(records, bundles, ctx) {
     const family = (isB && u.b.family) || main.family || null;
     const role = (isB && u.b.role) || main.role || 'unknown';
     const view = { family, role, rule: main.rule, flags: main.flags, nameLow: (isB ? path.posix.basename(p) : main.name).toLowerCase(),
-      pathLow: p.toLowerCase(), isBundle: isB };
+      pathLow: p.toLowerCase(), isBundle: isB, quantClass: R.quantClass(main.quant) };
     const id = modelId(p);
     let cat = catalogFor(view);
     // Une LoRA LTX de Quentin (personnage ou lieu), reconnue par le nom.
@@ -1232,7 +1312,7 @@ function buildModels(records, bundles, ctx) {
     if (ident) cat = null;
     const comfyPos = comfyPlace(main, layout, comfy, root.kind === 'comfy' ? root.path : null);
     const m = {
-      id, key: ident ? 'identity' : (cat ? cat.key : null), kind: u.kind,
+      id, aliases: aliasIds(p, ctx.env), key: ident ? 'identity' : (cat ? cat.key : null), kind: u.kind,
       path: p, file: isB ? path.posix.basename(p) : main.name,
       sizeGB: gb(sizeBytes), family, role, variant: main.variant || null, quant: main.quant || null,
       quantClass: R.quantClass(main.quant),
@@ -1249,6 +1329,9 @@ function buildModels(records, bundles, ctx) {
       status: 'ready', statusNote: null, app: null, hidden: false, group: 'other', part: null,
       tier: null, trigger: null, identity: null, genre: null, trainingStep: null, duplicateOf: null, missingParts: [], parts: null,
       baseKey: null,
+      // version (Compacte, Pleine, Complète), mémoire estimée, raison d'un modèle reconnu mais pas proposé, encodeur
+      // de texte assorti (note et marque d'empreinte), précision inattendue pour cette entrée du catalogue (SPEC §7)
+      version: null, mem: null, blocked: null, partNote: null, pairTag: null, offCatalog: false,
       root: { path: root.path || main.root, kind: root.kind, label: root.label || null },
       usedBy: [...new Set(u.files.flatMap((r) => r.used_by || []))],
       files: isB ? u.files.map((r) => r.path.slice(p.length + 1)) : null,
@@ -1281,6 +1364,22 @@ function buildModels(records, bundles, ctx) {
       m.speed = cat.speed ?? null; m.quality = cat.quality ?? null;
       m.hidden = !!cat.hidden; m.part = cat.part || null; m.tier = cat.tier || null;
       if (cat.engine) m.engine = cat.engine;
+      const ver = cat.version && R.VERSIONS[cat.version];
+      if (ver) m.version = { key: cat.version, kind: ver.kind, tag: { ...ver.tag }, desc: { ...ver.desc } };
+      if (cat.blocked) m.blocked = { code: cat.blocked.code, note: { ...cat.blocked.note } };
+      // Le même modèle dans une AUTRE précision que le fichier attendu (un MiniMax bf16 là où le catalogue décrit
+      // l'int8) : le libellé le dit et la mémoire fixe du catalogue, mesurée sur le fichier attendu, ne vaut plus
+      // (elle redevient « taille du fichier + 4 » plus bas). Aucune recette nouvelle. Les entrées qui portent une
+      // version (LTX 2.5) ont chacune la leur ; une entrée dont le fichier attendu ne dit pas sa précision (Klein)
+      // n'est pas concernée.
+      const expected = !cat.version && cat.expect && cat.label ? R.quantClass(cat.expect.file) : null;
+      if (expected && m.quantClass && m.quantClass !== expected && (role === 'diffusion_model' || role === 'checkpoint')
+        && m.file.toLowerCase() !== cat.expect.file.toLowerCase()) {
+        const q = R.QUANT_LABEL[m.quantClass];
+        m.offCatalog = true;
+        m.vramGB = null;
+        m.label = { fr: `${cat.label.fr} · ${q.fr}`, en: `${cat.label.en} · ${q.en}` };
+      }
     } else if (R.INTERNAL_ROLES.has(role)) {
       m.hidden = true; m.part = role;
     }
@@ -1319,6 +1418,9 @@ function buildModels(records, bundles, ctx) {
       m.status = 'unused'; note(R.NOTES.notVisible);
     } else if (root.kind === 'comfy' && !m.comfy && m.engine !== 'worker' && !R.INTERNAL_ROLES.has(role)) {
       m.status = 'unused'; note(R.NOTES.notUsed);
+    } else if (cat && cat.blocked) {
+      // reconnu et nommé, jamais proposé ni lancé : pas « prêt », aucune capacité, sa raison en note
+      m.status = 'unused'; m.caps = []; note(cat.blocked.note);
     } else if (cat && cat.unused) {
       m.status = 'unused'; note(R.NOTES.notUsed);
     } else if (!cat && !ident && !m.hidden) {
@@ -1340,6 +1442,7 @@ function buildModels(records, bundles, ctx) {
 // ses dossiers de LoRA sont prêts aussi : ensureLora les place dans models\loras\mia au premier calcul.
 function applyLoras(models, ctx) {
   const labLow = lowKey(`${ctx.env.engineRoot}/models`);
+  const miaDirs = miaLoraDirSet(ctx.env);
   const reg = ctx.registry || new Map();
   const placements = ctx.placements || new Map();
   const readyBases = new Set(models.filter((m) => m.baseKey && m.status === 'ready').map((m) => m.baseKey));
@@ -1379,24 +1482,48 @@ function applyLoras(models, ctx) {
     const strength = sidecarStrength(side);
     if (strength != null) m.strength = strength;
     if (side && side.advice) m.advice = typeof side.advice === 'string' ? { fr: side.advice, en: side.advice } : side.advice;
-    // Genre : celui choisi par Quentin, sinon celui du personnage reconnu, sinon deviné d'après le nom.
-    m.genre = (entry && R.GENRES[entry.kind] ? entry.kind : null) || m.genre
-      || R.guessGenre(`${(entry && entry.name) || ''} ${main.lora_title || ''} ${m.trigger || ''} ${m.file}`);
+    // Entraînement fait dans Mia (fiche écrite par electron/trainer.js addToLoras) : recopié tel quel, quelle que soit
+    // l'origine ; « entraîné ici » seulement pour un fichier rangé par Mia elle-même (models\loras\mia, ou le dossier
+    // d'une Mia de test) — une fiche recopiée ailleurs à la main ne fait pas d'un LoRA quelconque un LoRA de Mia.
+    const training = sidecarTraining(side);
+    m.training = training;
+    m.trainedHere = !!training && miaDirs.has(lowKey(path.posix.dirname(m.path)));
+    const sideName = side && typeof side.name === 'string' ? cleanText(side.name, 60) : '';
+    const sideKind = side && R.GENRES[side.kind] ? side.kind : null;
+    // Pour quel modèle : celui que dit le fichier, sinon la base de l'entraînement (fiche). La fiche tranche aussi le
+    // seul cas ambigu du fichier : une LoRA LTX à 4096 de large se lit « LTX-Video 0.9 » quand LTX-2 n'est pas
+    // installé (scan, « LoRA LTX ambiguë ») ; entraînée par Mia sur LTX 2.5, elle est pour LTX 2.5.
+    const trainedFor = training ? R.trainBaseKey(training.base) : null;
+    if (trainedFor && (!m.loraFor || (m.loraFor === 'ltxv' && trainedFor === 'ltx' && main.rule === 'ltxv'))) {
+      m.loraFor = trainedFor;
+      m.loraForLabel = R.baseLabel(trainedFor, false);
+    }
+    // Genre : celui choisi par Quentin, sinon celui de la fiche, sinon celui du personnage reconnu, sinon deviné.
+    m.genre = (entry && R.GENRES[entry.kind] ? entry.kind : null) || sideKind || m.genre
+      || R.guessGenre(`${(entry && entry.name) || sideName} ${main.lora_title || ''} ${m.trigger || ''} ${m.file}`);
     m.loraKind = m.genre === 'character' || m.genre === 'place' ? 'identity' : 'style';
+    // Nom : celui choisi par Quentin, sinon celui de la fiche, sinon le personnage reconnu, sinon tiré du fichier.
     if (entry && entry.name) m.label = { fr: entry.name, en: entry.name };
+    else if (sideName) m.label = { fr: sideName, en: sideName };
     else if (!m.identity) { const nm = R.loraNameFromFile(m.file); m.label = { fr: nm, en: nm }; }
     // Étape d'entraînement : son numéro, qu'il y ait un personnage reconnu ou non — sinon « Mara »
     // s'afficherait trois fois sans qu'on puisse les distinguer (la bibliothèque les range aussi d'après lui).
-    if (origin === 'training') {
-      const step = (String(m.file || '').match(/(?:^|[_\-. ])0*(\d{3,6})\.(?:safetensors|sft|ckpt|pt|pth|bin)$/i) || [])[1];
-      if (step) {
-        m.trainingStep = Number(step);
-        const fr = ` · étape ${m.trainingStep.toLocaleString('fr-FR')}`, en = ` · step ${m.trainingStep.toLocaleString('en-US')}`;
-        if (!String(m.label.fr).endsWith(fr)) m.label = { fr: `${m.label.fr}${fr}`, en: `${m.label.en}${en}` };
-      }
+    // Une fiche d'entraînement le dit pour toute origine (« Rosa · étape 1 000 » rangé dans models\loras\mia) ; le
+    // point final (step = steps) garde « Rosa ». Sans fiche, le numéro du nom de fichier, pour l'origine « training »
+    // seulement (dossiers d'entraînement d'avant Mia).
+    const stepOf = training ? (training.step < training.steps ? training.step : null)
+      : origin === 'training' ? Number((String(m.file || '').match(/(?:^|[_\-. ])0*(\d{3,6})\.(?:safetensors|sft|ckpt|pt|pth|bin)$/i) || [])[1]) || null
+        : null;
+    if (training && !stepOf) m.trainingStep = null;   // le point final : jamais une « étape », même si son nom en a l'air
+    if (stepOf) {
+      m.trainingStep = stepOf;
+      const fr = ` · étape ${stepOf.toLocaleString('fr-FR')}`, en = ` · step ${stepOf.toLocaleString('en-US')}`;
+      if (!String(m.label.fr).endsWith(fr)) m.label = { fr: `${m.label.fr}${fr}`, en: `${m.label.en}${en}` };
     }
     if (!m.identity || entry) m.desc = R.loraDesc(m.genre, m.loraFor);
-    if (!m.identity && !cat) { m.license = 'ok'; m.licenseNote = { ...R.LIC.unknown }; }
+    // entraîné dans Mia : à lui, comme ses LoRA de personnage reconnus (« Entraîné par toi. »)
+    if (m.trainedHere) { m.license = 'ok'; m.licenseNote = { ...R.LIC.own }; }
+    else if (!m.identity && !cat) { m.license = 'ok'; m.licenseNote = { ...R.LIC.unknown }; }
     m.vramGB = round2(m.sizeGB);
     m.placed = null;
     if (origin === 'training') continue;                           // étapes d'entraînement : listées, pas proposées
@@ -1496,13 +1623,14 @@ function builtInModels(env) {
     const cat = R.CATALOG.find((c) => c.key === b.key);
     if (!cat) continue;
     out.push({
-      id: modelId(abs), key: b.key, path: abs, file: path.basename(abs), name: path.basename(abs),
+      id: modelId(abs), aliases: aliasIds(abs, env), key: b.key, path: abs, file: path.basename(abs), name: path.basename(abs),
       sizeGB: gb(st.size), family: b.family, role: b.role, variant: null, quant: null, quantClass: null, params: null,
       rank: null, label: { ...cat.label }, desc: { ...cat.desc }, caps: [...cat.caps], default: [],
       comfy: null, engine: 'comfy', license: cat.license, licenseNote: cat.licenseNote, vramGB: cat.vramGB,
       speed: cat.speed, quality: cat.quality, status: 'ready', statusNote: null, app: null, hidden: false, group: 'other',
       part: null, tier: cat.tier || null, trigger: null, identity: null, genre: null, trainingStep: null, duplicateOf: null,
       missingParts: [], parts: null, baseKey: null,
+      version: null, mem: null, blocked: null, partNote: null, pairTag: null, offCatalog: false,
       root: { path: P(env.engineRoot), kind: 'comfy', label: { fr: 'Dossier du moteur', en: 'Engine folder' } },
       usedBy: [], files: null, mtime: st.mtimeMs || null, builtIn: true, _cat: cat, _main: null,
     });
@@ -1510,22 +1638,63 @@ function builtInModels(env) {
   return out;
 }
 
+/**
+ * Mémoire estimée d'un modèle sur CETTE machine (SPEC §7) → { gb, basis, at }.
+ * Le catalogue porte un pic MESURÉ (cat.mem) et le total de la machine est connu :
+ * - l'entrée a AUSSI un chiffre réglé pour 24 Go (cat.vramGB : les compactes) : le pic seulement si la machine a la
+ *   place (total ≥ pic + marge), sinon ce chiffre de toujours — une machine de 24 Go ne voit rien changer ;
+ * - l'entrée n'a PAS de chiffre réglé pour 24 Go (la pleine) : toujours le pic, quel que soit le total. Le même
+ *   nombre partout (liste, bibliothèque, « Choisir pour moi : la pleine demande ≈ 71 Go »), et « Trop lourd » dès que
+ *   la machine est plus petite que le pic.
+ * Le pic vient avec les réglages de la mesure (`at`) ; basis 'measured', ou 'derived' (mesure d'une version voisine).
+ * Sinon (pas de pic, total inconnu, fichier hors catalogue) le chiffre de toujours (m.vramGB) : 'catalog' = valeur
+ * fixe du catalogue, 'file' = d'après la taille du fichier.
+ * Une estimation, jamais une garantie : le pic monte avec la définition et la durée. m.vramGB n'est pas modifié.
+ */
+function memOf(m, cat, totalGB) {
+  const peak = cat && cat.mem && Number(cat.mem.peakGB) > 0 ? cat.mem : null;
+  const total = totalGB != null && Number.isFinite(Number(totalGB)) ? Number(totalGB) : null;
+  if (peak && !m.offCatalog && total != null && (cat.vramGB == null || total >= peak.peakGB + R.MEM_MARGIN_GB)) {
+    return { gb: peak.peakGB, basis: peak.basis === 'derived' ? 'derived' : 'measured', at: { ...(peak.at || R.MEM_AT) } };
+  }
+  return { gb: m.vramGB != null ? round1(m.vramGB) : null, basis: cat && cat.vramGB != null && !m.offCatalog ? 'catalog' : 'file', at: null };
+}
+
 function resolveParts(models, modelsDir) {
+  // Toutes les pièces prêtes d'une même clé (deux encodeurs de texte : le compact et le plein), rangées par chemin :
+  // la pièce retenue ne dépend pas de l'ordre dans lequel le disque a rendu les fichiers.
   const readyByKey = new Map();
   for (const m of models) {
     if (!m.key || m.status !== 'ready') continue;
     if (m.engine === 'comfy' && m.comfy && m.comfy.visible === false) continue;
-    if (!readyByKey.has(m.key)) readyByKey.set(m.key, m);
+    if (!readyByKey.has(m.key)) readyByKey.set(m.key, []);
+    readyByKey.get(m.key).push(m);
   }
+  const low = (m) => String(m.path || m.file || '').toLowerCase();
+  for (const list of readyByKey.values()) list.sort((a, b) => (low(a) < low(b) ? -1 : low(a) > low(b) ? 1 : 0));
   const byKey = new Map(R.CATALOG.map((c) => [c.key, c]));
+  // wantFull : la pièce pleine si elle est là. Sinon (cas de toujours) le fichier attendu par le catalogue, puis la
+  // première qui n'est pas pleine, puis ce qu'il y a.
+  const pick = (key, wantFull) => {
+    const list = readyByKey.get(key);
+    if (!list || !list.length) return null;
+    if (wantFull) return list.find((x) => x.quantClass === 'full') || list[0];
+    const c = byKey.get(key);
+    const want = c && c.expect ? String(c.expect.file).toLowerCase() : null;
+    return (want && list.find((x) => String(x.file).toLowerCase() === want)) || list.find((x) => x.quantClass !== 'full') || list[0];
+  };
+  const partOf = (p) => ({ id: p.id, file: p.file, comfyName: p.comfy ? p.comfy.name : null, sizeGB: p.sizeGB, quantClass: p.quantClass || null });
   for (const m of models) {
     const cat = m._cat;
     if (!cat) continue;
+    // Pièces assorties (cat.pair) : un transformeur plein prend l'encodeur de texte plein s'il est prêt.
+    const full = m.quantClass === 'full';
+    const paired = (k) => (cat.pair || []).includes(k);
     if (cat.needs && m.status === 'ready') {
       const parts = {}, miss = [];
       for (const k of cat.needs) {
-        const part = readyByKey.get(k);
-        if (part) { parts[k] = { id: part.id, file: part.file, comfyName: part.comfy ? part.comfy.name : null }; continue; }
+        const part = pick(k, full && paired(k));
+        if (part) { parts[k] = partOf(part); continue; }
         const c = byKey.get(k);
         miss.push({ key: k, label: c ? { ...c.label } : { fr: k, en: k }, file: c && c.expect ? c.expect.file : null,
           folder: c && c.expect ? c.expect.folder : null, sizeGB: c && c.expect ? c.expect.sizeGB : null });
@@ -1538,12 +1707,20 @@ function resolveParts(models, modelsDir) {
       }
     }
     for (const c of cat.condCaps || []) {
-      const part = readyByKey.get(c.needs);
+      const part = pick(c.needs, full && paired(c.needs));
       if (part && !m.caps.includes(c.cap)) {
         m.caps.push(c.cap);
         m.parts = m.parts || {};
-        m.parts[c.needs] = { id: part.id, file: part.file, comfyName: part.comfy ? part.comfy.name : null };
+        m.parts[c.needs] = partOf(part);
       }
+    }
+    // Encodeur de texte retenu : `pairTag` marque l'empreinte d'un calcul fait avec l'encodeur plein (rien pour le
+    // compact : les empreintes d'avant ne changent pas) ; `partNote` dit quand l'assortiment n'a pas pu se faire.
+    const te = paired('ltx-te') && m.parts ? m.parts['ltx-te'] : null;
+    if (te) {
+      const teFull = te.quantClass === 'full';
+      m.pairTag = teFull ? 'te:full' : null;
+      m.partNote = full && !teFull ? { ...R.NOTES.teCompact } : !full && teFull ? { ...R.NOTES.teFull } : null;
     }
   }
 }
@@ -1556,6 +1733,8 @@ function assignGroups(models) {
     if (m.status === 'other-app') m.group = 'apps';
     else if (m.hidden) m.group = 'internal';
     else if (m.role === 'lora' && (m.caps || []).includes('lora')) m.group = 'loras';
+    // reconnu mais pas proposé (aucune capacité) : rangé quand même avec les siens, sa raison sous son nom
+    else if (m.blocked && m._cat && m._cat.blocked && m._cat.blocked.group) m.group = m._cat.blocked.group;
     else if (m.caps.length) m.group = CAP_GROUP[m.caps[0]] || 'other';
     else m.group = 'other';
   }
@@ -1564,18 +1743,48 @@ function assignGroups(models) {
 // Fichiers attendus d'une capacité, avec le dossier complet où les ranger.
 const filesFor = (list, modelsDir) => (list || []).map((f) => ({ ...f, dir: folderPath(modelsDir, f.folder) }));
 
-function capabilities(models, modelsDir) {
+/**
+ * « Auto » selon la mémoire de la machine (SPEC §7). `legacy` = le défaut de toujours (le premier du tri). Une version
+ * pleine du catalogue (`autoOver` nomme les versions qu'elle peut remplacer, `mem.peakGB` son pic mesuré) le remplace
+ * quand la machine a la place : total ≥ pic + marge — et seulement pour les usages où elle a été mesurée (`autoCaps`).
+ * → null (rien à dire : pas de total, pas de version pleine prête, licence moins libre que celle du défaut), ou
+ *   { why: 'full-fits' | 'full-too-big' | 'full-unmeasured', model, needGB, totalGB } ; seul 'full-fits' change le défaut.
+ * Une machine de 24 Go, ou un scan sans `auto` (total inconnu), garde donc exactement le défaut de toujours.
+ */
+function autoChoice(capId, legacy, opts, auto) {
+  const total = auto && auto.totalGB != null && Number.isFinite(Number(auto.totalGB)) ? Number(auto.totalGB) : null;
+  if (!legacy || total == null) return null;
+  const lic = (m) => LIC_ORDER[m.license] ?? 5;
+  const full = opts.find((m) => m !== legacy && m._cat && (m._cat.autoOver || []).includes(legacy.key)
+    && m._cat.mem && Number(m._cat.mem.peakGB) > 0 && lic(m) <= lic(legacy));
+  if (!full) return null;
+  const needGB = full._cat.mem.peakGB;
+  const why = !(full._cat.autoCaps || []).includes(capId) ? 'full-unmeasured'
+    : total >= needGB + R.MEM_MARGIN_GB ? 'full-fits' : 'full-too-big';
+  return { why, model: full.id, needGB, totalGB: total };
+}
+
+// `auto` : { totalGB } (le total de mémoire de la machine) pour que « Auto » en tienne compte ; absent ou null = le
+// défaut de toujours. Le service de Mia le donne (runScan) ; un scan nu ne le donne pas.
+function capabilities(models, modelsDir, auto = null) {
   const caps = {}, missing = [];
   for (const c of R.CAPS) {
-    const prefer = (m) => { const i = c.prefer.indexOf(m.key); return i < 0 ? 99 : i; };
+    // PREFER_AS : la version pleine a le rang de « ltx-other » (le tri de toujours) ; seul autoChoice la promeut.
+    const prefer = (m) => { const i = c.prefer.indexOf((R.PREFER_AS && R.PREFER_AS[m.key]) || m.key); return i < 0 ? 99 : i; };
     const opts = models.filter((m) => selectable(m, [c.id])).sort((a, b) =>
       prefer(a) - prefer(b) || (LIC_ORDER[a.license] ?? 5) - (LIC_ORDER[b.license] ?? 5)
       || (b.quality || 0) - (a.quality || 0) || a.sizeGB - b.sizeGB || a.label.fr.localeCompare(b.label.fr, 'fr'));
-    const def = c.noDefault ? null : (opts[0] ? opts[0].id : null);
+    const legacy = c.noDefault ? null : (opts[0] || null);
+    const choice = autoChoice(c.id, legacy, opts, auto);
+    const promoted = !!choice && choice.why === 'full-fits';
+    const def = promoted ? choice.model : (legacy ? legacy.id : null);
     if (def) models.find((m) => m.id === def).default.push(c.id);
     const fast = opts.find((m) => m.tier === 'fast');
+    // options : l'ordre du tri, inchangé. auto : pourquoi « Auto » prend (ou ne prend pas) la version pleine.
+    // legacyDefault (seulement quand Auto a changé) : le défaut d'avant, pour reconnaître les résultats déjà faits.
     caps[c.id] = { available: opts.length > 0, default: def, options: opts.map((m) => m.id), fast: fast ? fast.id : null,
-      label: { ...c.label }, optional: !!c.optional };
+      label: { ...c.label }, optional: !!c.optional, auto: choice };
+    if (promoted) caps[c.id].legacyDefault = legacy.id;
     if (!opts.length && !c.optional) {
       // Message précis : modèle présent mais incomplet, ou invisible de ComfyUI, sinon le message du catalogue.
       // `what` reste court (il s'affiche dans un sélecteur) ; `files` dit quoi ajouter et où.
@@ -1642,10 +1851,73 @@ async function saveCache(file, cache) {
 }
 
 /**
- * opts : { engineRoot, extraRoots[], loraFolders[], loras (registre loras.json), comfyUrl, deep, force,
- *          cache | cachePath, writeCache, onProgress, comfy: false | état }
+ * opts : { engineRoot, formerEngineRoots[] (anciens dossiers du moteur : alias des ids), extraRoots[], loraFolders[],
+ *          loras (registre loras.json), comfyUrl, deep, force,
+ *          cache | cachePath, writeCache, onProgress, comfy: false | état,
+ *          machine: { memGB, gpu, source } (total de mémoire déjà connu, quand ComfyUI ne répond pas),
+ *          autoByMemory (« Auto » prend la version pleine quand la machine a la place ; absent : le défaut de toujours) }
  * → { inventory, records, cache }
  */
+// inventory.machine : ce que ComfyUI annonce, sauf si nvidia-smi dit moins pour la même carte ; à défaut ce que l’appelant sait déjà ; sinon null.
+function machineIn(fromComfy, known) {
+  const num = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? round1(Number(v)) : null);
+  const c = fromComfy && typeof fromComfy === 'object' ? fromComfy : null;
+  const k = known && typeof known === 'object' ? known : null;
+  if (!c && !k) return null;
+  const cm = c ? num(c.memGB) : null;
+  const km = k ? num(k.memGB) : null;
+  // nvidia-smi plus petit, pour la même carte (même nom, connu des deux côtés) : il l’emporte (voir mergeMachine :
+  // sur une mémoire unifiée, ComfyUI compte en plus la RAM que Windows prête au GPU)
+  const kg = k && typeof k.gpu === 'string' && k.gpu ? k.gpu : null;
+  const sameCard = !!kg && !!(c && c.gpu) && kg === c.gpu;
+  const smiWins = cm != null && km != null && k.source === 'smi' && km < cm && sameCard;
+  return {
+    ...(c || {}),
+    gpu: (c && c.gpu) || kg || null,
+    memGB: smiWins ? km : cm != null ? cm : km,
+    source: smiWins ? 'smi' : cm != null ? 'comfy' : km != null ? (k.source === 'comfy' ? 'comfy' : 'smi') : null,
+    vramGB: c && c.vramGB != null ? c.vramGB : null,
+    ramGB: c && c.ramGB != null ? c.ramGB : null,
+  };
+}
+
+/**
+ * Le total de mémoire de la machine que Mia retient d'une session à l'autre (<userData>\data\machine.json, SPEC §7) :
+ * { comfy: { memGB, gpu, at } | null, smi: { memGB, gpu, at } | null }. les deux sont gardés ; le total retenu est le plus
+ * petit des deux (sur une mémoire unifiée, ComfyUI compte en plus la RAM que Windows prête au GPU : 109,7 contre 94 Go
+ * sur la RTX Spark), même ComfyUI éteint depuis : le total ne saute pas d'une valeur à l'autre selon que ComfyUI tourne. Une lecture de nvidia-smi qui nomme une AUTRE carte que la précédente efface ce
+ * que ComfyUI avait dit (la carte a changé). Fonction pure.
+ * `reading` : { source: 'comfy' | 'smi', memGB, gpu } ou null (simple lecture).
+ * → { stored (à écrire), effective: { memGB, gpu, source } | null, changed (stored diffère de ce qui était gardé) }
+ */
+function mergeMachine(stored, reading) {
+  const num = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? round1(Number(v)) : null);
+  const name = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const clean = (e) => (e && typeof e === 'object' && num(e.memGB) != null
+    ? { memGB: num(e.memGB), gpu: name(e.gpu), at: Number.isFinite(Number(e.at)) ? Number(e.at) : null } : null);
+  const next = { comfy: clean(stored && stored.comfy), smi: clean(stored && stored.smi) };
+  let changed = false;
+  const src = reading && (reading.source === 'comfy' || reading.source === 'smi') ? reading.source : null;
+  const mem = src ? num(reading.memGB) : null;
+  if (src && mem != null) {
+    const gpu = name(reading.gpu);
+    const prev = next[src];
+    if (src === 'smi' && prev && prev.gpu && gpu && prev.gpu !== gpu && next.comfy) { next.comfy = null; changed = true; }
+    // retenu quand le total change, quand le nom de la carte arrive enfin, ou quand nvidia-smi nomme une autre carte
+    // (ComfyUI qui écrit autrement le nom de la même carte n'est pas un changement)
+    if (!prev || prev.memGB !== mem || (gpu && !prev.gpu) || (src === 'smi' && gpu && prev.gpu !== gpu)) {
+      next[src] = { memGB: mem, gpu: gpu || (prev && prev.gpu) || null, at: Number.isFinite(Number(reading.at)) ? Number(reading.at) : Date.now() };
+      changed = true;
+    }
+  }
+  // Les deux lus pour la même carte : le plus petit. Sur une mémoire unifiée (RTX Spark, 19/11/2026), ComfyUI (CUDA)
+  // annonce 109,7 Go = les 94 Go réservés au GPU + les ~16 Go de RAM que Windows lui prête ; nvidia-smi dit 94, le réglage
+  // de NVIDIA. Ce qui déborde des 94 Go est pris sur la RAM : le total honnête est celui de nvidia-smi.
+  const src2 = next.comfy && next.smi && next.smi.memGB < next.comfy.memGB ? 'smi' : (next.comfy ? 'comfy' : 'smi');
+  const eff = next[src2];
+  return { stored: next, effective: eff ? { memGB: eff.memGB, gpu: eff.gpu, source: src2 } : null, changed };
+}
+
 async function scan(opts = {}) {
   const t0 = now();
   const env = makeEnv(opts);
@@ -1697,6 +1969,9 @@ async function scan(opts = {}) {
     }
   }
   const walkMs = now() - tWalk0;
+  // La machine, et son SEUL total de mémoire (SPEC §7) : celui que ComfyUI annonce quand il répond, sinon celui que
+  // l'appelant connaît déjà (opts.machine : dernier total retenu, ou lecture de nvidia-smi). null = rien de connu.
+  const machine = machineIn(comfy.machine, opts.machine);
 
   // Dédoublonnage des fichiers vus par deux racines imbriquées : la première racine (la plus prioritaire) gagne.
   const seenFiles = new Set();
@@ -1792,7 +2067,8 @@ async function scan(opts = {}) {
     for (let i = records.length - 1; i >= 0; i--) {
       const r = records[i];
       if (r.partial) continue;
-      if (under(r.pathLow, placeLow) && r.fingerprint && sources.has(r.fingerprint)) {
+      // un LoRA entraîné dans Mia (sa fiche porte `training`) n'est jamais la copie d'un autre, même contenu ou non
+      if (under(r.pathLow, placeLow) && r.fingerprint && sources.has(r.fingerprint) && !sidecarTraining(loraSidecar(r.path))) {
         const name = 'mia\\' + r.path.slice(placeLow.length + 1).replace(/\//g, '\\');
         if (!lorasListed || lorasListed.has(name.toLowerCase())) placements.set(r.fingerprint, name);
         placementFiles.push(r.path);
@@ -1855,10 +2131,14 @@ async function scan(opts = {}) {
   const { models, byRecord } = buildModels(records, [...bundles.values()], { layout, comfy, rootsByPath, env });
   applyLoras(models, { env, registry, placements });
   models.push(...builtInModels(env));
+  // mémoire estimée de chaque modèle sur cette machine (après les LoRA et les moteurs livrés : leur vramGB est posé)
+  for (const m of models) m.mem = memOf(m, m._cat, machine ? machine.memGB : null);
   const duplicates = markDuplicates(models, records, byRecord, { env });
   resolveParts(models, layout.modelsDir);
   assignGroups(models);
-  const { caps, missing } = capabilities(models, layout.modelsDir);
+  // « Auto » selon la mémoire : seulement quand l'appelant le demande (le service de Mia) ; un scan nu ne change rien
+  const { caps, missing } = capabilities(models, layout.modelsDir,
+    opts.autoByMemory ? { totalGB: machine ? machine.memGB : null } : null);
   sortModels(models);
   for (const m of models) { delete m._cat; delete m._main; }
 
@@ -1905,7 +2185,8 @@ async function scan(opts = {}) {
       modelsDir: layout.modelsDir, layout: layout.live ? 'live' : 'predicted',
       minimax: models.some((m) => m.key === 'minimax' && m.status === 'ready'),
     },
-    machine: comfy.machine || null,
+    // { gpu, memGB (LE total, octets / 2^30), source: 'comfy' | 'smi' | null, vramGB (ancien champ), ramGB } ou null
+    machine,
     // ready = modèles utilisables (jamais un interdit, jamais une pièce interne) ; miaGB = ce que Mia lit ou
     // pourrait lire, appsGB = ce qui appartient à d'autres logiciels (comptés à part, pour ne pas tromper).
     summary: {
@@ -1924,6 +2205,10 @@ async function scan(opts = {}) {
     }),
     placements: placementFiles,
     models,
+    // Ids d'avant un déménagement du dossier du moteur → id actuel (findModel de route.js les lit) ; formerRoots =
+    // nombre d'anciens dossiers connus (la longueur de `aliases` d'un modèle du moteur).
+    aliases: aliasTable(models),
+    formerRoots: env.formerRoots.length,
     capabilities: caps,
     missing,
     partials,
@@ -1944,22 +2229,24 @@ async function scan(opts = {}) {
 
 // Résolution d'un réglage de modèle d'un bloc : 'auto' -> défaut de la capacité, 'none' -> null, sinon l'id
 // (ou, par tolérance, le nom de fichier). Un modèle interdit, absent ou pas prêt n'est JAMAIS renvoyé.
-function resolveIn(inv, value, caps) {
+// `legacy` : en « Auto », le défaut d'AVANT que la mémoire de la machine le change (`legacyDefault`), s'il y en a un —
+// pour reconnaître un résultat déjà fait en Auto (empreinte de l'ancien défaut, SPEC §8.2). Sans effet sur un choix précis.
+function resolveIn(inv, value, caps, { legacy = false } = {}) {
   if (!inv || !Array.isArray(inv.models)) return null;
   const want = Array.isArray(caps) ? caps : caps ? [caps] : [];
   if (value === 'none') return null;
   if (value == null || value === '' || value === 'auto') {
     for (const c of want) {
-      const id = inv.capabilities && inv.capabilities[c] && inv.capabilities[c].default;
+      const cap = inv.capabilities && inv.capabilities[c];
+      const id = cap && ((legacy && cap.legacyDefault) || cap.default);
       const m = id && inv.models.find((x) => x.id === id);
       if (m && selectable(m, [c])) return { ...m };
     }
     return null;
   }
+  // id, id d'avant un déménagement du moteur, id du registre des LoRA ou chemin (findRef) ; à défaut le nom de fichier
   const v = String(value).toLowerCase();
-  const m = inv.models.find((x) => x.id === value)
-    || inv.models.find((x) => x.file.toLowerCase() === v && selectable(x, want))
-    || inv.models.find((x) => x.path.toLowerCase() === v.replace(/\\/g, '/'));
+  const m = findRef(inv, value) || inv.models.find((x) => x.file.toLowerCase() === v && selectable(x, want));
   return m && selectable(m, want) ? { ...m } : null;
 }
 
@@ -2011,15 +2298,18 @@ async function inspectFile(file, { inventory = null, files = null, engineRoot = 
     const diff = (inventory && Array.isArray(inventory.models) ? inventory.models : []).filter((m) => m.role === 'diffusion_model');
     // Même règle que le scan : une LoRA « LTX » ambiguë est pour LTX-2 quand seul LTX-2 est installé.
     if (family === 'LTX-Video 0.9' && diff.some((m) => m.family === 'LTX-2.x') && !diff.some((m) => m.family === 'LTX-Video 0.9')) family = 'LTX-2.x';
-    const loraFor = R.baseKeyOf(family, info.variant);
-    const ident = R.IDENTITY.find((i) => i.test.test(p.toLowerCase())) || null;
-    const name = ident ? (ident.label[lang] || ident.label.fr) : R.loraNameFromFile(info.lora_title || out.file);
     const side = loraSidecar(p);
+    const training = sidecarTraining(side);
+    // le fichier dit pour quel modèle il a été fait ; sinon la base de l'entraînement que dit sa fiche
+    const loraFor = R.baseKeyOf(family, info.variant) || (training ? R.trainBaseKey(training.base) : null);
+    const ident = R.IDENTITY.find((i) => i.test.test(p.toLowerCase())) || null;
+    const sideName = side && typeof side.name === 'string' ? cleanText(side.name, 60) : '';
+    const name = sideName || (ident ? (ident.label[lang] || ident.label.fr) : R.loraNameFromFile(info.lora_title || out.file));
     const trigger = (side && typeof side.trigger === 'string' && side.trigger.trim()) || (ident && ident.trigger) || info.lora_trigger || '';
     return { ...out, isLora: true, family, loraFor,
       familyLabel: loraFor ? R.baseLabel(loraFor) : { ...R.INSPECT.unknownBase },
       suggestedName: name, suggestedTrigger: trigger,
-      kindGuess: ident ? ident.kind : R.guessGenre(`${name} ${trigger} ${out.file}`),
+      kindGuess: side && R.GENRES[side.kind] ? side.kind : ident ? ident.kind : R.guessGenre(`${name} ${trigger} ${out.file}`),
       already: sameLora(inventory, files, p, info.fingerprint) };
   }
   const dir = `${P(engineRoot)}/models`.replace(/\//g, '\\');
@@ -2093,6 +2383,11 @@ class ModelService {
     this.cachePath = path.join(data, 'models-cache.json');
     this.regPath = path.join(data, 'loras.json');               // registre des LoRA (SPEC §12.3)
     this.identPath = path.join(data, 'identities.json');        // LoRA d'identité de l'utilisateur (facultatif)
+    this.machinePath = path.join(data, 'machine.json');         // total de mémoire retenu (SPEC §7, mergeMachine)
+    this.machine = { comfy: null, smi: null };
+    // « Auto » selon la mémoire : coupé par défaut (AUTO_BY_MEMORY) ; ctx.autoByMemory le force (bancs)
+    this.autoByMemory = ctx.autoByMemory === undefined ? AUTO_BY_MEMORY : ctx.autoByMemory === true;
+    this.machineQueue = Promise.resolve();
     this.cache = null;
     this.inventory = null;
     this.loras = [];
@@ -2127,6 +2422,38 @@ class ModelService {
       } else this.cache = { ...emptyCache(), foundRoots: (c && c.foundRoots) || [] };
     } catch { this.cache = emptyCache(); }
     if (this.inventory) this.comfySig = this.sigOf(this.inventory.comfy);
+    // Le total de mémoire retenu vit à part : il survit à un inventaire rejeté (catalogue changé, cache illisible).
+    try { this.machine = mergeMachine(JSON.parse(fs.readFileSync(this.machinePath, 'utf8')), null).stored; } catch { this.machine = { comfy: null, smi: null }; }
+  }
+
+  /** LE total de mémoire de la machine : { memGB, gpu, source: 'comfy' | 'smi' } ou null tant que rien n'a été lu. */
+  machineNow() {
+    return mergeMachine(this.machine, null).effective;
+  }
+
+  /**
+   * Une lecture du total (ComfyUI /system_stats, ou nvidia-smi) : retenue, écrite dans machine.json, et — quand le
+   * total de la machine change (plus de 0,05 Go) — l'inventaire est refait : la mémoire des versions et le choix
+   * « Auto » en dépendent. `rescan: false` pour la lecture faite PAR un scan (son inventaire en tient déjà compte).
+   * → le total effectif.
+   */
+  noteMachine(reading, { rescan = true } = {}) {
+    const before = this.machineNow();
+    const r = mergeMachine(this.machine, reading);
+    if (!r.changed) return r.effective;
+    this.machine = r.stored;
+    const snapshot = JSON.stringify(r.stored, null, 1);
+    this.machineQueue = this.machineQueue.catch(() => {}).then(async () => {
+      await fsp.mkdir(path.dirname(this.machinePath), { recursive: true });
+      const tmp = `${this.machinePath}.${process.pid}.tmp`;
+      await fsp.writeFile(tmp, snapshot);
+      await fsp.rename(tmp, this.machinePath);
+    }).catch((e) => this.log('machine.json non écrit :', e.message));
+    const a = before ? before.memGB : null;
+    const b = r.effective ? r.effective.memGB : null;
+    const moved = (a == null) !== (b == null) || (a != null && b != null && Math.abs(a - b) > 0.05);
+    if (rescan && moved) this.scan({ queue: true }).catch(() => {});
+    return r.effective;
   }
 
   loadRegistrySync() {
@@ -2182,12 +2509,21 @@ class ModelService {
     const res = await scan({
       engineRoot: places.engineRoot(prefs) || places.suggestEngineDir(),
       extraRoots: Array.isArray(prefs.extraModelRoots) ? prefs.extraModelRoots : [],
+      formerEngineRoots: Array.isArray(prefs.formerEngineRoots) ? prefs.formerEngineRoots : [],
       loraFolders: folders,
+      miaLoraDirs: this.miaLoraDirs(),
       loras: this.loras,
       comfyUrl: prefs.comfyUrl || 'http://127.0.0.1:8188',
       cache: this.cache || emptyCache(), force, deep,
+      // le total de mémoire déjà retenu (ComfyUI éteint) ; « Auto » selon la mémoire : voir AUTO_BY_MEMORY
+      machine: this.machineNow(), autoByMemory: this.autoByMemory,
       onProgress: (p) => this.send('models:progress', p),
     });
+    // ce que ComfyUI vient d'annoncer est retenu pour les démarrages où il sera éteint (l'inventaire l'a déjà pris)
+    const mc = res.inventory.machine;
+    if (res.inventory.comfy.reachable && mc && mc.source === 'comfy' && mc.memGB) {
+      this.noteMachine({ source: 'comfy', memGB: mc.memGB, gpu: mc.gpu }, { rescan: false });
+    }
     this.cache = res.cache;
     this.inventory = res.inventory;
     this.comfySig = this.sigOf(res.inventory.comfy);
@@ -2246,17 +2582,10 @@ class ModelService {
   }
 
   // ------------------------------------------------------------------------------------- LoRA
-  // Un modèle de l'inventaire par id, id du registre, chemin, ou objet d'inventaire (copie comprise).
+  // Un modèle de l'inventaire par id, id d'avant un déménagement du moteur, id du registre, chemin, ou objet
+  // d'inventaire (copie comprise) : la résolution unique de route.js.
   findModel(ref) {
-    const inv = this.inventory;
-    if (!inv || ref == null) return null;
-    if (typeof ref === 'object') ref = ref.id || ref.source || ref.path || '';
-    const s = String(ref);
-    const k = lowKey(s);
-    return inv.models.find((m) => m.id === s)
-      || inv.models.find((m) => m.loraId && m.loraId === s)
-      || inv.models.find((m) => m.role === 'lora' && (lowKey(m.path) === k || (m.source && lowKey(m.source) === k)))
-      || null;
+    return this.inventory ? findRef(this.inventory, ref) : null;
   }
 
   entryFor(m) {
@@ -2312,10 +2641,62 @@ class ModelService {
     return { ok: true, model: inv.models.find((x) => x.id === m.id) || null, inventory: inv };
   }
 
+  /**
+   * Les dossiers où Mia range ses LoRA entraînés, en plus de <moteur>\models\loras\mia : celui d'une Mia de test
+   * (<userData>\loras-mia, même règle que electron/trainer.js lorasDir). ctx.miaLoraDirs le remplace (bancs).
+   */
+  miaLoraDirs() {
+    if (Array.isArray(this.ctx.miaLoraDirs)) return this.ctx.miaLoraDirs.slice();
+    if (!places.trainingIsTest()) return [];
+    const ud = (this.ctx.paths && (this.ctx.paths.userData || (this.ctx.paths.data && path.dirname(this.ctx.paths.data)))) || '';
+    return ud ? [path.join(ud, 'loras-mia')] : [];
+  }
+
+  // Corbeille de Windows (les bancs passent la leur : ctx.trashItem).
+  trash(abs) {
+    if (typeof this.ctx.trashItem === 'function') return this.ctx.trashItem(abs);
+    return require('electron').shell.trashItem(abs);
+  }
+
+  /**
+   * « Retirer de Mes LoRA » d'un LoRA entraîné dans Mia : son fichier et sa fiche vont à la corbeille (jamais
+   * supprimés) ; le point de contrôle d'origine reste dans le dossier de l'entraînement. Seulement un fichier rangé
+   * directement dans un dossier de LoRA de Mia (models\loras\mia, ou celui d'une Mia de test). → { ok, trashed[] }
+   */
+  async trashTrained(m) {
+    const prefs = await this.prefs();
+    const dirs = miaLoraDirSet({ engineRoot: places.engineRoot(prefs) || places.suggestEngineDir(), miaLoraDirs: this.miaLoraDirs() });
+    if (!dirs.has(lowKey(path.dirname(m.path)))) {
+      return { ok: false, error: this.say('Ce LoRA n’est pas rangé dans le dossier des LoRA de Mia : Mia ne le met pas à la corbeille.',
+        'This LoRA is not filed in Mia’s LoRA folder: Mia does not move it to the Recycle Bin.') };
+    }
+    const file = path.normalize(m.path);
+    const card = file.replace(/\.[^.\\/]+$/, '.mia.json');
+    const trashed = [];
+    for (const f of [file, card]) {
+      if (!fs.existsSync(f)) continue;
+      try { await this.trash(f); trashed.push(f); } catch (err) {
+        this.log('corbeille impossible :', f, err);
+        return { ok: false, trashed, error: this.say(`Impossible de mettre « ${path.basename(f)} » à la corbeille : il est peut-être en cours d’utilisation.`,
+          `Could not move “${path.basename(f)}” to the Recycle Bin: it may be in use.`) };
+      }
+    }
+    // un nom ou un mot déclencheur choisi pour lui n'a plus d'objet
+    const k = lowKey(m.path);
+    const before = this.loras.length;
+    this.loras = this.loras.filter((e) => lowKey(e.source) !== k);
+    if (this.loras.length !== before) await this.saveRegistry();
+    const inv = await this.scan({ queue: true });
+    return { ok: true, trashed, inventory: inv };
+  }
+
   // Retirer de Mia : l'entrée et la copie (ou le lien) rangée dans models\loras\mia — JAMAIS le fichier d'origine.
+  // Un LoRA entraîné dans Mia (m.trainedHere) : son fichier et sa fiche vont à la corbeille (trashTrained), l'écran
+  // de la bibliothèque l'a demandé avant.
   async removeLora(id) {
     const m = this.findModel(id);
     if (!m || m.role !== 'lora') return { ok: false, error: this.say("Ce LoRA n’est plus dans Mia.", 'This LoRA is no longer in Mia.') };
+    if (m.trainedHere) return this.trashTrained(m);
     if (m.origin === 'engine' || m.origin === 'training') {
       return { ok: false, error: this.say('Ce LoRA est rangé dans le dossier du moteur : Mia ne le retire pas. Tu peux le renommer.',
         "This LoRA lives in the engine folder: Mia does not remove it. You can rename it.") };
@@ -2463,7 +2844,13 @@ function register(ctx) {
       Object.defineProperty(arr, 'inventory', { value: inv, enumerable: false });
       return arr;
     },
-    resolve: (value, caps) => resolveIn(svc.inventory, value, caps),
+    // opts : { legacy } — en « Auto », le défaut d'avant que la mémoire de la machine le change (resolveIn)
+    resolve: (value, caps, opts) => resolveIn(svc.inventory, value, caps, opts || {}),
+    // LE total de mémoire de la machine ({ memGB, gpu, source } ou null), et une lecture à retenir (le moteur les donne)
+    machine: () => svc.machineNow(),
+    noteMachine: (reading) => svc.noteMachine(reading),
+    // le modèle que désigne une référence, quel que soit son état (pour dire pourquoi il ne se lance pas) ; ou null
+    find: (ref) => svc.findModel(ref),
     inventory: () => svc.inventory,
     options: (caps) => (svc.inventory ? svc.inventory.models.filter((m) => selectable(m, caps)) : []),
     selectable,
@@ -2520,7 +2907,7 @@ function register(ctx) {
   if (ctx.prefs && typeof ctx.prefs.onChange === 'function') {
     ctx.prefs.onChange((_p, changed) => {
       const has = (k) => (changed && typeof changed.has === 'function' ? changed.has(k) : Array.isArray(changed) ? changed.includes(k) : !!(changed && changed[k]));
-      if (has('engineRoot') || has('extraModelRoots') || has('comfyUrl') || has('loraFolders')) svc.scan({ queue: true }).catch(() => {});
+      if (has('engineRoot') || has('extraModelRoots') || has('comfyUrl') || has('loraFolders') || has('formerEngineRoots')) svc.scan({ queue: true }).catch(() => {});
     });
   }
 
@@ -2534,4 +2921,6 @@ function register(ctx) {
 module.exports = {
   register, scan, resolveIn, selectable, identify, classifyKeys, pickleScan, comfyProbe, parseModelPathsYaml,
   inspectFile, loadCache, CACHE_VERSION, CATALOG_REV, ModelService,
+  // pour les bancs (tools/test-variants.js) : fonctions pures, sans disque ni ComfyUI
+  _internals: { modelId, aliasIds, aliasTable, makeEnv, matchWhen, catalogFor, resolveParts, capabilities, memOf, machineOf, machineIn, mergeMachine },
 };

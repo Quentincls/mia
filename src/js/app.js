@@ -17,6 +17,7 @@ import { initTabs } from './ui/tabs.js';
 import { initHome } from './ui/home.js';
 import { closeMenu, isMenuOpen, installTextMenus } from './ui/menu.js';
 import { isModalOpen, closeTopModal, alert } from './ui/modal.js';
+import { askTrainingClose } from './ui/trainclose.js';
 import { toast } from './ui/toasts.js';
 import { installTooltips, hideTip } from './ui/tooltip.js';
 import { warmIcons } from './icons.js';
@@ -31,7 +32,9 @@ register({
     'app.mod.runs': 'le suivi des calculs',
     'app.mod.queue': 'la file de calcul',
     'app.mod.library': 'la bibliothèque de modèles',
+    'app.mod.train': 'l’écran des entraînements',
     'app.noEditor': 'La planche n’est pas disponible : elle ne peut pas s’ouvrir.',
+    'app.tryNoLora': '{name} n’est pas encore dans la liste des LoRA : choisis-le dans le bloc dès qu’il y apparaît.',
     'app.openFailed': 'Impossible d’ouvrir la planche : {why}',
     'app.createFailed': 'Impossible de créer la planche : {why}',
     'app.saveFailed': 'La planche n’a pas pu être enregistrée : {why}',
@@ -54,7 +57,9 @@ register({
     'app.mod.runs': 'the run tracking',
     'app.mod.queue': 'the run queue',
     'app.mod.library': 'the model library',
+    'app.mod.train': 'the trainings screen',
     'app.noEditor': 'The board is unavailable: it cannot open.',
+    'app.tryNoLora': '{name} is not in the list of LoRAs yet: pick it in the block as soon as it shows up.',
     'app.openFailed': 'Could not open the board: {why}',
     'app.createFailed': 'Could not create the board: {why}',
     'app.saveFailed': 'The board could not be saved: {why}',
@@ -78,6 +83,8 @@ let tabs = null;
 let home = null;
 let editor = null;       // E's editor: load / unload / getGraph / insertRecipe / importFiles / fit
 let runsApi = null;      // F's runs store
+let trainUi = null;      // the « Entraînements » screen (ui/train.js)
+let trainBack = null;    // { id, name }: the board left for that screen — « ‹ Retour à … » goes back to it
 let resolveEditor;
 const editorReady = new Promise((r) => { resolveEditor = r; });   // resolves to editor | null
 
@@ -164,8 +171,13 @@ async function boot() {
   relayMainEvents();
 
   // the window is closing (Alt+F4, the × button): what is being typed, the board, its picture
-  mia.win?.onFlush?.(async () => {
-    try { await flushSave({ thumb: true }); } catch (err) { console.error('[app] flush', err); } finally { mia.win.flushed?.(); }
+  // With a LoRA training running, Quentin is asked first (ui/trainclose.js): the page holds main.js's close.
+  mia.win?.onFlush?.(async (p) => {
+    const training = p && typeof p === 'object' ? p.training : null;
+    if (training) mia.win.flushed?.({ hold: true });
+    try { await flushSave({ thumb: true }); } catch (err) { console.error('[app] flush', err); }
+    if (!training) { mia.win.flushed?.(); return; }
+    askTrainingClose(training, (a) => mia.win.flushed?.(a));
   });
   on('app:flush', () => flushSave({ thumb: true }));
   on('graph:changed', onGraphChanged);
@@ -194,13 +206,14 @@ async function boot() {
 
 // ── the modules of the other parts (each may fail on its own) ─────────
 async function loadModules() {
-  const [ed, rn, qu, lib] = await Promise.allSettled([
+  const [ed, rn, qu, lib, , tr] = await Promise.allSettled([
     import('./graph/editor.js'),
     import('./nodes/runs.js'),
     import('./ui/queue.js'),
     import('./ui/library.js'),
     // the block glyphs (recipe cards on the home page), even if the board itself fails
-    import('./catalog.js')
+    import('./catalog.js'),
+    import('./ui/train.js')
   ]);
   const broken = [];
   const attempt = async (what, fn) => {
@@ -227,11 +240,18 @@ async function loadModules() {
   });
   resolveEditor(editor);
 
-  // title bar order: [models] [GPU] [settings]; each mount on its own, so one
+  // title bar order: [models] [LoRA training] [GPU] [settings]; each mount on its own, so one
   // broken piece does not take its neighbours down with it
   await attempt('library', () => need(lib).mountLibrary?.($('#library')));
   await attempt('library', () => need(lib).mountModelsButton?.($('#tb-actions')));
   await attempt('library', () => need(lib).mountHomeModels?.($('#home-models')));
+  // training a LoRA: its screen (a third view) and its chip, which is there on every view
+  await attempt('train', () => {
+    const m = need(tr);
+    m.mountTrain?.($('#view-train'), { show: goTrain, back: leaveTrain, backLabel: trainBackLabel, tryLora });
+    trainUi = m;
+  });
+  await attempt('train', () => need(tr).mountTrainChip?.($('#tb-actions')));
   await attempt('queue', () => need(qu).mountQueue?.($('#queue')));
   await attempt('queue', () => need(qu).mountGpuChip?.($('#tb-actions')));
   const gear = $('#tb-settings');
@@ -264,14 +284,87 @@ function relayMainEvents() {
 
 // ── views ─────────────────────────────────────────────────────────────
 function showView(view) {
-  const board = view === 'board';
-  state.view = board ? 'board' : 'home';
-  $('#view-home').hidden = board;
-  $('#view-board').hidden = !board;
-  document.body.classList.toggle('on-board', board);
-  document.body.classList.toggle('on-home', !board);
+  const v = view === 'board' || view === 'train' ? view : 'home';
+  state.view = v;
+  $('#view-home').hidden = v !== 'home';
+  $('#view-board').hidden = v !== 'board';
+  const train = $('#view-train');
+  if (train) train.hidden = v !== 'train';
+  document.body.classList.toggle('on-board', v === 'board');
+  document.body.classList.toggle('on-home', v === 'home');
+  document.body.classList.toggle('on-train', v === 'train');
   syncTitle();
   emit('view:changed', { view: state.view });
+}
+
+// ── the « Entraînements » screen: a third view, beside the home page and the board ──
+/**
+ * Entering saves the board and takes it off the stage, like a return to the home page — its tab stays, switched
+ * off, and its id is kept for « ‹ Retour à … ». Leaving closes nothing: the training lives in the main process.
+ * A click on a tab or on the logo leaves the view directly (openProject / goHome).
+ */
+function goTrain() {
+  return serial(async () => {
+    if (state.view === 'train') return true;
+    closeMenu();
+    hideTip();
+    trainBack = state.view === 'board' && state.project ? { id: state.project.id, name: state.project.name } : null;
+    await closeCurrent();
+    tabs.setActive(null);
+    showView('train');
+    persistTabs();
+    return true;
+  });
+}
+
+/** The board to go back to, if its tab is still there. */
+function trainBackLabel() {
+  return trainBack && tabs.has(trainBack.id) ? (tabs.name?.(trainBack.id) || trainBack.name || null) : null;
+}
+
+/** « ‹ Retour à Planche 3 » (or « ‹ Accueil ») and Esc. */
+function leaveTrain() {
+  if (state.view !== 'train') return Promise.resolve(false);
+  return trainBack && tabs.has(trainBack.id) ? openProject(trainBack.id) : goHome();
+}
+
+/**
+ * « Essayer sur une planche » : the last board opened (else a new one, named after the LoRA) gets a generation
+ * block of the LoRA's model (`family`, from the training's base: « fam:ltx », « fam:qwen21 »), with the LoRA chosen
+ * and its trigger word as the prompt. Nothing is computed. A LoRA the library does not list yet (the scanner has not
+ * seen the new file): the inventory is read again once; still absent, the block is placed without it and a toast
+ * says to pick it as soon as it shows up.
+ */
+async function tryLora({ name = '', trigger = '', file = '', family = '', testName = '' } = {}) {
+  const ed = await editorReady;
+  if (!ed) { toast(t('app.noEditor'), { kind: 'error' }); return false; }
+  const known = tabs.ids().sort((a, b) => (tabSeen.get(b) || 0) - (tabSeen.get(a) || 0));
+  const last = trainBack && tabs.has(trainBack.id) ? trainBack.id : known[0] || null;
+  const ok = last ? await openProject(last) : !!(await createProject({ name: testName || name || undefined }));
+  if (!ok || !editor || state.view !== 'board' || state.readOnly) return false;
+  // the LoRA as the library knows it (the scanner lists models\loras\mia): the block's own choice takes its id
+  const same = (p) => String(p || '').split('/').join('\\').toLowerCase();
+  const find = () => (state.inventory?.models || []).find((m) => m && m.path && same(m.path) === same(file)) || null;
+  let entry = file ? find() : null;
+  if (file && !entry) {
+    try {
+      const inv = await mia.models?.scan?.();
+      if (inv && typeof inv === 'object' && Array.isArray(inv.models)) { state.inventory = inv; emit('models:updated', inv); }
+    } catch (err) { console.warn('[app] tryLora: models.scan', err?.message || err); }
+    entry = find();
+  }
+  const params = { prompt: trigger };
+  if (family && /^[a-z0-9_-]+$/i.test(family)) params.model = `fam:${family}`;
+  if (entry) params.lora = entry.id;
+  let placed = false;
+  try {
+    placed = !!editor.addNode('gen', null, { params });
+  } catch (err) {
+    console.error('[app] tryLora', err);
+    return false;
+  }
+  if (placed && file && !entry) toast(t('app.tryNoLora', { name: name || String(file).split(/[\\/]/).pop() }), { kind: 'info', icon: 'warn', ms: 7000 });
+  return placed;
 }
 
 /** The window's name in the taskbar: « Projet › Planche », then Mia. */
@@ -881,6 +974,13 @@ function onGlobalKey(e) {
     hideTip();
     if (isMenuOpen()) { stop(); closeMenu(); return; }
     if (isModalOpen()) { stop(); closeTopModal(); return; }
+    // the trainings screen: Esc is « ‹ Retour » — after what floats over it (viewer, library, GPU panel), and a
+    // field being typed in only gives its focus back
+    if (state.view === 'train' && $('#viewer')?.hidden !== false && $('#library')?.hidden !== false && !$('.gpu-pop')) {
+      stop();
+      if (isTyping()) { document.activeElement.blur(); return; }
+      if (!trainUi?.trainEscape?.()) leaveTrain();
+    }
     return;
   }
   if (isModalOpen() || !tabs) return;
@@ -944,6 +1044,9 @@ function installPageGuards() {
 
 Object.assign(app, {
   openProject, goHome, closeTab, closeGroup, newProject, newBoard, newFolder, createProject, createFromRecipe,
+  goTrain, leaveTrain, tryLora,
+  /** the « Entraînements » screen on one training, or on the list (tests, assistants) */
+  openTrain: (id) => trainUi?.openTrain?.(id || null),
   saveNow: () => { dirty = true; return saveNow(); },
   flushSave,
   /** take the home picture now (tests, assistants) */

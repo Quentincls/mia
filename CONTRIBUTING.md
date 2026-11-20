@@ -72,8 +72,16 @@ node tools/validate-workflows.js     # every ComfyUI graph Mia builds, checked a
 node tools/test-migrations.js        # file format upgrades
 node tools/test-installer.js         # model downloads, against a local fake Hugging Face
 node tools/test-bridge.js            # starts a hidden test Mia (its own profile) and drives it like an assistant
+node tools/test-trainer.js           # LoRA training service, with the fake training tool (no Python, no GPU)
+node tools/test-train-ui.mjs         # words and display rules of the Trainings screen, French and English
+node tools/test-train-queue.mjs      # the training's row in the job queue
+node tools/test-train-settings.js    # Settings → Training: folders, tools, the service following the settings
 node tools/privacy-audit.js          # nothing personal in what you are about to commit
 ```
+
+`node tools/test-train-config.js` checks the training adapters' configurations in `--dry` mode; its sections that
+need the training tools (point it at their folder with `$env:MIA_TRAIN_TOOLS_DIR`) are skipped when they are absent. It
+never starts a real training.
 
 `validate-workflows.js` reads the schema saved in `tools/fixtures/comfy_object_info.json`. To check against your
 own ComfyUI, save `http://127.0.0.1:8188/object_info` to a file and pass it with `--schema <file>`. While a
@@ -93,6 +101,17 @@ And this one needs the test instance above, running:
 
 ```powershell
 node tools/check-wires.mjs 9333 --all     # wires land on their ports, on every board
+```
+
+The training screens need a fresh test instance each, started with `$env:MIA_TRAIN_FAKE = "1"` as well (the fake
+training tool; they refuse an instance without it or with data already in it):
+
+```powershell
+node tools/check-train-screen.mjs 9333                          # the Trainings screen, French then English, screenshots
+node tools/test-train-close.mjs 9333 --userdata <its MIA_USERDATA>   # closing Mia during a training (it closes that instance)
+node tools/check-train-queue.mjs 9333                           # the training's row in the job queue
+node tools/check-library-train.mjs 9333                         # trained LoRAs in the library
+node tools/test-train-settings-ui.mjs 9333 --userdata <its MIA_USERDATA>   # Settings → Training
 ```
 
 Then look at what you changed, in the running app, in both languages and both themes.

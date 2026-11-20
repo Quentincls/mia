@@ -5,8 +5,10 @@
  *   node tools/check-package.js           the checks below; exit code 1 when one fails
  *                                         (npm runs it first for dist, dist:zip and dist:dir: « predist »)
  *   afterPack hook of electron-builder    (package.json → build.afterPack) checks LICENSE and NOTICE inside the
- *                                         built app and writes resources\app\build-info.json { version, commit,
- *                                         builtAt }, which electron/version.js reads (Réglages → À propos)
+ *                                         built app, checks that its .exe are of the architecture being built
+ *                                         (an x64 package once nearly took the arm64 Electron of node_modules),
+ *                                         and writes resources\app\build-info.json { version, commit, builtAt },
+ *                                         which electron/version.js reads (Réglages → À propos)
  *
  * Fails when, among the files the package takes (package.json → build.files):
  *   - index.html refers to a stylesheet, script or image that is missing;
@@ -188,11 +190,38 @@ function runChecks() {
 }
 
 // ------------------------------------------------------------------------------------------- afterPack
+/** The machine of a Windows executable, from its PE header: 'x64', 'arm64', 'ia32', or null when unreadable. */
+function peArch(file) {
+  let fd = null;
+  try {
+    fd = fs.openSync(file, 'r');
+    const head = Buffer.alloc(4096);
+    const n = fs.readSync(fd, head, 0, head.length, 0);
+    if (n < 64 || head.toString('latin1', 0, 2) !== 'MZ') return null;
+    const pe = head.readUInt32LE(0x3c);
+    if (pe + 6 > n || head.toString('latin1', pe, pe + 4) !== 'PE\0\0') return null;
+    return { 0x8664: 'x64', 0xaa64: 'arm64', 0x14c: 'ia32' }[head.readUInt16LE(pe + 4)] || null;
+  } catch { return null; } finally { if (fd !== null) fs.closeSync(fd); }
+}
+
+/** electron-builder's Arch (0 ia32, 1 x64, 2 armv7l, 3 arm64, 4 universal) → its name. */
+const ARCH_NAMES = ['ia32', 'x64', 'armv7l', 'arm64', 'universal'];
+
 /** electron-builder, once the app folder is built (before the zip and the installer): check, then stamp it. */
 async function afterPack(context) {
   const appDir = path.join(context.appOutDir, 'resources', 'app');
   for (const f of ['LICENSE', 'NOTICE', 'CHANGELOG.md', 'package.json']) {
     if (!fs.existsSync(path.join(appDir, f))) throw new Error(`check-package : ${f} manque dans ${appDir}`);
+  }
+  const want = typeof context.arch === 'number' ? ARCH_NAMES[context.arch] : String(context.arch || '');
+  if (context.electronPlatformName === 'win32' && want) {
+    const exes = fs.readdirSync(context.appOutDir).filter((f) => /\.exe$/i.test(f));
+    if (!exes.length) throw new Error(`check-package : aucun .exe dans ${context.appOutDir}`);
+    for (const f of exes) {
+      const got = peArch(path.join(context.appOutDir, f));
+      if (got !== want) throw new Error(`check-package : ${f} est ${got || 'illisible'}, le paquet est ${want} (Electron de la mauvaise architecture)`);
+    }
+    console.log(`  • check-package : ${exes.join(', ')} en ${want}`);
   }
   const pkg = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'));
   const { gitCommit } = require('../electron/version.js');
@@ -205,6 +234,7 @@ module.exports = afterPack;
 module.exports.default = afterPack;
 module.exports.runChecks = runChecks;
 module.exports.globRe = globRe;
+module.exports.peArch = peArch;
 
 if (require.main === module) {
   const { pkg, files } = runChecks();

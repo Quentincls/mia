@@ -16,6 +16,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { spawn, spawnSync } = require('node:child_process');
 const places = require('../places');
+const { pythonFor } = require('./pyexe');
 
 const STR = {
   fr: {
@@ -136,12 +137,14 @@ function createPyRunner({ prefs, root, python, worker } = {}) {
     return new Promise((resolve, reject) => {
       let child;
       try {
-        child = spawn(py, ['-B', '-u', script, String(task), jobFile], {
+        const real = pythonFor(py);        // the real interpreter, not the venv launcher: no console window
+        child = spawn(real.exe, ['-B', '-u', script, String(task), jobFile], {
           cwd,
           windowsHide: true,
           stdio: ['pipe', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            ...real.env,
             PYTHONUTF8: '1',
             PYTHONIOENCODING: 'utf-8',
             PYTHONUNBUFFERED: '1',

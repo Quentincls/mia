@@ -26,11 +26,12 @@ import { tip } from '../ui/tooltip.js';
 import { setPrefs } from '../ui/settings.js';
 import { fromText, askFromPrices } from '../ui/fromprices.js';
 import { wordKey } from './waywords.js';
-import { strings } from './media.js';
+import { strings, num } from './media.js';
 import { localCatalog, cloudCatalog, variantOf } from './profiles.js';
 import { ghostOut } from '../ui/motion.js';
-import { familyOf, localKeyOf } from './route.js';
-import { modelName } from './modelpicker.js';
+import { familyOf, localKeyOf, findModel, localModelFor } from './route.js';
+import { needGB } from './memory.js';
+import { modelName, memText, memTip, machineTotal, isTooBig, partNoteOf, blockedWhy } from './modelpicker.js';
 
 strings({
   'node.fam.local': 'Sur ce PC',
@@ -164,13 +165,22 @@ export function makerColor(def) {
 /** Familles locales qui ont des façons de faire, avec leurs modèles prêts sur ce PC. */
 function localFamilies() {
   const fams = localCatalog().families || {};
-  const models = (state.inventory?.models || []).filter((m) => m.status === 'ready' && !m.hidden && m.license !== 'forbidden' && m.role !== 'lora');
+  const all = state.inventory?.models || [];
+  const models = all.filter((m) => m.status === 'ready' && !m.hidden && m.license !== 'forbidden' && m.role !== 'lora');
   return Object.entries(fams).filter(([, f]) => Array.isArray(f.workflows) && f.workflows.length).map(([key, def]) => {
     const mine = models.filter((m) => localKeyOf(m, fams) === key);
-    // des variantes au choix seulement si elles savent toutes la même chose (LTX Standard / Rapide)
+    // des variantes au choix seulement si elles savent toutes la même chose (LTX Compacte / Pleine). Seuls comptent les
+    // modèles qui font une des façons de faire de la famille : « LTX · détails » (un agrandisseur, rangé dans la famille
+    // par son nom) n'est pas une version de LTX, et sa présence cachait toutes les variantes.
+    const wfCaps = new Set(def.workflows.map((wf) => wf.cap).filter(Boolean));
+    const able = mine.filter((m) => (m.caps || []).some((c) => wfCaps.has(c)));
     const capsSig = (m) => [...(m.caps || [])].sort().join(',');
-    const same = mine.length > 1 && mine.every((m) => capsSig(m) === capsSig(mine[0]));
-    return { key, def, models: mine, variants: same ? mine : [], installed: mine.length > 0 };
+    const same = able.length > 1 && able.every((m) => capsSig(m) === capsSig(able[0]));
+    // de la plus légère à la plus lourde (Compacte, Compacte · RTX 50, Pleine), l'ordre de l'inventaire à mémoire égale
+    const byMem = [...able].sort((a, b) => (needGB(a) ?? 0) - (needGB(b) ?? 0));
+    // reconnus mais pas proposés (le modèle complet, non distillé : recette non validée) : montrés grisés sous la famille
+    const blocked = all.filter((m) => m.blocked && !m.hidden && localKeyOf(m, fams) === key);
+    return { key, def, models: mine, able, variants: same ? byMem : [], blocked, installed: mine.length > 0 };
   });
 }
 
@@ -178,10 +188,10 @@ function localFamilies() {
 function allFamilies() {
   const local = localFamilies().map((f) => ({
     fam: `fam:${f.key}`, def: f.def, cloud: false, kind: f.def.kind === 'image' ? 'image' : 'video',
-    installed: f.installed, variants: f.variants, models: f.models,
+    installed: f.installed, variants: f.variants, blocked: f.blocked, models: f.models, able: f.able,
   }));
   const cloud = (cloudCatalog().families || []).map((def) => ({
-    fam: def.key, def, cloud: true, kind: def.kind === 'image' ? 'image' : 'video', installed: true, variants: [], models: [],
+    fam: def.key, def, cloud: true, kind: def.kind === 'image' ? 'image' : 'video', installed: true, variants: [], blocked: [], models: [], able: [],
   })).sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'video' ? -1 : 1) || a.def.name.localeCompare(b.def.name));
   return [...local, ...cloud].map((e) => ({
     ...e, keys: wordKeys(e.def), words: familyWords(e.def),
@@ -202,17 +212,18 @@ function closePop() {
   p.el.remove();
 }
 
-/** Un mot qui ne se coupe pas (espaces insécables). */
-const nb = (w) => String(w).replace(/ /g, '\u00a0');
+/** Un mot qui ne se coupe pas (espaces insécables) ; une puce longue (« Complète (non distillée) ») garde ses espaces, sinon elle sort d'un bloc étroit. */
+const nb = (w) => (String(w).length > 16 ? String(w) : String(w).replace(/ /g, '\u00a0'));
 
 const markOfDef = (def) => def.mark || String(def.maker || def.name || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase();
 const markEl = (def, size = '') => el('span', { class: `mp-mark${size ? ` ${size}` : ''}`, style: `--mk:${makerColor(def)}`, 'aria-hidden': 'true' }, markOfDef(def));
 
 /**
- * Sélecteur de famille d'un bloc Modèle. opts : { param, value, onChange(v) }.
+ * Sélecteur de famille d'un bloc Modèle. opts : { param, value, onChange(v), model?() → le modèle du PC qui fera ce
+ * que demandent les fils du bloc : sa version et sa mémoire se lisent sur la carte }.
  * Retour : élément avec .setValue(v), .refresh(), .setDisabled(b, why?), .destroy()
  */
-export function familyPicker({ param, value, onChange }) {
+export function familyPicker({ param, value, onChange, model }) {
   let current = value ?? param.default ?? 'fam:ltx';
   let disabled = false;
   let disabledWhy = '';
@@ -235,6 +246,18 @@ export function familyPicker({ param, value, onChange }) {
     return f ? (f.provider === 'local' ? `fam:${f.key}` : f.def.key) : String(v);
   };
 
+  /**
+   * Le modèle du PC dont la carte montre la version et la mémoire : celui qui fera ce que demandent les fils (donné par
+   * le bloc), sinon la variante choisie, sinon le défaut de la première façon de faire de la famille. En ligne : aucun.
+   */
+  const shownModel = (fam) => {
+    if (!fam || fam.provider !== 'local') return null;
+    const wf = (fam.def.workflows || [])[0];
+    return (typeof model === 'function' ? model() : null) || fam.variant || (wf ? localModelFor(fam, wf, state.inventory) : null);
+  };
+  /** La variante gardée est-elle reconnue mais pas proposée (le modèle complet : recette non validée) ? */
+  const blockedOf = (fam) => (fam && fam.variant && fam.variant.blocked ? fam.variant : null);
+
   function paint() {
     const fam = famNow();
     if (!fam) {
@@ -246,15 +269,20 @@ export function familyPicker({ param, value, onChange }) {
       trigger.classList.add('warn');
       return;
     }
-    trigger.classList.remove('warn');
+    const stop = blockedOf(fam);
+    trigger.classList.toggle('warn', !!stop);
     const def = fam.def;
     txt.textContent = def.name;
     mark.textContent = markOfDef(def);
     mark.style.setProperty('--mk', makerColor(def));
     const words = familyWords(def);
-    const v = fam.variant ? variantOf(fam.variant)?.tag : '';
+    // la version qui calculera et la mémoire qu'elle prendra ici (« PLEINE · ≈ 71 GO »), puis ce que la famille sait
+    // faire ; une variante reconnue mais pas proposée : sa version et la raison, en alerte
+    const m = stop || shownModel(fam);
+    const v = m ? variantOf(m)?.tag : '';
+    const lead = stop ? [v, t('node.model.blockedNote')] : [v, m ? memText(m) : '', ...words];
     // espaces insécables dans chaque mot et devant « · » : « 3D → réel » ne se coupe plus en « 3D → » / « RÉEL »
-    chips.textContent = [v, ...words].filter(Boolean).map(nb).join('\u00a0· ');
+    chips.textContent = lead.filter(Boolean).map(nb).join('\u00a0· ');
     where.hidden = fam.provider === 'local';
     where.textContent = t('node.fam.online');
   }
@@ -264,11 +292,15 @@ export function familyPicker({ param, value, onChange }) {
     if (openPop?.owner === root) return '';
     const fam = famNow();
     if (!fam) return t('node.fam.unknownTip');
-    const v = fam.variant ? variantOf(fam.variant)?.tag : '';
+    const stop = blockedOf(fam);
+    if (stop) return { kicker: t('node.model.blockedTitle'), title: modelName(stop), body: blockedWhy(stop) };
+    const m = shownModel(fam);
+    const v = m ? variantOf(m)?.tag : '';
     return {
       kicker: fam.provider === 'local' ? t('node.fam.tipLocal') : t('node.fam.tipCloud'),
       title: v ? `${fam.def.name} · ${v}` : fam.def.name,
-      body: tl(fam.def.desc || {}),
+      // à quoi sert la famille, puis la mémoire que cette version prendra sur cette machine et la pièce assortie
+      body: [tl(fam.def.desc || {}), m ? memTip(m) : '', partNoteOf(m)].filter(Boolean).join(' '),
       meta: familyWords(fam.def).join(' · '),
     };
   });
@@ -350,16 +382,29 @@ export function familyPicker({ param, value, onChange }) {
     }
 
     function row(f, { variant = null } = {}) {
-      const v = variant ? variant.id : (f.installed ? f.fam : null);
-      const sel = variant ? current === variant.id : (isSel(f) && !f.variants.some((m) => m.id === current));
+      // une variante reconnue mais pas proposée (le modèle complet) : montrée grisée avec sa raison, jamais choisissable
+      const stop = !!(variant && variant.blocked);
+      const v = variant ? (stop ? null : variant.id) : (f.installed ? f.fam : null);
+      // la valeur gardée peut être l'id d'avant un déménagement du dossier du moteur : comparée par son id d'aujourd'hui
+      const cur = findModel(state.inventory, current)?.id || current;
+      const sel = variant ? cur === variant.id : (isSel(f) && !f.variants.some((m) => m.id === cur));
       const fav = favList().includes(f.fam);
-      const r = el('div', { class: `fp-row${sel ? ' sel' : ''}${!f.installed ? ' greyed' : ''}${variant ? ' fp-variant' : ''}`, role: 'option',
-        'aria-selected': String(sel) });
-      if (variant) {
+      const r = el('div', { class: `fp-row${sel ? ' sel' : ''}${!f.installed || stop ? ' greyed' : ''}${variant ? ' fp-variant' : ''}`, role: 'option',
+        'aria-selected': String(sel), 'aria-disabled': stop ? 'true' : null });
+      if (stop) {
+        const why = blockedWhy(variant);
+        r.append(el('span', { class: 'fp-name' }, variantOf(variant)?.tag || modelName(variant)),
+          el('span', { class: 'fp-meta' }, why),
+          el('span', { class: 'fp-side' }, el('span', { class: 'fp-note' }, t('node.model.blockedNote'))));
+        tip(r, () => why);                        // la raison, coupée sur une ligne, se lit en entier au survol
+      } else if (variant) {
+        // nom = la version (« Pleine ») ; à droite, la mémoire qu'elle prendra ici, « Trop lourd » si elle dépasse la machine
         const vv = variantOf(variant);
+        const big = isTooBig(variant);
         r.append(el('span', { class: 'fp-name' }, vv?.tag || modelName(variant)),
-          el('span', { class: 'fp-meta' }, vv?.desc || ''),
-          el('span', { class: 'fp-side' }, variant.sizeGB ? fmtGB(variant.sizeGB) : ''));
+          el('span', { class: 'fp-meta' }, [vv?.desc, partNoteOf(variant)].filter(Boolean).join(' ')),
+          el('span', { class: `fp-side${big ? ' over' : ''}` },
+            big ? t('node.model.tooBig') : (memText(variant) || (variant.sizeGB ? fmtGB(variant.sizeGB) : ''))));
       } else {
         const side = el('span', { class: 'fp-side' });
         if (f.cloud) {
@@ -403,6 +448,8 @@ export function familyPicker({ param, value, onChange }) {
         list.append(row(f));
         // les variantes d'une famille du PC (LTX Standard / Rapide), sous elle (dans « Sur ce PC » seulement)
         if (variants) for (const m of f.variants) list.append(row(f, { variant: m }));
+        // puis ce que Mia reconnaît sans le proposer (le modèle complet, non distillé), grisé avec sa raison
+        if (variants) for (const m of f.blocked || []) list.append(row(f, { variant: m }));
       }
       return items.length;
     }
@@ -488,12 +535,23 @@ export function familyPicker({ param, value, onChange }) {
       const whereTxt = f.cloud ? [t('node.fam.cloud'), price != null ? t('node.fam.from', { price }) : ''].filter(Boolean).join(' · ')
         : (f.installed ? t('node.fam.onPc') : t('node.fam.notInstalled'));
       const vv = variant ? variantOf(variant) : null;
+      // la mémoire que prendra la version survolée (ou le seul modèle de la famille) sur cette machine ; pour une
+      // version reconnue mais pas proposée, sa raison à la place
+      const one = variant || (!f.cloud && f.able.length === 1 ? f.able[0] : null);
+      const stop = one && one.blocked ? blockedWhy(one) : '';
+      const need = one && !stop ? needGB(one) : null;
+      const total = machineTotal();
+      const mem = need == null ? '' : [
+        total == null ? t('node.model.memOfNoTotal', { n: num(need) }) : t('node.model.memOf', { n: num(need), total: num(total) }),
+        partNoteOf(one),
+      ].filter(Boolean).join(' · ').replace(/\.$/, '');
       detail.append(markEl(f.def, 'lg'), el('div', { class: 'fp-d-main' },
         el('div', { class: 'fp-d-title' },
           el('span', { class: 'fp-d-name' }, vv ? `${f.def.name} · ${vv.tag || modelName(variant)}` : f.def.name),
           el('span', { class: 'fp-d-where' }, [f.def.maker, whereTxt].filter(Boolean).join(' · '))),
         el('div', { class: 'fp-d-desc' }, (vv && vv.desc) || tl(f.def.desc || {})),
         f.fam === 'fam:minimax' ? el('div', { class: 'fp-d-hint' }, t('node.fam.byWires')) : null,
+        stop || mem ? el('div', { class: 'fp-d-hint' }, stop || mem) : null,
         el('div', { class: 'fp-d-words' }, f.words.join(' · '))));
     }
 

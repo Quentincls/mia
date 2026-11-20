@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![version](https://img.shields.io/badge/version-0.7.0-2E7D32?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.10.0-2E7D32?style=flat-square)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-38-47848F?style=flat-square)](https://www.electronjs.org/)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?style=flat-square)](docs/INSTALL.md)
@@ -182,7 +182,8 @@ cut-out and the fast upscale, and 24 GB for the video models and image editing; 
 plus 20 to 150 GB for models; Internet during installation only. The full walk-through, in French, is
 [docs/INSTALL.md](docs/INSTALL.md).
 
-1. **Mia.** Take the installer or the portable zip from the Releases page, or run it from source:
+1. **Mia.** Take the installer or the portable zip from the Releases page (the files named `arm64` are for Windows
+   on an ARM processor), or run it from source:
 
    ```powershell
    git clone https://github.com/Quentincls/mia.git

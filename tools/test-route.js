@@ -83,6 +83,71 @@ for (const [f, conn, want, exp, choice = null] of CASES) {
   const label = `${f} [${conn.join(', ')}]${choice ? ` ← ${choice}` : ''}`;
   if (why.length) { ko++; console.log(`  ÉCHEC ${label} : ${why.join(' · ')}`); } else { ok++; console.log(`  ok    ${label} → ${want}`); }
 }
+// Résolution unique d'une référence de modèle (SPEC §7) : id, id d'avant un déménagement du dossier du moteur (alias),
+// id du registre des LoRA, chemin ; la même fonction pour l'écran, le moteur et le scanner.
+{
+  const t = (name, cond, detail) => {
+    if (cond) { ok++; console.log(`  ok    ${name}`); } else { ko++; console.log(`  ÉCHEC ${name}${detail !== undefined ? ` → ${JSON.stringify(detail)}` : ''}`); }
+  };
+  const ENG = 'M:/moteur';            // dossier du moteur et dossier de LoRA de l'utilisateur : inventés
+  const MINE = 'M:/Mes LoRA';
+  const ltx = { id: 'aaaaaaaaaaaa', aliases: ['bbbbbbbbbbbb'], file: 'ltx-2.5-distilled-int8.safetensors', family: 'LTX-2.x', baseKey: 'ltx',
+    path: `${ENG}/models/diffusion_models/ltx-2.5-distilled-int8.safetensors`, role: 'diffusion_model', status: 'ready', caps: ['text-to-video', 'image-to-video'] };
+  const lora = { id: 'cccccccccccc', aliases: ['dddddddddddd'], loraId: 'l_0123456789', file: 'mara.safetensors', role: 'lora', caps: ['lora'], status: 'ready',
+    path: `${ENG}/models/loras/mara.safetensors`, source: `${MINE}/Mara.safetensors` };
+  const other = { id: 'dddddddddddd', aliases: [], file: 'autre.safetensors', role: 'lora', caps: ['lora'], status: 'incomplete', path: `${MINE}/autre.safetensors` };
+  // « dddddddddddd » est l'alias de la LoRA ET l'id d'un vrai modèle : la table ne le porte pas (l'id réel gagne)
+  const inv = { models: [ltx, lora, other], aliases: { bbbbbbbbbbbb: 'aaaaaaaaaaaa' } };
+  t('findModel : par id', R.findModel(inv, 'aaaaaaaaaaaa') === ltx);
+  t('findModel : par alias (id d’avant le déménagement du moteur) → le modèle d’aujourd’hui', R.findModel(inv, 'bbbbbbbbbbbb') === ltx);
+  t('findModel : un id réel passe avant un alias du même nom', R.findModel(inv, 'dddddddddddd') === other);
+  t('findModel : par id du registre des LoRA', R.findModel(inv, 'l_0123456789') === lora);
+  t('findModel : par chemin, « / » ou « \\ », casse ignorée', R.findModel(inv, `${ENG.toLowerCase()}/models/loras/MARA.safetensors`) === lora
+    && R.findModel(inv, `${ENG}/models/loras/mara.safetensors`.replace(/\//g, '\\')) === lora);
+  t('findModel : par chemin de la source d’un LoRA', R.findModel(inv, `${MINE}/Mara.safetensors`.replace(/\//g, '\\')) === lora);
+  t('findModel : par objet { id }, { source }, { path } (copie d’une entrée comprise)', R.findModel(inv, { id: 'bbbbbbbbbbbb' }) === ltx
+    && R.findModel(inv, { ...lora }) === lora && R.findModel(inv, { source: `${MINE}/mara.safetensors`.toLowerCase() }) === lora
+    && R.findModel(inv, { id: 'inconnu', path: ltx.path }) === ltx);
+  t('findModel : ne juge pas l’état (un modèle incomplet est rendu)', R.findModel(inv, `${MINE}/autre.safetensors`) === other);
+  t('findModel : inconnu, vide, « auto », « fam:ltx », sans inventaire → null', [null, undefined, '', 'auto', 'none', 'fam:ltx', 'zzzzzzzzzzzz', `${ENG}/rien.safetensors`, {}, 42]
+    .every((v) => R.findModel(inv, v) === null) && R.findModel(null, 'aaaaaaaaaaaa') === null && R.findModel({}, 'aaaaaaaaaaaa') === null);
+  t('findModel : un inventaire sans table d’alias (cache d’avant) se lit comme avant', R.findModel({ models: [ltx] }, 'aaaaaaaaaaaa') === ltx
+    && R.findModel({ models: [ltx] }, 'bbbbbbbbbbbb') === null);
+  t('findModel : un alias qui ne mène à rien, ou un nom d’objet (« constructor »), ne rend rien',
+    R.findModel({ models: [ltx], aliases: { eeeeeeeeeeee: 'parti' } }, 'eeeeeeeeeeee') === null && R.findModel(inv, 'constructor') === null
+    && R.findModel(inv, '__proto__') === null);
+  const viaId = R.familyOf('aaaaaaaaaaaa', local, cloud, inv);
+  const viaAlias = R.familyOf('bbbbbbbbbbbb', local, cloud, inv);
+  t('familyOf : un bloc Modèle qui garde l’id d’avant retrouve sa famille et sa variante', !!viaId && viaId.key === 'ltx' && viaId.variant === ltx
+    && !!viaAlias && viaAlias.key === 'ltx' && viaAlias.variant === ltx, viaAlias && viaAlias.key);
+  t('familyOf : sans alias connu, l’ancien id ne désigne rien (comme avant)', R.familyOf('bbbbbbbbbbbb', local, cloud, { models: [ltx] }) === null);
+  const wf = local.families.ltx.workflows.find((w) => w.id === 't2v');
+  t('localModelFor : la variante retrouvée par son alias fait le calcul', !!wf && R.localModelFor(viaAlias, wf, inv) === ltx);
+
+  // « Auto » selon la mémoire de la machine (SPEC §7) et modèle reconnu mais pas proposé (recette non validée)
+  const full = { id: 'ffffffffffff', aliases: [], file: 'ltx-2.5-distilled-bf16.safetensors', family: 'LTX-2.x', baseKey: 'ltx', quality: 3,
+    path: `${ENG}/models/diffusion_models/ltx-2.5-distilled-bf16.safetensors`, role: 'diffusion_model', status: 'ready', caps: ['text-to-video', 'image-to-video'] };
+  const dev = { id: 'eeeeeeeeeeee', aliases: [], file: 'ltx-2.5-dev-bf16.safetensors', family: 'LTX-2.x', baseKey: 'ltx', quality: 3,
+    path: `${ENG}/models/diffusion_models/ltx-2.5-dev-bf16.safetensors`, role: 'diffusion_model', status: 'unused', caps: [],
+    blocked: { code: 'recipe', note: { fr: 'Recette non validée', en: 'Recipe not validated' } } };
+  const famLtx = R.familyOf('fam:ltx', local, cloud, { models: [] });
+  const promoted = { models: [ltx, full, dev], capabilities: { 'text-to-video': { default: full.id, legacyDefault: ltx.id, options: [ltx.id, full.id] } } };
+  const plain = { models: [ltx, full, dev], capabilities: { 'text-to-video': { default: ltx.id, options: [ltx.id, full.id] } } };
+  t('localModelFor : « Auto » rend le défaut de la capacité (la version pleine quand Auto l’a prise)', R.localModelFor(famLtx, wf, promoted) === full
+    && R.localModelFor(famLtx, wf, plain) === ltx);
+  t('localModelFor { legacy } : le défaut d’avant quand Auto a changé, sinon le défaut du jour', R.localModelFor(famLtx, wf, promoted, { legacy: true }) === ltx
+    && R.localModelFor(famLtx, wf, plain, { legacy: true }) === ltx && R.localModelFor(famLtx, wf, promoted, {}) === full);
+  t('localModelFor { legacy } : une variante choisie à la main reste elle-même', R.localModelFor(R.familyOf(full.id, local, cloud, promoted), wf, promoted, { legacy: true }) === full);
+  const viaDev = R.familyOf(dev.id, local, cloud, plain);
+  t('familyOf : le modèle complet (bloqué) est reconnu, avec sa famille, pour dire pourquoi il est refusé', !!viaDev && viaDev.key === 'ltx' && viaDev.variant === dev);
+  // même si un inventaire abîmé le disait prêt et capable : jamais rendu, ni comme variante ni comme meilleur de la famille
+  const devReady = { ...dev, status: 'ready', caps: ['text-to-video'], quality: 9 };
+  const broken = { models: [ltx, devReady], capabilities: { 'text-to-video': { default: devReady.id } } };
+  t('localModelFor : une variante bloquée n’est jamais rendue (ni choisie, ni par défaut, ni comme meilleure de la famille)',
+    R.localModelFor({ ...famLtx, variant: devReady }, wf, broken) === ltx && R.localModelFor(famLtx, wf, broken) === ltx
+    && R.localModelFor({ ...famLtx, variant: devReady }, wf, { models: [devReady], capabilities: {} }) === null);
+}
+
 // Rangée « Mode » (30/10) : deux modes d'une même famille ne portent jamais le même mot (« Auto · Texte · Texte »
 // chez SOUL V2) ; un mot en double laisse la place au libellé entier, qui doit alors les distinguer (FR et EN).
 (async () => {

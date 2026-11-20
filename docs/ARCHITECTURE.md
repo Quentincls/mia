@@ -57,6 +57,10 @@ electron/            main process
   scanner.js         model scan, cache, capabilities, LoRA registry and placement
   scanner-rules.js   recognition rules and the display catalogue (labels, licences, VRAM)
   installer.js       resumable model downloads, first-launch engine check
+  trainer.js         LoRA training service: the list, image sets, one training tool at a time, filing the LoRA
+  trainshell.js      what Windows shows of a training: taskbar progress, flash at the end, no sleep meanwhile
+  train/             one descriptor per training tool (ltx, aitk, fake): detection, version, weights, command
+  places.js          default folders: engine, projects, trainings and training tools
   bridge.js          local HTTP bridge for the assistants
   version.js         { version, date, commit }, changelog sections
   migrations.js      data format versions and migration chain
@@ -73,13 +77,15 @@ python/
   mia_worker.py      entry point: python -B -u mia_worker.py <task> <job.json>
   mia_common.py      @mia protocol, video read/write (PyAV + NVENC), CUDA helpers
   tasks/             cutout, composite, finish
+  train/             training adapters (LTX trainer, ai-toolkit): they drive the tool and write its progress files
   vendor/tool/       frozen copies of the few toolbox modules the tasks import
 src/
   index.html         one module script, all style sheets
-  catalog/           nodes.json (the blocks), recipes/, models-manifest.json
-  css/               tokens, app, controls, home, graph, nodes, queue, library, presence…
+  catalog/           nodes.json (the blocks), recipes/, models-manifest.json, train-bases.json (trainable models)
+  css/               tokens, app, controls, home, graph, nodes, queue, library, presence, train…
   js/                app, bus, state, i18n, icons, util
-  js/ui/             chrome, tabs, home, menus, modals, toasts, tooltips, controls, settings, library, welcome, presence
+  js/ui/             chrome, tabs, home, menus, modals, toasts, tooltips, controls, settings, library, welcome, presence,
+                     train (the Trainings screen) with traintext, trainchart, trainclose, and queuetrain (its queue row)
   js/graph/          editor, document, history, camera, view, wires, interaction, palette, minimap, sections…
   js/nodes/          block bodies, media wells, player, settings, model picker, compare, versions, viewer, runs
 mcp/mia-mcp.js       MCP server (stdio, no dependency)
@@ -106,11 +112,13 @@ The renderer never touches Node. `preload.js` exposes `window.mia`, a set of pro
 | `mia.models` | inventory, scan, inspect a file, add / update / remove a LoRA, update and progress events |
 | `mia.engine` | status, run, cancel, jobs, runs of a block, delete a run, start ComfyUI, events |
 | `mia.installer` | model downloads: list, start, pause, cancel, status, progress events |
+| `mia.train` | LoRA trainings: options, list, get, create, update, add or remove images, captions, start, control (pause, let a job through, stop), file a checkpoint in My LoRAs, notes, Recycle Bin, reveal, locate, seen; `train:event` |
 | `mia.bridge` | assistants: status, calls relayed to the interface, replies |
 
 Files are served to the page by the `mia://` protocol, with byte ranges (video seeking) and no caching:
 `mia://p/<boardId>/<relative path>` for a board's files, `mia://m/<base64url(absolute path)>` for a file outside
-it, allowed only under the projects folder, the engine folder or Mia's data folder. The page's Content Security
+it, allowed only under the projects folder, the engine folder, Mia's data folder, the model and LoRA folders of the
+settings, and the trainings folders. The page's Content Security
 Policy allows only `self`, `mia:`, `data:` and `blob:`.
 
 ## Data on disk
@@ -129,6 +137,15 @@ Policy allows only `self`, `mia:`, `data:` and `blob:`.
     cache\                       proxies, posters, waveforms (disposable)
     outputs\<blockId>\<runId>\   the files of a run and its run.json
     A_regarder\                  exports ("to review")
+<trainings root>\                prefs.trainRoot; default <engine's parent>\entrainement\mia when that folder exists,
+                                 else <data>\training (a test instance always uses its own data folder)
+  <trainingId>\                  t_YYYYMMDD-HHMM_<name>
+    train.json                   the record, written by Mia only, paths relative to the folder
+    dataset\                     images (hard links, else copies), captions (always copies), dataset.json
+    config.yaml, cache\, out\    the tool's configuration (rewritten at each launch), its cache and its output
+    control\                     pause, stop, alive (Mia) and adapter.json (the adapter)
+    events.jsonl, metrics.jsonl  what the adapter reports, one line per event and per step
+    log.txt                      the tool's raw output
 ```
 
 The index is rebuilt from the folders at start-up; a board renamed in the app is a folder renamed on disk, and
@@ -197,7 +214,7 @@ estimates. The interface, the engine and the MCP server all read it.
    or a pinned run, is reused; otherwise a job is queued for it first. A failed upstream fails the block with its
    name.
 3. **Queue.** One `heavy` job at a time, and only with the GPU lock; `light` and `none` jobs run two at a time
-   but wait while a heavy job runs. First in, first out; any job can be cancelled. Online jobs (a Model block set
+   but wait while a heavy job runs (or while a LoRA training holds the GPU, see below). First in, first out; any job can be cancelled. Online jobs (a Model block set
    to an online model) have their own lane: they never wait for the GPU and never hold a heavy job back, up to
    `prefs.cloudParallel` at once (4 by default, 1 to 16, set in Settings → Online accounts).
 4. **GPU lock.** A small lock file in the engine's `runtime` folder, shared with other tools: who holds it, since
@@ -227,6 +244,27 @@ Face flags and UTF-8 output. It talks back with lines such as `@mia {"p":0.42,"m
 seconds while a window is open. Jobs and events carry progress, a message and an ETA learnt from past runs of the
 same block type and mode; an online job also carries `online: true` and `remote` (`queued`, `running`, or `full`
 while the provider's queue is full).
+
+### Training a LoRA
+
+A training is not a job: it lasts hours, files nothing in a board and keeps its whole state in its own folder (see
+[Data on disk](#data-on-disk)), so the screen, the assistants and a restarted Mia all read the same files.
+`electron/trainer.js` keeps the list, imports image sets without touching the originals, checks everything again
+before each start (tool and its exact version, weights, images, captions, disk space, Windows memory), starts one
+tool at a time and reads its files every second. The tool is a Python adapter per training tool
+(`python/train/mia_train_ltx.py` for the LTX trainer, `mia_train_aitk.py` for ai-toolkit) that writes
+`events.jsonl` and `metrics.jsonl`; orders go through files in `control\` (`pause`, `stop`, and `alive`, rewritten
+every 20 s: an adapter that sees it too old stops by itself). The tool's output goes to `log.txt` through a file
+handle, never a pipe, so it can stop cleanly even if Mia dies; at start-up Mia either takes a still-running tool
+back (same token) or files the training as interrupted. Resuming starts from the last *verified* checkpoint. A
+finished LoRA is hard-linked into `models\loras\mia\` with a `.mia.json` card that the scanner reads.
+
+It uses the GPU through the engine's door, `engine.holdGpu()`: it waits for every local job to end, takes the same
+lock file (written for at most 30 minutes, renewed every five, so an orphan lock falls within 70 minutes), and while
+it holds it no local job starts, except jobs that need no GPU (and not even those while the model loads). Online
+jobs are never held. “Let it through” pauses the training for the waiting jobs and resumes it when the local queue is
+empty. `tools/fixtures/train/fake-trainer.js` speaks the same protocol without Python or GPU; it is the only tool a
+test instance (`MIA_TRAIN_FAKE=1`, `MIA_NO_GPU=1`) accepts.
 
 ### The Model block and online models
 
@@ -261,7 +299,10 @@ excludes the EU are never offered. The cache answers at once; a revalidation run
 LoRAs come from the engine, from folders listed in the settings, or from files dropped on Mia (registry
 `loras.json`). Each one knows the base family it was made for, its kind (character, place, style) and its trigger
 word. Before a run, a LoRA that ComfyUI cannot see yet is placed in `models\loras\mia\` (hard link on the same
-volume, copy otherwise) — the only place Mia writes in the engine's model folders, besides downloads.
+volume, copy otherwise) — the only place Mia writes in the engine's model folders, besides downloads. A LoRA
+trained in Mia is filed there too, beside a `<name>.mia.json` card (name, kind, trigger word, training: base,
+steps, images, date); the scanner reads it, marks the file *trained here*, labels an intermediate step
+“Rosa · step 1,000” and lets the user send the file and its card to the Recycle Bin.
 
 **Installer** (`installer.js` + `src/catalog/models-manifest.json`): the files each capability needs, with source
 repository, size and licence. One download at a time, resumable, size (and hash when known) checked, free space
@@ -294,6 +335,12 @@ the editor. Modules talk through a small event bus (`bus.js`: `on`, `off`, `once
   strings; language changes reload the window after saving.
 - **Controls** (`ui/controls.js`): segmented controls, dropdowns, sliders, toggles, fields, buttons — all drawn by
   Mia, never native.
+- **Trainings** (`ui/train.js`): a third view beside the home page and the board (`#view-train`), with the list,
+  a draft and the instrument of a running training (bar, state line, loss curve in `trainchart.js`, samples,
+  checkpoints, events, controls), plus its chip in the title bar. It keeps nothing: it asks `train:get` and listens
+  to `train:event`. Every word and every “what to show in this state” rule is in `traintext.js`, a pure module tested
+  under Node. `trainclose.js` asks before Mia closes over a training (no answer keeps Mia open), `queuetrain.js`
+  draws the training's row in the job queue, and the library and the settings have their own training parts.
 
 ## Assistants: bridge and MCP server
 
@@ -304,9 +351,12 @@ with the assistant's name glides to each block it places, wires or sets, a short
 every action enters the undo history.
 
 `mcp/mia-mcp.js` is a stdio MCP server without dependencies. It reads `bridge.json`, starts Mia if needed, and
-exposes 26 tools: the user's go-ahead (request, pending), status, catalogue, projects and boards, blocks, wires, settings, media import, recipes,
-sections, arrange, run, wait, jobs, cancel, outputs, snapshot, focus and say. Assistant jobs share the same
-queue and GPU lock as the user's clicks. The bridge never deletes a file and only imports existing paths.
+exposes 33 tools: the user's go-ahead (request, pending), status, catalogue, projects and boards, blocks, wires, settings, media import, recipes,
+sections, arrange, run, wait, jobs, cancel, outputs, snapshot, focus and say, and seven `mia_train_*` tools for
+LoRA training (options, prepare, start, status, wait, control, note). Assistant jobs share the same
+queue and GPU lock as the user's clicks. The bridge never deletes a file and only imports existing paths. An
+assistant can prepare a training and *suggest* starting it, never start it: the user clicks “Start” on a card in
+Mia, and only the user resumes, stops or deletes a training.
 
 ## Versions, migrations, packaging
 
@@ -316,7 +366,8 @@ queue and GPU lock as the user's clicks. The bridge never deletes a file and onl
   `loras.json` carry a format version. Files are migrated step by step when loaded; the old file is copied to
   `<file>.bak-v<old>` before a newer version is written; a file from a newer Mia opens read-only.
 - **Packaging**: `npm run dist` builds an NSIS installer (per user, folder of choice, shortcuts) and a portable
-  zip with electron-builder, `asar` off so the Python worker, LUTs and MCP server stay real files. Builds are not
+  zip with electron-builder, for x64 then arm64 (`tools/dist.js`, one run per architecture, arm64 files named
+  `Mia-<version>-arm64-…`; Electron is the official build of each architecture, never `node_modules/electron/dist`), `asar` off so the Python worker, LUTs and MCP server stay real files. Builds are not
   signed yet.
 - **Engine setup**: `engine-setup/install-engine.ps1` installs, into a chosen folder, the same engine Mia is
   tested with (uv, Python, ComfyUI at a pinned tag, PyTorch for CUDA, the extra nodes at pinned commits, the
@@ -345,19 +396,32 @@ model folders): see [CONTRIBUTING.md](../CONTRIBUTING.md).
 | `node tools/validate-workflows.js` | every ComfyUI graph Mia builds, validated offline against the schema in `tools/fixtures/comfy_object_info.json` (or `--schema`) |
 | `node tools/check-syntax.mjs` | syntax of every JavaScript file, typographic apostrophes in French strings |
 | `node tools/test-route.js` | how a Model block picks its way of working from what is wired (shared by screen and engine) |
+| `node tools/test-variants.js` | versions of a model (compact, full, complete), paired text encoder, estimated memory, “auto” by the machine's memory, ids kept after the engine folder moves (fake engine in a temporary folder) |
 | `node tools/test-cloud.js` | online models against a local fake server: uploads, requests, tiers, retries, cancelling, prices (no real call, nothing paid) |
 | `node tools/test-light-executors.js` | CPU executors (trim, resize, sequence, sound, finish…) |
-| `node tools/test-bridge.js` | the assistants' bridge and MCP server |
+| `node tools/test-bridge.js` | the assistants' bridge and MCP server, LoRA training tools included |
 | `node tools/test-migrations.js` | data format migrations |
 | `node tools/test-installer.js` | model downloads against a local fake server (resume, cancel, wrong size, gated) |
+| `node tools/test-trainer.js` | the training service with the fake tool: drafts, image sets, start, pause, stop, resume, errors, restart, filing, Recycle Bin |
+| `node tools/test-train-config.js` | the training adapters' configurations in `--dry` mode, against the real tools' virtual environments when present (no GPU; about 4 minutes) |
+| `node tools/test-train-ui.mjs` | the words and display rules of the Trainings screen (`traintext.js`), in French and English |
+| `node tools/test-train-queue.mjs` | the training's row in the job queue (`queuetrain.js`) |
+| `node tools/test-train-settings.js` | Settings → Training: folders refused or accepted, tools detected, the service following the settings |
 | `node tools/check-wires.mjs <port> --all` | every wire ends exactly on its port dot, in a running instance |
+| `node tools/check-train-screen.mjs <port>` | the Trainings screen in a running test instance with the fake tool, French then English, with screenshots |
+| `node tools/test-train-close.mjs <port> --userdata <dir>` | closing Mia during a training (stay, no answer, stop and quit, quit without waiting); that instance closes |
+| `node tools/check-train-queue.mjs <port>` · `check-library-train.mjs <port>` · `test-train-settings-ui.mjs <port> --userdata <dir>` | the queue row, the library's trained LoRAs and Settings → Training, on screen |
 | `node tools/privacy-audit.js` | what would be committed: personal paths, user and host names, secrets, weights |
+
+The on-screen training checks need a fresh hidden test instance each, started with `MIA_TRAIN_FAKE=1` as well
+(below): they refuse an instance that uses everyday data or has no fake tool.
 
 A test instance never shares data with a real one:
 
 ```powershell
 $env:MIA_HEADLESS = "1"            # the window is never shown
 $env:MIA_NO_GPU = "1"              # every heavy job is refused
+$env:MIA_TRAIN_FAKE = "1"          # the fake training tool (only for the training checks)
 $env:MIA_USERDATA = "$env:TEMP\mia-test\ud"
 $env:MIA_PROJECTS_ROOT = "$env:TEMP\mia-test\projects"
 node_modules\electron\dist\electron.exe . --remote-debugging-port=9333

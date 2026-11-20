@@ -8,8 +8,8 @@
 // graphique ; un clic ouvre l'état du moteur (ComfyUI) et permet de le
 // démarrer. Un seul calcul lourd à la fois : c'est la règle de la machine.
 
-import { on } from '../bus.js';
-import { t, tn } from '../i18n.js';
+import { on, emit } from '../bus.js';
+import { t, tn, lang } from '../i18n.js';
 import { icon } from '../icons.js';
 import { el, fmtClock } from '../util.js';
 import { state } from '../state.js';
@@ -17,8 +17,10 @@ import { toast } from './toasts.js';
 import { tip } from './tooltip.js';
 import { button } from './controls.js';
 import { ghostOut } from './motion.js';
+import { confirm } from './modal.js';
 import * as runs from '../nodes/runs.js';
 import { strings, num } from '../nodes/media.js';
+import * as QT from './queuetrain.js';
 
 strings({
   'queue.title': 'Calculs',
@@ -40,7 +42,8 @@ strings({
   'gpu.engine': 'Moteur',
   'gpu.card': 'Carte graphique',
   'gpu.queue': 'File de Mia',
-  'gpu.vram': '{used} / {total} Go de mémoire vidéo utilisés',
+  'gpu.vram': '{used} / {total} Go de mémoire utilisés',
+  'gpu.totalSmi': 'Total lu par le pilote NVIDIA : ComfyUI donnera le sien à son premier démarrage.',
   'gpu.start': 'Démarrer le moteur',
   'gpu.starting': 'Démarrage du moteur…',
   'gpu.started': 'Le moteur est prêt.',
@@ -78,7 +81,8 @@ strings({
   'gpu.engine': 'Engine',
   'gpu.card': 'Graphics card',
   'gpu.queue': 'Mia queue',
-  'gpu.vram': '{used} / {total} GB of video memory in use',
+  'gpu.vram': '{used} / {total} GB of memory in use',
+  'gpu.totalSmi': 'Total read from the NVIDIA driver: ComfyUI will give its own on first start.',
   'gpu.start': 'Start the engine',
   'gpu.starting': 'Starting the engine…',
   'gpu.started': 'The engine is ready.',
@@ -169,6 +173,7 @@ export function mountQueue(host) {
   qRoot.addEventListener('dblclick', stop);
 
   runs.onJobs(renderQueue);
+  wireTraining();
   on('project:opened', () => renderQueue(runs.jobList()));
   // l'heure de fin bouge avec le temps, et un job fini doit partir : rafraîchissement doux
   setInterval(() => { if (!qRoot.hidden && !document.hidden) renderQueue(runs.jobList()); }, 5000);
@@ -194,14 +199,87 @@ function estimateSec(j) {
 
 const ms = (v) => (v == null ? null : v < 1e11 ? v * 1000 : v);
 
+// ── l'entraînement de LoRA (electron\trainer.js) : une rangée en tête de la file ──
+// Il vit dans le processus principal ; la fenêtre suit train:list puis train:event (un envoi par seconde
+// au plus). Les mots et les états viennent de queuetrain.js (vérifiés sans fenêtre).
+let trainRows = [];        // train:list, tenue à jour par train:event
+let trainBases = null;     // train:options().bases : le nom du modèle (« LTX 2.5 »), lu une fois
+let trainBasesAsked = false;
+let trainShown = null;     // { id, gone } : l'entraînement en tête ; gone = quand il a cessé d'être actif
+const trainApi = () => window.mia?.train || null;
+const L2 = () => (lang() === 'en' ? 'en' : 'fr');
+
+function wireTraining() {
+  const a = trainApi();
+  if (!a) return;
+  const load = async () => {
+    try {
+      const list = await a.list();
+      if (Array.isArray(list)) { trainRows = list; trainChanged(); }
+    } catch { /* service pas prêt : le prochain évènement relira */ }
+  };
+  try {
+    a.onEvent?.((ev) => {
+      if (!ev) return;
+      if (ev.list) { load(); return; }
+      if (!ev.id || !ev.summary) return;
+      const i = trainRows.findIndex((r) => r.id === ev.id);
+      if (i >= 0) trainRows[i] = { ...trainRows[i], ...ev.summary };
+      else trainRows.unshift(ev.summary);
+      trainChanged();
+    });
+  } catch (err) { console.error('[queue] train.onEvent', err); }
+  load();
+}
+
+function trainChanged() {
+  if (!trainBasesAsked && QT.queueTraining(trainRows)) {
+    trainBasesAsked = true;
+    Promise.resolve().then(() => trainApi()?.options?.()).then((o) => {
+      if (o && Array.isArray(o.bases)) { trainBases = o.bases; renderQueue(runs.jobList()); }
+    }).catch(() => { trainBasesAsked = false; });
+  }
+  renderQueue(runs.jobList());
+}
+
+/** L'entraînement à montrer : l'actif ; sinon celui qui vient de finir, quelques secondes (comme un calcul fini). */
+function currentTraining(now) {
+  const act = QT.queueTraining(trainRows);
+  if (act) { trainShown = { id: act.id, gone: 0 }; return act; }
+  if (!trainShown) return null;
+  const s = trainRows.find((r) => r.id === trainShown.id);
+  if (!s || s.missing || !QT.ENDED.has(s.state)) { trainShown = null; return null; }
+  if (!trainShown.gone) trainShown.gone = now;
+  if (now - trainShown.gone >= LINGER_MS) { trainShown = null; return null; }
+  return s;
+}
+const trainActive = (s) => !!(s && QT.queueTraining([s]));
+
+/** La croix : la même question que « Arrêter… » de l'écran d'entraînement, relue sur l'état complet. */
+async function askStopTraining(s0) {
+  const a = trainApi();
+  if (!a || !s0) return;
+  let s = s0;
+  try {
+    const full = await a.get(s0.id);
+    if (full && full.ok !== false && full.id === s0.id) s = { ...s0, ...full };
+  } catch { /* le résumé suffit pour la question */ }
+  if (!(await confirm({ ...QT.stopQuestion(L2(), s, trainBases), danger: true }))) return;
+  let r;
+  try { r = await a.control(s.id, 'stop'); } catch (err) { r = { ok: false, error: err?.message || String(err) }; }
+  if (!r || r.ok === false) toast((r && r.error) || QT.qx(L2(), 'q.stopFailed'), { kind: 'error', ms: 7000 });
+}
+
 /**
  * Heure de fin de toute la file : les calculs en cours finissent à leur heure
  * annoncée, puis ceux en attente s'enchaînent (un calcul lourd à la fois).
+ * Un entraînement actif passe d'abord : les calculs locaux en attente partent à sa fin
+ * (inconnue → pas d'heure) ; la file ne finit pas avant lui.
  */
-function queueEnd(active) {
+function queueEnd(active, training = null) {
   const now = Date.now();
   // deux voies : le local s'enchaîne (un calcul lourd à la fois) ; l'en ligne tourne en parallèle, à côté
-  const lane = (list, width) => {
+  const lane = (list, width, from = now) => {
     let t0 = now;
     for (const j of list) {
       if (j.state !== 'running') continue;
@@ -210,18 +288,28 @@ function queueEnd(active) {
     }
     let end = t0;
     const waiting = list.filter((j) => j.state !== 'running');
+    if (waiting.length && from == null) return null;
+    if (waiting.length) end = Math.max(end, from);
     for (const j of waiting) end += (estimateSec(j) * 1000) / width;
     return end;
   };
   const online = active.filter((j) => j.online);
   const width = Math.max(1, Number(status?.queue?.online?.max) || 4);
-  const end = Math.max(lane(active.filter((j) => !j.online), 1), online.length ? lane(online, width) : now);
+  const local = lane(active.filter((j) => !j.online), 1, QT.laneStart(now, trainActive(training) ? training : null));
+  if (local == null) return null;
+  let end = Math.max(local, online.length ? lane(online, width) : now);
+  if (trainActive(training)) {
+    if (!training.endAt) return null;
+    end = Math.max(end, training.endAt);
+  }
   return end > now ? end : null;
 }
 
 function jobStatus(j, waitingOrder) {
   const st = { kind: j.state, progress: j.progress, endAt: j.endAt, position: null, run: j.run, who: j.who, since: j.since,
-    online: !!j.online, remote: j.remote || null, message: j.message || null };
+    online: !!j.online, remote: j.remote || null, message: j.message || null,
+    // entraînement de LoRA (SPEC §8.7) : à côté (son nom), ou retenu derrière (la raison au survol)
+    beside: j.beside || null, trainWait: !!j.trainWait };
   // la place dans SA voie : un calcul en ligne n'attend pas derrière les calculs locaux (ni l'inverse)
   if (j.state === 'queued') st.position = (waitingOrder.filter((id) => !!onlineOf.get(id) === !!j.online).indexOf(j.jobId) + 1) || null;
   // en ligne, en file chez Higgsfield ou sa file pleine : runs.describe le dit (même texte que l'en-tête du bloc)
@@ -257,6 +345,52 @@ function setBar(bar, fill, j) {
   if (fill.style.transform !== tf) fill.style.transform = tf;
 }
 
+/** La barre de 2 px d'un entraînement : progression (entraînement, essai), indéterminée (préparation), rien sinon. */
+function setTrainBar(bar, fill, m) {
+  const isOn = !!m && m.bar != null;
+  bar.classList.toggle('on', isOn);
+  bar.classList.toggle('ind', isOn && m.bar === 'ind');
+  const tf = isOn && m.bar === 'progress' ? `scaleX(${Math.max(0.005, m.progress)})` : '';
+  if (fill.style.transform !== tf) fill.style.transform = tf;
+}
+
+/** La rangée « Entraînement LoRA · Rosa » : clic = l'écran de l'entraînement ; la croix = « Arrêter… ». */
+function trainRowEl() {
+  let s = null;
+  const label = el('div', { class: 'q-label' });
+  const sub = el('div', { class: 'q-sub' });
+  const stEl = el('span', { class: 'q-st' });
+  const fill = el('i');
+  const bar = el('span', { class: 'q-bar' }, fill);
+  const cancel = el('button', { class: 'q-x', html: icon('close', 12), 'data-tip': QT.qx(L2(), 'q.stop') });
+  cancel.addEventListener('click', (e) => { e.stopPropagation(); askStopTraining(s); });
+  const spacer = el('span');
+  const line1 = el('div', { class: 'q-line' }, label, spacer);
+  const rowEl = el('div', { class: 'q-row q-train' }, line1, el('div', { class: 'q-line' }, sub, stEl), bar);
+  rowEl.dataset.train = '';
+  let tipText = '';
+  tip(rowEl, () => tipText);
+  rowEl.addEventListener('click', () => { if (s) emit('train:open', { id: s.id }); });
+  return {
+    el: rowEl,
+    update(next, m) {
+      s = next;
+      rowEl.dataset.train = s.id;
+      if (label.textContent !== m.label) label.textContent = m.label;
+      if (sub.textContent !== m.sub) sub.textContent = m.sub;
+      if (stEl.textContent !== m.text) stEl.textContent = m.text;
+      stEl.dataset.tone = m.tone;
+      tipText = m.tip;
+      const kind = m.cancel ? 'running' : (m.tone === 'err' ? 'error' : 'done');
+      const cls = `q-row q-train is-${kind}`;
+      if (rowEl.className !== cls) rowEl.className = cls;
+      if (m.cancel && cancel.parentNode !== line1) line1.replaceChild(cancel, spacer);
+      else if (!m.cancel && cancel.parentNode === line1) line1.replaceChild(spacer, cancel);
+      setTrainBar(bar, fill, m);
+    },
+  };
+}
+
 function renderQueue(jobs) {
   if (!qRoot) return;
   const now = Date.now();
@@ -264,10 +398,14 @@ function renderQueue(jobs) {
   // un job fini reste visible quelques secondes (« FAIT · 38 S »), jamais plus
   const visible = jobs.filter((j) => ACTIVE.has(j.state)
     || ((j.state === 'done' || j.state === 'error' || j.state === 'cancelled') && now - (ms(j.finished) || now) < LINGER_MS));
-  if (!visible.length) {
+  // l'entraînement de LoRA, en tête (actif, ou qui vient de finir)
+  const tr = currentTraining(now);
+  const trOn = trainActive(tr);
+  const trModel = tr ? QT.trainRow(L2(), tr, trainBases) : null;
+  if (!visible.length && !tr) {
     if (!qRoot.hidden) { qRoot.hidden = true; qRoot.classList.remove('q-enter'); }
     expanded = false;
-    if (Q) { Q.panel.hidden = true; Q.list.replaceChildren(); Q.rows.clear(); }
+    if (Q) { Q.panel.hidden = true; Q.list.replaceChildren(); Q.rows.clear(); Q.train = null; }
     return;
   }
   if (!Q) Q = buildSkeleton();
@@ -283,11 +421,16 @@ function renderQueue(jobs) {
   for (const j of jobs) onlineOf.set(j.jobId, !!j.online);
   const waitingOrder = jobs.filter((j) => j.state === 'queued' || j.state === 'waiting-gpu').map((j) => j.jobId);
 
-  // pastille : « 2 calculs · fin vers 20 h 45 » (en cours + en attente)
-  const n = active.length;
+  // pastille : « 2 calculs · fin vers 20 h 45 » (en cours + en attente, l'entraînement compté)
+  const n = active.length + (trOn ? 1 : 0);
   let sumName, sumState;
-  if (n) {
-    const end = queueEnd(active);
+  if (tr && !active.length) {
+    // l'entraînement seul (ou qui vient de finir) : « LoRA · Rosa · 49 % · fin vers 3 h 40 »
+    const p = QT.trainPill(L2(), tr, trainBases);
+    sumName = p.name;
+    sumState = p.state;
+  } else if (n) {
+    const end = queueEnd(active, tr);
     sumName = tn('queue.count', n, { n });
     sumState = end ? runs.endText(end) : (active.some((j) => j.state === 'waiting-gpu') ? t('queue.gpuWait') : t('queue.waiting'));
   } else {
@@ -299,10 +442,12 @@ function renderQueue(jobs) {
   if (Q.sumName.textContent !== sumName) Q.sumName.textContent = sumName;
   if (Q.sumState.textContent !== sumState) Q.sumState.textContent = sumState;
   Q.sumState.classList.toggle('after', !!sumName);
-  Q.dot.classList.toggle('on', !!running);
+  Q.dot.classList.toggle('on', !!running || (trOn && trModel.bar != null));
   Q.pill.classList.toggle('open', expanded);
   Q.setTip(expanded ? t('queue.collapse') : t('queue.expand'));
-  setBar(Q.bar, Q.fill, running);
+  // la barre de la pastille : le calcul en cours, sinon l'entraînement
+  if (running || !trOn) setBar(Q.bar, Q.fill, running);
+  else setTrainBar(Q.bar, Q.fill, trModel);
 
   // liste détaillée
   if (!expanded) {
@@ -317,6 +462,12 @@ function renderQueue(jobs) {
   }
   const keep = new Set();
   let prev = null;
+  if (tr) {
+    if (!Q.train) Q.train = trainRowEl();
+    Q.train.update(tr, trModel);
+    if (Q.list.firstChild !== Q.train.el) Q.list.insertBefore(Q.train.el, Q.list.firstChild);
+    prev = Q.train;
+  } else if (Q.train) { Q.train.el.remove(); Q.train = null; }
   for (const j of visible) {
     keep.add(j.jobId);
     let row = Q.rows.get(j.jobId);
@@ -359,16 +510,27 @@ function jobRow(j0) {
       const other = j.projectId && j.projectId !== state.project?.id;
       const lbl = j.label || (other ? '' : runs.nodeLabel(j.nodeId)) || '…';
       if (label.textContent !== lbl) label.textContent = lbl;
+      const board = other ? t('queue.otherBoard', { name: runs.projectName(j.projectId) || j.projectName || '…' }) : runs.projectName(j.projectId);
       const s = [
         j.online || runs.isOnline?.(j.nodeId) ? t('queue.online') : '',
         j.mode === 'preview' ? t('queue.preview') : '',
-        other ? t('queue.otherBoard', { name: runs.projectName(j.projectId) || j.projectName || '…' }) : runs.projectName(j.projectId),
+        board,
       ].filter(Boolean).join(' · ');
-      if (sub.textContent !== s) sub.textContent = s;
+      // entraînement de LoRA (SPEC §8.7) : « À côté de l’entraînement « Plumo » » pendant le calcul, ou ce qui le
+      // retient (« Attend la fin de l’entraînement… : il faut ≈ 40 Go… ») à la place de la planche, entière au survol
+      const st0 = { kind: j.state === 'running' ? 'running' : j.state, beside: j.beside, trainWait: j.trainWait, message: j.message };
+      const why = runs.besideText(st0) || (j.state === 'queued' ? runs.trainWaitText(st0) : '');
+      // derrière un entraînement, la raison d'abord, en court (« Une vidéo ne part pas à côté : après l’entraînement,
+      // vers 15 h 10 ») et sur deux lignes au plus : la phrase entière reste au survol, sur le bloc et dans mia_jobs
+      const short = j.state === 'queued' ? QT.waitLine(j, why) : '';
+      const line2 = short || why || s;
+      if (sub.textContent !== line2) sub.textContent = line2;
+      // « À côté de l’entraînement « Plumo » » d'un calcul qui tourne : deux lignes aussi (l'état « 3 % · FIN VERS … » est large)
+      sub.classList.toggle('is-why', !!short || (j.state === 'running' && !!why));
       if (stEl.textContent !== d.text) stEl.textContent = d.text;
       stEl.dataset.tone = d.tone;
       // le nom entier et « mode · planche » (la rangée peut les couper), puis l'état
-      tipText = [lbl, s, d.tip || d.text].filter(Boolean).join(' · ');
+      tipText = [lbl, s, why, why ? d.text : (d.tip || d.text)].filter(Boolean).join(' · ');
       const cls = `q-row is-${j.state}`;
       if (rowEl.className !== cls) rowEl.className = cls;
       const isActive = ACTIVE.has(j.state);
@@ -399,12 +561,14 @@ export function mountGpuChip(container) {
   function paint(s) {
     const g = s?.gpu || {};
     const used = g.vramUsedGB, total = g.vramTotalGB;
-    label.textContent = total ? t('gpu.chip', { used: num(used ?? 0), total: num(total, 0) }) : t('gpu.chipNoTotal');
+    // le total est celui de la machine (un seul partout, SPEC §7), 1 décimale au plus : « 109,7 », pas « 110 »
+    label.textContent = total ? t('gpu.chip', { used: num(used ?? 0), total: num(total) }) : t('gpu.chipNoTotal');
     const frac = total ? Math.min(1, Math.max(0, (used || 0) / total)) : 0;
     fill.style.transform = `scaleX(${frac})`;
-    chip.classList.toggle('busy', !!(g.lock && !g.lock.mine) || !!g.busyOther);
-    chip.classList.toggle('mine', !!g.lock?.mine);
-    tipText = holderText(g);
+    const held = trainHolds(s);
+    chip.classList.toggle('busy', !held && (!!(g.lock && !g.lock.mine) || !!g.busyOther));
+    chip.classList.toggle('mine', held || !!g.lock?.mine);
+    tipText = holderText(s);
   }
   onStatus(paint);
   paint(status);
@@ -416,7 +580,24 @@ export function mountGpuChip(container) {
   });
 }
 
-function holderText(g = {}) {
+/** The LoRA training of this Mia that has the GPU now (engine status, else the queue's row), or null. */
+function trainHolding(s) {
+  const tr = s?.training || QT.queueTraining(trainRows);
+  return tr && QT.gpuHolder(L2(), tr) ? tr : null;
+}
+const trainHolds = (s) => !!trainHolding(s);
+
+/**
+ * Who holds the GPU: a LoRA training of this Mia first (« L’entraînement « Plumo » tient le GPU (fin vers 15 h 10) ·
+ * à côté : « Portrait » »: its own words, even when no lock file says so), then the lock, another program, or free.
+ */
+function holderText(s) {
+  const g = s?.gpu || {};
+  const tr = trainHolding(s);
+  if (tr) {
+    const b = runs.jobList().find((j) => j.state === 'running' && j.beside);
+    return QT.gpuHolder(L2(), tr, b ? (b.label || runs.nodeLabel(b.nodeId) || '') : '');
+  }
   if (g.lock) {
     if (g.lock.mine) return t('gpu.heldByMia', { who: String(g.lock.who || '').replace(/^Mia\s*:\s*/, '') });
     return t('gpu.heldBy', { who: g.lock.who || '?', since: clockOf(g.lock.since) });
@@ -472,8 +653,11 @@ function openPop(anchor) {
     const gaugeFill = el('i');
     gaugeFill.style.transform = `scaleX(${frac})`;
     const jobs = runs.jobList();
-    const nRun = jobs.filter((j) => j.state === 'running').length;
-    const nWait = jobs.filter((j) => j.state === 'queued' || j.state === 'waiting-gpu').length;
+    // l'entraînement de LoRA compte : en cours quand il calcule, en attente quand il attend le GPU ou laisse passer
+    const trA = QT.queueTraining(trainRows);
+    const trRun = !!trA && trA.state !== 'attente' && trA.state !== 'pause';
+    const nRun = jobs.filter((j) => j.state === 'running').length + (trRun ? 1 : 0);
+    const nWait = jobs.filter((j) => j.state === 'queued' || j.state === 'waiting-gpu').length + (trA && !trRun ? 1 : 0);
     const qText = !nRun && !nWait ? t('gpu.queueEmpty')
       : [nRun ? t('gpu.queueRunning', { n: nRun }) : '', nWait ? t('gpu.queueWaiting', { n: nWait }) : ''].filter(Boolean).join(' · ');
     const showQ = nRun || nWait ? el('button', { class: 'gp-link' }, t('gpu.showQueue')) : null;
@@ -485,8 +669,10 @@ function openPop(anchor) {
         el('div', { class: 'gp-kicker' }, t('gpu.card')),
         el('div', { class: 'gp-line' }, el('span', { class: 'gp-main' }, g.name || '—')),
         total ? el('div', { class: 'gp-gauge' }, gaugeFill) : null,
-        total ? el('div', { class: 'gp-sub' }, t('gpu.vram', { used: num(used ?? 0), total: num(total, 0) })) : null,
-        el('div', { class: `gp-holder${g.lock && !g.lock.mine ? ' busy' : ''}` }, holderText(g))),
+        total ? el('div', { class: 'gp-sub' }, t('gpu.vram', { used: num(used ?? 0), total: num(total) })) : null,
+        // tant que ComfyUI n'a pas annoncé le sien, le total vient du pilote (il peut différer de quelques Go)
+        total && g.totalSource === 'smi' ? el('div', { class: 'gp-hint' }, t('gpu.totalSmi')) : null,
+        el('div', { class: `gp-holder${g.lock && !g.lock.mine && !trainHolds(s) ? ' busy' : ''}` }, holderText(s))),
       el('div', { class: 'gp-sec' },
         el('div', { class: 'gp-kicker' }, t('gpu.queue')),
         el('div', { class: 'gp-line' }, el('span', { class: 'gp-main' }, qText), showQ),

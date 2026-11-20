@@ -25,6 +25,7 @@ import { t, tl } from '../i18n.js';
 import { toast } from '../ui/toasts.js';
 import { fmtClock } from '../util.js';
 import { strings, urlFor, fmtDur, fmtDurShort } from './media.js';
+import { findModel } from './route.js';
 
 strings({
   'run.err.generic': 'Le calcul n’a pas pu démarrer.',
@@ -305,6 +306,9 @@ export function state(nodeId) {
     // calcul en ligne : en file chez Higgsfield, ou sa file pleine (le bloc le dit comme la file, pas « En cours »)
     const j = L.jobId ? jobs.get(L.jobId) : null;
     if (j?.online) { st.online = true; st.remote = j.remote || null; }
+    // à côté d'un entraînement de LoRA, ou en attente derrière lui (le message dit pourquoi)
+    if (j?.beside && L.kind === 'running') st.beside = j.beside;
+    if (j?.trainWait && L.kind === 'queued') st.trainWait = true;
     return st;
   }
   // Consigne : un état seulement pour la réécriture de SON texte, case cochée (ni « fait » ni erreur d'un autre texte)
@@ -361,6 +365,12 @@ function upsertJob(evt, patch) {
   if (evt.mode !== undefined && job.mode == null) job.mode = evt.mode;
   // calcul en ligne : sa propre voie dans la file ; remote = queued | running | full chez Higgsfield
   if (evt.online) { job.online = true; job.remote = evt.remote || null; }
+  // entraînement de LoRA (SPEC §8.7) : le calcul tourne à côté (beside = son nom) ou l'attend (trainWait, la raison
+  // est dans message) ; chaque évènement du moteur porte ces deux champs quand ils valent
+  job.beside = evt.beside || null;
+  job.trainWait = !!evt.trainWait;
+  // …et la raison en court pour la file (waitShort : la raison d'abord, sans le nom de l'entraînement)
+  job.waitShort = (evt.trainWait && evt.waitShort) || null;
   jobs.set(evt.jobId, job);
   return job;
 }
@@ -560,7 +570,8 @@ async function doSyncJobs() {
       continue;
     }
     const endAt = j.etaAt && j.etaAt > 1e11 ? j.etaAt : (j.endAt ?? endAtFrom(j.eta));
-    jobs.set(j.jobId, { ...(known || {}), ...j, state: kind, endAt, label: j.label || known?.label || null });
+    jobs.set(j.jobId, { ...(known || {}), ...j, state: kind, endAt, label: j.label || known?.label || null,
+      beside: j.beside || null, trainWait: !!j.trainWait, waitShort: (j.trainWait && j.waitShort) || null });
     if (j.projectName) projectNames.set(j.projectId, j.projectName);
     if (j.nodeId) {
       const pid = j.projectId || curPid();
@@ -628,7 +639,9 @@ function modelKey(param, v) {
     const capInfo = appState.inventory?.capabilities?.[caps[0]];
     return capInfo?.default ? `id:${capInfo.default}` : 'auto';
   }
-  return v === 'none' ? 'none' : `id:${v}`;
+  // un id d'avant un déménagement du dossier du moteur désigne le même modèle que son id d'aujourd'hui (SPEC §7) :
+  // une version faite avec lui n'est pas « à relancer »
+  return v === 'none' ? 'none' : `id:${findModel(appState.inventory, v)?.id || v}`;
 }
 
 function paramsChanged(nodeId, run) {
@@ -750,6 +763,22 @@ export function remoteText(st) {
   return null;
 }
 
+/**
+ * Ce qui retient un calcul derrière un entraînement de LoRA (SPEC §8.7), sans le « En file : » du moteur (le bloc et
+ * la file disent déjà « En file ») : « Entraînement « Rosa » en cours (fin vers 3 h 40) », « Attend de la place à
+ * côté de l’entraînement « Plumo » : il faut ≈ 29 Go, 40 sont libres moins 16 de marge ». '' sans raison.
+ */
+export function trainWaitText(st) {
+  if (!st || !st.trainWait || !st.message) return '';
+  const m = String(st.message).replace(/^(En file|Queued)\s*:\s*/, '');
+  return m.charAt(0).toUpperCase() + m.slice(1);
+}
+
+/** « À côté de l’entraînement « Plumo » » : le calcul tourne à côté d'un entraînement de LoRA (SPEC §8.7), sinon ''. */
+export function besideText(st) {
+  return st && st.beside && st.kind === 'running' ? t('run.st.beside', { name: st.beside }) : '';
+}
+
 export function describe(st) {
   if (!st) return { text: '', tone: 'muted' };
   switch (st.kind) {
@@ -757,6 +786,8 @@ export function describe(st) {
       return {
         text: st.position ? t('run.st.queuedN', { n: st.position }) : t('run.st.queued'),
         short: st.position ? t('run.st.queuedN', { n: st.position }) : t('run.st.queued'), tone: 'muted', ring: true,
+        // derrière un entraînement : pourquoi, au survol (avec les chiffres quand la mémoire manque)
+        ...(st.trainWait && st.message ? { tip: trainWaitText(st) } : {}),
       };
     case 'waiting-gpu':
       return {
@@ -768,8 +799,8 @@ export function describe(st) {
       if (far) return { text: far.text, short: far.text, tone: 'muted', tip: far.tip };
       const p = st.progress != null ? `${Math.round(st.progress * 100)} %` : t('run.st.running');
       const full = [p, endText(st.endAt)].filter(Boolean).join(' · ');
-      // l'heure de fin reste dans le pied du bloc
-      return { text: full, short: p, tone: 'live', tip: [full, st.message].filter(Boolean).join(' — ') };
+      // l'heure de fin reste dans le pied du bloc ; à côté d'un entraînement, il le dit au survol
+      return { text: full, short: p, tone: 'live', tip: [full, besideText(st), st.message].filter(Boolean).join(' — ') };
     }
     case 'done': {
       const d = runDuration(st.run);
@@ -794,6 +825,7 @@ strings({
   'run.st.gpuBusyWho': 'Le GPU est pris par « {who} » depuis {since}. Mia attend son tour.',
   'run.st.gpuBusyTip': 'Un autre calcul utilise le GPU. Mia attend son tour.',
   'run.st.running': 'En cours',
+  'run.st.beside': 'À côté de l’entraînement « {name} »',
   'run.st.endAt': 'fin vers {time}',
   'run.st.atHf': 'En file chez Higgsfield',
   'run.st.atHfTip': 'Higgsfield l’a reçu et le lancera dès qu’un de tes calculs en ligne finit (limite de ton compte).',
@@ -813,6 +845,7 @@ strings({
   'run.st.gpuBusyWho': 'The GPU is held by “{who}” since {since}. Mia waits its turn.',
   'run.st.gpuBusyTip': 'Another job is using the GPU. Mia waits its turn.',
   'run.st.running': 'Running',
+  'run.st.beside': 'Alongside the training “{name}”',
   'run.st.endAt': 'ends ~{time}',
   'run.st.atHf': 'Queued at Higgsfield',
   'run.st.atHfTip': 'Higgsfield received it and will start it as soon as one of your online jobs ends (your account’s limit).',
@@ -1037,6 +1070,6 @@ setInterval(() => {
 export const runs = {
   load, list, all, current, state, isStale, output, upstream, source, pin, unpin, removeRun, run, runVariants, cancel,
   cancelJob, versionNumber, findRun, registerType, typeOf, typeById, nodeLabel, jobList, onJobs, projectName, syncJobs,
-  isActive, describe, remoteText, endText, runDuration, typicalSec, setMissing, isMissing,
+  isActive, describe, remoteText, endText, runDuration, typicalSec, setMissing, isMissing, trainWaitText, besideText,
 };
 export default runs;

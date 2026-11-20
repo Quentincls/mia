@@ -12,6 +12,37 @@
 // « export » (electron/engine/route.js). Ne rien y ajouter qui dépende de
 // l'un ou de l'autre.
 
+/**
+ * Le modèle de l'inventaire que désigne une référence gardée dans une planche, un résultat ou un réglage (SPEC §7).
+ * `ref` : une chaîne, ou un objet { id | source | path }. Dans l'ordre : l'id actuel ; un id d'avant un déménagement
+ * du dossier du moteur (`inventory.aliases`, alias → id actuel) ; l'id du registre des LoRA (`loraId`) ; un chemin
+ * (celui du fichier ou de sa source, « / » ou « \ », sans tenir compte de la casse).
+ * → l'entrée de l'inventaire telle quelle (pas une copie), ou null. Ne juge pas l'état du modèle (prêt, incomplet,
+ * interdit) : c'est à l'appelant. UNE seule règle pour l'écran, le moteur et le scanner.
+ */
+export function findModel(inventory, ref) {
+  const models = (inventory && inventory.models) || [];
+  if (!models.length || ref == null) return null;
+  if (typeof ref === 'object') {
+    for (const k of ['id', 'source', 'path']) {
+      const m = typeof ref[k] === 'string' && ref[k] ? findModel(inventory, ref[k]) : null;
+      if (m) return m;
+    }
+    return null;
+  }
+  const s = String(ref);
+  if (!s) return null;
+  const byId = (id) => models.find((m) => m.id === id) || null;
+  const aliases = (inventory && inventory.aliases) || null;
+  const viaAlias = aliases && Object.prototype.hasOwnProperty.call(aliases, s) ? byId(aliases[s]) : null;
+  const m = byId(s) || viaAlias || models.find((x) => x.loraId && x.loraId === s);
+  if (m) return m;
+  if (!/[\\/]/.test(s)) return null;                         // pas un chemin : inutile de comparer tous les chemins
+  const low = (p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  const k = low(s);
+  return models.find((x) => (x.path && low(x.path) === k) || (x.source && low(x.source) === k)) || null;
+}
+
 /** Valeur du réglage de modèle d'un bloc Modèle → { provider, key, def, variant } ou null. */
 export function familyOf(value, local, cloud, inventory) {
   const v = value == null || value === '' ? 'auto' : String(value);
@@ -26,7 +57,8 @@ export function familyOf(value, local, cloud, inventory) {
   }
   if (v === 'auto') return fams.ltx && fams.ltx.workflows ? { provider: 'local', key: 'ltx', def: fams.ltx, variant: null } : null;
   // un modèle précis de l'inventaire (« LTX 2.5 · RTX 50 ») : sa famille, et lui pour les workflows qu'il sait faire
-  const m = ((inventory && inventory.models) || []).find((x) => x.id === v);
+  // (son id, ou celui qu'il avait quand le dossier du moteur était ailleurs)
+  const m = findModel(inventory, v);
   if (!m) return null;
   const key = localKeyOf(m, fams);
   return key && fams[key].workflows ? { provider: 'local', key, def: fams[key], variant: m } : null;
@@ -190,13 +222,20 @@ export function needsOf(wf) {
   return [...((wf && wf.required) || []), ...(((wf && wf.oneOf) || []).map((g) => g[0]))];
 }
 
-/** Le modèle local qui fera ce workflow : la variante choisie si elle sait le faire, sinon le meilleur prêt de la famille. */
-export function localModelFor(fam, wf, inventory) {
+/**
+ * Le modèle local qui fera ce workflow : la variante choisie si elle sait le faire, sinon le meilleur prêt de la famille
+ * (le défaut de la capacité : « Auto »). Une variante reconnue mais pas proposée (`blocked` : recette non validée) n'est
+ * jamais rendue ; le moteur la refuse avant d'arriver ici (planGen), l'écran la montre comme telle.
+ * `legacy` : le défaut d'AVANT que la mémoire de la machine le change (`legacyDefault` de la capacité, SPEC §7), pour
+ * reconnaître un résultat déjà fait en « Auto ».
+ */
+export function localModelFor(fam, wf, inventory, { legacy = false } = {}) {
   const models = ((inventory && inventory.models) || []).filter((m) => m.status === 'ready' && !m.hidden && m.license !== 'forbidden');
   const can = (m) => (m.caps || []).includes(wf.cap);
-  if (fam.variant && can(fam.variant)) return fam.variant;
-  const mine = models.filter((m) => localKeyOf(m, { [fam.key]: fam.def }) === fam.key && can(m));
+  if (fam.variant && !fam.variant.blocked && can(fam.variant)) return fam.variant;
+  const mine = models.filter((m) => !m.blocked && localKeyOf(m, { [fam.key]: fam.def }) === fam.key && can(m));
   if (!mine.length) return null;
-  const def = inventory && inventory.capabilities && inventory.capabilities[wf.cap] && inventory.capabilities[wf.cap].default;
+  const cap = inventory && inventory.capabilities && inventory.capabilities[wf.cap];
+  const def = cap && ((legacy && cap.legacyDefault) || cap.default);
   return mine.find((m) => m.id === def) || mine.sort((a, b) => (b.quality || 0) - (a.quality || 0))[0];
 }

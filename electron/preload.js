@@ -106,6 +106,26 @@ const INVOKE = {
     setTopUp: 'cloud:setTopUp',      // ({amount, at?} | null) → {ok, topUp?, error?} — the last top-up, for « left »
     price: 'cloud:price',            // ({family, workflow?, params, ports}) → {ok, usd?, error?} — a block's price
     fromPrices: 'cloud:fromPrices'   // ([« hf:… »]) → {key: usd|null} — « dès … $ » of « + Bloc », kept a day
+  },
+  // Training a LoRA (electron\trainer.js). The training folder is the truth; the window keeps nothing.
+  train: {
+    options: 'train:options',        // () → {bases:[{id, label, ready, why, missing, defaults, lengths, estimate}], disk, tools, active}
+    list: 'train:list',              // () → [{id, name, base, kind, state, step, steps, progress, sizeMB, seen, missing…}]
+    get: 'train:get',                // (id?, {dataset?}) → the whole state + the curve (2,000 points at most)
+    create: 'train:create',          // ({name, base, kind, trigger}) → {ok, id, dir}
+    update: 'train:update',          // (id, {name, base, kind, trigger, length, steps, settings, triggerOnly} | {proposal:null})
+    addImages: 'train:addImages',    // (id, [absolute files or folders]) → {ok, importing, total} — goes on in the main process
+    removeImage: 'train:removeImage', // (id, original name | [names])
+    setCaption: 'train:setCaption',  // (id, original name, text)
+    start: 'train:start',            // (id, {resume?, proposal?}) → {ok, state} | {ok:false, code, error}
+    control: 'train:control',        // (id, 'pause'|'pass'|'resumeNow'|'stop'|'stopNow')
+    addToLoras: 'train:addToLoras',  // (id, step?) → {ok, file, comfyName}
+    removeFromLoras: 'train:removeFromLoras', // (id, step)
+    note: 'train:note',              // (id, {text})
+    remove: 'train:remove',          // (id, {ifEmpty?}) → the folder to the Recycle Bin; ifEmpty: only an untouched empty draft, removed for good
+    reveal: 'train:reveal',          // (id) → its folder in Explorer
+    locate: 'train:locate',          // (id, dir) → a training listed as missing, found again
+    seen: 'train:seen'               // (id) → « FINI » / « ERREUR » were seen
   }
 };
 /* channels:invoke:end */
@@ -114,7 +134,7 @@ const INVOKE = {
 const EVENTS = {
   winState: 'win:state',             // {maximized, fullscreen, focused}
   titlebarMenu: 'win:titlebarMenu',  // {x, y}: right-click on the title bar (Windows' own menu is blocked)
-  flush: 'app:flush',                // {activeJobs}: the window is closing: save, then answer `flushed`
+  flush: 'app:flush',                // {activeJobs, training}: the window is closing: save, then answer `flushed`
   proxy: 'media:proxy',              // {projectId, src, proxy, poster, error?}
   foldersChanged: 'folders:changed', // {reason, reasons, folders, projects}: projects or boards created, moved…
   modelsUpdate: 'models:update',
@@ -122,7 +142,8 @@ const EVENTS = {
   engineStatus: 'engine:status',
   engineEvent: 'engine:event',
   bridgeCall: 'bridge:call',         // {id, method, params, client}: an assistant asks the interface
-  installerProgress: 'installer:progress'   // {kind:'job'|'queue'|'engine', job?, status?, line?, p?, state?}
+  installerProgress: 'installer:progress',  // {kind:'job'|'queue'|'engine', job?, status?, line?, p?, state?}
+  trainEvent: 'train:event'          // {id, summary} one training moved (once a second at most) · {id:null, list:true} the list changed
 };
 const SEND = {
   flushed: 'app:flushed',
@@ -159,6 +180,8 @@ const mia = {
     onFlush: (cb) => listen(EVENTS.flush, cb),
     // no argument: saved, let the window go. {hold:true}: asking Quentin (the wait grows to 5 min),
     // then {quit:true} to quit or {cancel:true} to keep Mia open (a job is running).
+    // {now:true} — with {quit:true}, or alone while Mia waits for a LoRA training to write its checkpoint —
+    // quits without waiting: the training tool is stopped at once.
     flushed: (answer) => ipcRenderer.send(SEND.flushed, answer && typeof answer === 'object' ? answer : undefined),
     // the title bar's right-click menu: Windows' system menu is always blocked by the main
     // process; pass a callback to show Mia's own menu at {x, y} instead
@@ -206,6 +229,9 @@ const mia = {
   engine: Object.assign(invokers(INVOKE.engine), {
     onStatus: (cb) => listen(EVENTS.engineStatus, cb),
     onEvent: (cb) => listen(EVENTS.engineEvent, cb)
+  }),
+  train: Object.assign(invokers(INVOKE.train), {
+    onEvent: (cb) => listen(EVENTS.trainEvent, cb)
   }),
   // SPEC §13: an assistant (Claude, Codex) drives Mia; the interface runs what is relayed to it
   bridge: Object.assign(invokers(INVOKE.bridge), {

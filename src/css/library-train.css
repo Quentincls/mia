@@ -1,0 +1,15 @@
+/* Bibliothèque · LoRA entraînés dans Mia (CONCEPTION-entrainement §2.6) : le bouton « Entraîner un LoRA » dans
+   l'en-tête de « Mes LoRA », la mention « ENTRAÎNÉ ICI », les étapes intermédiaires repliées sous leur LoRA final.
+   Les classes de library.css font le reste (lib-badge, lib-sub-toggle, lib-app-files). */
+
+/* en-tête de section + bouton à droite : le pli garde toute la largeur restante */
+.lib-sec-headrow { display: flex; align-items: center; gap: 4px; }
+.lib-sec-headrow .lib-sec-head { flex: 1 1 auto; min-width: 0; }
+.lib-sec-headrow .lib-train { flex: 0 0 auto; }
+
+/* « ENTRAÎNÉ ICI · 2 500 PAS » à côté du nom : ne se rogne jamais, le nom cède sa place */
+.lib-row-top .lib-trained { flex: 0 0 auto; color: var(--txt-2); }
+
+/* étapes intermédiaires d'un LoRA entraîné : sous lui, en retrait */
+.lib-steps-toggle { margin-left: 14px; }
+.lib-steps { margin-top: 0; }

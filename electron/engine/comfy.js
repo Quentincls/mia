@@ -18,6 +18,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const places = require('../places');
+const { pythonFor } = require('./pyexe');
 
 // ------------------------------------------------------------------ strings
 // Main-process strings, picked at call time from prefs.lang (the renderer's i18n does not run here).
@@ -552,9 +553,10 @@ class Comfy {
       }
       let child;
       try {
-        child = spawn(py, args, {
+        const real = pythonFor(py);        // the real interpreter, not the venv launcher: no console window
+        child = spawn(real.exe, args, {
           cwd,
-          env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },   // the logger dies on accents otherwise
+          env: { ...process.env, ...real.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },   // the logger dies on accents otherwise
           windowsHide: true,
           // Outside libuv's kill-on-close job: other sessions may be using this server when Mia quits, so
           // shutdownSync() decides whether to stop it (queue empty, nobody else holding the GPU lock).
@@ -709,6 +711,32 @@ class Comfy {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Stop the ComfyUI this Mia launched, to give its memory back before a LoRA training (CONCEPTION-entrainement §4.4).
+   * Never a ComfyUI Mia did not launch, never one that computes or has a prompt waiting (its queue is read first,
+   * and an unreadable queue counts as busy). The next computation starts it again (ensure). → true when stopped.
+   */
+  async stopOwned() {
+    if (!this.managedByMia) return false;
+    let j;
+    try { j = await this._fetchJson('/queue', { timeout: 3000 }); } catch { return false; }
+    if (!j || (j.queue_running && j.queue_running.length) || (j.queue_pending && j.queue_pending.length)) return false;
+    const c = this.child;
+    if (!c || c.exitCode !== null) return false;
+    // forgotten first: its 'exit' must not read as a crash (« ComfyUI s'est arrêté ») on the status line
+    this.child = null;
+    this._childUrl = null;
+    this.url = null;
+    this.lastStats = null;
+    try {
+      spawnSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'),
+        ['/PID', String(c.pid), '/T', '/F'], { windowsHide: true, timeout: 8000 });
+    } catch { /* already gone */ }
+    this._setState('stopped');
+    this._log('ComfyUI de Mia arrêté pour rendre sa mémoire à un entraînement de LoRA');
+    return true;
   }
 
   /** A file was just placed in models/<folder> (a LoRA): forget the cached list. */

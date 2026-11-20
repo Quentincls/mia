@@ -103,6 +103,13 @@ description: Faire évoluer le code de Mia (planche nodale d'IA locale, Electron
   `node tools/test-bridge.js` (ouvre sa propre Mia cachée ; jamais contre la Mia de tous les jours) ·
   `node tools/test-migrations.js` · `node tools/test-installer.js` · `node tools/check-wires.mjs <port CDP> --all`
   · `node tools/privacy-audit.js` (rien de personnel dans ce qui partirait sur le dépôt).
+- Entraînement de LoRA (aucun GPU, faux outil) : `node tools/test-trainer.js` · `test-train-config.js` (4 min,
+  configurations en `--dry`) · `test-train-ui.mjs` · `test-train-queue.mjs` · `test-train-settings.js` ; à l'écran,
+  sur une Mia de test cachée **neuve pour chaque banc**, lancée aussi avec `MIA_TRAIN_FAKE=1` :
+  `check-train-screen.mjs <port>` · `test-train-close.mjs <port> --userdata <son MIA_USERDATA>` ·
+  `check-train-queue.mjs <port>` · `check-library-train.mjs <port>` · `test-train-settings-ui.mjs <port> --userdata
+  <son MIA_USERDATA>`. Jamais de vrai entraînement sans l'accord de l'utilisateur : sans `MIA_NO_GPU=1`, « Lancer »
+  partirait pour de bon sur le GPU.
 - Un **vrai calcul GPU** de test : seulement avec l'accord de l'utilisateur, GPU libre, verrou vérifié.
 - Syntaxe de chaque fichier touché : `node --check <fichier.js>` (CommonJS) ; module ES :
   `node --experimental-vm-modules -e "const vm=require('vm');new vm.SourceTextModule(require('fs').readFileSync(process.argv[1],'utf8'))" <fichier>`.

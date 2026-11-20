@@ -79,6 +79,45 @@ async function main() {
     const r2 = migrations.migrate('prefs', { lang: 'fr', lastSeenVersion: '0.3.0' });
     assert.equal(r2.doc.lastSeenVersion, '0.3.0', 'une valeur existante n’est pas écrasée');
   });
+  // prefs 1 → 2 (SPEC §7) : formerEngineRoots, les dossiers du moteur d'avant — les ids des modèles faits sous eux
+  // (dans les planches et dans les empreintes des résultats) restent connus
+  const LAB = require(path.join(ROOT, 'electron', 'places.js')).LAB_ROOT;
+  await test('prefs format 1 avec un moteur ailleurs que le labo → format 2, formerEngineRoots = [labo], copie .bak-v1', async () => {
+    assert.ok(migrations.CURRENT.prefs >= 2, 'le format des préférences est au moins 2');
+    const f = path.join(WORK, 'unit', 'prefs.json');
+    const elsewhere = path.join(WORK, 'moteur-ailleurs');
+    writeJSON(f, { version: 1, lang: 'fr', engineRoot: elsewhere, wires: 'typed', inconnu: { garde: true } });
+    const r = await migrations.migrateFile('prefs', f, readJSON(f));
+    assert.equal(r.from, 1);
+    assert.equal(r.upgraded, true);
+    assert.equal(r.doc.version, migrations.CURRENT.prefs);
+    assert.deepEqual(r.doc.formerEngineRoots, [LAB]);
+    assert.equal(r.doc.engineRoot, elsewhere, 'le dossier du moteur ne bouge pas');
+    assert.deepEqual(r.doc.inconnu, { garde: true }, 'une clé inconnue est gardée');
+    assert.equal(r.backup, f + '.bak-v1');
+    assert.equal(readJSON(f + '.bak-v1').version, 1, 'la copie est l’ancien fichier');
+    assert.equal(readJSON(f + '.bak-v1').formerEngineRoots, undefined);
+  });
+  await test('prefs 1 → 2 : sans moteur, ou avec le labo lui-même → aucun ancien dossier ; une liste déjà là est gardée', () => {
+    const before = path.join(WORK, 'moteur-avant');
+    const mig = (p) => migrations.migrate('prefs', { version: 1, ...p }).doc.formerEngineRoots;
+    assert.deepEqual(mig({ engineRoot: '' }), []);
+    assert.deepEqual(mig({}), []);
+    assert.deepEqual(mig({ engineRoot: '   ' }), []);
+    assert.deepEqual(mig({ engineRoot: LAB }), []);
+    assert.deepEqual(mig({ engineRoot: LAB + '\\' }), []);
+    assert.deepEqual(mig({ engineRoot: LAB.toLowerCase() + '/' }), []);
+    assert.deepEqual(mig({ engineRoot: 'E:\\Mia-moteur' }), [LAB]);
+    assert.deepEqual(mig({ engineRoot: 'E:\\Mia-moteur', formerEngineRoots: [before] }), [before]);
+    assert.deepEqual(mig({ engineRoot: 'E:\\Mia-moteur', formerEngineRoots: [] }), [], 'une liste vide choisie reste vide');
+    // sans version (Mia ≤ 0.4) : les deux étapes s'enchaînent
+    const r0 = migrations.migrate('prefs', { lang: 'fr', engineRoot: 'E:\\Mia-moteur' });
+    assert.equal(r0.doc.lastSeenVersion, '0.4.0');
+    assert.deepEqual(r0.doc.formerEngineRoots, [LAB]);
+    // déjà au format courant : rien n'est touché
+    const cur = { version: migrations.CURRENT.prefs, engineRoot: 'E:\\Mia-moteur' };
+    assert.equal(migrations.migrate('prefs', cur).doc, cur);
+  });
   await test('registre des LoRA : une liste est le format 1', () => {
     const l = [{ id: 'x', name: 'Mara' }];
     const r = migrations.migrate('loras', l);
@@ -157,6 +196,17 @@ async function main() {
     assert.ok(fs.existsSync(pf + '.bak-v0'));
     assert.equal(readJSON(pf + '.bak-v0').version, undefined, 'la copie est l’ancien fichier');
   });
+  await test('« Générer pendant un entraînement » absent d’un prefs.json d’avant → activé ; seul false l’éteint (SPEC §8.7)', async () => {
+    assert.equal(readJSON(path.join(userData, 'data', 'prefs.json.bak-v0')).trainGenBeside, undefined, 'l’ancien fichier ne le connaissait pas');
+    assert.equal(prefs.trainGenBeside, true, 'lu à l’ouverture : activé');
+    const off = await store.setPrefs({ trainGenBeside: false });
+    assert.equal(off.trainGenBeside, false);
+    assert.equal(readJSON(path.join(userData, 'data', 'prefs.json')).trainGenBeside, false, 'gardé dans prefs.json');
+    const odd = await store.setPrefs({ trainGenBeside: 'non' });
+    assert.equal(odd.trainGenBeside, true, 'une valeur illisible garde le défaut');
+    const on = await store.setPrefs({ trainGenBeside: true });
+    assert.equal(on.trainGenBeside, true);
+  });
   await test('project.json et folder.json sans version : copie gardée au premier passage, index intact', async () => {
     const list = await store.list();
     const names = list.map((p) => p.name).sort();
@@ -207,6 +257,61 @@ async function main() {
     assert.equal(after, before);
     return `${before} mise(s) à jour au premier passage`;
   });
+  // Le dossier du moteur change dans les réglages : l'ancien est retenu (formerEngineRoots), le plus récent d'abord.
+  // De faux moteurs (un python.exe vide suffit au contrôle de setPrefs), hors du dossier des projets.
+  const engineDir = (n) => {
+    const d = path.join(WORK, 'moteurs', `moteur-${n}`);
+    fs.mkdirSync(path.join(d, 'env', 'venv', 'Scripts'), { recursive: true });
+    fs.writeFileSync(path.join(d, 'env', 'venv', 'Scripts', 'python.exe'), '');
+    return d;
+  };
+  const noLab = process.env.MIA_NO_LAB;
+  process.env.MIA_NO_LAB = '1';            // le labo de l'auteur, s'il existe sur ce PC, ne compte pas comme « dossier d'avant »
+  try {
+    await test('préférences neuves ou sans moteur : formerEngineRoots = [] au format courant', () => {
+      assert.deepEqual(prefs.formerEngineRoots, []);
+      assert.deepEqual(readJSON(path.join(userData, 'data', 'prefs.json')).formerEngineRoots, []);
+    });
+    await test('changer le dossier du moteur : l’ancien passe en tête de formerEngineRoots, sans doublon ni dossier courant', async () => {
+      const seen = [];
+      const off = store.onPrefs((_p, changed) => seen.push([...changed]));
+      const [m1, m2, m3] = [1, 2, 3].map(engineDir);
+      let p = await store.setPrefs({ engineRoot: m1 });
+      assert.equal(p.engineRoot, m1);
+      assert.deepEqual(p.formerEngineRoots, [], 'premier moteur : rien avant lui');
+      p = await store.setPrefs({ engineRoot: m2 });
+      assert.deepEqual(p.formerEngineRoots, [m1]);
+      assert.ok(seen[seen.length - 1].includes('engineRoot') && seen[seen.length - 1].includes('formerEngineRoots'), 'le scanner est prévenu des deux');
+      p = await store.setPrefs({ engineRoot: m3 });
+      assert.deepEqual(p.formerEngineRoots, [m2, m1], 'le plus récent d’abord');
+      p = await store.setPrefs({ engineRoot: m1.toUpperCase() + '\\' });
+      assert.deepEqual(p.formerEngineRoots, [m3, m2], 'revenir à un ancien dossier le retire de la liste (casse et « \\ » final ignorés)');
+      p = await store.setPrefs({ engineRoot: m1 });
+      assert.deepEqual(p.formerEngineRoots, [m3, m2], 'le même dossier écrit autrement : rien ne change');
+      p = await store.setPrefs({ theme: 'light' });
+      assert.deepEqual(p.formerEngineRoots, [m3, m2], 'un autre réglage n’y touche pas');
+      p = await store.setPrefs({ engineRoot: '' });
+      assert.deepEqual(p.formerEngineRoots, [m1, m3, m2], 'moteur retiré des réglages : il est retenu');
+      p = await store.setPrefs({ engineRoot: m2 });
+      assert.deepEqual(p.formerEngineRoots, [m1, m3], 'repris après un moment sans moteur : pas de doublon');
+      assert.deepEqual(readJSON(path.join(userData, 'data', 'prefs.json')).formerEngineRoots, [m1, m3], 'écrit dans prefs.json');
+      off();
+    });
+    await test('formerEngineRoots : 8 au plus, les plus récents ; valeurs absurdes écartées', async () => {
+      let p = null;
+      for (let n = 4; n <= 14; n++) p = await store.setPrefs({ engineRoot: engineDir(n) });
+      assert.equal(p.formerEngineRoots.length, 8);
+      assert.equal(p.formerEngineRoots[0], engineDir(13));
+      assert.equal(p.formerEngineRoots[7], engineDir(6));
+      assert.ok(!p.formerEngineRoots.some((x) => x.toLowerCase() === p.engineRoot.toLowerCase()));
+      p = await store.setPrefs({ formerEngineRoots: ['relatif\\x', 42, null, engineDir(14), engineDir(5) + '\\', engineDir(5).toUpperCase()] });
+      assert.deepEqual(p.formerEngineRoots, [engineDir(5)], 'chemins absolus seulement, sans doublon, jamais le dossier courant');
+      p = await store.setPrefs({ formerEngineRoots: 'pas une liste' });
+      assert.deepEqual(p.formerEngineRoots, []);
+    });
+  } finally {
+    if (noLab === undefined) delete process.env.MIA_NO_LAB; else process.env.MIA_NO_LAB = noLab;
+  }
   await store.idle?.();
 
   console.log('\nversion.js');

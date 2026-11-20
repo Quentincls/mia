@@ -140,7 +140,7 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 |---|---|
 | `mia_status` | Mia ouverte ? planche affichée (et son projet), ta sélection, les planches ouvertes en onglets (`mia.tabs`), moteur ComfyUI, GPU, file de calcul, capacités installées |
 | `mia_request` · `mia_pending` | te demander ton feu vert avant d'agir (carte « Claude attend ton feu vert ») ; savoir où en sont le feu vert, la pause et la liste « À générer » |
-| `mia_catalog` | tous les blocs (« Profondeur », « Animer une image »…), leurs entrées/sorties, réglages et valeurs permises, recettes, modèles, LoRA |
+| `mia_catalog` | tous les blocs (« Profondeur », « Animer une image »…), leurs entrées/sorties, réglages et valeurs permises, recettes, modèles (avec leur version et leur mémoire estimée), LoRA, mémoire de la machine |
 | `mia_list_projects` | tes projets et toutes les planches (avec le projet de chacune ; `open` = ouverte dans un onglet, `active` = celle à l'écran) |
 | `mia_create_folder` | créer un projet (dossier de planches), avec sa couleur ; s'il existe déjà, il est repris tel quel |
 | `mia_create_project` | créer une planche (nouvel onglet), dans un projet (`folder`, créé s'il manque), avec une recette au besoin |
@@ -156,6 +156,12 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 | `mia_get_output` · `mia_snapshot` | les fichiers du résultat ; une capture de Mia pour que l'assistant regarde |
 | `mia_add_section` | encadrer des blocs dans une section nommée, à la manière de Figma ou Miro |
 | `mia_focus` · `mia_say` | te montrer des blocs ; t'écrire un mot dans une bulle |
+| `mia_train_options` | sur quels modèles un LoRA peut être entraîné ici, les durées, la place disque, le GPU, l’entraînement en cours |
+| `mia_train_prepare` | préparer un brouillon d’entraînement : nom, modèle, mot déclencheur, images (chemins complets, 300 au plus), légendes, durée |
+| `mia_train_start` | **proposer** de lancer un brouillon, ou de reprendre un entraînement (`resume: true`) : rien ne part, c’est toi qui cliques (en « Claude agit seul », il lance directement) |
+| `mia_train_status` · `mia_train_wait` | où en est l’entraînement (pas, perte, temps restant, essais et points de contrôle avec leurs chemins) ; attendre le prochain essai, le prochain point, la fin |
+| `mia_train_control` | mettre en pause, ou ranger un point de contrôle dans « Mes LoRA » — jamais reprendre, arrêter ni supprimer |
+| `mia_train_note` | écrire une courte note signée dans les évènements de l’entraînement |
 
 ### Ton feu vert, et « À générer »
 
@@ -168,6 +174,44 @@ Ensuite, aucun calcul ne part tout seul : ce que l'assistant veut générer arri
 droite de la planche, rangé par plan (une case par plan, une case par calcul). Tu
 coches ce que tu veux (les calculs en ligne, payants, arrivent décochés), tu lis le temps prévu et le prix, puis
 « Générer la sélection ». Pour revenir à l'ancien comportement : Réglages → Assistants → « Demander mon feu vert ».
+
+**« Je valide » ou « Claude agit seul »** : le même réglage se change d’un clic en bas à gauche de la planche, à droite
+de « Bloc · Recettes · Section ». « Je valide », c’est ce qui est décrit plus haut. « Claude agit seul » (en bleu),
+pour quand tu n’es pas devant ton PC : l’assistant agit sans carte et **tout part aussitôt, les calculs lourds du PC
+comme les calculs en ligne payants**, et un entraînement qu’il lance démarre. Si une carte attend quand tu passes en
+« agit seul », elle est acceptée. Ce qui est déjà dans « À générer » y reste, à cocher (« Proposés avant « Claude agit
+seul » ») : rien ne part sans que tu l’aies vu ; l’assistant peut le relancer lui-même, c’est alors parti. Revenir à
+« Je valide » ne coupe rien de ce qui tourne : sa prochaine action te redemande ton feu vert. « Pause » l’arrête
+toujours, dans les deux modes. Pour l’assistant : `mia_request` et `mia_pending` disent `mode` (`ask` ou `auto`).
+
+### Entraîner un LoRA avec un assistant
+
+Dis-lui par exemple « entraîne un LoRA de Rosa sur LTX avec les images de ce dossier », en lui donnant le chemin
+complet du dossier. Tu gardes la main à deux endroits :
+
+1. **Le feu vert.** La carte dit « Il prépare un entraînement de LoRA. Tu le lanceras toi-même ensuite. » Après
+   « C’est parti », Mia revient devant et le brouillon se remplit : nom, modèle, mot déclencheur, images, légendes
+   (celles qu’il écrit sont marquées à son nom). Tes images et tes légendes d’origine ne sont jamais modifiées.
+2. **Le lancement.** En « Je valide », l’assistant ne peut que **proposer** : une carte « Claude propose un entraînement » apparaît
+   en bas de Mia, avec « Voir », « Refuser », « Plus tard » et « Lancer ». Rien ne part tant que tu n’as pas cliqué
+   « Lancer ». Si le brouillon change entre-temps (par toi ou par lui), la proposition est annulée et il doit la
+   refaire. Si le départ est impossible (un autre entraînement tourne, disque plein…), la carte dit pourquoi et
+   reste là. Reprendre un entraînement en pause passe par la même carte, avec « Reprendre ». La carte revient
+   telle quelle si Mia se recharge ou redémarre.
+
+Pendant l’entraînement, l’assistant peut regarder où il en est, ouvrir les essais, écrire une note (une par
+minute au plus), mettre en pause ou ranger un point de contrôle dans « Mes LoRA » (ces deux gestes redemandent
+ton feu vert s’il a expiré : il s’éteint après 10 minutes sans appel). Il ne peut ni reprendre, ni arrêter, ni
+supprimer : cela reste à toi. Quand il ne fait que regarder, la pastille « Claude pilote Mia » ne s’allume pas.
+
+En « Claude agit seul » (« Demander mon feu vert » coupé), il n’y a ni carte ni clic : `mia_train_start` lance
+directement l’entraînement, qui tient ensuite le GPU pendant des heures.
+
+Pour l’assistant : `mia_status` donne `training` (l’entraînement actif : état, phase, pas, progression, heure de fin)
+et `mia_pending` donne `training.state` (`waiting` : la carte attend ton clic ; `started` ; `declined` ; `changed` :
+le brouillon a changé, la proposition est à refaire). `mia_train_wait` attend au plus 600 s (`until` : `sample`,
+`checkpoint`, `end` ou `change`) ; un entraînement dure des heures, l’assistant revient plutôt plus tard avec
+`mia_train_status`. Les essais sont des fichiers (chemins complets) qu’il peut ouvrir pour juger le résultat.
 
 ### Plusieurs assistants à la fois
 
@@ -200,6 +244,16 @@ Sur ce PC, le réglage `passes` des blocs LTX (`auto`, `1`, `2`, ou leurs libell
 « 2 passes ») choisit une ou deux passes ; `auto` en fait deux dès qu'une image de fin ou des images-clés sont
 branchées.
 
+**Versions d’un modèle et mémoire** : quand un modèle du PC existe en plusieurs versions (LTX 2.5 : « Compacte »,
+« Compacte · RTX 50 », « Pleine »), `mia_catalog` donne pour chaque choix de modèle `version` (dans la langue de Mia)
+et `memoryGB`, la mémoire qu’il prendra à peu près sur cette machine (une estimation, qui monte avec la définition et
+la durée). `machine.memoryGB` est la mémoire totale de la machine, `capabilities.<capacité>.memoryGB` celle du modèle
+que « auto » lancera. Le plus simple est de laisser `"auto"` (ou `fam:ltx` sur un bloc Modèle) : « auto » garde la
+version compacte (même image que la pleine d’après nos essais, moins de temps et de mémoire). `notOffered` liste les modèles que Mia reconnaît sans les
+proposer, avec la raison (le modèle complet de LTX, non distillé : « sa recette de calcul n’est pas validée dans
+Mia ») : ils ne sont dans aucun choix, et un bloc réglé de force sur l’un d’eux est refusé au lancement, avec la même
+raison.
+
 **Modèles en ligne (Higgsfield, payants)** : un bloc en ligne montre son **mode** à l'écran (« Auto · Texte ·
 Animer · Références · Modifier »). L'assistant le choisit par `params.workflow` (l'id d'une façon de faire, ou
 son libellé) : le mode choisi passe devant ce que disent les fils, le bloc dit alors ce qui lui manque
@@ -230,6 +284,10 @@ résultat payé : Mia le récupère (la note du résultat le dit).
 - Le pont n'écoute que `127.0.0.1` ; sans le jeton, tout est refusé ; une page web ne peut pas l'appeler.
 - Aucune suppression de fichier sur le disque ; les imports n'acceptent que des fichiers qui existent ;
   rien n'est écrit hors des projets (et du dossier `models\loras\mia` quand tu ajoutes un LoRA).
+- Un entraînement préparé par un assistant vit dans son propre dossier (Réglages → Entraînement) : les images y sont
+  liées ou copiées, les légendes copiées, jamais les originaux modifiés ; 300 fichiers au plus par
+  `mia_train_prepare`, chemins complets qui existent. L’assistant ne peut ni lancer, ni reprendre (il le propose
+  seulement, sauf en « Claude agit seul » où il le fait lui-même), ni arrêter, ni supprimer un entraînement.
 
 ## En cas de souci
 

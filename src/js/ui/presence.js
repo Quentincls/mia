@@ -26,7 +26,7 @@
  * « Projet / Planche », create_folder makes a project. Without mia.folders (an older preload) the rest
  * works as before and only the folder options fail, with a sentence that says why.
  */
-import { on, once } from '../bus.js';
+import { on, once, emit } from '../bus.js';
 import { state } from '../state.js';
 import { t, tl, register, has } from '../i18n.js';
 import { tip } from './tooltip.js';
@@ -113,8 +113,24 @@ register({
     'presence.err.paused': 'L’utilisateur a mis les assistants en pause dans Mia. Attends qu’il clique « Reprendre », puis réessaie cette action.',
     'presence.note.goPending': 'L’utilisateur n’a pas encore répondu. Dis-lui que tu attends son feu vert dans Mia, puis rappelle mia_request {requestId} pour continuer d’attendre.',
     'presence.note.goAccepted': 'Feu vert donné : tu peux agir. Les calculs lourds ou payants que tu lances (mia_run) vont dans sa liste « À générer » : c’est lui qui les coche et les démarre.',
-    'presence.note.goOff': 'Le feu vert n’est pas demandé (réglage coupé) : tu peux agir.',
+    'presence.note.goOff': 'Mode « Claude agit seul » (choisi par l’utilisateur en bas à gauche de la planche) : tu peux agir sans demander. Tes calculs partent aussitôt, y compris les calculs lourds du PC et les calculs en ligne payants. S’il repasse en « Je valide », tes actions suivantes redemandent son feu vert (mia_request).',
+    'presence.note.autoBefore': 'Mode « Claude agit seul » : les calculs encore « waiting » ont été proposés avant le passage. Ils restent dans sa liste « À générer » jusqu’à ce qu’il les coche, ou que tu les relances avec mia_run (ils partent alors aussitôt).',
     'presence.note.toGenerate': 'Pas lancé : ajouté à la liste « À générer » de l’utilisateur, qui coche ce qu’il veut et le démarre lui-même. Ne relance pas. mia_pending dit ce que chaque demande est devenue (jobId une fois lancée, à suivre avec mia_wait).',
+    'presence.note.goTraining': 'Feu vert donné : prépare l’entraînement avec mia_train_prepare. mia_train_start ne fera que le proposer : c’est l’utilisateur qui le lance dans Mia.',
+    'presence.err.noTrain': 'L’entraînement de LoRA n’est pas disponible dans cette Mia.',
+    'presence.err.trainNeed': 'Pour un nouvel entraînement, donne name, base (mia_train_options → bases[].id) et trigger (le mot déclencheur).',
+    'presence.err.trainNoBase': 'Modèle « {base} » inconnu. Modèles : {list}.',
+    'presence.err.trainBaseNotReady': '« {base} » ne peut pas être entraîné sur cette machine pour l’instant : {why}',
+    'presence.err.trainBadKind': 'Genre « {kind} » inconnu. Genres : character, place, style.',
+    'presence.err.trainBadLength': 'Durée « {length} » inconnue. Durées : short, normal, long.',
+    'presence.err.trainNeedId': 'Indique trainingId.',
+    'presence.err.trainBadAction': 'Action « {action} » refusée. mia_train_control ne sait que « pause » et « add_to_loras » : pour reprendre, propose-le avec mia_train_start {resume:true} ; arrêter et supprimer restent à l’utilisateur, dans Mia.',
+    'presence.note.trainImporting': 'L’import des images continue dans Mia : suis-le avec mia_train_status (importing). Les légendes données ici ne sont pas encore écrites : rappelle mia_train_prepare {trainingId, captions} quand l’import est fini.',
+    'presence.note.trainCaptions': 'Légendes ignorées, image introuvable dans le jeu : {list}.',
+    'presence.note.trainReady': 'Brouillon prêt. mia_train_start ne fera que le proposer : l’utilisateur le lance lui-même dans Mia.',
+    'presence.note.trainReadyAuto': 'Brouillon prêt. Mode « Claude agit seul » : mia_train_start le lance aussitôt, sans attendre le clic de l’utilisateur. Un entraînement tient le GPU pendant des heures : ne le lance que s’il te l’a demandé.',
+    'presence.note.trainNotReady': 'Le brouillon ne peut pas encore partir : {why}',
+    'presence.note.trainPause': 'Pause demandée : l’outil écrit un point de contrôle puis rend le GPU (après l’essai en cours s’il y en a un). L’entraînement ne repart pas seul : pour reprendre, mia_train_start {resume:true}.',
     'presence.pause': 'Pause',
     'presence.resume': 'Reprendre',
     'presence.pauseTip': 'Arrêter les assistants là où ils en sont. Rien n’est annulé.',
@@ -204,8 +220,24 @@ register({
     'presence.err.paused': 'The user paused the assistants in Mia. Wait until they click “Resume”, then try this action again.',
     'presence.note.goPending': 'The user has not answered yet. Tell them you are waiting for their go-ahead in Mia, then call mia_request {requestId} again to keep waiting.',
     'presence.note.goAccepted': 'Go-ahead given: you may act. Heavy or paid computations you start (mia_run) go to their “To generate” list: they tick and start them themselves.',
-    'presence.note.goOff': 'The go-ahead is not asked (setting off): you may act.',
+    'presence.note.goOff': 'Mode “Claude acts alone” (chosen by the user at the bottom left of the board): you may act without asking. Your computations start at once, heavy ones on this PC and paid online ones included. If they switch back to “I approve”, your next actions need their go-ahead again (mia_request).',
+    'presence.note.autoBefore': 'Mode “Claude acts alone”: the computations still “waiting” were proposed before the switch. They stay in the user’s “To generate” list until they tick them, or until you run them again with mia_run (they then start at once).',
     'presence.note.toGenerate': 'Not started: added to the user’s “To generate” list; they tick what they want and start it themselves. Do not run it again. mia_pending tells what became of each one (jobId once started, to follow with mia_wait).',
+    'presence.note.goTraining': 'Go-ahead given: prepare the training with mia_train_prepare. mia_train_start will only suggest it: the user starts it in Mia.',
+    'presence.err.noTrain': 'LoRA training is not available in this Mia.',
+    'presence.err.trainNeed': 'For a new training, give name, base (mia_train_options → bases[].id) and trigger (the trigger word).',
+    'presence.err.trainNoBase': 'Unknown model “{base}”. Models: {list}.',
+    'presence.err.trainBaseNotReady': '“{base}” cannot be trained on this machine for now: {why}',
+    'presence.err.trainBadKind': 'Unknown kind “{kind}”. Kinds: character, place, style.',
+    'presence.err.trainBadLength': 'Unknown length “{length}”. Lengths: short, normal, long.',
+    'presence.err.trainNeedId': 'Give trainingId.',
+    'presence.err.trainBadAction': 'Action “{action}” refused. mia_train_control only knows “pause” and “add_to_loras”: to resume, suggest it with mia_train_start {resume:true}; stopping and deleting stay with the user, in Mia.',
+    'presence.note.trainImporting': 'The images are still being imported in Mia: follow it with mia_train_status (importing). The captions given here are not written yet: call mia_train_prepare {trainingId, captions} again once the import is over.',
+    'presence.note.trainCaptions': 'Captions skipped, image not found in the set: {list}.',
+    'presence.note.trainReady': 'Draft ready. mia_train_start will only suggest it: the user starts it in Mia.',
+    'presence.note.trainReadyAuto': 'Draft ready. Mode “Claude acts alone”: mia_train_start starts it at once, without waiting for the user’s click. A training holds the GPU for hours: start it only if they asked you to.',
+    'presence.note.trainNotReady': 'The draft cannot start yet: {why}',
+    'presence.note.trainPause': 'Pause asked: the tool writes a checkpoint, then releases the GPU (after the running sample, if any). The training does not resume by itself: to resume, mia_train_start {resume:true}.',
     'presence.pause': 'Pause',
     'presence.resume': 'Resume',
     'presence.pauseTip': 'Stop the assistants where they are. Nothing is undone.',
@@ -233,6 +265,10 @@ const PILL_MS = 9000;
 const CAMERA_MS = 460;
 const STUCK_MS = 50000;          // under the bridge's 60 s
 const STUCK_IMPORT_MS = 110000;  // big videos take a while to copy (the bridge waits 120 s)
+const STUCK_TRAIN_MS = 134000;   // mia_train_prepare: the bridge waits 140 s…
+const TRAIN_IMPORT_WAIT_MS = 120000;   // …and past 120 s of import the answer says « importing » instead of failing
+const TRAIN_KINDS = ['character', 'place', 'style'];
+const TRAIN_LENGTHS = ['short', 'normal', 'long'];
 const GAP_X = 96;            // recipes: 336-wide blocks every 432
 const GAP_Y = 48;
 const GRID = 24;
@@ -272,7 +308,9 @@ const EXCLUSIVE = new Set(['create_project', 'open_project', 'arrange']);
 // Green light (SPEC §13.7): what an assistant may not do before the user said « C'est parti » (reading and
 // talking stay free), and the pause of the title bar.
 const NEEDS_GO = new Set(['create_project', 'open_project', 'create_folder', 'add_block', 'connect', 'set_params', 'rename_block',
-  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'focus', 'add_section']);
+  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'focus', 'add_section',
+  // a LoRA training: preparing, suggesting a start, pausing, filing a checkpoint (reading and noting stay free)
+  'train_prepare', 'train_start', 'train_control']);
 const PAUSE_WAIT_MS = 40000;        // a paused action waits that long for « Reprendre », then says so
 let paused = false;
 let resumeWaiters = [];
@@ -339,6 +377,9 @@ async function gated(msg, A) {
     if (paused) {
       await Promise.race([new Promise((r) => resumeWaiters.push(r)), sleep(PAUSE_WAIT_MS)]);
       if (paused) { if (msg.id != null) reply(msg.id, { ok: false, error: t('presence.err.paused') }); return; }
+      // the mode may have changed during the pause (« Claude agit seul » → « Je valide »): the green light is
+      // looked at again, an action held by the pause never passes without it
+      if (!GL.allowed(A.name)) { touch(msg.client, null); if (msg.id != null) reply(msg.id, { ok: false, error: t('presence.err.needGo') }); return; }
     }
   }
   for (;;) {
@@ -376,7 +417,7 @@ async function handle({ id, method, client }, params, A) {
     let watchdog = 0;
     try {
       // one stuck action (an animation in a window that draws nothing) never blocks the ones after it
-      const stuck = new Promise((_, reject) => { watchdog = setTimeout(() => reject(Object.assign(new Error(t('presence.err.busy')), { user: true })), method === 'import_media' ? STUCK_IMPORT_MS : STUCK_MS); });
+      const stuck = new Promise((_, reject) => { watchdog = setTimeout(() => reject(Object.assign(new Error(t('presence.err.busy')), { user: true })), method === 'import_media' ? STUCK_IMPORT_MS : method === 'train_prepare' ? STUCK_TRAIN_MS : STUCK_MS); });
       const result = await Promise.race([fn(params, A), stuck]);
       payload = { ok: true, result: result === undefined ? null : result };
       if (BOARD_METHODS.has(method) || EXCLUSIVE.has(method)) A.boardId = state.project?.id || null;
@@ -1113,9 +1154,10 @@ function refreshPill() {
   else text = t('presence.pillMixed', { n: live.length });
   if (paused) text = t('presence.pillPaused');
   if (dom.pillTxt.textContent !== text) dom.pillTxt.textContent = text;
-  // « Pause » while someone works under a green light (and « Reprendre » for as long as it is paused)
+  // « Pause » while someone works — under a green light or in « Claude agit seul », where it is the only brake — and
+  // « Reprendre » for as long as it is paused
   const working = live.some((a) => a.busy || a.visible);
-  dom.pause.hidden = !(paused || (GL.enabled() && working));
+  dom.pause.hidden = !(paused || working);
   dom.pause.setAttribute('aria-pressed', paused ? 'true' : 'false');
   dom.pause.querySelector('path').setAttribute('d', paused ? 'M6 3.5v13l10-6.5z' : 'M5 3.5h3.4v13H5zM11.6 3.5H15v13h-3.4z');
   dom.pause.querySelector('span').textContent = t(paused ? 'presence.resume' : 'presence.pause');
@@ -2099,7 +2141,10 @@ const METHODS = {
     await glideTo(A, elPoint(e, n, btnSel, 0.5, 0.5));
     await pace(A);
     press(A);
-    return launchRun(e, n, mode, variants, where, A);
+    const out = await launchRun(e, n, mode, variants, where, A);
+    // « Claude agit seul »: the line this block had in « À générer » (proposed before the switch) is now launched
+    GL.launched({ nodeId: n.id, boardId: where.boardId, jobId: out.jobId || null, jobIds: out.jobIds || null });
+    return out;
   },
 
   async get_output(p, A) {
@@ -2179,12 +2224,14 @@ const METHODS = {
   /** The assistant says what it is about to do and waits for the user's green light (SPEC §13.7). */
   async request(p, A) {
     await whenAppReady();
-    if (!GL.enabled()) return { state: 'accepted', note: t('presence.note.goOff') };
-    const r = GL.request({ client: A.name, id: p.requestId ? String(p.requestId) : null, title: p.title, summary: p.summary, steps: p.steps, runs: p.runs });
+    if (!GL.enabled()) return { state: 'accepted', mode: 'auto', note: t('presence.note.goOff') };
+    // training:true — a LoRA training is being prepared: the card says so, and that a second click will follow
+    const r = GL.request({ client: A.name, id: p.requestId ? String(p.requestId) : null, title: p.title, summary: p.summary, steps: p.steps, runs: p.runs, training: p.training === true });
     const st = await Promise.race([r.answered, sleep(PAUSE_WAIT_MS).then(() => 'pending')]);
-    const out = { requestId: r.id, state: st };
+    // the card waits, and the user switches to « Claude agit seul » meanwhile: accepted, and it says so
+    const out = { requestId: r.id, state: st, mode: GL.mode() };
     if (st === 'pending') out.note = t('presence.note.goPending');
-    else if (st === 'accepted') out.note = t('presence.note.goAccepted');
+    else if (st === 'accepted') out.note = !GL.enabled() ? t('presence.note.goOff') : t(p.training === true ? 'presence.note.goTraining' : 'presence.note.goAccepted');
     else out.note = t('presence.err.declined');
     return out;
   },
@@ -2194,10 +2241,142 @@ const METHODS = {
     await whenAppReady();
     const e = ed();
     const snap = GL.snapshot();
-    return {
+    const out = {
       ...snap, paused,
       toGenerate: snap.toGenerate.map((x) => ({ ...x, block: x.boardId === state.project?.id && e?.loaded && e.getNode(x.nodeId) ? blockName(e.getNode(x.nodeId)) : null }))
     };
+    // « Claude agit seul »: what it means, and what became of the lines proposed before the switch
+    if (snap.mode === 'auto') out.note = t(snap.toGenerate.some((x) => x.state === 'waiting') ? 'presence.note.autoBefore' : 'presence.note.goOff');
+    return out;
+  },
+
+  // ── training a LoRA (SPEC « Entraîner un LoRA ») ──────────────────────
+  // The training lives in the main process (window.mia.train.*): what an assistant prepares is the very draft the
+  // « Entraînements » screen shows, signed with its name. The cursor stays hidden outside a board: here the
+  // presence is that screen filling up, the card of the suggestion, and the signed lines of ÉVÈNEMENTS.
+
+  /** A draft made or completed: name, model, trigger word, images (linked, never changed), captions, length. */
+  async train_prepare(p, A) {
+    await whenAppReady();
+    const api = trainApi();
+    const by = signer(A);
+    const str = (v) => (typeof v === 'string' ? v.trim() : '');
+    if (p.kind != null && !TRAIN_KINDS.includes(p.kind)) fail('trainBadKind', { kind: p.kind });
+    if (p.length != null && !TRAIN_LENGTHS.includes(p.length)) fail('trainBadLength', { length: p.length });
+    let id = str(p.trainingId);
+    const patch = {};
+    if (!id) {
+      if (!str(p.name) || !str(p.base) || !str(p.trigger)) fail('trainNeed');
+      const opts = await api.options();
+      const bases = Array.isArray(opts?.bases) ? opts.bases : [];
+      const base = bases.find((b) => b.id === p.base);
+      if (!base) fail('trainNoBase', { base: p.base, list: bases.map((b) => b.id).join(', ') || t('presence.err.none') });
+      if (!base.ready) fail('trainBaseNotReady', { base: tl(base.label) || base.id, why: tl(base.why) || '?' });
+      const made = trainOk(await api.create({ name: str(p.name), base: base.id, kind: p.kind || 'character', trigger: str(p.trigger), by }));
+      id = made.id || made.trainingId;
+    } else {
+      // completing a draft: only what is given changes
+      if (str(p.base)) patch.base = str(p.base);
+      if (str(p.name)) patch.name = str(p.name);
+      if (p.kind) patch.kind = p.kind;
+      if (str(p.trigger)) patch.trigger = str(p.trigger);
+    }
+    showTraining(id, by);                    // Quentin watches the draft fill up
+    if (p.length) patch.length = p.length;
+    if (p.steps != null) patch.steps = p.steps;
+    const adv = p.advanced && typeof p.advanced === 'object' ? p.advanced : {};
+    const settings = {};
+    for (const k of ['rank', 'lr', 'saveEvery', 'sampleEvery', 'resolutions']) if (adv[k] != null) settings[k] = adv[k];
+    if (Array.isArray(p.samplePrompts)) settings.samplePrompts = p.samplePrompts.slice(0, 4);
+    if (Object.keys(settings).length) patch.settings = settings;
+    if (Object.keys(patch).length) trainOk(await api.update(id, patch));
+
+    const paths = [...(Array.isArray(p.images) ? p.images : []), ...(str(p.folder) ? [str(p.folder)] : [])];
+    let importing = false;
+    if (paths.length) {
+      trainOk(await api.addImages(id, paths));
+      // the import goes on in the main process: its end is read there, never guessed
+      const until = performance.now() + TRAIN_IMPORT_WAIT_MS;
+      for (;;) {
+        await sleep(250);
+        const s = await api.get(id);
+        if (!s || s.ok === false || !s.importing) break;
+        if (performance.now() > until) { importing = true; break; }
+      }
+    }
+    const notes = [];
+    const caps = Array.isArray(p.captions) ? p.captions.filter((c) => c && typeof c === 'object' && str(c.file)) : [];
+    if (importing) notes.push(t('presence.note.trainImporting'));
+    else if (caps.length) {
+      const lost = [];
+      for (const c of caps) {
+        const file = str(c.file).split(/[\\/]/).pop();       // a full path is fine: the set knows the original name
+        const r = await api.setCaption(id, file, String(c.text ?? ''), by);
+        if (!r || r.ok === false) lost.push(file);
+      }
+      if (lost.length) notes.push(t('presence.note.trainCaptions', { list: lost.slice(0, 20).join(', ') + (lost.length > 20 ? '…' : '') }));
+    }
+    const s = trainOk(await api.get(id, { dataset: true }));
+    const images = Array.isArray(s.images) ? s.images : [];
+    const ready = !importing && s.ready === true;
+    if (!importing) notes.push(ready ? t(GL.enabled() ? 'presence.note.trainReady' : 'presence.note.trainReadyAuto') : t('presence.note.trainNotReady', { why: s.why || '?' }));
+    return {
+      trainingId: id, state: s.state, importing,
+      dataset: {
+        count: s.dataset?.count ?? images.length,
+        captioned: s.dataset?.captions ?? images.filter((e) => e.captionBy).length,
+        missing: images.filter((e) => !e.captionBy).map((e) => e.original),        // original names: no caption yet
+        small: images.filter((e) => e.small).map((e) => e.original),
+        skipped: (s.dataset?.skipped || []).map((x) => ({ file: x.original, why: x.why }))
+      },
+      estimate: s.estimate ? { seconds: s.estimate.seconds ?? null, endAt: s.estimate.endAt ?? null, diskGB: s.estimate.diskGB ?? null, vramGB: s.estimate.vramGB ?? null } : null,
+      steps: s.steps, samplePrompts: s.settings?.samplePrompts || [],
+      ready, why: ready ? null : (s.why || null),
+      dir: s.dir || null,
+      notes
+    };
+  },
+
+  /**
+   * The start (or the resume) of a training. Nothing is done here: this only says that this assistant may act
+   * (green light, pause — checked before any method of NEEDS_GO) and whether the user's click is asked. The main
+   * process then writes the suggestion in train.json, from which the card is drawn (greenlight.js).
+   */
+  async train_start(p, A) {
+    await whenAppReady();
+    trainApi();
+    if (!p.trainingId) fail('trainNeedId');
+    return { ask: GL.enabled(), by: signer(A) };
+  },
+
+  /** Pause, or file a checkpoint in « Mes LoRA ». Never a resume, a stop or a deletion. */
+  async train_control(p, A) {
+    await whenAppReady();
+    const api = trainApi();
+    const id = p.trainingId ? String(p.trainingId) : '';
+    if (!id) fail('trainNeedId');
+    const by = signer(A);
+    const action = String(p.action ?? '');
+    if (action === 'pause') {
+      const r = trainOk(await api.control(id, 'pause', { by }));
+      return { trainingId: id, action, pending: r.pending || null, state: r.state || null, note: t('presence.note.trainPause') };
+    }
+    if (action === 'add_to_loras') {
+      const step = p.step == null ? null : Number(p.step);
+      const r = trainOk(await api.addToLoras(id, step, { by }));
+      return { trainingId: id, action, file: r.file, comfyName: r.comfyName, ...(r.already ? { already: true } : {}) };
+    }
+    fail('trainBadAction', { action });
+  },
+
+  /** A signed line in the ÉVÈNEMENTS of a training (the main process keeps the pace: one a minute, 40 in all). */
+  async train_note(p, A) {
+    await whenAppReady();
+    const api = trainApi();
+    const text = String(p.text ?? '').trim();
+    if (!text) fail('emptyText');
+    const r = trainOk(await api.note(p.trainingId ? String(p.trainingId) : null, { text, by: signer(A) }));
+    return { noted: true, trainingId: r.trainingId, step: r.step };
   },
 
   async snapshot_prepare(p, A) {
@@ -2232,6 +2411,32 @@ const METHODS = {
     };
   }
 };
+
+// ── training a LoRA: helpers ────────────────────────────────────────────
+function trainApi() {
+  const api = window.mia?.train;
+  if (!api || typeof api.get !== 'function') fail('noTrain');
+  return api;
+}
+
+/** An answer of window.mia.train.*, or its own sentence as the error. */
+function trainOk(r) {
+  if (r && r.ok !== false) return r;
+  const e = new Error((r && r.error) || t('presence.err.noTrain'));
+  e.user = true;
+  throw e;
+}
+
+/** Who signs a draft, a caption, a note: the assistant's name — never « user », which is Quentin's own mark. */
+function signer(A) {
+  const name = String(A?.name || '').trim().slice(0, 40);
+  return !name || name.toLowerCase() === 'user' ? 'Assistant' : name;
+}
+
+/** Shows the « Entraînements » screen on this training: the screen listens to « train:open » {id, by}. */
+function showTraining(id, by) {
+  try { emit('train:open', { id, by }); } catch (err) { console.error('[presence] train:open', err); }
+}
 
 /** The boards open in tabs, left to right; active = the one on screen (none on the home page). */
 function openTabs() {

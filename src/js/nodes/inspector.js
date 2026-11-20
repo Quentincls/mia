@@ -287,7 +287,7 @@ function renderActions() {
     btns.append(wrap(button({ label: t(verb), icon: 'play', kind: off ? 'ghost' : 'shiny', size: 'sm', disabled: off, onClick: () => emit('node:run', { nodeId, mode: null }) })));
     if (problem) btns.prepend(el('span', { class: 'insp-run-why' }, problem.title));
     // et de quoi l'installer (SPEC §21.4) : la bibliothèque s'ouvre sur ce qu'il faut pour ce bloc
-    if (problem) install = linkBtn(t('node.model.install'), 'node-dl', () => emit('installer:open', { caps: problem.caps || [] }));
+    if (problem && !problem.noInstall) install = linkBtn(t('node.model.install'), 'node-dl', () => emit('installer:open', { caps: problem.caps || [] }));
   }
   box.append(btns, ...(install ? [install] : []),
     linkBtn(t('insp.revealOutputs'), 'folder', () => shellDo('reveal', { projectId: state.project?.id, rel: `outputs/${nodeId}` })),

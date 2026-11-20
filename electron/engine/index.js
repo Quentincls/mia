@@ -42,6 +42,61 @@ const STR = {
     waitOnline: 'En file dans Mia : {n} calculs en ligne déjà en cours',
     waitOnlineOne: 'En file dans Mia : un calcul en ligne déjà en cours',
     waitDep: 'Attend le bloc « {name} »',
+    waitTraining: 'En file : entraînement « {name} » en cours',
+    waitTrainingEnd: 'En file : entraînement « {name} » en cours (fin vers {at})',
+    waitTrainingSoon: 'En file : l’entraînement « {name} » passe d’abord',
+    // a local job beside a LoRA training (prefs.trainGenBeside): not enough memory now, with the figures — it starts
+    // by itself as soon as the memory measured again allows it, or at the end of the training
+    besideWait: 'Attend de la place à côté de l’entraînement « {name} » : il faut ≈ {need} Go, {free} sont libres moins {margin} de marge',
+    besideWaitEnd: 'Attend de la place à côté de l’entraînement « {name} » (fin vers {at}) : il faut ≈ {need} Go, {free} sont libres moins {margin} de marge',
+    // a video never starts beside a training: its peak depends on its resolution and length
+    besideVideo: 'Attend la fin de l’entraînement « {name} » : une vidéo ne part pas à côté',
+    besideVideoEnd: 'Attend la fin de l’entraînement « {name} » (vers {at}) : une vidéo ne part pas à côté',
+    // another job already runs beside the training: this one starts beside it when that one ends
+    besideBusy: 'Attend le calcul en cours à côté de l’entraînement « {name} »',
+    // why a job waits beside a training when it is not memory (pump → besideWhy): the training has not started its
+    // steps yet, has just started them (its memory is not up), makes a sample; the memory is being read; another
+    // heavy job of the queue goes first
+    besideStart: 'Attend que l’entraînement « {name} » ait démarré ses pas',
+    besideSettle: 'Attend que l’entraînement « {name} » ait pris sa place en mémoire (quelques pas)',
+    besideSample: 'Attend que l’entraînement « {name} » ait fini son essai',
+    besideMeasuring: 'Mesure la mémoire libre à côté de l’entraînement « {name} »',
+    // {first}: the job that goes first, quoted (besideFirst), or « another … » when it bears the same name as the job
+    // that waits (variants of one block: besideOther) — besideFirstOf
+    besideBehind: 'Attend son tour à côté de l’entraînement « {name} » : {first} passe avant',
+    // the first heavy job before it never starts beside the training (a video, no measured estimate): this one waits
+    // for the end of the training, then for that one (the queue keeps its order)
+    besideAfter: 'Attend la fin de l’entraînement « {name} », puis {first}, placé avant lui dans la file',
+    besideAfterEnd: 'Attend la fin de l’entraînement « {name} » (vers {at}), puis {first}, placé avant lui dans la file',
+    // several jobs between the training and this one (three videos, then an image): counted, the first one named
+    // ({first} always « « X » » here, never « un autre … »: it is one of them)
+    besideAfterN: 'Attend la fin de l’entraînement « {name} », puis {n} calculs placés avant lui dans la file, dont {first}',
+    besideAfterEndN: 'Attend la fin de l’entraînement « {name} » (vers {at}), puis {n} calculs placés avant lui dans la file, dont {first}',
+    besideBehindN: 'Attend son tour à côté de l’entraînement « {name} » : {n} calculs passent avant',
+    besideOther: 'un autre « {first} »',
+    besideFirst: '« {first} »',
+    besideRun: 'À côté de l’entraînement « {name} »',
+    // the same reasons, short, the reason first, for the second line of the queue (waitShort): the training's row is
+    // right above it there, with its name and its end — the whole sentence stays on the block, in the tooltip, in mia_jobs
+    waitTrainingQ: 'Après l’entraînement',
+    waitTrainingEndQ: 'Après l’entraînement, vers {at}',
+    waitTrainingSoonQ: 'L’entraînement passe d’abord',
+    besideWaitQ: 'Manque de mémoire : il faut ≈ {need} Go, {free} libres moins {margin} de marge',
+    besideWaitEndQ: 'Manque de mémoire : il faut ≈ {need} Go, {free} libres moins {margin} de marge',
+    besideVideoQ: 'Une vidéo ne part pas à côté : après l’entraînement',
+    besideVideoEndQ: 'Une vidéo ne part pas à côté : après l’entraînement, vers {at}',
+    besideBusyQ: 'Après le calcul en cours à côté',
+    besideStartQ: 'Attend les premiers pas de l’entraînement',
+    besideSettleQ: 'Attend que l’entraînement prenne sa place en mémoire',
+    besideSampleQ: 'Attend la fin de l’essai de l’entraînement',
+    besideMeasuringQ: 'Mesure la mémoire libre',
+    besideBehindQ: 'Son tour à côté : {first} passe avant',
+    besideAfterQ: 'Après l’entraînement, puis {first}',
+    besideAfterEndQ: 'Après l’entraînement (vers {at}), puis {first}',
+    besideAfterNQ: 'Après l’entraînement, puis {n} calculs placés avant',
+    besideAfterEndNQ: 'Après l’entraînement (vers {at}), puis {n} calculs placés avant',
+    besideBehindNQ: 'Son tour à côté : {n} calculs passent avant',
+    holdBusy: 'Un entraînement tient déjà le GPU.',
     gpuBusy: 'GPU occupé par « {who} » depuis {at}',
     gpuBusyMin: 'GPU occupé par « {who} » depuis {at} (~{minutes} min)',
     comfyOther: 'une autre session (ComfyUI)',
@@ -77,6 +132,7 @@ const STR = {
     fill: 'Remplis « {label} »',
     noModel: 'Aucun modèle installé pour « {label} »',
     modelGone: 'Le modèle choisi pour « {label} » n’est plus disponible',
+    modelBlocked: 'Le modèle « {name} » choisi pour « {label} » ne peut pas être lancé : sa recette de calcul n’est pas validée dans Mia. Choisis « Auto » ou une autre version.',
     inBlock: 'Bloc « {block} » : {msg}',
     noSuchOutput: 'Le bloc « {name} » n’a pas de sortie « {port} »',
     noOutput: 'Ce bloc ne transmet rien',
@@ -121,6 +177,46 @@ const STR = {
     waitOnline: 'Queued in Mia: {n} online jobs already running',
     waitOnlineOne: 'Queued in Mia: one online job already running',
     waitDep: 'Waiting for “{name}”',
+    waitTraining: 'Queued: training “{name}” is running',
+    waitTrainingEnd: 'Queued: training “{name}” is running (ends around {at})',
+    waitTrainingSoon: 'Queued: training “{name}” goes first',
+    besideWait: 'Waiting for room alongside the training “{name}”: needs ≈ {need} GB, {free} are free minus the {margin} GB margin',
+    besideWaitEnd: 'Waiting for room alongside the training “{name}” (ends around {at}): needs ≈ {need} GB, {free} are free minus the {margin} GB margin',
+    besideVideo: 'Waiting for the training “{name}” to end: a video does not start alongside it',
+    besideVideoEnd: 'Waiting for the training “{name}” to end (around {at}): a video does not start alongside it',
+    besideBusy: 'Waiting for the job running alongside the training “{name}”',
+    besideStart: 'Waiting for the training “{name}” to start its steps',
+    besideSettle: 'Waiting for the training “{name}” to take its memory (a few steps)',
+    besideSample: 'Waiting for the training “{name}” to finish its sample',
+    besideMeasuring: 'Measuring the free memory alongside the training “{name}”',
+    besideBehind: 'Waiting its turn alongside the training “{name}”: {first} goes first',
+    besideAfter: 'Waiting for the training “{name}” to end, then for {first}, queued before it',
+    besideAfterEnd: 'Waiting for the training “{name}” to end (around {at}), then for {first}, queued before it',
+    besideAfterN: 'Waiting for the training “{name}” to end, then for {n} jobs queued before it, including {first}',
+    besideAfterEndN: 'Waiting for the training “{name}” to end (around {at}), then for {n} jobs queued before it, including {first}',
+    besideBehindN: 'Waiting its turn alongside the training “{name}”: {n} jobs go first',
+    besideOther: 'another “{first}”',
+    besideFirst: '“{first}”',
+    besideRun: 'Alongside the training “{name}”',
+    waitTrainingQ: 'After the training',
+    waitTrainingEndQ: 'After the training, around {at}',
+    waitTrainingSoonQ: 'The training goes first',
+    besideWaitQ: 'Not enough memory: needs ≈ {need} GB, {free} free minus the {margin} GB margin',
+    besideWaitEndQ: 'Not enough memory: needs ≈ {need} GB, {free} free minus the {margin} GB margin',
+    besideVideoQ: 'A video does not run alongside: after the training',
+    besideVideoEndQ: 'A video does not run alongside: after the training, around {at}',
+    besideBusyQ: 'After the job running alongside',
+    besideStartQ: 'Waits for the training’s first steps',
+    besideSettleQ: 'Waits for the training to take its memory',
+    besideSampleQ: 'Waits for the training’s sample to end',
+    besideMeasuringQ: 'Measuring the free memory',
+    besideBehindQ: 'Its turn alongside: {first} goes first',
+    besideAfterQ: 'After the training, then {first}',
+    besideAfterEndQ: 'After the training (around {at}), then {first}',
+    besideAfterNQ: 'After the training, then {n} jobs queued before it',
+    besideAfterEndNQ: 'After the training (around {at}), then {n} jobs queued before it',
+    besideBehindNQ: 'Its turn alongside: {n} jobs go first',
+    holdBusy: 'A training already holds the GPU.',
     gpuBusy: 'GPU busy: “{who}” since {at}',
     gpuBusyMin: 'GPU busy: “{who}” since {at} (~{minutes} min)',
     comfyOther: 'another session (ComfyUI)',
@@ -156,6 +252,7 @@ const STR = {
     fill: 'Fill in “{label}”',
     noModel: 'No model installed for “{label}”',
     modelGone: 'The model chosen for “{label}” is no longer available',
+    modelBlocked: 'The model “{name}” chosen for “{label}” cannot be run: its compute recipe is not validated in Mia. Pick “Auto” or another version.',
     inBlock: 'Block “{block}”: {msg}',
     noSuchOutput: 'Block “{name}” has no “{port}” output',
     noOutput: 'This block passes nothing on',
@@ -198,8 +295,39 @@ const STR = {
 // ---------------------------------------------------------------- constants
 const STATUS_MS = 3000;
 const SMI_MS = 10000;
+// nvidia-smi's reading of the memory used counts for the status this long (tick: the larger of it and ComfyUI's)
+const SMI_FRESH_MS = 2 * SMI_MS;
+// a reading is due a little before its time: the round starts every STATUS_MS but reads nvidia-smi after GET
+// /system_stats, whose length varies (a shorter one used to put the reading off by a whole round: every 6 s, not 3)
+const SMI_SLACK_MS = 1000;
+// after a training or a local job, nvidia-smi is still read at every round this long (the memory falls by tens of GB)
+const SMI_TAIL_MS = 15000;
+// ComfyUI's figure moved this much since nvidia-smi's last reading (a model freed or loaded): it is read again at
+// once, or the larger of the two would keep a figure already freed (a usual PC: 20 GB shown up to 10 s after /free)
+const SMI_MOVE_GB = 1;
 const RETRY_MS = 15000;              // GPU lock polling, as the lab's scripts do
 const RENEW_MS = 5 * 60 * 1000;
+// A LoRA training holds the GPU for hours: its lock never announces more than 30 min (rewritten every RENEW_MS), so a
+// lock left by a crash is given up by the other sessions after 2 × 30 + 10 = 70 min at most.
+const HOLD_MAX_MIN = 30;
+// « Générer pendant un entraînement » (prefs.trainGenBeside, on unless set to false): ONE local heavy job may start
+// beside a LoRA training that is in its « entrainement » state, settled (BESIDE_SETTLE_*), when the GPU memory used
+// (the larger of nvidia-smi NOW and the training's known peak), plus the model's MEASURED peak (m.mem.gb with basis
+// 'measured' / 'derived': FLUX.2 Klein 9B ≈ 29, Qwen-Image 2.1 ≈ 23, measured on 19/11/2026 beside an LTX training),
+// plus this margin, stays STRICTLY under the machine's one total (94 GB on the RTX Spark). A figure « tuned for 24 GB »
+// (basis 'catalog') or read from the file is no peak: the job waits, as for no estimate at all. A video always waits
+// (its peak grows with its resolution and length, besideIsVideo). 16 GB: the margin Mia keeps everywhere above a
+// measured peak in unified memory (scanner-rules MEM_MARGIN_GB) — what was not measured (a layout image, two LoRAs, an
+// image to edit) and the few GB the training moves between its steps.
+const BESIDE_MARGIN_GB = 16;
+const BESIDE_FRESH_MS = 3000;        // a memory reading older than this is taken again before a job starts beside
+const BESIDE_RETRY_MS = 5000;        // a job waiting for memory: measured again after this, then 3 × and 12 × as long
+                                     // while the reading does not move (a training of hours: no nvidia-smi every 5 s)
+// A training that just started its steps (or came back to them after a sample, a pause, « Laisser passer ») has not
+// allocated its activations and optimizer states yet: the reading is low. Nothing starts beside it before it has done
+// this many steps AND this long since it entered its « entrainement » phase.
+const BESIDE_SETTLE_STEPS = 3;
+const BESIDE_SETTLE_MS = 10000;
 const MAX_LIGHT = 2;
 // Online jobs at once (prefs.cloudParallel): Higgsfield queues beyond the account's own limit, nothing is charged twice.
 const ONLINE_DEFAULT = 4;
@@ -237,6 +365,12 @@ const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 const toSlash = (p) => String(p).split(/[\\/]+/).join('/');
 const safeSeg = (s) => /^[\w.-]+$/.test(String(s || '')) && !/^\.+$/.test(String(s));
 const hms = () => new Date().toTimeString().slice(0, 8);
+/** A time of day as the window writes it (src/js/util.js fmtClock): « 3 h 40 » / "03:40". */
+function clock(ms, lang) {
+  const d = new Date(Number(ms) || Date.now());
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return lang === 'en' ? `${String(d.getHours()).padStart(2, '0')}:${mm}` : `${d.getHours()} h ${mm}`;
+}
 
 /** JSON with sorted keys: the same settings always give the same fingerprint. */
 function stable(v) {
@@ -403,18 +537,34 @@ function shownParam(p, params) {
  * and versions made before keep their fingerprint. A setting marked `hashOmitDefault` (« Passes » of the LTX
  * blocks, 30/10) is left out while it is missing or at its default: blocks made before it existed keep EXACTLY
  * their fingerprint (no recompute by ricochet); only an explicit choice counts.
+ *
+ * `root` (SPEC §7, §8.2): the id of a model is made from its path, so it changed when the engine folder moved.
+ * With root = i, a model writes the id it had under the i-th former engine folder (`aliases[i]`, scanner.js
+ * aliasIds) — the fingerprint a version made back then carries. Without `root` (-1): today's ids, as always.
+ *
+ * `pairTag` (SPEC §7): an LTX transformer run with the FULL text encoder writes « model:<id>+te:full » — the encoder
+ * changes the result. With the compact encoder (every version made before) there is no tag: the string is unchanged.
  */
-function hashParamsOf(type, params, models) {
+function hashParamsOf(type, params, models, root = -1) {
   const o = {};
   for (const p of type.params || []) {
     if (p.hashOmitDefault && (params[p.id] == null || params[p.id] === p.default)) continue;
     if (!shownParam(p, params)) { o[p.id] = p.default === undefined ? null : clone(p.default); continue; }
     if (p.kind === 'model') {
       const m = models[p.id];
-      o[p.id] = m ? `model:${m.id || m.file || m.path || stable(m.comfy || m.label || '')}` : String(params[p.id] ?? '');
+      const id = m && (root >= 0 && Array.isArray(m.aliases) && m.aliases[root]
+        ? m.aliases[root] : (m.id || m.file || m.path || stable(m.comfy || m.label || '')));
+      o[p.id] = m ? `model:${id}${typeof m.pairTag === 'string' && m.pairTag ? `+${m.pairTag}` : ''}` : String(params[p.id] ?? '');
     } else o[p.id] = params[p.id] ?? null;
   }
   return o;
+}
+
+/** How many former engine folders the models of a block know (the longest `aliases` among them). */
+function formerRootsOf(models) {
+  let n = 0;
+  for (const m of Object.values(models || {})) if (m && Array.isArray(m.aliases)) n = Math.max(n, m.aliases.length);
+  return n;
 }
 
 /**
@@ -616,15 +766,30 @@ class Planner {
     const genParams = gen && Array.isArray(gen.params) ? new Set(gen.params) : null;
 
     const models = {};
+    // « Auto » before the machine's memory changed it (SPEC §7, capabilities[c].legacyDefault): the models the same
+    // settings resolved to then. Only where it differs from today's — see hashAlts below.
+    const legacy = {};
     for (const p of type.params || []) {
       if (p.kind !== 'model' || p.gen) continue;            // the Model block's family: planGen above
       if (genParams && !genParams.has(p.id)) { models[p.id] = null; continue; }
       const v = params[p.id];
       if (p.allowNone && (v == null || v === '' || v === 'none')) { models[p.id] = null; continue; }
-      const m = await this.e.resolveModel(v == null || v === '' ? 'auto' : v, p.caps);
+      const isAuto = v == null || v === '' || v === 'auto';
+      const m = await this.e.resolveModel(isAuto ? 'auto' : v, p.caps);
       models[p.id] = m;
+      if (m && isAuto) {
+        const was = await this.e.resolveModel('auto', p.caps, { legacy: true });
+        if (was && was.id !== m.id) legacy[p.id] = was;
+      }
       if (m || !this.e.hasModels()) continue;
       const chosen = v && v !== 'auto';
+      // recognised but not offered (its recipe is not validated, SPEC §7): say so — it is not « gone »
+      const named = chosen ? this.e.findModel(v) : null;
+      if (named && named.blocked) {
+        missing.push({ nodeId: node.id, kind: 'model', param: p.id, caps: p.caps || [],
+          message: this.tr('modelBlocked', { name: tl(named.label, this.lang) || named.file || String(v), label: this.label(node, type) }) });
+        continue;
+      }
       if (!p.allowNone) {
         missing.push({ nodeId: node.id, kind: 'model', param: p.id, caps: p.caps || [],
           message: this.tr(chosen ? 'modelGone' : 'noModel', { label: this.label(node, type) }) });
@@ -636,7 +801,10 @@ class Planner {
       }
     }
 
-    if (genPlan) models.model = genPlan.model || null;
+    if (genPlan) {
+      models.model = genPlan.model || null;
+      if (genPlan.legacyModel && models.model && genPlan.legacyModel.id !== models.model.id) legacy.model = genPlan.legacyModel;
+    }
 
     // a kept resolution the model does not offer runs at the value the block shows (params.js fitValue): the largest
     // allowed one below it, else the first — not at the raw kept value (audit 25/10: 768p shown, 720p computed)
@@ -661,11 +829,31 @@ class Planner {
     const hashParams = this.e.hashParams(type, params, models);
     // a Model block also hashes its workflow and its online settings (hf.*), a rewritten Prompt block its way of
     // rewriting (REWRITE); every other block keeps its old hash
-    const hashFor = (m) => sha1(stable(gen
-      ? [type.id, hashParams, type.modes ? m : null, inputHashes, gen.workflow, gen.cloudParams || null]
-      : type.hashTag ? [type.id, hashParams, type.modes ? m : null, inputHashes, type.hashTag]
-        : [type.id, hashParams, type.modes ? m : null, inputHashes]));
-    return { node, type, mode, params, models, inputRefs, inputKinds, deps: [...deps], hash: hashFor(mode), hashFor,
+    const hashOf = (hp, m) => sha1(stable(gen
+      ? [type.id, hp, type.modes ? m : null, inputHashes, gen.workflow, gen.cloudParams || null]
+      : type.hashTag ? [type.id, hp, type.modes ? m : null, inputHashes, type.hashTag]
+        : [type.id, hp, type.modes ? m : null, inputHashes]));
+    const hashFor = (m) => hashOf(hashParams, m);
+    // The engine folder moved (SPEC §7): the versions made before carry the fingerprint of the ids their models
+    // had under a former folder. One more fingerprint per former folder (never a mix of folders), same inputs —
+    // a reused upstream version hands down its own old fingerprint, so a whole chain is recognised step by step.
+    // They only RECOGNISE existing versions (_computed): a new job always carries `hash`, today's fingerprint.
+    // « Auto » changed with the machine's memory (the full version where the compact one was the default): a version
+    // made in Auto before carries the fingerprint of the old default — same thing, with `legacyModels`, today's ids
+    // and one per former folder. A model chosen by name has no such tolerance: its fingerprint is its own.
+    const legacyModels = Object.keys(legacy).length ? { ...models, ...legacy } : null;
+    const hashAlts = (m) => {
+      const out = [];
+      const own = hashFor(m);
+      const add = (h) => { if (h !== own && !out.includes(h)) out.push(h); };
+      for (const [set, from] of [[models, 0], [legacyModels, -1]]) {
+        if (!set) continue;
+        const formers = formerRootsOf(set);
+        for (let i = from; i < formers; i++) add(hashOf(this.e.hashParams(type, params, set, i), m));
+      }
+      return out;
+    };
+    return { node, type, mode, params, models, inputRefs, inputKinds, deps: [...deps], hash: hashFor(mode), hashFor, hashAlts,
       notes: [...new Set(notes)], gen };
   }
 
@@ -682,6 +870,14 @@ class Planner {
     const out = { missing: [], notes: [], model: null, gen: null, limits: {} };
     const label = this.label(node, type);
     const fam = R.familyOf(params.model, local, cloud, inv);
+    // A model recognised but not offered (its recipe is not validated, SPEC §7) kept in the block — by an old board,
+    // or forced through the assistants' bridge: refused here, by name. Never a silent switch to another version.
+    const named = (fam && fam.provider === 'local' && fam.variant) || (!fam ? R.findModel(inv, params.model) : null);
+    if (named && named.blocked) {
+      out.missing.push({ nodeId: node.id, kind: 'model', param: 'model',
+        message: this.tr('modelBlocked', { name: tl(named.label, this.lang) || named.file || String(params.model), label }) });
+      return out;
+    }
     if (!fam) {
       out.missing.push({ nodeId: node.id, kind: 'model', param: 'model', message: this.tr('genNoModel', { label }) });
       return out;
@@ -728,6 +924,9 @@ class Planner {
         out.missing.push({ nodeId: node.id, kind: 'model', param: 'model', caps: [wf.cap], message: this.tr('genNoLocal', { family, what }) });
       }
       out.model = m || null;
+      // the family left to Mia (« Auto », fam:<key>): the model it resolved to before the machine's memory changed
+      // the default — spec() recognises the versions made then (hashAlts)
+      if (m && !fam.variant) out.legacyModel = R.localModelFor(fam, wf, inv, { legacy: true }) || null;
       // ports: the workflow's inputs reach its executor even when the task block has none of them (images-clés…)
       // params: the settings this workflow shows — gen.js hands only those (over the task block's defaults) to the executor
       out.gen = { provider: 'local', key: fam.key, family, workflow: wf.id, what, executor: wf.executor, as: wf.as,
@@ -863,7 +1062,11 @@ class Planner {
     const mode = pickMode(type, reqMode);
     const spec = await this.spec(node, type, mode, stack);
     if (spec.error) return spec;
+    // today's fingerprint, and the ones the same settings had when the engine folder was elsewhere (spec.hashAlts):
+    // a version made before the engine moved is still the current one
+    const modes = type.modes || [mode];
     const wanted = new Set(type.modes ? type.modes.map((m) => spec.hashFor(m)) : [spec.hash]);
+    for (const m of modes) for (const h of spec.hashAlts(m)) wanted.add(h);
     const runs = (await this.e.listRuns(dir, node.id))
       .filter((r) => r.status === 'done' && wanted.has(r.hash) && this.e.runFilesExist(dir, r));
     const run = currentRun(runs);
@@ -909,7 +1112,8 @@ class Engine extends EventEmitter {
       if (ctx.prefs && typeof ctx.prefs.onChange === 'function') {
         this._offPrefs = ctx.prefs.onChange((p, changed) => {
           if (p && typeof p === 'object') this._prefs = p;
-          if (!changed || typeof changed.has !== 'function' || changed.has('cloudParallel')) setImmediate(() => this.pump());
+          // … and « Générer pendant un entraînement » switched on: a job waiting behind a training may start beside it
+          if (!changed || typeof changed.has !== 'function' || changed.has('cloudParallel') || changed.has('trainGenBeside')) setImmediate(() => this.pump());
         });
       }
     } catch { /* no live prefs: read again at each status tick */ }
@@ -921,6 +1125,12 @@ class Engine extends EventEmitter {
     this._exec = new Map();
     this._gpu = { name: null, vramUsedGB: null, vramTotalGB: null };
     this._smiAt = 0;
+    // nvidia-smi's last reading: {usedGB | null (first card), gpus: [{name, usedGB, totalGB}], at, comfyGB} (smiUsedNow;
+    // comfyGB: ComfyUI's figure of the memory used at that moment, smiDue)
+    this._smiRead = null;
+    this._smiFastUntil = 0;        // smiEveryMs: read at every round until then (SMI_TAIL_MS after a training or a job)
+    this._comfyUsedGB = null;      // ComfyUI's figure of the memory used at the last round (tick), null when it is off
+    this._smiFailed = false;
     this._lastTick = 0;
     this._lastStatusJson = '';
     this._comfyBusyOther = false;
@@ -928,6 +1138,16 @@ class Engine extends EventEmitter {
     this._journal = this.loadJournal();
 
     this.lock = createGpuLock({ lockPath: () => this.lockPath() });
+    this._hold = null;           // the GPU door of a LoRA training (holdGpu / adoptGpu): asked for, or held
+    this.trainer = null;         // the training service (attachTrainer): brief() for the status, killSync() at shutdown
+    this._trainKey = '';
+    this._besideMem = null;      // the last GPU memory reading for a job beside a training: {usedGB | null, at}
+    this._besideMeasuring = null;
+    this._besideTimer = null;
+    this._besideSettle = null;   // {key, step, at}: when the training entered its current state / phase (BESIDE_SETTLE_*)
+    this._besideStill = 0;       // memory waits in a row on a reading that did not move (retry 1 ×, 3 ×, 12 ×)
+    this._besideSeenAt = 0;
+    this._besideLastUsed = null;
     this.comfy = this.opts.comfy || new Comfy({
       prefs: () => this._prefs,
       logsDir: this.logsDir,
@@ -1032,8 +1252,8 @@ class Engine extends EventEmitter {
   }
 
   /** Params that define the result (see hashParamsOf). */
-  hashParams(type, params, models) {
-    return hashParamsOf(type, params, models);
+  hashParams(type, params, models, root = -1) {
+    return hashParamsOf(type, params, models, root);
   }
 
   hasModels() {
@@ -1050,10 +1270,29 @@ class Engine extends EventEmitter {
     try { return !!(this.ctx.cloud && typeof this.ctx.cloud.linked === 'function' && this.ctx.cloud.linked()); } catch { return false; }
   }
 
-  async resolveModel(value, caps) {
+  /**
+   * The inventory entry a reference names (id, id from before the engine folder moved, LoRA registry id, path),
+   * whatever its state — to say why a chosen model cannot run. Null when unknown, or without a scanner.
+   */
+  findModel(ref) {
+    try { return (this.ctx.models && typeof this.ctx.models.find === 'function' && this.ctx.models.find(ref)) || null; } catch { return null; }
+  }
+
+  /** The machine's one memory total the scanner keeps ({ memGB, gpu, source }), or null (none read yet, no scanner). */
+  machine() {
+    try { return (this.ctx.models && typeof this.ctx.models.machine === 'function' && this.ctx.models.machine()) || null; } catch { return null; }
+  }
+
+  /** Hands a reading of the machine's memory total (ComfyUI or nvidia-smi) to the scanner, which keeps it. */
+  noteMachine(reading) {
+    try { if (this.ctx.models && typeof this.ctx.models.noteMachine === 'function') this.ctx.models.noteMachine(reading); } catch { /* indicator only */ }
+  }
+
+  /** opts.legacy: for « Auto », the default before the machine's memory changed it (scanner.js resolveIn). */
+  async resolveModel(value, caps, opts) {
     if (!this.hasModels()) return null;
     try {
-      return (await this.ctx.models.resolve(value, caps || [])) || null;
+      return (await this.ctx.models.resolve(value, caps || [], opts || {})) || null;
     } catch {
       return null;
     }
@@ -1289,7 +1528,11 @@ class Engine extends EventEmitter {
       jobId: job.jobId, projectId: job.projectId, nodeId: job.nodeId, label: job.label, type: job.type, mode: job.mode,
       state: job.state, progress: job.progress, eta: job.eta, etaAt: job.etaAt, message: job.message,
       created: job.created, started: job.started, finished: job.finished, who: job.who, since: job.since,
-      projectName: job._.project.name, online: !!job.online, remote: job.remote || null
+      projectName: job._.project.name, online: !!job.online, remote: job.remote || null,
+      // a LoRA training: the job runs beside it (its name), or waits behind it (message says why)
+      ...(job.beside ? { beside: job.beside } : {}), ...(job.trainWait ? { trainWait: true } : {}),
+      // …and its reason, short, for the queue (waitShort: the reason first, without the training's name)
+      ...(job.trainWait && job.waitShort ? { waitShort: job.waitShort } : {})
     };
   }
 
@@ -1301,6 +1544,9 @@ class Engine extends EventEmitter {
     };
     if (job.online) { evt.online = true; evt.remote = job.remote || null; }
     if (job.who) { evt.who = job.who; evt.since = job.since; }
+    if (job.beside) evt.beside = job.beside;          // runs beside a LoRA training (its name)
+    if (job.trainWait) evt.trainWait = true;          // waits behind a LoRA training: the message says why
+    if (job.trainWait && job.waitShort) evt.waitShort = job.waitShort;   // …and the queue's short reason
     if (FINAL.has(kind)) job._.finalEvt = evt;
     job._.lastEmit = Date.now();
     this.send('engine:event', evt);
@@ -1308,9 +1554,12 @@ class Engine extends EventEmitter {
     this.pushStatusSoon();
   }
 
-  setWaitingMessage(job, msg) {
-    if (job.message === msg) return;
+  setWaitingMessage(job, msg, short) {
+    // short: the queue's short reason behind a LoRA training (waitShort); any other message has none
+    const s2 = short || null;
+    if (job.message === msg && (job.waitShort || null) === s2) return;
     job.message = msg;
+    job.waitShort = s2;
     this.emitJob(job, 'queued');
   }
 
@@ -1387,6 +1636,11 @@ class Engine extends EventEmitter {
    * - online jobs, their own lane: up to prefs.cloudParallel at once, beside anything local (they only wait for
    *   the network: no GPU, no big CPU); they neither count among the light ones nor hold back a heavy one.
    * The catalog decides what is heavy (`engine.gpu`): composite (torch on CUDA) is, and takes the lock.
+   * - a LoRA training (holdGpu) goes before every queued heavy job and holds heavy and light ones back for as long
+   *   as it has the GPU; jobs without GPU keep running beside it, except while it loads its model; online jobs
+   *   are never held.
+   * - « Générer pendant un entraînement » (prefs.trainGenBeside): the FIRST heavy job of the queue may start beside
+   *   a training that holds the GPU and trains, when the memory measured now allows it (besideCheck) — one at a time.
    */
   pump() {
     if (this._disposed) return;
@@ -1395,7 +1649,42 @@ class Engine extends EventEmitter {
     let lights = active.filter((j) => j._.gpu !== 'heavy' && !j._.online).length;
     let onlines = active.filter((j) => j._.online).length;
     const onlineMax = this.onlineLimit();
-    let heavyGate = active.some((j) => j._.gpu === 'heavy' && (j._.holdsLock || j._.wantsGpu));
+    // a job beside a training gates the light jobs (they wait for the training anyway) but not the ones without GPU:
+    // those run beside the training, as they did before anything ran beside it
+    let heavyGate = active.some((j) => j._.gpu === 'heavy' && !j._.beside && (j._.holdsLock || j._.wantsGpu));
+    let besideGate = active.some((j) => j._.gpu === 'heavy' && j._.beside);
+    // A LoRA training asked for the GPU, or holds it: no heavy job starts (it goes first, then keeps the GPU for
+    // hours). Light jobs wait too; a job without any GPU (`engine.gpu: none`) still runs beside the training —
+    // except while it is about to take the GPU and while it loads its model (Windows memory is then at its limit).
+    const hold = this._hold;
+    const holdAll = !!hold && (hold.held ? this.trainingLoading() : hold.wants);
+    const holdLight = !!hold && (hold.held || hold.wants);
+    // msg: the whole sentence (block, mia_jobs); short: the same reason, short, for the queue (waitShort)
+    const waitTraining = (job, msg, short) => {
+      job._.waitsTraining = true;
+      job.trainWait = true;
+      this.setWaitingMessage(job, msg || this.trainingMessage(), msg ? (short || null) : this.trainingMessage(true));
+    };
+    // Beside a training: only the first heavy job of the queue is looked at (the queue stays in order), and never
+    // while another one already runs beside it.
+    // Every other heavy job waiting behind the training still reads ITS reason (besideWhy: a video, the job running
+    // beside it, the first one of the queue that goes before it, the training that has not started its steps…),
+    // recomputed at each pass: only the message changes, never the order nor who starts.
+    let besideLooked = active.some((j) => j._.gpu === 'heavy');
+    // `let`: a job that starts beside the training during THIS pass counts for the ones after it (they used to keep
+    // the message they had before it started)
+    let besideRunning = active.some((j) => j._.gpu === 'heavy' && j._.beside);
+    // the first heavy job that waits beside the training: the ones after it wait their turn behind it (besideBehind)
+    let besideHead = null;
+    // the first heavy job that waits and never starts beside the training (a video, no measured estimate): the ones
+    // after it wait for the END of the training, then for it (besideAfter) — not « their turn beside it »
+    let besideNever = null;
+    // how many heavy jobs wait from besideHead on, and from besideNever on: the message counts them when they are
+    // several (besideBehindN, besideAfterN)
+    let besideHeadN = 0;
+    let besideNeverN = 0;
+    let besideRetry = false;
+    let besideRetryMem = true;          // only memory waits: the retry slows down while the reading does not move
 
     for (const id of [...this.order]) {
       const job = this.jobs.get(id);
@@ -1415,6 +1704,48 @@ class Engine extends EventEmitter {
         onlines++;
         this.start(job);
       } else if (job._.gpu === 'heavy') {
+        if (hold) {
+          const v = besideLooked ? null : this.besideCheck(job);
+          besideLooked = true;
+          if (!v || !v.ok) {
+            // looked at again later: a memory wait (slower and slower while the reading does not move), a training
+            // that settles; a reading under way calls pump itself when it is there (besideMeasure)
+            if (v && (v.reason === 'memory' || v.reason === 'settling')) {
+              besideRetry = true;
+              if (v.reason !== 'memory') besideRetryMem = false;
+            }
+            if (v && v.reason === 'memory') { job._.memWait = true; waitTraining(job, this.besideWaitMessage(v), this.besideWaitMessage(v, true)); }
+            else if (v && v.reason === 'measuring' && job._.memWait) { /* keep the figures shown until the new reading */ }
+            else {
+              job._.memWait = false;
+              const ctx = { running: besideRunning, head: besideHead, never: besideNever, headN: besideHeadN, afterN: besideNeverN };
+              waitTraining(job, this.besideWhy(job, v, ctx), this.besideWhy(job, v, ctx, true));
+            }
+            if (!besideHead) besideHead = job;
+            besideHeadN++;
+            if (!besideNever && this.besideNever(job, v)) besideNever = job;
+            if (besideNever) besideNeverN++;
+            continue;
+          }
+          // it starts beside the training: the training's lock covers the GPU, this job takes none (execute)
+          job._.waitsTraining = false;
+          job._.memWait = false;
+          job.trainWait = false;
+          job.waitShort = null;
+          job._.beside = v;
+          job.beside = v.name;
+          heavyActive = true;
+          job._.wantsGpu = true;            // no light job slips in beside it (they wait for the training anyway)
+          besideGate = true;
+          besideRunning = true;
+          this._besideStill = 0;
+          this.start(job);
+          continue;
+        }
+        job._.waitsTraining = false;
+        job._.memWait = false;
+        job.trainWait = false;
+        job.waitShort = null;
         if (heavyActive) { this.setWaitingMessage(job, this.tr('waitHeavy')); continue; }
         heavyActive = true;
         // It wants the GPU right away: no light job may slip in behind it (released if it has to wait for another app).
@@ -1422,13 +1753,278 @@ class Engine extends EventEmitter {
         heavyGate = true;
         this.start(job);
       } else {
-        if (heavyGate) { this.setWaitingMessage(job, this.tr('waitHeavy')); continue; }
+        if (holdAll || (holdLight && job._.gpu !== 'none')) { waitTraining(job); continue; }
+        job._.waitsTraining = false;
+        job.trainWait = false;
+        job.waitShort = null;
+        // beside a training that holds the GPU, a job without GPU passes a job running beside it too (as before)
+        const besideBlocks = besideGate && !(hold && hold.held && job._.gpu === 'none');
+        if (heavyGate || besideBlocks) { this.setWaitingMessage(job, this.tr('waitHeavy')); continue; }
         if (lights >= MAX_LIGHT) { this.setWaitingMessage(job, this.tr('queued')); continue; }
         lights++;
         this.start(job);
       }
     }
+    // a job waits for memory beside a training: measured again in a few seconds (what the training or ComfyUI
+    // holds moves), then the queue is looked at again
+    if (besideRetry && !this._besideTimer) {
+      const base = this.opts.besideRetryMs || BESIDE_RETRY_MS;
+      const slow = besideRetryMem ? [1, 3, 12][Math.min(2, this._besideStill)] : 1;
+      this._besideTimer = setTimeout(() => { this._besideTimer = null; this.pump(); }, base * slow);
+      if (this._besideTimer.unref) this._besideTimer.unref();
+    }
     this.pushStatusSoon();
+  }
+
+  // ------------------------------------------------------------ a job beside a LoRA training
+  /** prefs.trainGenBeside: on unless set to false (an older prefs.json without it: on). */
+  besideAllowed() {
+    return !(this._prefs && this._prefs.trainGenBeside === false);
+  }
+
+  /** The models of a job that take memory (LoRAs do not count: a few hundred MB, inside the margin). */
+  besideModels(job) {
+    return Object.values((job._.spec && job._.spec.models) || {}).filter(Boolean)
+      .filter((m) => !(m.role === 'lora' || (Array.isArray(m.caps) && m.caps.includes('lora'))));
+  }
+
+  /**
+   * Does this job make a video? Its peak then grows with its resolution and its length, which no estimate follows
+   * yet: it never starts beside a training. A video Model block (gen.kind), a model that makes videos (caps), or an
+   * estimate measured on a video (mem.at.frames).
+   */
+  besideIsVideo(job) {
+    const gen = job._.spec && job._.spec.gen;
+    if (gen && gen.kind === 'video') return true;
+    return this.besideModels(job).some((m) => (Array.isArray(m.caps) && m.caps.some((c) => /video$/.test(c) || c === 'character-performance'))
+      || !!(m.mem && m.mem.at && Number(m.mem.at.frames) > 0));
+  }
+
+  /**
+   * The MEASURED peak of a job's model, in GB: the figure Mia shows for each version (m.mem.gb, scanner memOf) only
+   * when it was measured on this kind of machine (basis 'measured', or 'derived' from a neighbouring version). A
+   * figure « tuned for 24 GB » (basis 'catalog') or read from the file ('file') is no peak (LTX: 21 shown for 24 GB,
+   * 40 measured): null, the job waits. A measurement made at a given size (mem.at {w, h}) holds up to that many
+   * pixels: a job asking for more (params.resolution, side of the equivalent square) has no estimate either.
+   * The largest of its models; null when a model has none, or when the job names no model at all (composite…).
+   */
+  besideNeedGB(job) {
+    const models = this.besideModels(job);
+    const params = (job._.spec && job._.spec.params) || {};
+    const side = Number(params.resolution);
+    let need = null;
+    for (const m of models) {
+      const mem = m.mem;
+      if (!mem || !(mem.basis === 'measured' || mem.basis === 'derived') || !(Number(mem.gb) > 0)) return null;
+      const at = mem.at;
+      if (at && Number(at.w) > 0 && Number(at.h) > 0 && side > 0 && side * side > Number(at.w) * Number(at.h) * 1.05) return null;
+      need = Math.max(need || 0, Number(mem.gb));
+    }
+    return need;
+  }
+
+  /** The machine's one total (SPEC §7.4: the scanner's, else the last reading), in GB, or null. */
+  besideTotalGB() {
+    const known = this.machine();
+    if (known && Number(known.memGB) > 0) return Number(known.memGB);
+    return this._gpu && Number(this._gpu.vramTotalGB) > 0 ? Number(this._gpu.vramTotalGB) : null;
+  }
+
+  /**
+   * May this heavy job start beside the LoRA training that holds the GPU? Synchronous (pump): it reads the last
+   * memory reading and asks for a new one when it is older than BESIDE_FRESH_MS (pump runs again when it comes).
+   * → {ok:true, name, needGB, usedGB, freeGB, marginGB, totalGB}
+   *   | {ok:false, reason: 'off' | 'training' | 'video' | 'unknown' | 'settling' | 'measuring' | 'memory', …}
+   * 'training': not trained right now (asked for, loading, sampling, no state); 'video': a video, never beside;
+   * 'unknown': no measured estimate for the model (or not at this size), no total, no reading of the memory, or a
+   * job that could not fit even with the training stopped — Mia then waits, as before, without measuring;
+   * 'settling': the training entered its steps a moment ago (BESIDE_SETTLE_*), its memory is not up yet.
+   * The memory used is the larger of the reading and the training's known peak (t.peakVramGB): a reading taken
+   * between two steps, lower, does not let a job in that the training's next step would not leave room for.
+   */
+  besideCheck(job) {
+    if (!this.besideAllowed()) return { ok: false, reason: 'off' };
+    const hold = this._hold;
+    const t = this.trainingInfo();
+    if (!hold || !hold.held || !t || t.state !== 'entrainement' || t.phase === 'load') return { ok: false, reason: 'training' };
+    const name = t.name || hold.qui.replace(/^Mia : /, '');
+    if (this.besideIsVideo(job)) return { ok: false, reason: 'video', name, endAt: t.endAt || null };
+    const need = this.besideNeedGB(job);
+    const total = this.besideTotalGB();
+    if (need == null || total == null || need + BESIDE_MARGIN_GB >= total) return { ok: false, reason: 'unknown' };
+    // settled: a few steps and a few seconds since the training entered this state and phase
+    const key = `${t.id}|${t.state}|${t.phase || ''}`;
+    const step = Number(t.step) || 0;
+    let s = this._besideSettle;
+    if (!s || s.key !== key) s = this._besideSettle = { key, step, at: Date.now() };
+    const steps = this.opts.besideSettleSteps != null ? this.opts.besideSettleSteps : BESIDE_SETTLE_STEPS;
+    const ms = this.opts.besideSettleMs != null ? this.opts.besideSettleMs : BESIDE_SETTLE_MS;
+    if (step < s.step + steps || Date.now() - s.at < ms) return { ok: false, reason: 'settling' };
+    const m = this._besideMem;
+    if (!m || Date.now() - m.at > (this.opts.besideFreshMs || BESIDE_FRESH_MS)) {
+      this.besideMeasure();
+      return { ok: false, reason: 'measuring' };
+    }
+    if (m.usedGB == null) return { ok: false, reason: 'unknown' };
+    const peak = Number(t.peakVramGB) > 0 ? Number(t.peakVramGB) : 0;
+    const used = Math.round(Math.max(0, Math.min(total, Math.max(m.usedGB, peak))) * 10) / 10;
+    const free = Math.round((total - used) * 10) / 10;
+    const out = { name, endAt: t.endAt || null, needGB: need, usedGB: used, freeGB: free, marginGB: BESIDE_MARGIN_GB, totalGB: total };
+    // strictly under: what is left after the estimated peak is MORE than the margin
+    if (need + BESIDE_MARGIN_GB < free) return { ok: true, ...out };
+    // a memory wait: the retry slows down while the reading does not move (one count per new reading)
+    if (this._besideSeenAt !== m.at) {
+      this._besideSeenAt = m.at;
+      const still = this._besideLastUsed != null && Math.abs(m.usedGB - this._besideLastUsed) < 1;
+      this._besideStill = still ? this._besideStill + 1 : 0;
+      this._besideLastUsed = m.usedGB;
+    }
+    return { ok: false, reason: 'memory', ...out };
+  }
+
+  /** « Attend de la place à côté de l’entraînement « Plumo » (fin vers 15 h 10) : il faut ≈ 29 Go, 40 sont libres moins 16 de marge » */
+  besideWaitMessage(v, short = false) {
+    const L = this.lang();
+    const n = (x) => String(Math.round(x * 10) / 10).replace('.', L === 'en' ? '.' : ',');
+    const vars = { name: v.name, need: n(v.needGB), free: n(v.freeGB), margin: n(v.marginGB) };
+    const q = short ? 'Q' : '';                    // the queue's short words (waitShort)
+    return v.endAt ? this.tr('besideWaitEnd' + q, { ...vars, at: clock(v.endAt, L) }) : this.tr('besideWait' + q, vars);
+  }
+
+  /**
+   * The reason a heavy job waiting behind a LoRA training reads, when it is not a lack of memory (pump). v: its own
+   * besideCheck when it is the first heavy job of the queue looked at, null for the ones after it. → a message, or
+   * null for the message from before (trainingMessage). Only the text: pump alone decides who starts, from besideCheck.
+   * - the setting is off: the message from before;
+   * - a video: it waits for the end of the training, whatever the training does (besideVideoMessage);
+   * - a job with no measured estimate, or that would not fit even beside nothing: the message from before;
+   * - a heavy job before it in the queue never starts beside the training (ctx.never: a video, no measured estimate):
+   *   it waits for the end of the training, then for that one (besideAfter: the queue keeps its order);
+   * - another job runs beside the training (or just started in this pass): besideBusy;
+   * - the training waits for the GPU (attente): the message from before (« l’entraînement passe d’abord »);
+   * - it has the GPU but has not started its steps (preparation, model loading): besideStart;
+   * - it makes a sample: besideSample; it just entered its steps: besideSettle; the memory is read: besideMeasuring;
+   * - behind the first heavy job of the queue, which waits beside the training itself: besideBehind (its turn, the
+   *   order is kept). The job that goes first is named; « another … » when it bears the same name (variants).
+   * Anything else (a pause…): the message from before.
+   */
+  besideWhy(job, v, ctx = {}, short = false) {
+    if ((v && v.reason === 'off') || !this.besideAllowed()) return null;
+    // short: the same reason in the queue's short words (keys …Q of STR), for waitShort
+    const tr = (key, vars) => this.tr(short ? key + 'Q' : key, vars);
+    const hold = this._hold;
+    const t = this.trainingInfo();
+    const name = (t && t.name) || (hold ? hold.qui.replace(/^Mia : /, '') : '');
+    if (this.besideIsVideo(job)) return this.besideVideoMessage({ name, endAt: (t && t.endAt) || null }, short);
+    if (v && v.reason === 'unknown') return null;
+    const need = this.besideNeedGB(job);
+    const total = this.besideTotalGB();
+    if (need == null || total == null || need + BESIDE_MARGIN_GB >= total) return null;
+    if (ctx.never) {
+      // ctx.afterN: the heavy jobs that wait between the training and this one (the first « never » one and the ones
+      // after it). One is named; several are counted (the whole sentence names the first): « puis « X » » alone, with
+      // three videos before it, made the image seem to start after the first one (relecture of 19/11)
+      const n = ctx.afterN > 1 ? ctx.afterN : 0;
+      const first = n ? this.tr('besideFirst', { first: ctx.never.label }) : this.besideFirstOf(job, ctx.never);
+      const endAt = (t && t.endAt) || null;
+      const k = n ? 'N' : '';
+      return endAt ? tr('besideAfterEnd' + k, { name, at: clock(endAt, this.lang()), first, n }) : tr('besideAfter' + k, { name, first, n });
+    }
+    if (ctx.running) return tr('besideBusy', { name });
+    if (!hold || !hold.held || !t) return null;
+    if (t.state === 'preparation' || t.phase === 'load') return tr('besideStart', { name });
+    if (t.state === 'essai') return tr('besideSample', { name });
+    if (t.state !== 'entrainement') return null;
+    if (v && v.reason === 'settling') return tr('besideSettle', { name });
+    if (v && v.reason === 'measuring') return tr('besideMeasuring', { name });
+    if (!v && ctx.head) {
+      const n = ctx.headN > 1 ? ctx.headN : 0;     // several heavy jobs wait before it beside the training: counted
+      return n ? tr('besideBehindN', { name, n }) : tr('besideBehind', { name, first: this.besideFirstOf(job, ctx.head) });
+    }
+    return null;
+  }
+
+  /**
+   * Does this heavy job, waiting behind a LoRA training, never start beside it? A video, a job with no measured
+   * estimate (or that would not fit even beside nothing), or one its besideCheck found unknown (no reading of the
+   * memory). The jobs after it in the queue then wait for the end of the training (pump → besideWhy: besideAfter).
+   */
+  besideNever(job, v) {
+    if (v && v.reason === 'unknown') return true;
+    if (this.besideIsVideo(job)) return true;
+    const need = this.besideNeedGB(job);
+    const total = this.besideTotalGB();
+    return need == null || total == null || need + BESIDE_MARGIN_GB >= total;
+  }
+
+  /** The job that goes first, as a waiting message names it: « Profondeur », or « un autre « Qwen 2.1 » » when it bears the waiting job's name. */
+  besideFirstOf(job, first) {
+    const same = String(first.label || '').trim() === String(job.label || '').trim();
+    return this.tr(same ? 'besideOther' : 'besideFirst', { first: first.label });
+  }
+
+  /** « Attend la fin de l’entraînement « Plumo » (vers 15 h 10) : une vidéo ne part pas à côté » */
+  besideVideoMessage(v, short = false) {
+    const q = short ? 'Q' : '';                    // the queue's short words (waitShort)
+    return v.endAt ? this.tr('besideVideoEnd' + q, { name: v.name, at: clock(v.endAt, this.lang()) }) : this.tr('besideVideo' + q, { name: v.name });
+  }
+
+  /**
+   * The GPU memory used now, in GB, for besideCheck: nvidia-smi read now (the benches give opts.gpuUsedGB). One
+   * reading at a time; pump() runs again when it is there. null when it cannot be read.
+   */
+  besideMeasure() {
+    if (this._besideMeasuring || this._disposed) return this._besideMeasuring;
+    this._besideMeasuring = (async () => {
+      let used = null;
+      try {
+        if (typeof this.opts.gpuUsedGB === 'function') used = await this.opts.gpuUsedGB();
+        else { const r = await this.smi(); used = r ? r.vramUsedGB : null; }
+      } catch { used = null; }
+      this._besideMem = { usedGB: used != null && Number.isFinite(Number(used)) ? Number(used) : null, at: Date.now() };
+    })().finally(() => {
+      this._besideMeasuring = null;
+      if (!this._disposed) this.pump();
+    });
+    return this._besideMeasuring;
+  }
+
+  /**
+   * The training let the GPU go (end, pause, « Laisser passer ») while a job runs beside it: that job takes the
+   * lab's lock under its own name, so the other sessions still see the GPU busy until it ends. Only when the
+   * training had a lock file (never for the fake tool of the benches); a lock someone else took meanwhile is left.
+   */
+  besideTakeOver(hold) {
+    for (const j of this.jobs.values()) {
+      const J = j._;
+      if (!J.active || !J.beside || J.holdsLock || !J.qui) continue;
+      J.besideAlone = true;
+      if (!hold.file || this._disposed) continue;
+      try {
+        const r = this.lock.take(J.qui, J.lockMinutes || 10, hold.file);
+        if (r.ok) { J.holdsLock = true; J.lockFile = r.file || hold.file; this.jobLog(j, `verrou repris après l’entraînement : ${J.qui}`); }
+      } catch (e) { this.logLine(`beside: lock not taken for ${J.qui}: ${e.message}`); }
+    }
+  }
+
+  /**
+   * After EVERY job that ran beside a training, the same model next included (« 4 variantes »): ComfyUI may keep its
+   * model in memory (tens of GB), which the training's next sample needs, and which the next reading would count
+   * on top of the next job's own estimate (it would wait for nothing, until the end of the training, while that
+   * memory stays taken). Asked back (POST /free, only when ComfyUI's queue is empty — comfy.free) while the training
+   * still holds the GPU; reloading the model from the disk costs a few seconds. ComfyUI is not stopped: the next
+   * image would pay its start again.
+   */
+  async besideFree(job) {
+    if (this.opts.noComfyFree || this._disposed || !this._hold || !this._hold.held) return false;
+    try {
+      if (typeof this.comfy.free === 'function' && (await this.comfy.free())) {
+        this.logLine(`${job.label} : VRAM de ComfyUI rendue après un calcul à côté de l’entraînement (POST /free)`);
+        this._besideMem = null;            // what is free changed: the next job beside measures again
+        return true;
+      }
+    } catch { /* the training goes on anyway */ }
+    return false;
   }
 
   start(job) {
@@ -1584,11 +2180,277 @@ class Engine extends EventEmitter {
     }
   }
 
+  // ------------------------------------------------------------ GPU door of a LoRA training
+  /** trainer.js: the training service — {brief() → the active training or null, killSync(), onChange(fn)}. */
+  attachTrainer(trainer) {
+    this.trainer = trainer || null;
+    if (trainer && typeof trainer.onChange === 'function') {
+      // a new state or phase changes what may start beside the training (nothing during « load »)
+      trainer.onChange(() => {
+        if (this._disposed || this.trainer !== trainer) return;
+        const t = this.trainingInfo();
+        const key = t ? `${t.id}|${t.state}|${t.phase || ''}` : '';
+        if (key === this._trainKey) return;
+        this._trainKey = key;
+        // the training entered a new state or phase: nothing beside it before it has settled (besideCheck)
+        this._besideSettle = t ? { key, step: Number(t.step) || 0, at: Date.now() } : null;
+        this._besideStill = 0;
+        this.pump();
+      });
+    }
+    return this;
+  }
+
+  /** The active training, as the status gives it: {id, name, base, state, phase, step, steps, progress, endAt} | null. */
+  trainingInfo() {
+    const t = this.trainer;
+    if (!t || typeof t.brief !== 'function') return null;
+    try { return t.brief() || null; } catch (e) { this.logLine(`training brief: ${e.message}`); return null; }
+  }
+
+  /** The training is loading its model (tens of GB go through Windows memory): nothing else may start. */
+  trainingLoading() {
+    const t = this.trainingInfo();
+    return !!t && t.phase === 'load';
+  }
+
+  /** What a job reads while it waits behind a training. */
+  trainingMessage(short = false) {
+    const h = this._hold;
+    const t = this.trainingInfo();
+    const name = (t && t.name) || (h ? h.qui.replace(/^Mia : /, '') : '');
+    const q = short ? 'Q' : '';                    // the queue's short words (waitShort)
+    if (h && !h.held) return this.tr('waitTrainingSoon' + q, { name });
+    return t && t.endAt ? this.tr('waitTrainingEnd' + q, { name, at: clock(t.endAt, this.lang()) }) : this.tr('waitTraining' + q, { name });
+  }
+
+  /** Local work running now: heavy and light jobs, and an online job while it converts something on this PC. */
+  localActive() {
+    let n = 0;
+    for (const j of this.jobs.values()) if (j._.active && (!j._.online || j._.localWork)) n++;
+    return n;
+  }
+
+  /** No local job running nor queued (online ones have their own lane): « Laisser passer » may resume the training. */
+  localIdle() {
+    for (const j of this.jobs.values()) if (!j._.online || j._.localWork) return false;
+    return true;
+  }
+
+  /** How many jobs wait because a training has (or is about to take) the GPU. */
+  waitingForGpu() {
+    let n = 0;
+    for (const j of this.jobs.values()) if (!j._.active && j.state === 'queued' && j._.waitsTraining) n++;
+    return n;
+  }
+
+  /**
+   * A LoRA training is refused for lack of Windows commit memory: the ComfyUI this Mia launched may be what holds it
+   * (CONCEPTION-entrainement §4.4). Stopped only when nothing of Mia's computes or waits, nobody else holds the GPU
+   * lock, and its own queue is empty (comfy.stopOwned). → {stopped: boolean}
+   */
+  async freeMemoryForTraining() {
+    if (this._disposed || this._hold || !this.localIdle()) return { stopped: false };
+    if (!this.comfy || typeof this.comfy.stopOwned !== 'function' || !this.comfy.managedByMia) return { stopped: false };
+    try {
+      const info = this.lock.readLock();
+      if (info && !this.lock.isStale(info) && !this.lock.isMine(info)) return { stopped: false };   // another session's work
+    } catch { /* no lock file: nobody holds it */ }
+    let stopped = false;
+    try { stopped = !!(await this.comfy.stopOwned()); } catch { stopped = false; }
+    if (stopped) { this.logLine('ComfyUI de Mia arrêté : mémoire engageable insuffisante pour un entraînement de LoRA'); this.pushStatusSoon(); }
+    return { stopped };
+  }
+
+  /** What holdGpu and adoptGpu share: the minutes written in the lock, its rewriting, and the handle given back. */
+  holdHandle(hold, minutes) {
+    const mins = () => {
+      let m = NaN;
+      try { m = +minutes(); } catch { /* the cap */ }
+      return Math.max(1, Math.min(HOLD_MAX_MIN, Math.ceil(Number.isFinite(m) && m > 0 ? m : HOLD_MAX_MIN)));
+    };
+    const cut = () => {
+      clearInterval(hold.timer);
+      hold.timer = null;
+      if (this._hold !== hold) return false;
+      this._hold = null;
+      return true;
+    };
+    const after = (lockGone) => {
+      if (this._disposed) return;
+      // a job running beside the training goes on: it takes the lock now free under its own name (besideTakeOver)
+      if (lockGone) this.besideTakeOver(hold); else for (const j of this.jobs.values()) if (j._.active && j._.beside) j._.besideAlone = true;
+      this.pump();
+      this.pushStatusSoon();
+    };
+    const drop = () => {
+      if (!cut()) return false;
+      after(!hold.file);
+      return true;
+    };
+    const handle = {
+      file: null,
+      /** Give the GPU back (once): the lock file goes, Mia's waiting jobs start. */
+      release: () => {
+        const file = hold.file;
+        if (!cut()) return false;
+        const gone = file ? this.lock.release(hold.qui, file) : false;
+        after(!file || gone);
+        return !!file && gone;
+      },
+      /** Benches: what a crash of Mia leaves — the lock file stays, nothing rewrites it. */
+      abandon: () => { if (cut()) after(false); }
+    };
+    return {
+      mins,
+      drop,
+      handle,
+      /** The lock is ours: remember its file, rewrite it every 5 min with min(time left, 30) minutes. */
+      start: (file) => {
+        hold.file = file || null;
+        handle.file = hold.file;
+        hold.held = true;
+        if (!hold.file) return;
+        hold.timer = setInterval(() => {
+          const r = this.lock.renew(hold.qui, mins(), hold.file);
+          if (!r.ok) this.logLine(`lock renew refused for ${hold.qui}: ${r.info ? r.info.qui : r.error && r.error.message}`);
+        }, this.renewMs);
+        if (hold.timer.unref) hold.timer.unref();
+      }
+    };
+  }
+
+  /**
+   * The GPU for a LoRA training, for as long as it runs. Like acquireGpu: while another session holds the lock
+   * (or computes in ComfyUI) it waits and retries every 15 s, telling who and since when through onWait(who, since)
+   * — onWait(null, '') while one of Mia's own jobs is finishing. It waits for EVERY local job running, heavy and
+   * light, before taking the lock; from the first call no heavy job of Mia starts any more (pump).
+   * lockFile: the lock to take (default: the engine's); null = no lock file at all (a tool without GPU, as the fake
+   * one of the benches): only Mia's own queue is held. needCommitGB + commitGB() (async, GB or null): lock in hand,
+   * after POST /free, the ComfyUI Mia launched is stopped when the commit memory is still under the need.
+   * → {file, release()}, or null when `signal` aborted.
+   */
+  async holdGpu({ label, minutes, signal, onWait, lockFile, needCommitGB = 0, commitGB = null } = {}) {
+    if (this._disposed) return null;
+    if (this._hold) throw Object.assign(new Error(this.tr('holdBusy')), { code: 'holdBusy' });
+    const useLock = lockFile !== null && lockFile !== false;
+    const at = typeof lockFile === 'string' && lockFile ? lockFile : undefined;
+    const hold = { qui: String(label || 'Mia : Entraînement LoRA').slice(0, 120), held: false, wants: true, file: null, timer: null };
+    const h = this.holdHandle(hold, typeof minutes === 'function' ? minutes : () => minutes);
+    const tell = (who, since) => { if (typeof onWait === 'function') { try { onWait(who, since); } catch { /* the caller's display */ } } };
+    const gone = () => (signal && signal.aborted) || this._disposed || this._hold !== hold;
+    this._hold = hold;
+    this.pump();
+    let lastWho;
+    let comfySince = null;
+    try {
+      for (;;) {
+        if (gone()) { h.drop(); return null; }
+        let other = null;
+        if (useLock) {
+          if (!this._sweeping) this.lock.cleanOrphan(at);   // not before a crashed Mia's prompts are gone
+          const info = this.lock.readLock(at);
+          // a lock written by this very Mia is one of its own jobs still running: not « another session » (see below)
+          other = info && !this.lock.isStale(info) && !this.lock.owns(info, hold.qui) && !this.lock.isMine(info) ? info : null;
+          if (!other && this.opts.checkComfyQueue !== false && (await this.comfy.busyOther())) {
+            comfySince = comfySince || Date.now();
+            other = { qui: this.tr('comfyOther'), debut: comfySince / 1000 };
+          } else if (!other) comfySince = null;
+          if (gone()) { h.drop(); return null; }
+        }
+        if (other) {
+          const who = String(other.qui || this.tr('otherSession'));
+          if (hold.wants || who !== lastWho) {
+            hold.wants = false;                 // small jobs may run meanwhile, as behind a heavy job that waits
+            lastWho = who;
+            tell(who, other.depuis || hhmm(+other.debut || Date.now() / 1000));
+            this.pump();
+          }
+          await sleep(this.retryMs, signal);
+          continue;
+        }
+        // Free: nothing new starts, the jobs that run end, then the lock is taken.
+        if (!hold.wants) { hold.wants = true; this.pump(); }
+        if (this.localActive() > 0) {
+          if (lastWho !== null) { lastWho = null; tell(null, ''); }
+          await sleep(Math.min(this.retryMs, 1000), signal);
+          continue;
+        }
+        let file = null;
+        if (useLock) {
+          let r;
+          try {
+            r = this.lock.take(hold.qui, h.mins(), at);
+          } catch (e) {
+            if (e.code === 'ENOLOCKDIR') {
+              if (!at && !this.opts.lockPath && !this.engineRoot()) throw new Error(places.noEngine(this.lang()));
+              throw new Error(this.tr('lockDir', { dir: e.dir }));
+            }
+            throw e;
+          }
+          if (!r.ok) continue;                  // lost a race: the next turn shows who has it
+          file = r.file || at || this.lock.file();
+        }
+        h.start(file);
+        this.pump();
+        this.pushStatusSoon();
+        // SPEC §16: a Python tool cannot reclaim what ComfyUI keeps in VRAM — asked back now, lock in hand
+        if (useLock && !this.opts.noComfyFree) {
+          try {
+            if (typeof this.comfy.free === 'function' && (await this.comfy.free())) this.logLine(`${hold.qui}: VRAM de ComfyUI rendue (POST /free)`);
+          } catch { /* the training starts anyway */ }
+        }
+        // CONCEPTION-entrainement §4.4: still under the commit memory the model needs, lock in hand → the ComfyUI this
+        // Mia launched is stopped (it may have been started again by a job since the check at the start)
+        if (needCommitGB > 0 && typeof commitGB === 'function') {
+          try {
+            const avail = await commitGB();
+            if (avail != null && avail < needCommitGB && typeof this.comfy.stopOwned === 'function' && (await this.comfy.stopOwned())) {
+              this.logLine(`${hold.qui}: ComfyUI de Mia arrêté, mémoire engageable insuffisante (${avail} Go < ${needCommitGB} Go)`);
+            }
+          } catch { /* the tool reports a memory error itself if it cannot load */ }
+        }
+        if (gone()) { h.handle.release(); return null; }
+        return h.handle;
+      }
+    } catch (e) {
+      h.drop();
+      throw e;
+    }
+  }
+
+  /**
+   * After a restart of Mia: the training tool is still running, its lock is taken back at once under the same
+   * label (gpulock `owns`: same « qui », written by a process that is gone) — before any orphan cleaning could
+   * remove it. Synchronous. → {file, release()}, or null when someone else has the GPU.
+   */
+  adoptGpu({ label, minutes, lockFile } = {}) {
+    if (this._disposed || this._hold) return null;
+    const useLock = lockFile !== null && lockFile !== false;
+    const at = typeof lockFile === 'string' && lockFile ? lockFile : undefined;
+    const hold = { qui: String(label || 'Mia : Entraînement LoRA').slice(0, 120), held: false, wants: true, file: null, timer: null };
+    const h = this.holdHandle(hold, typeof minutes === 'function' ? minutes : () => minutes);
+    let file = null;
+    if (useLock) {
+      let r = null;
+      try { r = this.lock.take(hold.qui, h.mins(), at); } catch { r = null; }
+      if (!r || !r.ok) return null;
+      file = r.file || at || this.lock.file();
+    }
+    this._hold = hold;
+    h.start(file);
+    this.pump();
+    return h.handle;
+  }
+
   // ------------------------------------------------------------ timings / ETA
   /** type|mode, plus the settings that change the duration a lot (edit speed, depth detail). */
   timingKey(job) {
     const p = (job._ && job._.spec && job._.spec.params) || {};
     const extra = TIMING_PARAMS.filter((k) => p[k] != null && p[k] !== '').map((k) => `${k}=${p[k]}`);
+    // the full version of a model is slower than the compact one: learned apart (keys made before are unchanged)
+    const mm = job._ && job._.spec && job._.spec.models && job._.spec.models.model;
+    if (mm && mm.version && mm.version.kind === 'full') extra.push('v=full');
     // a Model block learns per family and workflow (LTX « animer » and Seedance « références » differ a lot)
     const g = job._ && job._.spec && job._.spec.gen;
     if (g) extra.unshift(`${g.key}:${g.workflow}`);
@@ -1703,7 +2565,9 @@ class Engine extends EventEmitter {
    */
   async whenGpuIdle(job, msg) {
     const signal = job._.abort.signal;
-    const busy = () => [...this.jobs.values()].some((j) => j !== job && j._.active && j._.gpu === 'heavy' && (j._.holdsLock || j._.wantsGpu));
+    // … and while a LoRA training loads its model: Windows memory is at its limit then, a re-encoding would not fit
+    const busy = () => [...this.jobs.values()].some((j) => j !== job && j._.active && j._.gpu === 'heavy' && (j._.holdsLock || j._.wantsGpu))
+      || (!!this._hold && this._hold.held && this.trainingLoading());
     let said = false;
     while (busy()) {
       if (signal.aborted) throw abortError(this.tr('cancelled'));
@@ -1911,7 +2775,17 @@ class Engine extends EventEmitter {
       let inputs = await this.materialize(job);
       const sec = await this.expectedSeconds(job, exec, inputs);
       const minutes = J.gpu === 'heavy' ? Math.max(1, Math.ceil(((sec || 600) / 60) * 1.2)) : null;
-      if (J.gpu === 'heavy') qui = await this.acquireGpu(job, minutes);
+      J.lockMinutes = minutes;
+      if (J.gpu === 'heavy') {
+        if (J.beside && this._hold && this._hold.held) {
+          // beside a LoRA training (pump → besideCheck): the training's lock covers the GPU, none is taken here. The
+          // name is kept for the lock this job takes if the training lets the GPU go before it ends (besideTakeOver).
+          J.qui = `Mia : ${J.labelFr} (${J.project.name})`.slice(0, 120);
+        } else {
+          if (J.beside) { J.beside = null; job.beside = undefined; }   // the training ended meanwhile: as usual
+          qui = await this.acquireGpu(job, minutes);
+        }
+      }
       if (signal.aborted) throw abortError(this.tr('cancelled'));
       const before = J.project.dir;
       const dir = await this.refreshProject(job);                // the GPU wait can be long: look again
@@ -1941,12 +2815,19 @@ class Engine extends EventEmitter {
       job.eta = J.expectedSec ? Math.round(J.expectedSec) : null;
       job.etaAt = job.eta != null ? Date.now() + job.eta * 1000 : null;
       this.emitJob(job, 'start');
+      if (J.beside) {
+        this.jobLog(job, `À côté de l’entraînement « ${J.beside.name} » : ≈ ${J.beside.needGB} Go prévus, ${J.beside.usedGB} Go utilisés sur ${J.beside.totalGB} au départ`);
+        // ÉVÈNEMENTS of the training screen: « Calcul à côté : Portrait »
+        try { if (this.trainer && typeof this.trainer.noteBeside === 'function') this.trainer.noteBeside(job.label); } catch (e) { this.logLine(`noteBeside: ${e.message}`); }
+      }
 
-      if (qui) {
+      if (J.gpu === 'heavy') {
+        // the lock this job holds (its own; or the one it took when the training beside it let the GPU go)
         renew = setInterval(() => {
+          if (!J.holdsLock || !J.qui) return;
           const left = Math.max(2, Math.ceil(minutes - (Date.now() - job.started) / 60000));
-          const r = this.lock.renew(qui, left, J.lockFile);
-          if (!r.ok) this.logLine(`lock renew refused for ${qui}: ${r.info ? r.info.qui : r.error && r.error.message}`);
+          const r = this.lock.renew(J.qui, left, J.lockFile);
+          if (!r.ok) this.logLine(`lock renew refused for ${J.qui}: ${r.info ? r.info.qui : r.error && r.error.message}`);
         }, this.renewMs);
       }
 
@@ -1985,7 +2866,7 @@ class Engine extends EventEmitter {
       clearInterval(renew);
       this.closeLog(job);
       if (J.outDir && ended && !this._shut) this.journalRemove(J.outDir);
-      if (qui) this.lock.release(qui, J.lockFile);
+      if (J.holdsLock && (J.qui || qui)) this.lock.release(J.qui || qui, J.lockFile);
       J.holdsLock = false;
       J.wantsGpu = false;
       if (J.outDir) fsp.rm(path.join(J.outDir, '_preview'), { recursive: true, force: true }).catch(() => {});
@@ -1993,6 +2874,8 @@ class Engine extends EventEmitter {
       clearTimeout(J.emitTimer);
       if (final) this.emitJob(job, final[0], final[1]);
       this.pushStatusSoon();
+      // beside a training: ComfyUI gives back what it keeps, before the queue looks again (start → pump)
+      if (J.beside && !this._shut) await this.besideFree(job);
     }
   }
 
@@ -2346,12 +3229,18 @@ class Engine extends EventEmitter {
       }
     }
     const g = { ...this._gpu };
+    // ONE total per machine (SPEC §7): the one the scanner keeps — what ComfyUI announced, even while it is off, else
+    // nvidia-smi's — so the chip, the library and the model lists show the same number. totalSource: 'comfy' | 'smi'.
+    const known = this.machine();
+    if (known && known.memGB > 0) { g.vramTotalGB = known.memGB; g.totalSource = known.source || null; }
     if (g.vramUsedGB != null) g.vramUsedGB = Math.max(0, g.vramTotalGB > 0 ? Math.min(g.vramUsedGB, g.vramTotalGB) : g.vramUsedGB);
     return {
       comfy: this.comfy.status(),
       gpu: { ...g, lock, busyOther: (!!lock && !lock.mine) || !!this._comfyBusyOther },
       // running/waiting = every job (as before); local and online apart (online: its own lane, SPEC §23.3)
-      queue: { running, waiting, local: { running: running - online.running, waiting: waiting - online.waiting }, online }
+      queue: { running, waiting, local: { running: running - online.running, waiting: waiting - online.waiting }, online },
+      // the LoRA training that is active (waiting for the GPU, preparing, running, sampling, or paused to let a job through)
+      training: this.trainingInfo()
     };
   }
 
@@ -2360,7 +3249,16 @@ class Engine extends EventEmitter {
     return this.statusNow();
   }
 
-  /** One status round: ComfyUI stats (+ its queue), the lock, and nvidia-smi when ComfyUI is down. */
+  /**
+   * One status round: ComfyUI stats (+ its queue), the lock, and the memory used. The memory used is the one of ALL
+   * the programs, as nvidia-smi and Windows say: the larger of ComfyUI's figure and nvidia-smi's last reading
+   * (smiUsedNow). On the RTX Spark (unified memory) ComfyUI's figure (cudaMemGetInfo: total − free) does not count
+   * what the other programs hold — a LoRA training of 46 GB read 2.9 GB on 19/11/2026 —, on a usual PC both agree.
+   * nvidia-smi is read at every round (3 s) while a training holds or wants the GPU or local work runs, and
+   * SMI_TAIL_MS after, else every SMI_MS (smiEveryMs, smiDue); at once when ComfyUI's figure moves (a model freed);
+   * when it does not answer, ComfyUI's figure alone (as before). Several NVIDIA cards: the line of ComfyUI's card only
+   * (smiUsedNow). ComfyUI off: nvidia-smi alone, its first card (as before).
+   */
   tick() {
     if (this._ticking) return this._ticking;
     this._ticking = (async () => {
@@ -2368,22 +3266,26 @@ class Engine extends EventEmitter {
       await this.comfy.refresh();
       const s = this.comfy.state === 'running' ? this.comfy.lastStats : null;
       const dev = s && s.devices && s.devices[0];
-      if (dev && dev.vram_total) {
+      const on = !!(dev && dev.vram_total);
+      // inconsistent figures (cudaMallocAsync): null, nvidia-smi alone
+      const fromComfy = on ? vramUsedGB(dev) : null;
+      this._comfyUsedGB = fromComfy;
+      if (this.smiDue(fromComfy)) await this.smi();
+      if (on) {
         const total = Math.round((dev.vram_total / GIB) * 10) / 10;
-        let used = vramUsedGB(dev);
-        if (used == null) {                   // inconsistent figures (cudaMallocAsync): ask the driver
-          if (Date.now() - this._smiAt > SMI_MS) await this.smi();
-          used = this._gpu.vramUsedGB != null ? Math.max(0, Math.min(this._gpu.vramUsedGB, total)) : null;
-        }
+        const devName = String(dev.name || '').replace(/^cuda:\d+\s*/, '').replace(/\s*:\s*[\w.-]+$/, '');
+        const fromSmi = this.smiUsedNow(devName);
+        let used = fromComfy;
+        if (fromSmi != null) used = Math.max(fromComfy != null ? fromComfy : 0, Math.min(fromSmi, total));
         this._gpu = {
-          name: String(dev.name || '').replace(/^cuda:\d+\s*/, '').replace(/\s*:\s*[\w.-]+$/, '') || this._gpu.name || null,
+          name: devName || this._gpu.name || null,
           vramUsedGB: used,
           vramTotalGB: total
         };
+        this.noteMachine({ source: 'comfy', memGB: total, gpu: this._gpu.name });
         this._comfyBusyOther = await this.comfy.busyOther();
       } else {
         this._comfyBusyOther = false;
-        if (Date.now() - this._smiAt > SMI_MS) await this.smi();
       }
       this._lastTick = Date.now();
       this.pushStatus();
@@ -2391,25 +3293,88 @@ class Engine extends EventEmitter {
     return this._ticking;
   }
 
-  /** nvidia-smi, read-only, as a fallback indicator when ComfyUI is not there to tell (or tells nonsense). */
+  /**
+   * How often nvidia-smi is read for the status (ms): at every round (STATUS_MS) while a LoRA training holds or wants
+   * the GPU, or local work runs (the memory moves by tens of GB), else every SMI_MS. A nvidia-smi that did not answer
+   * last time (no NVIDIA driver): every SMI_MS.
+   */
+  smiEveryMs() {
+    if (this._smiFailed) return SMI_MS;
+    if (this._hold || this.localActive() > 0) {
+      this._smiFastUntil = Date.now() + SMI_TAIL_MS;
+      return STATUS_MS;
+    }
+    return Date.now() < this._smiFastUntil ? STATUS_MS : SMI_MS;
+  }
+
+  /**
+   * Is a nvidia-smi reading due at this round (tick)? Its time has come (smiEveryMs, less SMI_SLACK_MS: the round
+   * reads it after GET /system_stats, whose length varies), or ComfyUI's figure moved by SMI_MOVE_GB since the last
+   * reading (a model freed or loaded: the larger of the two must not keep a figure already freed).
+   */
+  smiDue(fromComfy) {
+    if (Date.now() - this._smiAt >= this.smiEveryMs() - SMI_SLACK_MS) return true;
+    const r = this._smiRead;
+    return !this._smiFailed && !!r && fromComfy != null && r.comfyGB != null && Math.abs(fromComfy - r.comfyGB) >= SMI_MOVE_GB;
+  }
+
+  /**
+   * nvidia-smi's last memory reading (GB, all programs) of the card ComfyUI computes on, when it is recent enough to
+   * count (SMI_FRESH_MS); else null. One NVIDIA card (the RTX Spark also lists its NPU, without figures: no card):
+   * that one. Several: the one bearing ComfyUI's card name (devName), only when exactly one does; two cards of the
+   * same name, or none: null, ComfyUI's figure alone (nvidia-smi lists the cards in PCI order, CUDA the fastest first).
+   */
+  smiUsedNow(devName) {
+    const r = this._smiRead;
+    if (!r || Date.now() - r.at > SMI_FRESH_MS) return null;
+    const gpus = Array.isArray(r.gpus) ? r.gpus : [];
+    let g = null;
+    if (gpus.length === 1) g = gpus[0];
+    else if (gpus.length > 1 && devName) {
+      const want = String(devName).trim().toLowerCase();
+      const same = gpus.filter((x) => String(x.name || '').trim().toLowerCase() === want);
+      if (same.length === 1) g = same[0];
+    }
+    return g && g.usedGB != null ? g.usedGB : null;
+  }
+
+  /**
+   * nvidia-smi, read-only: the memory used by all programs (smiUsedNow, for the status: tick), the indicator when
+   * ComfyUI is not there to tell, and the reading a job beside a LoRA training starts on (besideMeasure). → the
+   * reading {name, vramUsedGB, vramTotalGB}, or null when it could not be read (used: a number only when the driver
+   * gives one). The benches give opts.smiQuery (→ the CSV line nvidia-smi would print).
+   */
   smi() {
     this._smiAt = Date.now();
-    return new Promise((resolve) => {
-      execFile(NVIDIA_SMI, ['--query-gpu=name,memory.used,memory.total', '--format=csv,noheader,nounits'],
-        { windowsHide: true, timeout: 5000 }, (err, stdout) => {
-          if (!err) {
-            const [name, used, total] = String(stdout).split(/\r?\n/)[0].split(',').map((s) => s.trim());
-            if (name && +total > 0) {
-              this._gpu = {
-                name,
-                vramUsedGB: Math.max(0, Math.min(Math.round((+used / 1024) * 10) / 10, Math.round((+total / 1024) * 10) / 10)),
-                vramTotalGB: Math.round((+total / 1024) * 10) / 10
-              };
-            }
-          }
-          resolve();
-        });
-    });
+    const query = typeof this.opts.smiQuery === 'function'
+      ? Promise.resolve().then(() => this.opts.smiQuery())
+      : new Promise((resolve, reject) => {
+        execFile(NVIDIA_SMI, ['--query-gpu=name,memory.used,memory.total', '--format=csv,noheader,nounits'],
+          { windowsHide: true, timeout: 5000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)));
+      });
+    return query.then((stdout) => {
+      let reading = null;
+      // one line per card; the ones without a total (« [N/A] »: the RTX Spark's NPU) are no card to read
+      const gpus = [];
+      for (const line of String(stdout == null ? '' : stdout).split(/\r?\n/)) {
+        const [name, used, total] = line.split(',').map((x) => x.trim());
+        if (!name || !(+total > 0)) continue;
+        const totalGB = Math.round((+total / 1024) * 10) / 10;
+        // « [N/A] » or nothing: no figure (never NaN in the status)
+        const usedGB = used != null && used !== '' && Number.isFinite(+used) ? Math.max(0, Math.min(Math.round((+used / 1024) * 10) / 10, totalGB)) : null;
+        gpus.push({ name, usedGB, totalGB });
+      }
+      if (gpus.length) {
+        // the indicator when ComfyUI is off, and the reading besideMeasure starts on: the first card, as before
+        const { name, usedGB, totalGB } = gpus[0];
+        this._gpu = { name, vramUsedGB: usedGB, vramTotalGB: totalGB };
+        this.noteMachine({ source: 'smi', memGB: totalGB, gpu: name });
+        reading = { ...this._gpu };
+        this._smiRead = { usedGB, gpus, at: Date.now(), comfyGB: this._comfyUsedGB };
+      }
+      this._smiFailed = !reading;
+      return reading;
+    }, () => { this._smiFailed = true; return null; });
   }
 
   pushStatus() {
@@ -2491,6 +3456,10 @@ class Engine extends EventEmitter {
     const active = [...this.jobs.values()].filter((j) => j._.active);
     for (const j of this.jobs.values()) { try { j._.abort.abort(); } catch { /* already */ } }
     try { this.py.killAllSync(); } catch { /* best effort */ }
+    // last net: no training tool outlives Mia with the GPU (main.js stops it properly before: trainer.stopForQuit)
+    try { if (this.trainer && typeof this.trainer.killSync === 'function') this.trainer.killSync(); } catch (e) { this.logLine(`quit: training not stopped: ${e.message}`); }
+    const hold = this._hold;                  // still there only if the service did not give it back itself
+    if (hold) clearInterval(hold.timer);
     for (const j of active) { try { this.endRunSync(j); } catch { /* best effort */ } }
     let otherHolds = false;
     try {
@@ -2510,6 +3479,8 @@ class Engine extends EventEmitter {
     } catch { /* best effort */ }
     if (handedOff) return;                    // the helper frees the lock once ComfyUI has let go
     for (const j of this.jobs.values()) if (j._.qui && j._.holdsLock) this.lock.release(j._.qui, j._.lockFile || undefined);
+    if (hold && hold.file) { try { this.lock.release(hold.qui, hold.file); } catch { /* nothing to free */ } }
+    this._hold = null;
     try {
       const info = this.lock.readLock();
       if (info && this.lock.isMine(info)) this.lock.release(info.qui);
@@ -2523,6 +3494,8 @@ class Engine extends EventEmitter {
     clearInterval(this._timer);
     clearTimeout(this._statusTimer);
     clearTimeout(this._timingsTimer);
+    clearTimeout(this._besideTimer);
+    if (this._hold) clearInterval(this._hold.timer);
     for (const j of this.jobs.values()) { try { j._.abort.abort(); } catch { /* already */ } }
   }
 }
@@ -2545,5 +3518,5 @@ function runOutput(run, port) {
 
 module.exports = {
   register, Engine, Planner,
-  _internals: { stable, hashParamsOf, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB, runOutput, onlineLimit }
+  _internals: { HOLD_MAX_MIN, BESIDE_MARGIN_GB, BESIDE_SETTLE_STEPS, BESIDE_SETTLE_MS, clock, Planner, stable, hashParamsOf, portAccepts, articleFr, articleEn, makeRunId, pickMode, currentRun, shownParam, vramUsedGB, runOutput, onlineLimit }
 };

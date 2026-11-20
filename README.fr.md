@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![version](https://img.shields.io/badge/version-0.7.0-2E7D32?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.10.0-2E7D32?style=flat-square)](CHANGELOG.md)
 [![licence](https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-38-47848F?style=flat-square)](https://www.electronjs.org/)
 [![plateforme](https://img.shields.io/badge/plateforme-Windows%2010%20%7C%2011-0078D4?style=flat-square)](docs/INSTALL.md)
@@ -188,7 +188,8 @@ pour la profondeur, le détourage et l'agrandissement rapide, de 24 Go pour les 
 d'image ; environ 15 Go de disque pour le moteur et 20 à 150 Go pour les modèles ; Internet pendant l'installation
 seulement. Le pas à pas complet : [docs/INSTALL.md](docs/INSTALL.md).
 
-1. **Mia.** Prendre l'installateur ou le zip portable sur la page Releases, ou la lancer depuis les sources :
+1. **Mia.** Prendre l’installateur ou le zip portable sur la page Releases (les fichiers nommés `arm64` sont pour
+   Windows sur processeur ARM), ou la lancer depuis les sources :
 
    ```powershell
    git clone https://github.com/Quentincls/mia.git

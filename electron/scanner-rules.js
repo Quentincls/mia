@@ -15,7 +15,7 @@
 // (tout est alors relu de zéro). Le catalogue d'affichage a sa propre révision (CATALOG_REV) : la changer jette
 // seulement l'inventaire mis en cache, pas l'identification des fichiers (le démarrage reste rapide).
 const RULES_REV = 2;   // 2 : FLUX.2 Klein 9B et Qwen-Image 2.1 (modèles et LoRA), 25/10/2026
-const CATALOG_REV = 4;   // 4 : FLUX.2 Klein 9B, Qwen-Image 2.1 (à l’essai) ; 3 : textes neutres (licence MiniMax, mémoire vidéo, dossier du moteur), identités hors dépôt
+const CATALOG_REV = 6;   // 6 : LoRA entraînés dans Mia (fiche .mia.json : nom, genre, entraînement, « · étape N ») ; 5 : versions de LTX 2.5 (Compacte, Pleine, Complète), mémoire par version, précision d’un fichier inattendu ; 4 : FLUX.2 Klein 9B, Qwen-Image 2.1 (à l’essai) ; 3 : textes neutres (licence MiniMax, mémoire vidéo, dossier du moteur), identités hors dépôt
 
 // ---------------------------------------------------------------------------------------------
 // 1. Règles de classification (port de model_rules.json, ordre significatif : la 1re règle gagne)
@@ -258,7 +258,11 @@ const FILES = {
   birefnet: F('BiRefNet', 'outils', 0.44),
 };
 
+// Ordre de préférence de toujours. La version pleine (« ltx-full », entrée ajoutée depuis : un distillé bf16 était un
+// « ltx-other ») garde le RANG de « ltx-other » (PREFER_AS) : le tri ne la fait jamais passer devant une autre
+// précision ; seul le choix « Auto » selon la mémoire (autoOver, scanner.js autoChoice) peut la promouvoir.
 const LTX_ORDER = ['ltx-int8', 'ltx-nvfp4', 'ltx-other'];
+const PREFER_AS = { 'ltx-full': 'ltx-other' };
 // `name` = le modèle attendu, `files` = ce qu'il faut ajouter quand la capacité manque ; `download` = rien n'est encore sur le PC.
 // `optional` = capacité facultative (jamais listée dans « Il manque »).
 const CAPS = [
@@ -369,6 +373,17 @@ const GENRES = {
   place: { fr: 'Lieu', en: 'Place' },
   style: { fr: 'Style', en: 'Style' },
 };
+// Base d'un entraînement fait dans Mia (src/catalog/train-bases.json, champ `training.base` de la fiche
+// <nom>.mia.json) → clé de BASES. Sert quand le fichier ne dit pas lui-même pour quel modèle il a été fait.
+// Une clé de BASES est aussi acceptée telle quelle ; tout le reste (le faux outil des bancs, « fake ») → null.
+const TRAIN_BASES = { ltx25: 'ltx', qwen21: 'qwen21', flux2klein9b: 'flux2klein9b', minimaxh3: 'minimax' };
+const trainBaseKey = (id) => {
+  const k = typeof id === 'string' ? id.trim().toLowerCase() : '';
+  return TRAIN_BASES[k] || (Object.prototype.hasOwnProperty.call(BASES, k) ? k : null);
+};
+// Le dossier où Mia range les LoRA qu'elle a entraînés et les copies pour le moteur (<moteur>\models\loras\mia).
+const MIA_LORA_LABEL = { fr: 'Entraînés dans Mia', en: 'Trained in Mia' };
+
 // Phrase simple d'un LoRA, selon son genre et son modèle de base.
 function loraDesc(genre, loraFor) {
   const b = BASES[loraFor];
@@ -433,7 +448,35 @@ const LIC = {
 //    `needs` = pièces internes (clés du catalogue) sans lesquelles le moteur est « incomplet ».
 //    `condCaps` = capacité ajoutée seulement si une pièce est prête (3D → réel exige le mode Layout-To-Render).
 //    vramGB = pic estimé (models.md §6.2), speed / quality de 1 à 3 (models.md §6.3, mesures du labo).
+//    Champs de `when` ajoutés pour les versions d'un même modèle : quantClass (précision LUE dans l'en-tête du fichier :
+//    'full' | 'compact' | 'ultra' | 'very') et notName (RegExp que le nom ne doit PAS vérifier).
+//    version = clé de VERSIONS (ce que l'utilisateur lit : Compacte, Pleine, Complète).
+//    mem = { peakGB, basis, at? } : pic de mémoire MESURÉ à MEM_AT ('measured') — ou à `at` ({ w, h } d'une image)
+//    quand l'entrée le donne —, ou repris de la mesure d'une version voisine ('derived'). Une entrée qui a aussi un vramGB (chiffre réglé pour 24 Go) ne montre son pic que sur une
+//    machine qui a la place (pic + MEM_MARGIN_GB), sinon vramGB ; une entrée SANS vramGB (la pleine) montre toujours
+//    son pic dès que le total de la machine est connu (scanner.js memOf).
+//    pair = pièces à assortir à la précision du modèle (un transformeur plein prend l'encodeur de texte plein).
+//    blocked = { code, note, group } : reconnu et nommé, mais JAMAIS proposé ni lancé (aucune capacité).
+//    autoOver / autoCaps = versions que celle-ci peut remplacer dans le choix « Auto », et pour quelles capacités.
 // ---------------------------------------------------------------------------------------------
+// Marge laissée au-dessus du pic mesuré d'une version (mémoire unifiée, partagée avec Windows et les autres logiciels).
+const MEM_MARGIN_GB = 16;
+// Réglages des mesures de mémoire (18/11/2026 : texte vers vidéo, 8 pas, décodage en tuiles).
+const MEM_AT = { w: 960, h: 544, frames: 121 };
+// Les versions d'un modèle, nommées par ce qu'elles sont. `kind` : 'compact' | 'full' | 'complete'.
+const VERSIONS = {
+  compact: { kind: 'compact', tag: { fr: 'Compacte', en: 'Compact' },
+    desc: { fr: 'Poids compressés (int8). Réglée pour 24 Go de mémoire.', en: 'Compressed weights (int8). Tuned for 24 GB of memory.' } },
+  compact50: { kind: 'compact', tag: { fr: 'Compacte · RTX 50', en: 'Compact · RTX 50' },
+    desc: { fr: 'Poids compressés (nvfp4) pour les cartes RTX 50 : un peu plus rapide, image un peu moins propre.', en: 'Compressed weights (nvfp4) for RTX 50 cards: a little faster, a slightly less clean picture.' } },
+  full: { kind: 'full', tag: { fr: 'Pleine', en: 'Full' },
+    desc: { fr: 'Poids non compressés (bf16) : même image que la compacte, plus de mémoire, un peu plus lent. Sert à entraîner un LoRA.', en: 'Uncompressed weights (bf16): same picture as the compact one, more memory, a little slower. Used to train a LoRA.' } },
+  complete: { kind: 'complete', tag: { fr: 'Complète (non distillée)', en: 'Complete (not distilled)' },
+    desc: { fr: 'Modèle d’origine, non distillé. Recette non validée dans Mia.', en: 'Original model, not distilled. Recipe not validated in Mia.' } },
+};
+// Raison d'un modèle reconnu mais pas proposé (aussi dans NOTES.recipe, plus bas).
+const RECIPE_NOTE = { fr: 'Reconnu, pas encore proposé : sa recette de calcul n’est pas validée dans Mia.',
+  en: 'Recognised, not offered yet: its compute recipe is not validated in Mia.' };
 const LTX_NEEDS = ['ltx-te', 'ltx-vae', 'ltx-audio-vae'];
 const LTX_COND = [{ cap: '3d-to-real', needs: 'ltx-l2r' }, { cap: 'guided-video', needs: 'ltx-union' }];
 const PART = (what) => ({ hidden: true, part: what });
@@ -482,18 +525,44 @@ const CATALOG = [
     license: 'ok', licenseNote: LIC.apache, vramGB: 10, speed: 3, quality: 1 },
 
   // --- moteurs vidéo ---
+  // LTX 2.5, dans cet ordre : le modèle complet (non distillé) d'abord, quelle que soit sa précision — sa recette
+  // (20 pas, cfg 3) n'est pas validée, il ne doit jamais tomber dans une entrée proposée ; puis les deux versions
+  // compactes par leur nom, la pleine par sa précision lue dans l'en-tête, enfin tout le reste.
+  // Seul le « dev » de LTX 2.5 est visé (celui qui a été essayé) : le nom doit dire « ltx-2.5 » ET « dev » (un mot).
+  // Un « dev » d'une autre génération (ltx-2-19b-dev-fp8, ltx-2.3-22b-dev…) reste un « ltx-other », comme avant.
+  { key: 'ltx-dev', when: { family: 'LTX-2.x', role: 'diffusion_model', name: /^(?=.*ltx[-_.]?2\.5)(?=.*(^|[-_.])dev([-_.]|$))/, notName: /distill/ },
+    label: { fr: 'LTX 2.5 · Complète (non distillée)', en: 'LTX 2.5 · Complete (not distilled)' },
+    desc: { fr: 'Le modèle LTX 2.5 d’origine, non distillé.', en: 'The original LTX 2.5 model, not distilled.' },
+    caps: [], version: 'complete', blocked: { code: 'recipe', note: RECIPE_NOTE, group: 'video' },
+    license: 'ok', licenseNote: LIC.ltx, vramGB: null, speed: 1, quality: 3 },
   { key: 'ltx-nvfp4', when: { family: 'LTX-2.x', role: 'diffusion_model', name: /nvfp4/ },
     label: { fr: 'LTX 2.5 · RTX 50', en: 'LTX 2.5 · RTX 50' },
     desc: { fr: 'Le même modèle LTX en format ultra-compact pour les cartes RTX 50 : un peu plus rapide.',
       en: 'The same LTX model in an ultra-compact format for RTX 50 cards: a little faster.' },
     caps: ['image-to-video', 'text-to-video'], condCaps: LTX_COND, needs: LTX_NEEDS, tier: 'blackwell',
+    version: 'compact50', mem: { peakGB: 40, basis: 'measured' }, pair: ['ltx-te'],
     license: 'ok', licenseNote: LIC.ltx, vramGB: 19, speed: 3, quality: 3 },
   { key: 'ltx-int8', when: { family: 'LTX-2.x', role: 'diffusion_model', name: /int8/ },
     label: { fr: 'LTX 2.5', en: 'LTX 2.5' },
-    desc: { fr: "Vidéo à partir d’une image, d’un texte ou d’un rendu 3D. Le plus polyvalent, réglé pour 24 Go de mémoire vidéo.",
-      en: 'Video from an image, a text or a 3D render. The most versatile, tuned for 24 GB of video memory.' },
+    desc: { fr: "Vidéo à partir d’une image, d’un texte ou d’un rendu 3D. Le plus polyvalent, réglé pour 24 Go de mémoire.",
+      en: 'Video from an image, a text or a 3D render. The most versatile, tuned for 24 GB of memory.' },
     caps: ['image-to-video', 'text-to-video'], condCaps: LTX_COND, needs: LTX_NEEDS, expect: FILES.ltx,
+    // pic mesuré sur ce fichier le 18/11/2026 (38,6 à 38,7 Go à MEM_AT), arrondi comme la version RTX 50
+    version: 'compact', mem: { peakGB: 40, basis: 'measured' }, pair: ['ltx-te'],
     license: 'ok', licenseNote: LIC.ltx, vramGB: 21, speed: 2, quality: 3 },
+  // mêmes capacités que la version compacte : le bloc Modèle range les versions d'une famille par capacités égales
+  { key: 'ltx-full', when: { family: 'LTX-2.x', role: 'diffusion_model', quantClass: 'full', name: /distill/ },
+    label: { fr: 'LTX 2.5 · Pleine', en: 'LTX 2.5 · Full' },
+    desc: { fr: 'Le même LTX 2.5 avec ses poids non compressés : même image que la version compacte, plus de mémoire, un peu plus lent.',
+      en: 'The same LTX 2.5 with uncompressed weights: same picture as the compact version, more memory, a little slower.' },
+    caps: ['image-to-video', 'text-to-video'], condCaps: LTX_COND, needs: LTX_NEEDS,
+    version: 'full', mem: { peakGB: 71, basis: 'measured' }, pair: ['ltx-te'],
+    // autoOver / autoCaps décrivent ce que la pleine POURRAIT remplacer en « Auto », mais le service ne demande pas
+    // cette promotion (scanner.js, AUTO_BY_MEMORY = false). Mesure du 18/11/2026 (RTX Spark, 960x544, 121 images,
+    // graines 42 et 43) : la pleine et la compacte int8 donnent la même image à l'œil (écart moyen 3,1 à 3,6 sur 255,
+    // autant que tuiles contre décodage d'un bloc), pour 13 s et 32 Go de plus. Elle reste un choix à la main.
+    autoOver: ['ltx-int8', 'ltx-nvfp4', 'ltx-other'], autoCaps: ['text-to-video', 'image-to-video'],
+    license: 'ok', licenseNote: LIC.ltx, vramGB: null, speed: 2, quality: 3 },
   { key: 'ltx-other', when: { family: 'LTX-2.x', role: 'diffusion_model' },
     label: null, desc: { fr: 'Modèle vidéo LTX dans une autre précision.', en: 'LTX video model in another precision.' },
     caps: ['image-to-video', 'text-to-video'], condCaps: LTX_COND, needs: LTX_NEEDS,
@@ -535,12 +604,18 @@ const CATALOG = [
     desc: { fr: 'Une image depuis ta consigne, en quelques secondes ; suit aussi une image de départ.',
       en: 'An image from your prompt in a few seconds; can also follow a starting image.' },
     caps: ['text-to-image'], needs: ['flux2-klein9b-te', 'flux2-vae'], expect: FILES.klein9b,
+    // pic mesuré sur la RTX Spark le 19/11/2026, à côté d'un entraînement LTX de 46 Go : 74,5 Go au total en
+    // 1344 × 768 (≈ 1 Mpx, la résolution « 1K »), soit 28,5 Go pour l'image, arrondi au-dessus
+    mem: { peakGB: 29, basis: 'measured', at: { w: 1344, h: 768 } },
     license: 'trial', licenseNote: LIC.fluxnc, vramGB: 22, speed: 3, quality: 3 },
   { key: 'qwen-image21', when: { family: 'Qwen-Image 2.1', role: 'diffusion_model', name: /turbo/ },
     label: { fr: 'Qwen-Image 2.1', en: 'Qwen-Image 2.1' },
     desc: { fr: 'Une image depuis ta consigne, fidèle aux textes écrits dans l’image.',
       en: 'An image from your prompt, faithful to text written in the image.' },
     caps: ['text-to-image'], needs: ['qwen21-te', 'qwen21-vae'], expect: FILES.qwen21,
+    // pic mesuré sur la RTX Spark le 19/11/2026, à côté d'un entraînement LTX de 46 Go : 68,2 Go au total en 2720 × 1536
+    // avec un LoRA (≈ 4 Mpx, la résolution « 2K », la plus grande), soit 22,2 Go pour l'image, arrondi au-dessus
+    mem: { peakGB: 23, basis: 'measured', at: { w: 2720, h: 1536 } },
     license: 'trial', licenseNote: LIC.qwenresearch, vramGB: 17, speed: 3, quality: 3 },
   { key: 'qwen-image21-full', when: { family: 'Qwen-Image 2.1', role: 'diffusion_model' },
     label: { fr: 'Qwen-Image 2.1 · version complète', en: 'Qwen-Image 2.1 · full version' },
@@ -838,11 +913,12 @@ function quantClass(q) {
   if (/bf16|fp16|fp32|f16|f32|fp64|f64/.test(s)) return 'full';
   return null;
 }
+// Mêmes mots que les versions (VERSIONS) : une précision se lit « Pleine », « Compacte »…
 const QUANT_LABEL = {
-  full: { fr: 'Pleine qualité', en: 'Full quality' },
-  compact: { fr: 'Compact', en: 'Compact' },
-  ultra: { fr: 'Ultra-compact (RTX 50)', en: 'Ultra-compact (RTX 50)' },
-  very: { fr: 'Très compact', en: 'Very compact' },
+  full: { fr: 'Pleine', en: 'Full' },
+  compact: { fr: 'Compacte', en: 'Compact' },
+  ultra: { fr: 'Compacte · RTX 50', en: 'Compact · RTX 50' },
+  very: { fr: 'Très compacte', en: 'Very compact' },
 };
 
 // Textes d'état affichés sous un modèle (raison d'un « inutilisé » ou d'un « incomplet »).
@@ -865,6 +941,12 @@ const NOTES = {
   forbidden: { fr: 'Exclu par sa licence : jamais proposé.', en: 'Excluded by its license: never offered.' },
   loraUnknownBase: { fr: 'Mia ne reconnaît pas le modèle pour lequel ce LoRA a été fait : aucun bloc ne le propose.',
     en: 'Mia does not recognise the model this LoRA was made for: no block offers it.' },
+  recipe: RECIPE_NOTE,
+  // Encodeur de texte assorti à la précision du modèle : dit seulement quand l'assortiment n'a pas pu se faire.
+  teCompact: { fr: 'Encodeur de texte en version compacte : la version pleine n’est pas installée.',
+    en: 'Text encoder in its compact version: the full one is not installed.' },
+  teFull: { fr: 'Encodeur de texte en version pleine : la version compacte n’est pas installée.',
+    en: 'Text encoder in its full version: the compact one is not installed.' },
 };
 // « Fait pour X, que Mia n'a pas » : un LoRA dont le modèle de base n'est pas installé.
 function loraNoBaseNote(loraFor) {
@@ -894,5 +976,6 @@ module.exports = {
   knownRoots, extraPathFiles, broadRoots, APPS,
   CAPS, FILES, LIC, CATALOG, IDENTITY, setIdentities, IDENTITY_DESC, TASK_DESC, ROLE_DESC, INTERNAL_ROLES,
   BASES, MEDIA_WORD, GENRES, baseKeyOf, baseLabel, loraDesc, loraNameFromFile, guessGenre, loraNoBaseNote,
-  quantClass, QUANT_LABEL, NOTES, INSPECT, MODEL_EXT,
+  TRAIN_BASES, trainBaseKey, MIA_LORA_LABEL,
+  quantClass, QUANT_LABEL, NOTES, INSPECT, MODEL_EXT, VERSIONS, MEM_AT, MEM_MARGIN_GB, PREFER_AS,
 };

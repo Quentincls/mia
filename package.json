@@ -1,7 +1,7 @@
 {
   "name": "mia",
   "productName": "Mia",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "Mia — planche nodale pour l'IA locale",
   "main": "electron/main.js",
@@ -16,11 +16,11 @@
     "version:show": "node electron/version.js",
     "test:migrations": "node tools/test-migrations.js",
     "predist": "node tools/check-package.js",
-    "dist": "electron-builder --win --x64",
+    "dist": "node tools/dist.js installer",
     "predist:zip": "node tools/check-package.js",
-    "dist:zip": "electron-builder --win zip --x64",
+    "dist:zip": "node tools/dist.js zip",
     "predist:dir": "node tools/check-package.js",
-    "dist:dir": "electron-builder --win --dir --x64",
+    "dist:dir": "node tools/dist.js dir",
     "check:package": "node tools/check-package.js"
   },
   "devDependencies": {
@@ -31,7 +31,6 @@
     "appId": "io.github.quentincls.mia",
     "productName": "Mia",
     "copyright": "Copyright © 2026 Quentin Colus",
-    "electronDist": "node_modules/electron/dist",
     "asar": false,
     "npmRebuild": false,
     "afterPack": "tools/check-package.js",

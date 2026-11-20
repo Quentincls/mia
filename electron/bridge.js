@@ -20,7 +20,9 @@
  * (mia_create_project makes a board) but speak of boards and folders in what they return.
  *
  * Two kinds of methods:
- *  - main side (here): ping, status, list_projects, catalog, jobs, wait, cancel, snapshot;
+ *  - main side (here): ping, status, list_projects, catalog, jobs, wait, cancel, snapshot, and the readings of a
+ *    LoRA training (train_options, train_status, train_wait: they light no « pilote Mia » pill, they only note
+ *    who is watching);
  *  - window side: everything that touches the board (create_project, create_folder, add_block…) is relayed to
  *    the interface (`bridge:call` → src/js/ui/presence.js → `bridge:reply`), which goes through the normal
  *    editor API: what the assistant does is visible, paced, and undoable with Ctrl+Z.
@@ -45,11 +47,18 @@ const BODY_MAX = 1 << 20;
 const CLIENT_RECENT_MS = 10 * 60 * 1000;
 const SNAPSHOT_MAX_W = 1600;
 const IMPORT_MAX = 64;
+const TRAIN_IMPORT_MAX = 300;        // images of one mia_train_prepare
+const TRAIN_PREPARE_MS = 140000;     // the import of a big set outlasts the ordinary relay (the page gives up at 120 s and says « importing »)
+const TRAIN_IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+const TRAIN_UNTIL = new Set(['sample', 'checkpoint', 'end', 'change']);
+const TRAIN_ENDED = new Set(['fini', 'erreur', 'annule', 'interrompu']);
 
 const RELAYED = new Set([
   'ui_state', 'create_project', 'open_project', 'get_board', 'add_block', 'connect', 'set_params', 'rename_block',
   'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'get_output', 'focus', 'say', 'add_section',
-  'create_folder', 'request', 'pending'
+  'create_folder', 'request', 'pending',
+  // LoRA training: the page checks the green light (and the pause) and runs them through window.mia.train.*
+  'train_control', 'train_note'
 ]);
 
 const STR = {
@@ -80,7 +89,44 @@ const STR = {
   notFound: { fr: 'Fichier introuvable : « {p} ».', en: 'File not found: “{p}”.' },
   notFile: { fr: 'Ce n’est pas un fichier : « {p} ».', en: 'Not a file: “{p}”.' },
   snapFailed: { fr: 'La capture de la planche a échoué : {msg}', en: 'Capturing the board failed: {msg}' },
-  catalogFailed: { fr: 'Catalogue illisible : {msg}', en: 'Unreadable catalog: {msg}' }
+  catalogFailed: { fr: 'Catalogue illisible : {msg}', en: 'Unreadable catalog: {msg}' },
+  // training a LoRA (SPEC « Entraîner un LoRA », mia_train_*)
+  noTrainer: { fr: 'L’entraînement de LoRA n’est pas disponible dans cette Mia.', en: 'LoRA training is not available in this Mia.' },
+  trainNoPaths: {
+    fr: 'Donne les images : « images » (chemins complets des fichiers) ou « folder » (chemin complet d’un dossier).',
+    en: 'Give the images: “images” (full file paths) or “folder” (the full path of a folder).'
+  },
+  trainNotDir: { fr: 'Ce n’est pas un dossier : « {p} ».', en: 'Not a folder: “{p}”.' },
+  trainFolderMany: {
+    fr: 'Ce dossier contient {n} images : {max} au plus par appel. Donne une liste « images ».',
+    en: 'This folder holds {n} images: {max} at most per call. Give an “images” list.'
+  },
+  trainNeedId: { fr: 'Indique trainingId.', en: 'Give trainingId.' },
+  trainBadUntil: { fr: '« until » : sample, checkpoint, end ou change.', en: '“until”: sample, checkpoint, end or change.' },
+  trainBusy: {
+    fr: 'Un entraînement est déjà en cours : « {name} » (pas {a} / {b}).',
+    en: 'A training is already running: “{name}” (step {a} / {b}).'
+  },
+  trainNotReady: {
+    fr: 'Ce brouillon ne peut pas encore partir : {why}. Complète-le avec mia_train_prepare {trainingId}.',
+    en: 'This draft cannot start yet: {why}. Complete it with mia_train_prepare {trainingId}.'
+  },
+  trainStill: {
+    fr: 'Rien de tel après {s} s : rappelle mia_train_wait plus tard (un entraînement dure des heures).',
+    en: 'Nothing of the kind after {s} s: call mia_train_wait again later (a training lasts hours).'
+  },
+  trainProposed: {
+    fr: 'Rien n’est lancé : l’utilisateur voit la carte « {name} propose un entraînement » dans Mia et clique « Lancer » lui-même. Ne relance pas ; mia_pending → training.state dit la suite (waiting, started, declined, changed). Toute modification du brouillon annule la proposition.',
+    en: 'Nothing is started: the user sees the card “{name} suggests a training” in Mia and clicks “Start” themselves. Do not call it again; mia_pending → training.state tells what follows (waiting, started, declined, changed). Any change to the draft cancels the suggestion.'
+  },
+  trainProposedResume: {
+    fr: 'Rien n’est relancé : l’utilisateur voit la carte « {name} propose de reprendre » dans Mia et clique « Reprendre » lui-même. mia_pending → training.state dit la suite.',
+    en: 'Nothing is resumed: the user sees the card “{name} suggests resuming” in Mia and clicks “Resume” themselves. mia_pending → training.state tells what follows.'
+  },
+  trainStarted: {
+    fr: 'Lancé (mode « Claude agit seul » : le feu vert n’est pas demandé). Suis-le avec mia_train_status ou mia_train_wait.',
+    en: 'Started (mode “Claude acts alone”: the go-ahead is not asked). Follow it with mia_train_status or mia_train_wait.'
+  }
 };
 
 /**
@@ -140,6 +186,7 @@ class Bridge {
     this.rendererReady = false;
     this.readyWaiters = [];
     this.watched = null;               // the webContents whose reloads we follow
+    this.trainAsked = new Map();       // display name → the training it last suggested starting (mia_pending → training)
     this.file = process.env.MIA_BRIDGE_FILE
       || path.join((ctx.paths && ctx.paths.data) || path.join(ctx.app.getPath('userData'), 'data'), 'bridge.json');
     this.mirror = process.env.MIA_BRIDGE_MIRROR
@@ -358,7 +405,9 @@ class Bridge {
     const win = this.win();
     if (!win || win.isDestroyed()) return;
     const quiet = method === 'ui_state' || method === 'get_board' || method === 'get_output' || method === 'pending';
-    if (method === 'create_project' || method === 'open_project' || (!quiet && win.isMinimized())) {
+    // a training being prepared or suggested is to be seen: its screen fills, its card waits for a click
+    const front = method === 'create_project' || method === 'open_project' || method === 'train_prepare' || method === 'train_start';
+    if (front || (!quiet && win.isMinimized())) {
       try { this.ctx.focusWindow(); } catch { /* best effort */ }
     }
   }
@@ -441,6 +490,13 @@ class Bridge {
       case 'cancel': this.notifyActivity(method, client); return this.cancel(params);
       case 'snapshot': this.wake(method); return this.snapshot(params, client);
       case 'import_media': this.checkPaths(params); this.wake(method); return this.relay(method, params, client, RELAY_TIMEOUT_MS * 2);
+      // LoRA training. The three readings stay here and light nothing in the title bar; they note who is watching.
+      case 'train_options': return { ok: true, result: await this.trainOptions() };
+      case 'train_status': return { ok: true, result: await this.trainStatus(params, client) };
+      case 'train_wait': return { ok: true, result: await this.trainWait(params, client) };
+      case 'train_prepare': this.checkTrainPaths(params); this.wake(method); return this.relay(method, params, client, TRAIN_PREPARE_MS);
+      case 'train_start': this.wake(method); return this.trainStart(params, client);
+      case 'pending': return this.pendingWithTraining(params, client);
       default:
         if (RELAYED.has(method)) { this.wake(method); return this.relay(method, params, client); }
         return { ok: false, error: this.tr('unknownMethod', { m: method }) };
@@ -505,6 +561,8 @@ class Bridge {
         } : null,
         queue: eng.queue || null
       } : null,
+      // the LoRA training that is active (waiting for the GPU, preparing, running, sampling, letting a job through), or null
+      training: this.trainingBrief(eng),
       capabilities: caps,
       bridge: { port: this.port }
     };
@@ -605,7 +663,9 @@ class Bridge {
             ...(Number.isFinite(Number(m.strength)) ? { strength: Number(m.strength) } : {}), ...(m.advice ? { advice: L(m.advice) } : {}) });
         } else {
           if (m.hidden || !(m.caps || []).some((c) => caps.includes(c))) continue;
-          out.push({ value: m.id, label: L(m.label) || m.file, family: m.family || null, speed: m.speed ?? null, quality: m.quality ?? null, license: m.license });
+          // version (Compacte, Pleine…) and memoryGB (estimated peak on this machine) when the scanner knows them
+          out.push({ value: m.id, label: L(m.label) || m.file, family: m.family || null, speed: m.speed ?? null, quality: m.quality ?? null, license: m.license,
+            version: m.version ? L(m.version.tag) || null : null, memoryGB: m.mem && m.mem.gb != null ? m.mem.gb : null });
         }
       }
       return out;
@@ -772,11 +832,19 @@ class Bridge {
     const capabilities = {};
     if (inv && inv.capabilities) {
       for (const [k, v] of Object.entries(inv.capabilities)) {
-        const def = v && v.default && Array.isArray(inv.models) ? inv.models.find((m) => m.id === v.default) : null;
-        capabilities[k] = { available: !!(v && v.available), default: def ? L(def.label) || def.file : null };
+        const def = v && v.default && Array.isArray(inv.models) ? require('./engine/route').rules().findModel(inv, v.default) : null;
+        // memoryGB: estimated peak memory of that default (what « auto » runs) on this machine
+        capabilities[k] = { available: !!(v && v.available), default: def ? L(def.label) || def.file : null,
+          memoryGB: def && def.mem && def.mem.gb != null ? def.mem.gb : null };
       }
     }
     const missing = inv && Array.isArray(inv.missing) ? inv.missing.map((m) => ({ caps: m.caps, what: L(m.what) })) : [];
+    // the machine's one memory total (GB), and the models Mia recognises but does not offer (never a choice: a block
+    // set to one of them is refused when planned, with the same reason)
+    const machine = { memoryGB: inv && inv.machine && inv.machine.memGB != null ? inv.machine.memGB : null };
+    const notOffered = inv && Array.isArray(inv.models)
+      ? inv.models.filter((m) => m && m.blocked && m.status !== 'duplicate' && m.status !== 'other-app')
+        .map((m) => ({ label: L(m.label) || m.file, reason: L(m.blocked.note) || L(m.statusNote) })) : [];
 
     return {
       portRules: lang === 'en'
@@ -785,7 +853,9 @@ class Bridge {
       types,
       recipes,
       capabilities,
-      missing
+      missing,
+      machine,
+      notOffered
     };
   }
 
@@ -796,7 +866,11 @@ class Bridge {
       mode: j.mode, state: j.state, progress: j.progress, etaS: j.eta ?? null, message: j.message || null,
       waitingFor: j.who || null,
       // online job (Model block hf:…): its own lane, never waits for the GPU; remote = queued | running | full at Higgsfield
-      ...(j.online ? { online: true, remote: j.remote || null } : {})
+      ...(j.online ? { online: true, remote: j.remote || null } : {}),
+      // a LoRA training (SPEC §8.7): the job runs beside it (its name), or waits behind it (message says why, with the
+      // memory figures when the memory is what is missing)
+      ...(j.beside ? { besideTraining: j.beside } : {}),
+      ...(j.trainWait ? { waitsForTraining: true } : {})
     }));
   }
 
@@ -859,7 +933,9 @@ class Bridge {
       jobId: job.jobId, nodeId: job.nodeId, boardId: job.projectId, projectId: job.projectId /* deprecated alias of boardId */, block: job.label, mode: job.mode, state,
       progress: state === 'done' ? 1 : (finalEvt && finalEvt.progress != null ? finalEvt.progress : job.progress ?? null), message: (finalEvt && (finalEvt.message || finalEvt.error)) || job.message || null
     };
+    if (job.beside) out.besideTraining = job.beside;          // computed beside a LoRA training (SPEC §8.7)
     if (!FINAL.has(state)) {
+      if (job.trainWait) out.waitsForTraining = true;          // held behind a LoRA training: message says why
       out.timedOut = true;
       out.etaS = job.eta ?? null;
       out.hint = this.tr('stillRunning', { s: timeoutS });
@@ -875,6 +951,254 @@ class Bridge {
     }
     out.run = this.describeRun(job.projectId, run);
     if (state === 'error' && run && run.error && !out.message) out.message = run.error;
+    return out;
+  }
+
+  // ------------------------------------------------------------------ training a LoRA (mia_train_*)
+  /** The training service of the main process (electron\trainer.js), once it has read its folders. */
+  async trainer() {
+    const t = this.ctx.trainer;
+    if (!t || typeof t.get !== 'function') this.fail('noTrainer');
+    try {
+      await t.ready;
+      if (typeof t.refreshPrefs === 'function') await t.refreshPrefs();
+    } catch { /* it answers with what it has */ }
+    return t;
+  }
+
+  lang() { try { return this.ctx.lang() === 'en' ? 'en' : 'fr'; } catch { return 'fr'; } }
+
+  /** The engine's last status, without asking the GPU again (a reading must stay quick). */
+  engineNow() {
+    const eng = this.engine();
+    try { return eng && typeof eng.statusNow === 'function' ? eng.statusNow() : null; } catch { return null; }
+  }
+
+  /** mia_status → training: {trainingId, name, base, state, phase, pause, step, steps, progress, endAt} | null */
+  trainingBrief(engStatus) {
+    let b = engStatus && engStatus.training ? engStatus.training : null;
+    if (!b) {
+      const t = this.ctx.trainer;
+      try { b = t && typeof t.brief === 'function' ? t.brief() : null; } catch { b = null; }
+    }
+    if (!b) return null;
+    return {
+      trainingId: b.id, name: b.name, base: b.base, state: b.state, phase: b.phase || null, pause: b.pause || null,
+      step: b.step, steps: b.steps, progress: b.progress, endAt: b.endAt || null
+    };
+  }
+
+  async trainOptions() {
+    const t = await this.trainer();
+    const o = t.options();
+    const lang = this.lang();
+    const L = (x) => (x && typeof x === 'object' ? (x[lang] || x.fr || x.en || '') : x == null ? '' : String(x));
+    const eng = this.engineNow();
+    const gpu = eng && eng.gpu ? eng.gpu : null;
+    return {
+      bases: (o.bases || []).map((b) => ({
+        id: b.id, label: L(b.label), media: b.media, ready: !!b.ready,
+        ...(b.ready ? {} : { why: L(b.why) }),
+        missing: b.missing || [],
+        defaults: b.defaults, lengths: b.lengths,
+        estimate: { sPerStep: b.estimate.sPerStep, sampleSec: b.estimate.sampleSec, vramGB: b.estimate.vramGB, measured: !!b.estimate.measured }
+      })),
+      minImages: o.minImages,
+      advisedImages: o.adviseImages,
+      samplePrompts: o.samplePrompts,
+      kinds: ['character', 'place', 'style'],
+      disk: o.disk,
+      gpu: gpu ? {
+        lock: gpu.lock ? { who: gpu.lock.who, sinceMs: gpu.lock.since, mine: !!gpu.lock.mine } : null,
+        vramUsedGB: gpu.vramUsedGB ?? null, vramTotalGB: gpu.vramTotalGB ?? null
+      } : null,
+      active: o.active || null
+    };
+  }
+
+  /** What an assistant reads of one training: train:get without the screen's own data (curve, raw events). */
+  trainView(s) {
+    const eng = this.engineNow();
+    const draft = s.state === 'pret';
+    const est = draft ? s.estimate : s.eta;
+    return {
+      trainingId: s.trainingId, name: s.name, base: s.base, kind: s.kind, trigger: s.trigger,
+      state: s.state, phase: s.phase, pause: s.pause ? s.pause.reason : null,
+      by: s.by ? s.by.who : null, startedBy: s.startedBy || null, proposedBy: s.proposedBy || null,
+      // a suggestion of an assistant: waiting for the user's click, or what became of the last one
+      proposal: s.proposal ? { state: 'waiting', by: s.proposal.by, resume: !!s.proposal.resume }
+        : s.proposalEnd ? { state: s.proposalEnd.state } : null,
+      step: s.step, steps: s.steps, progress: s.progress,
+      importing: s.importing || null,
+      dataset: s.dataset ? { count: s.dataset.count, captioned: s.dataset.captions, small: s.dataset.small, skipped: (s.dataset.skipped || []).length } : null,
+      ...(draft ? { ready: !!s.ready, why: s.why || null } : {}),
+      loss: s.loss, pace: s.pace,
+      eta: { seconds: est ? est.seconds : null, endAt: est ? est.endAt : null },
+      lastNewsS: s.lastNewsS, silent: !!s.silent,
+      memory: {
+        vramGB: eng && eng.gpu && eng.gpu.vramUsedGB != null ? eng.gpu.vramUsedGB : null,
+        peakVramGB: s.memory ? s.memory.peakVramGB : null, ramFreeGB: s.memory ? s.memory.ramFreeGB : null
+      },
+      checkpoints: (s.checkpoints || []).map((c) => ({ step: c.step, file: c.file, sizeMB: c.sizeMB ?? null, at: c.at ?? null, added: c.added || null })),
+      samples: (s.samples || []).map((x) => ({ step: x.step, i: x.i, file: x.file, kind: x.kind, prompt: x.prompt || '' })),
+      nextSampleAt: s.nextSampleAt, waitingJobs: s.waitingJobs,
+      notes: (s.notes || []).slice(-60),
+      error: s.error ? { code: s.error.code, message: (s.error.message && (s.error.message[this.lang()] || s.error.message.fr)) || null } : null,
+      logTail: s.logTail || [],
+      lora: s.lora ? { file: s.lora.file, comfyName: s.lora.comfyName, trigger: s.lora.trigger, step: s.lora.step } : null,
+      // finished, but the final LoRA could not be filed: why (mia_train_control add_to_loras tries again)
+      notFiled: s.filed && s.filed.ok === false ? ((s.filed.message && (s.filed.message[this.lang()] || s.filed.message.fr)) || s.filed.code) : null,
+      dir: s.dir
+    };
+  }
+
+  /** One training read for an assistant; it is noted as watching (« CLAUDE REGARDE · IL Y A 2 MIN »). */
+  async trainRead(t, id, client) {
+    const s = await t.get(id ? String(id) : null, { watch: client });
+    if (!s || s.ok === false) throw new BridgeError((s && s.error) || this.tr('noTrainer'));
+    return s;
+  }
+
+  async trainStatus(params, client) {
+    const t = await this.trainer();
+    return this.trainView(await this.trainRead(t, params.trainingId, client));
+  }
+
+  /**
+   * Waits for the next sample, the next checkpoint, the end, or any change of state — same contract as wait():
+   * the state when it happened, or timedOut:true to call again.
+   */
+  async trainWait(params, client) {
+    const t = await this.trainer();
+    const until = params.until == null ? 'change' : String(params.until);
+    if (!TRAIN_UNTIL.has(until)) this.fail('trainBadUntil');
+    const timeoutS = Math.max(1, Math.min(WAIT_MAX_S, Number(params.timeoutS) || WAIT_DEFAULT_S));
+    const first = await this.trainRead(t, params.trainingId, client);
+    const id = first.trainingId;
+    // what counts as « it moved »: never the step itself, it moves every few seconds
+    const sig = (s) => [s.state, s.phase || '', s.pause ? s.pause.reason : '', (s.checkpoints || []).length, (s.samples || []).length,
+      s.proposal ? 'p' : '', s.proposalEnd ? s.proposalEnd.state : '', s.error ? s.error.code : '', s.importing ? 'i' : ''].join('|');
+    const over = (s) => TRAIN_ENDED.has(s.state) || (s.state === 'pause' && !(s.pause && s.pause.reason === 'pass'));
+    const base = { sig: sig(first), samples: (first.samples || []).length, checkpoints: (first.checkpoints || []).length };
+    const reached = (s) => (until === 'end' ? over(s)
+      : until === 'sample' ? (s.samples || []).length > base.samples
+        : until === 'checkpoint' ? (s.checkpoints || []).length > base.checkpoints
+          : sig(s) !== base.sig);
+    const peek = () => { try { const s = t.get(id); return s && s.ok !== false ? s : null; } catch { return null; } };
+    let hit = reached(first);
+    let ended = over(first);
+    if (!hit && !(ended && until !== 'change')) {
+      const deadline = Date.now() + timeoutS * 1000;
+      await new Promise((resolve) => {
+        let off = null;
+        let poll = null;
+        const done = () => { clearTimeout(timer); clearInterval(poll); if (typeof off === 'function') off(); resolve(); };
+        const look = () => {
+          const s = peek();
+          if (!s) { done(); return; }                        // the training went to the Recycle Bin
+          hit = reached(s);
+          ended = over(s);
+          // a sample or a checkpoint will never come from a training that ended: say so instead of waiting
+          if (hit || (ended && until !== 'change')) done();
+        };
+        const timer = setTimeout(done, Math.max(0, deadline - Date.now()));
+        poll = setInterval(look, 1000);
+        if (typeof t.onChange === 'function') off = t.onChange((changed) => { if (changed === id) look(); });
+      });
+    }
+    const out = this.trainView(await this.trainRead(t, id, client));
+    out.until = until;
+    if (hit) out.reached = true;
+    else if (ended && until !== 'change') { out.reached = false; out.ended = true; }
+    else { out.timedOut = true; out.hint = this.tr('trainStill', { s: timeoutS }); }
+    return out;
+  }
+
+  /** mia_train_prepare: full paths that exist, 300 images at most (its own check: checkPaths stops at 64). */
+  checkTrainPaths(params) {
+    const strip = (raw) => String(raw || '').trim().replace(/^"(.*)"$/, '$1');
+    const images = Array.isArray(params.images) ? params.images : typeof params.images === 'string' ? [params.images] : [];
+    const folder = typeof params.folder === 'string' ? strip(params.folder) : '';
+    if (!images.length && !folder) {
+      if (params.trainingId) { delete params.images; delete params.folder; return; }     // completing a draft: captions, settings
+      this.fail('trainNoPaths');
+    }
+    if (images.length > TRAIN_IMPORT_MAX) this.fail('tooMany', { n: TRAIN_IMPORT_MAX });
+    const clean = [];
+    for (const raw of images) {
+      const p = strip(raw);
+      if (!path.isAbsolute(p)) this.fail('notAbs', { p });
+      let st;
+      try { st = fs.statSync(p); } catch { this.fail('notFound', { p }); }
+      if (!st.isFile()) this.fail('notFile', { p });
+      clean.push(path.normalize(p));
+    }
+    if (clean.length) params.images = clean; else delete params.images;
+    if (folder) {
+      if (!path.isAbsolute(folder)) this.fail('notAbs', { p: folder });
+      let st;
+      try { st = fs.statSync(folder); } catch { this.fail('notFound', { p: folder }); }
+      if (!st.isDirectory()) this.fail('trainNotDir', { p: folder });
+      let n = 0;
+      try { n = fs.readdirSync(folder).filter((f) => TRAIN_IMAGE_EXT.has(path.extname(f).toLowerCase())).length; } catch { n = 0; }
+      if (n + clean.length > TRAIN_IMPORT_MAX) this.fail('trainFolderMany', { n, max: TRAIN_IMPORT_MAX });
+      params.folder = path.normalize(folder);
+    } else delete params.folder;
+    if (Array.isArray(params.captions) && params.captions.length > TRAIN_IMPORT_MAX) this.fail('tooMany', { n: TRAIN_IMPORT_MAX });
+  }
+
+  /**
+   * mia_train_start. The page first says whether this assistant may act (green light, pause) and whether the
+   * user's click is asked; then, here: a SUGGESTION written in train.json (the card of the window is drawn from
+   * it, so it survives a reload) — or, « Demander mon feu vert » off, the start itself.
+   */
+  async trainStart(params, client) {
+    const gate = await this.relay('train_start', params, client);
+    if (!gate || !gate.ok) return gate || { ok: false, error: this.tr('notReady') };
+    const t = await this.trainer();
+    const id = params.trainingId ? String(params.trainingId) : '';
+    if (!id) this.fail('trainNeedId');
+    const resume = params.resume === true;
+    const by = cleanClient((gate.result && gate.result.by) || client);
+    const active = typeof t.active === 'function' ? t.active() : null;
+    if (active) {
+      const n = (x) => Math.round(+x || 0).toLocaleString(this.lang() === 'en' ? 'en-US' : 'fr-FR');
+      this.fail('trainBusy', { name: active.doc.name, a: n(active.doc.step), b: n(active.doc.steps) });
+    }
+    const cur = await t.get(id);
+    if (!cur || cur.ok === false) return { ok: false, error: (cur && cur.error) || this.tr('noTrainer') };
+    if (!resume && cur.state === 'pret' && cur.ready === false) this.fail('trainNotReady', { why: cur.why || '?' });
+    const ask = !(gate.result && gate.result.ask === false);
+    if (ask) {
+      const r = t.propose(id, { by, resume });
+      if (!r || r.ok === false) return { ok: false, error: (r && r.error) || this.tr('noTrainer') };
+      this.trainAsked.set(client, id);
+      return { ok: true, result: { awaitingUser: true, trainingId: id, resume, note: this.tr(resume ? 'trainProposedResume' : 'trainProposed', { name: by }) } };
+    }
+    const r = await t.start(id, { resume, by });
+    if (!r || r.ok === false) return { ok: false, error: (r && r.error) || this.tr('noTrainer') };
+    this.trainAsked.set(client, id);
+    return { ok: true, result: { started: true, trainingId: id, state: r.state, resumeFrom: r.resumeFrom || 0, note: this.tr('trainStarted') } };
+  }
+
+  /** mia_pending → training: what became of the training this assistant suggested starting. */
+  async pendingWithTraining(params, client) {
+    const out = await this.relay('pending', params, client);
+    if (!out || !out.ok || !out.result || typeof out.result !== 'object') return out;
+    let training = null;
+    try {
+      const t = this.ctx.trainer;
+      const items = t && t.items instanceof Map ? [...t.items.values()] : [];
+      const mine = this.trainAsked.get(client);
+      // after a restart of Mia nobody remembers who asked: a suggestion still waiting is in train.json
+      const item = items.find((it) => it.id === mine) || items.find((it) => it.doc && it.doc.proposal && it.doc.proposal.by === client);
+      if (item && item.doc) {
+        const d = item.doc;
+        const state = d.proposal ? 'waiting' : d.proposalEnd ? d.proposalEnd.state : null;
+        if (state) training = { trainingId: item.id, state, ...(state === 'started' ? { training: d.state } : {}) };
+      }
+    } catch { training = null; }
+    out.result.training = training;
     return out;
   }
 

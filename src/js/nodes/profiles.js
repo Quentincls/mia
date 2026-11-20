@@ -80,8 +80,13 @@ export const profileOf = (m) => data.families[familyKeyOf(m)] || null;
 /** Limites du modèle : { seconds:[min,max], fps:[…], resolutions:[…], audio, inputs:[…] } (vide si inconnu). */
 export const limitsOf = (m) => profileOf(m)?.limits || {};
 
-/** Variante d'un modèle dans sa famille : { tag, desc } (null si la famille n'en a pas). */
+/**
+ * Variante d'un modèle dans sa famille : { tag, desc } (null si la famille n'en a pas).
+ * La version que le scanner a lue dans le fichier (`m.version` : Compacte, Pleine, Complète…, SPEC §7) passe avant
+ * tout : l'écran ne devine rien par le nom. Sinon, les variantes du profil de la famille, reconnues par leur regex.
+ */
 export function variantOf(m) {
+  if (m && m.version && m.version.tag) return { tag: tl(m.version.tag), desc: m.version.desc ? tl(m.version.desc) : '' };
   const p = profileOf(m);
   if (!p || !(p.variants || []).length) return null;
   const hay = fold(`${m.file || ''} ${m.label?.fr || ''} ${m.label?.en || ''}`);

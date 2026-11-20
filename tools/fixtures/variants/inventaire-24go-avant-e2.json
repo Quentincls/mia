@@ -1,0 +1,1366 @@
+{
+ "models": [
+  {
+   "id": "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "aliases": [],
+   "key": "ltx-int8",
+   "kind": "file",
+   "path": "<moteur>/models/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "file": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x",
+   "role": "diffusion_model",
+   "variant": "22B",
+   "quant": "int8 convrot (ComfyUI)",
+   "quantClass": "compact",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "LTX 2.5",
+    "en": "LTX 2.5"
+   },
+   "desc": {
+    "fr": "Vidéo à partir d’une image, d’un texte ou d’un rendu 3D. Le plus polyvalent, réglé pour 24 Go de mémoire vidéo.",
+    "en": "Video from an image, a text or a 3D render. The most versatile, tuned for 24 GB of video memory."
+   },
+   "caps": [
+    "image-to-video",
+    "text-to-video",
+    "3d-to-real",
+    "guided-video"
+   ],
+   "default": [
+    "image-to-video",
+    "text-to-video",
+    "3d-to-real",
+    "guided-video"
+   ],
+   "comfy": {
+    "folder": "diffusion_models",
+    "name": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 21,
+   "speed": 2,
+   "quality": 3,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": false,
+   "group": "video",
+   "part": null,
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": {
+    "ltx-te": {
+     "id": "id:gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+     "file": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+     "comfyName": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors"
+    },
+    "ltx-vae": {
+     "id": "id:ltx-2.5-video-vae-bf16.safetensors",
+     "file": "ltx-2.5-video-vae-bf16.safetensors",
+     "comfyName": "ltx-2.5-video-vae-bf16.safetensors"
+    },
+    "ltx-audio-vae": {
+     "id": "id:ltx-2.5-audio-vae-bf16.safetensors",
+     "file": "ltx-2.5-audio-vae-bf16.safetensors",
+     "comfyName": "ltx-2.5-audio-vae-bf16.safetensors"
+    },
+    "ltx-l2r": {
+     "id": "id:ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+     "file": "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+     "comfyName": "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors"
+    },
+    "ltx-union": {
+     "id": "id:ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+     "file": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+     "comfyName": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors"
+    }
+   },
+   "baseKey": "ltx",
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
+   "aliases": [],
+   "key": "ltx-nvfp4",
+   "kind": "file",
+   "path": "<moteur>/models/diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
+   "file": "ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x",
+   "role": "diffusion_model",
+   "variant": "22B",
+   "quant": "nvfp4 (ComfyUI)",
+   "quantClass": "ultra",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "LTX 2.5 · RTX 50",
+    "en": "LTX 2.5 · RTX 50"
+   },
+   "desc": {
+    "fr": "Le même modèle LTX en format ultra-compact pour les cartes RTX 50 : un peu plus rapide.",
+    "en": "The same LTX model in an ultra-compact format for RTX 50 cards: a little faster."
+   },
+   "caps": [
+    "image-to-video",
+    "text-to-video",
+    "3d-to-real",
+    "guided-video"
+   ],
+   "default": [],
+   "comfy": {
+    "folder": "diffusion_models",
+    "name": "ltx-2.5-22b-distilled-transformer-nvfp4.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 19,
+   "speed": 3,
+   "quality": 3,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": false,
+   "group": "video",
+   "part": null,
+   "tier": "blackwell",
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": {
+    "ltx-te": {
+     "id": "id:gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+     "file": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+     "comfyName": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors"
+    },
+    "ltx-vae": {
+     "id": "id:ltx-2.5-video-vae-bf16.safetensors",
+     "file": "ltx-2.5-video-vae-bf16.safetensors",
+     "comfyName": "ltx-2.5-video-vae-bf16.safetensors"
+    },
+    "ltx-audio-vae": {
+     "id": "id:ltx-2.5-audio-vae-bf16.safetensors",
+     "file": "ltx-2.5-audio-vae-bf16.safetensors",
+     "comfyName": "ltx-2.5-audio-vae-bf16.safetensors"
+    },
+    "ltx-l2r": {
+     "id": "id:ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+     "file": "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+     "comfyName": "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors"
+    },
+    "ltx-union": {
+     "id": "id:ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+     "file": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+     "comfyName": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors"
+    }
+   },
+   "baseKey": "ltx",
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+   "aliases": [],
+   "key": "minimax",
+   "kind": "file",
+   "path": "<moteur>/models/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+   "file": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+   "sizeGB": 0.001,
+   "family": "MiniMax H3",
+   "role": "diffusion_model",
+   "variant": null,
+   "quant": "int8 convrot (ComfyUI)",
+   "quantClass": "compact",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "MiniMax H3",
+    "en": "MiniMax H3"
+   },
+   "desc": {
+    "fr": "Vidéo avec le son, entre une première et une dernière image.",
+    "en": "Video with sound, between a first and a last frame."
+   },
+   "caps": [
+    "image-to-video"
+   ],
+   "default": [],
+   "comfy": {
+    "folder": "diffusion_models",
+    "name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "rd",
+   "licenseNote": {
+    "fr": "Licence propre à MiniMax : lis-la avant un usage commercial.",
+    "en": "MiniMax's own license: read it before any commercial use."
+   },
+   "vramGB": 21,
+   "speed": 2,
+   "quality": 3,
+   "status": "incomplete",
+   "statusNote": {
+    "fr": "Il manque 2 pièces : encodeur de texte MiniMax (fichier qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors, dossier <moteur>\\models\\text_encoders) ; décodeur vidéo MiniMax (fichier minimax_h3_video_vae_fp16.safetensors, dossier <moteur>\\models\\vae).",
+    "en": "2 parts are missing: miniMax text encoder (file qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors, folder <moteur>\\models\\text_encoders); miniMax video decoder (file minimax_h3_video_vae_fp16.safetensors, folder <moteur>\\models\\vae)."
+   },
+   "app": null,
+   "hidden": false,
+   "group": "video",
+   "part": null,
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [
+    {
+     "key": "minimax-te",
+     "label": {
+      "fr": "Encodeur de texte MiniMax",
+      "en": "MiniMax text encoder"
+     },
+     "file": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+     "folder": "text_encoders",
+     "sizeGB": 15.7
+    },
+    {
+     "key": "minimax-vae",
+     "label": {
+      "fr": "Décodeur vidéo MiniMax",
+      "en": "MiniMax video decoder"
+     },
+     "file": "minimax_h3_video_vae_fp16.safetensors",
+     "folder": "vae",
+     "sizeGB": 5.2
+    }
+   ],
+   "parts": {},
+   "baseKey": "minimax",
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:flux-2-klein-9b.safetensors",
+   "aliases": [],
+   "key": "flux2-klein9b",
+   "kind": "file",
+   "path": "<moteur>/models/diffusion_models/flux-2-klein-9b.safetensors",
+   "file": "flux-2-klein-9b.safetensors",
+   "sizeGB": 0.001,
+   "family": "FLUX.2",
+   "role": "diffusion_model",
+   "variant": "Klein 9B",
+   "quant": "bf16",
+   "quantClass": "full",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "FLUX.2 Klein 9B",
+    "en": "FLUX.2 Klein 9B"
+   },
+   "desc": {
+    "fr": "Une image depuis ta consigne, en quelques secondes ; suit aussi une image de départ.",
+    "en": "An image from your prompt in a few seconds; can also follow a starting image."
+   },
+   "caps": [
+    "text-to-image"
+   ],
+   "default": [],
+   "comfy": {
+    "folder": "diffusion_models",
+    "name": "flux-2-klein-9b.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "trial",
+   "licenseNote": {
+    "fr": "Licence non commerciale de Black Forest Labs : essais et projets perso, pas de projet payé.",
+    "en": "Black Forest Labs non-commercial license: trials and personal projects, no paid work."
+   },
+   "vramGB": 22,
+   "speed": 3,
+   "quality": 3,
+   "status": "incomplete",
+   "statusNote": {
+    "fr": "Il manque 2 pièces : encodeur de texte FLUX.2 Klein 9B (fichier qwen_3_8b_fp8mixed.safetensors, dossier <moteur>\\models\\text_encoders) ; décodeur FLUX.2 (fichier flux2-vae.safetensors, dossier <moteur>\\models\\vae).",
+    "en": "2 parts are missing: fLUX.2 Klein 9B text encoder (file qwen_3_8b_fp8mixed.safetensors, folder <moteur>\\models\\text_encoders); fLUX.2 decoder (file flux2-vae.safetensors, folder <moteur>\\models\\vae)."
+   },
+   "app": null,
+   "hidden": false,
+   "group": "image",
+   "part": null,
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [
+    {
+     "key": "flux2-klein9b-te",
+     "label": {
+      "fr": "Encodeur de texte FLUX.2 Klein 9B",
+      "en": "FLUX.2 Klein 9B text encoder"
+     },
+     "file": "qwen_3_8b_fp8mixed.safetensors",
+     "folder": "text_encoders",
+     "sizeGB": 8.7
+    },
+    {
+     "key": "flux2-vae",
+     "label": {
+      "fr": "Décodeur FLUX.2",
+      "en": "FLUX.2 decoder"
+     },
+     "file": "flux2-vae.safetensors",
+     "folder": "vae",
+     "sizeGB": 0.34
+    }
+   ],
+   "parts": {},
+   "baseKey": "flux2klein9b",
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+   "aliases": [],
+   "key": "ltx-upscaler",
+   "kind": "file",
+   "path": "<moteur>/models/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+   "file": "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x",
+   "role": "latent_upscaler",
+   "variant": null,
+   "quant": "bf16",
+   "quantClass": "full",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "LTX · détails",
+    "en": "LTX · details"
+   },
+   "desc": {
+    "fr": "Agrandit une vidéo avec LTX en recréant le détail fin, fidèle au cadrage et au style. Lent.",
+    "en": "Upscales a video with LTX by recreating fine detail, true to framing and style. Slow."
+   },
+   "caps": [
+    "upscale"
+   ],
+   "default": [
+    "upscale"
+   ],
+   "comfy": {
+    "folder": "latent_upscale_models",
+    "name": "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 20,
+   "speed": 1,
+   "quality": 3,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": false,
+   "group": "upscale",
+   "part": null,
+   "tier": "details",
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": {
+    "ltx-int8": {
+     "id": "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+     "file": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+     "comfyName": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors"
+    },
+    "ltx-refine": {
+     "id": "id:ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors",
+     "file": "ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors",
+     "comfyName": "ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors"
+    },
+    "ltx-te": {
+     "id": "id:gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+     "file": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+     "comfyName": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors"
+    },
+    "ltx-vae": {
+     "id": "id:ltx-2.5-video-vae-bf16.safetensors",
+     "file": "ltx-2.5-video-vae-bf16.safetensors",
+     "comfyName": "ltx-2.5-video-vae-bf16.safetensors"
+    }
+   },
+   "baseKey": null,
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:ltx-2.5-audio-vae-bf16.safetensors",
+   "aliases": [],
+   "key": "ltx-audio-vae",
+   "kind": "file",
+   "path": "<moteur>/models/vae/ltx-2.5-audio-vae-bf16.safetensors",
+   "file": "ltx-2.5-audio-vae-bf16.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x",
+   "role": "audio_vae",
+   "variant": null,
+   "quant": "bf16",
+   "quantClass": "full",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "Décodeur audio LTX",
+    "en": "LTX audio decoder"
+   },
+   "desc": {
+    "fr": "Transforme le calcul de LTX en son.",
+    "en": "Turns LTX's computation into sound."
+   },
+   "caps": [],
+   "default": [],
+   "comfy": {
+    "folder": "vae",
+    "name": "ltx-2.5-audio-vae-bf16.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 0.5,
+   "speed": null,
+   "quality": null,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": true,
+   "group": "internal",
+   "part": "audio_vae",
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": null,
+   "baseKey": null,
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:ltx-2.5-video-vae-bf16.safetensors",
+   "aliases": [],
+   "key": "ltx-vae",
+   "kind": "file",
+   "path": "<moteur>/models/vae/ltx-2.5-video-vae-bf16.safetensors",
+   "file": "ltx-2.5-video-vae-bf16.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x / LTX-Video",
+   "role": "vae",
+   "variant": null,
+   "quant": "bf16",
+   "quantClass": "full",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "Décodeur vidéo LTX",
+    "en": "LTX video decoder"
+   },
+   "desc": {
+    "fr": "Transforme le calcul de LTX en images.",
+    "en": "Turns LTX's computation into frames."
+   },
+   "caps": [],
+   "default": [],
+   "comfy": {
+    "folder": "vae",
+    "name": "ltx-2.5-video-vae-bf16.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 0.5,
+   "speed": null,
+   "quality": null,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": true,
+   "group": "internal",
+   "part": "vae",
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": null,
+   "baseKey": null,
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+   "aliases": [],
+   "key": "ltx-te",
+   "kind": "file",
+   "path": "<moteur>/models/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+   "file": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+   "sizeGB": 0.001,
+   "family": "Gemma (encodeur LTX-2)",
+   "role": "text_encoder",
+   "variant": null,
+   "quant": "int8 convrot (ComfyUI)",
+   "quantClass": "compact",
+   "params": 0,
+   "rank": null,
+   "label": {
+    "fr": "Encodeur de texte LTX",
+    "en": "LTX text encoder"
+   },
+   "desc": {
+    "fr": "Lit ta consigne pour LTX (Gemma 12B).",
+    "en": "Reads your prompt for LTX (Gemma 12B)."
+   },
+   "caps": [],
+   "default": [],
+   "comfy": {
+    "folder": "text_encoders",
+    "name": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 0.5,
+   "speed": null,
+   "quality": null,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": true,
+   "group": "internal",
+   "part": "text_encoder",
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": null,
+   "baseKey": null,
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null
+  },
+  {
+   "id": "id:ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors",
+   "aliases": [],
+   "key": "ltx-refine",
+   "kind": "file",
+   "path": "<moteur>/models/loras/ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors",
+   "file": "ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x",
+   "role": "lora",
+   "variant": "13B/22B (LTX-2)",
+   "quant": "bf16",
+   "quantClass": "full",
+   "params": 0,
+   "rank": 16,
+   "label": {
+    "fr": "Mode Affiner les détails",
+    "en": "Refine details mode"
+   },
+   "desc": {
+    "fr": "Recrée le détail fin sans changer le cadrage : utilisé par « Agrandir › LTX · détails ».",
+    "en": "Recreates fine detail without changing the framing: used by “Upscale › LTX · details”."
+   },
+   "caps": [],
+   "default": [],
+   "comfy": {
+    "folder": "loras",
+    "name": "ltx-2.5-22b-ic-lora-refine-details-1.0.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 0.5,
+   "speed": null,
+   "quality": null,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": true,
+   "group": "internal",
+   "part": "mode",
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": null,
+   "baseKey": null,
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null,
+   "loraFor": "ltx",
+   "loraForLabel": {
+    "fr": "LTX 2.5",
+    "en": "LTX 2.5"
+   },
+   "loraKind": "control"
+  },
+  {
+   "id": "id:ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+   "aliases": [],
+   "key": "ltx-l2r",
+   "kind": "file",
+   "path": "<moteur>/models/loras/ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+   "file": "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x",
+   "role": "lora",
+   "variant": "13B/22B (LTX-2)",
+   "quant": "bf16",
+   "quantClass": "full",
+   "params": 0,
+   "rank": 16,
+   "label": {
+    "fr": "Mode Blockout → rendu",
+    "en": "Blockout to render mode"
+   },
+   "desc": {
+    "fr": "Ton blockout Unreal devient photoréel, le look vient d’une image clé.",
+    "en": "Your Unreal blockout becomes photoreal; the look comes from a keyframe."
+   },
+   "caps": [],
+   "default": [],
+   "comfy": {
+    "folder": "loras",
+    "name": "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 0.5,
+   "speed": null,
+   "quality": null,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": true,
+   "group": "internal",
+   "part": "mode",
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": null,
+   "baseKey": null,
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null,
+   "loraFor": "ltx",
+   "loraForLabel": {
+    "fr": "LTX 2.5",
+    "en": "LTX 2.5"
+   },
+   "loraKind": "control"
+  },
+  {
+   "id": "id:ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+   "aliases": [],
+   "key": "ltx-union",
+   "kind": "file",
+   "path": "<moteur>/models/loras/ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+   "file": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+   "sizeGB": 0.001,
+   "family": "LTX-2.x",
+   "role": "lora",
+   "variant": "13B/22B (LTX-2)",
+   "quant": "bf16",
+   "quantClass": "full",
+   "params": 0,
+   "rank": 16,
+   "label": {
+    "fr": "Mode Vidéo guidée",
+    "en": "Guided video mode"
+   },
+   "desc": {
+    "fr": "La vidéo suit la profondeur ou les contours d’une vidéo guide.",
+    "en": "The video follows the depth or the edges of a guide video."
+   },
+   "caps": [],
+   "default": [],
+   "comfy": {
+    "folder": "loras",
+    "name": "ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors",
+    "visible": true,
+    "source": "predicted"
+   },
+   "engine": "comfy",
+   "license": "ok",
+   "licenseNote": {
+    "fr": "Usage commercial gratuit sous 10 M$ de chiffre d’affaires (licence LTX-2.x Community ; LTX-2 Community pour les fichiers LTX-2.3).",
+    "en": "Free for commercial use under $10M revenue (LTX-2.x Community license; LTX-2 Community for LTX-2.3 files)."
+   },
+   "vramGB": 0.5,
+   "speed": null,
+   "quality": null,
+   "status": "ready",
+   "statusNote": null,
+   "app": null,
+   "hidden": true,
+   "group": "internal",
+   "part": "mode",
+   "tier": null,
+   "trigger": null,
+   "identity": null,
+   "genre": null,
+   "trainingStep": null,
+   "duplicateOf": null,
+   "missingParts": [],
+   "parts": null,
+   "baseKey": null,
+   "root": {
+    "path": "<moteur>/models",
+    "kind": "comfy",
+    "label": {
+     "fr": "Dossier du moteur",
+     "en": "Engine folder"
+    }
+   },
+   "usedBy": [],
+   "files": null,
+   "loraFor": "ltx",
+   "loraForLabel": {
+    "fr": "LTX 2.5",
+    "en": "LTX 2.5"
+   },
+   "loraKind": "control"
+  }
+ ],
+ "capabilities": {
+  "image-to-video": {
+   "available": true,
+   "default": "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "options": [
+    "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+    "id:ltx-2.5-22b-distilled-transformer-nvfp4.safetensors"
+   ],
+   "fast": null,
+   "label": {
+    "fr": "Animer une image",
+    "en": "Animate an image"
+   },
+   "optional": false
+  },
+  "text-to-video": {
+   "available": true,
+   "default": "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "options": [
+    "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+    "id:ltx-2.5-22b-distilled-transformer-nvfp4.safetensors"
+   ],
+   "fast": null,
+   "label": {
+    "fr": "Vidéo depuis un texte",
+    "en": "Video from text"
+   },
+   "optional": false
+  },
+  "3d-to-real": {
+   "available": true,
+   "default": "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "options": [
+    "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+    "id:ltx-2.5-22b-distilled-transformer-nvfp4.safetensors"
+   ],
+   "fast": null,
+   "label": {
+    "fr": "Rendre photoréaliste",
+    "en": "Make it photoreal"
+   },
+   "optional": false
+  },
+  "guided-video": {
+   "available": true,
+   "default": "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+   "options": [
+    "id:ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+    "id:ltx-2.5-22b-distilled-transformer-nvfp4.safetensors"
+   ],
+   "fast": null,
+   "label": {
+    "fr": "Vidéo guidée",
+    "en": "Guided video"
+   },
+   "optional": false
+  },
+  "reference-to-video": {
+   "available": false,
+   "default": null,
+   "options": [],
+   "fast": null,
+   "label": {
+    "fr": "Vidéo à partir de références",
+    "en": "Video from references"
+   },
+   "optional": false
+  },
+  "character-performance": {
+   "available": false,
+   "default": null,
+   "options": [],
+   "fast": null,
+   "label": {
+    "fr": "Animer un personnage",
+    "en": "Animate a character"
+   },
+   "optional": false
+  },
+  "image-edit": {
+   "available": false,
+   "default": null,
+   "options": [],
+   "fast": null,
+   "label": {
+    "fr": "Retoucher une image",
+    "en": "Edit an image"
+   },
+   "optional": false
+  },
+  "text-to-image": {
+   "available": false,
+   "default": null,
+   "options": [],
+   "fast": null,
+   "label": {
+    "fr": "Image depuis un texte",
+    "en": "Image from text"
+   },
+   "optional": true
+  },
+  "upscale": {
+   "available": true,
+   "default": "id:ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors",
+   "options": [
+    "id:ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+   ],
+   "fast": null,
+   "label": {
+    "fr": "Agrandir",
+    "en": "Upscale"
+   },
+   "optional": false
+  },
+  "depth": {
+   "available": false,
+   "default": null,
+   "options": [],
+   "fast": null,
+   "label": {
+    "fr": "Profondeur",
+    "en": "Depth"
+   },
+   "optional": false
+  },
+  "cutout": {
+   "available": false,
+   "default": null,
+   "options": [],
+   "fast": null,
+   "label": {
+    "fr": "Détourer",
+    "en": "Cut out"
+   },
+   "optional": false
+  },
+  "lora": {
+   "available": false,
+   "default": null,
+   "options": [],
+   "fast": null,
+   "label": {
+    "fr": "Mes LoRA",
+    "en": "My LoRAs"
+   },
+   "optional": true
+  }
+ },
+ "missing": [
+  {
+   "caps": [
+    "reference-to-video"
+   ],
+   "name": {
+    "fr": "MiniMax H3 · Références",
+    "en": "MiniMax H3 · References"
+   },
+   "what": {
+    "fr": "Modèle non installé : MiniMax H3 Références (≈ 23 Go à télécharger).",
+    "en": "Model not installed: MiniMax H3 References (≈ 23 GB to download)."
+   },
+   "files": [
+    {
+     "file": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+     "folder": "diffusion_models",
+     "sizeGB": 21,
+     "dir": "<moteur>\\models\\diffusion_models"
+    },
+    {
+     "file": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+     "folder": "loras",
+     "sizeGB": 2,
+     "dir": "<moteur>\\models\\loras"
+    }
+   ],
+   "download": true,
+   "sizeGB": 23
+  },
+  {
+   "caps": [
+    "character-performance"
+   ],
+   "name": {
+    "fr": "Wan Animate 2",
+    "en": "Wan Animate 2"
+   },
+   "what": {
+    "fr": "Wan Animate 2 n’est pas installé.",
+    "en": "Wan Animate 2 is not installed."
+   },
+   "files": [
+    {
+     "file": "wan_animate_2_int8_convrot.safetensors",
+     "folder": "diffusion_models",
+     "sizeGB": 16.7,
+     "dir": "<moteur>\\models\\diffusion_models"
+    }
+   ],
+   "download": false,
+   "sizeGB": null
+  },
+  {
+   "caps": [
+    "image-edit"
+   ],
+   "name": {
+    "fr": "Qwen Image Edit",
+    "en": "Qwen Image Edit"
+   },
+   "what": {
+    "fr": "Qwen Image Edit n’est pas installé.",
+    "en": "Qwen Image Edit is not installed."
+   },
+   "files": [
+    {
+     "file": "qwen_image_edit_2511_int8_convrot.safetensors",
+     "folder": "diffusion_models",
+     "sizeGB": 20.5,
+     "dir": "<moteur>\\models\\diffusion_models"
+    }
+   ],
+   "download": false,
+   "sizeGB": null
+  },
+  {
+   "caps": [
+    "depth"
+   ],
+   "name": {
+    "fr": "Video Depth Anything · Small",
+    "en": "Video Depth Anything · Small"
+   },
+   "what": {
+    "fr": "Video Depth Anything (Small) n’est pas installé.",
+    "en": "Video Depth Anything (Small) is not installed."
+   },
+   "files": [
+    {
+     "file": "video_depth_anything_vits.pth",
+     "folder": "videodepthanything",
+     "sizeGB": 0.12,
+     "dir": "<moteur>\\models\\videodepthanything"
+    }
+   ],
+   "download": false,
+   "sizeGB": null
+  },
+  {
+   "caps": [
+    "cutout"
+   ],
+   "name": {
+    "fr": "BiRefNet",
+    "en": "BiRefNet"
+   },
+   "what": {
+    "fr": "BiRefNet n’est pas installé.",
+    "en": "BiRefNet is not installed."
+   },
+   "files": [
+    {
+     "file": "BiRefNet",
+     "folder": "outils",
+     "sizeGB": 0.44,
+     "dir": "<moteur>\\models\\outils"
+    }
+   ],
+   "download": false,
+   "sizeGB": null
+  }
+ ],
+ "summary": {
+  "ready": 3,
+  "models": 11,
+  "sizeGB": 0.01,
+  "miaGB": 0.01,
+  "appsGB": 0,
+  "loras": 0
+ },
+ "bases": {
+  "ltx": {
+   "label": {
+    "fr": "LTX 2.5",
+    "en": "LTX 2.5"
+   },
+   "full": {
+    "fr": "LTX 2.5 (vidéo)",
+    "en": "LTX 2.5 (video)"
+   },
+   "media": "video",
+   "installed": true
+  },
+  "minimax": {
+   "label": {
+    "fr": "MiniMax H3",
+    "en": "MiniMax H3"
+   },
+   "full": {
+    "fr": "MiniMax H3 (vidéo)",
+    "en": "MiniMax H3 (video)"
+   },
+   "media": "video",
+   "installed": false
+  },
+  "wan": {
+   "label": {
+    "fr": "Wan",
+    "en": "Wan"
+   },
+   "full": {
+    "fr": "Wan (vidéo)",
+    "en": "Wan (video)"
+   },
+   "media": "video",
+   "installed": false
+  },
+  "qwen": {
+   "label": {
+    "fr": "Qwen Image",
+    "en": "Qwen Image"
+   },
+   "full": {
+    "fr": "Qwen Image (image)",
+    "en": "Qwen Image (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "seedvr2": {
+   "label": {
+    "fr": "SeedVR2",
+    "en": "SeedVR2"
+   },
+   "full": {
+    "fr": "SeedVR2 (vidéo)",
+    "en": "SeedVR2 (video)"
+   },
+   "media": "video",
+   "installed": false
+  },
+  "ltxv": {
+   "label": {
+    "fr": "LTX-Video 0.9 (ancienne version)",
+    "en": "LTX-Video 0.9 (old version)"
+   },
+   "full": {
+    "fr": "LTX-Video 0.9 (ancienne version) (vidéo)",
+    "en": "LTX-Video 0.9 (old version) (video)"
+   },
+   "media": "video",
+   "installed": false
+  },
+  "hunyuan": {
+   "label": {
+    "fr": "HunyuanVideo",
+    "en": "HunyuanVideo"
+   },
+   "full": {
+    "fr": "HunyuanVideo (vidéo)",
+    "en": "HunyuanVideo (video)"
+   },
+   "media": "video",
+   "installed": false
+  },
+  "flux": {
+   "label": {
+    "fr": "FLUX.1",
+    "en": "FLUX.1"
+   },
+   "full": {
+    "fr": "FLUX.1 (image)",
+    "en": "FLUX.1 (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "flux2": {
+   "label": {
+    "fr": "FLUX.2",
+    "en": "FLUX.2"
+   },
+   "full": {
+    "fr": "FLUX.2 (image)",
+    "en": "FLUX.2 (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "flux2klein9b": {
+   "label": {
+    "fr": "FLUX.2 Klein 9B",
+    "en": "FLUX.2 Klein 9B"
+   },
+   "full": {
+    "fr": "FLUX.2 Klein 9B (image)",
+    "en": "FLUX.2 Klein 9B (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "flux2klein4b": {
+   "label": {
+    "fr": "FLUX.2 Klein 4B",
+    "en": "FLUX.2 Klein 4B"
+   },
+   "full": {
+    "fr": "FLUX.2 Klein 4B (image)",
+    "en": "FLUX.2 Klein 4B (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "qwen21": {
+   "label": {
+    "fr": "Qwen-Image 2.1",
+    "en": "Qwen-Image 2.1"
+   },
+   "full": {
+    "fr": "Qwen-Image 2.1 (image)",
+    "en": "Qwen-Image 2.1 (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "sdxl": {
+   "label": {
+    "fr": "SDXL",
+    "en": "SDXL"
+   },
+   "full": {
+    "fr": "SDXL (image)",
+    "en": "SDXL (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "sd15": {
+   "label": {
+    "fr": "Stable Diffusion 1.5",
+    "en": "Stable Diffusion 1.5"
+   },
+   "full": {
+    "fr": "Stable Diffusion 1.5 (image)",
+    "en": "Stable Diffusion 1.5 (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "sd2": {
+   "label": {
+    "fr": "Stable Diffusion 2",
+    "en": "Stable Diffusion 2"
+   },
+   "full": {
+    "fr": "Stable Diffusion 2 (image)",
+    "en": "Stable Diffusion 2 (image)"
+   },
+   "media": "image",
+   "installed": false
+  },
+  "sd3": {
+   "label": {
+    "fr": "Stable Diffusion 3",
+    "en": "Stable Diffusion 3"
+   },
+   "full": {
+    "fr": "Stable Diffusion 3 (image)",
+    "en": "Stable Diffusion 3 (image)"
+   },
+   "media": "image",
+   "installed": false
+  }
+ },
+ "duplicates": []
+}

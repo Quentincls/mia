@@ -196,6 +196,7 @@ const MSG = {
     loraUsed: 'LoRA « {lora} » à {s}.',
     notInstalled: 'Le modèle « {label} » n’est pas installé ({files} absent du dossier models\\{folder} du moteur).',
     noPrompt: 'Écris la consigne (en anglais, de préférence).',
+    recipeBlocked: '« {name} » ne peut pas être lancé : sa recette de calcul n’est pas validée dans Mia.',
   },
   en: {
     cancelled: 'Run cancelled.',
@@ -226,6 +227,7 @@ const MSG = {
     loraUsed: 'LoRA “{lora}” at {s}.',
     notInstalled: 'The “{label}” model is not installed ({files} missing from the engine’s models\\{folder} folder).',
     noPrompt: 'Write the prompt (English works best).',
+    recipeBlocked: '“{name}” cannot be run: its compute recipe is not validated in Mia.',
   },
 };
 let lang = 'fr';
@@ -348,6 +350,26 @@ function modelFile(x, key, fallback) {
 
 /** Model name for run.json, in the UI language of the run (x.lang, set by begin()). */
 const labelOf = (m, fallback) => (m && m.label && (m.label[lang] || m.label.fr || m.label.en)) || (m && m.file) || fallback;
+
+// The LTX 2.5 text encoder every LTX workflow template names (Gemma, compact).
+const LTX_TE_INT8 = 'gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors';
+/**
+ * Text encoder of an LTX run (SPEC §7): the one the scanner paired with the chosen transformer (`parts['ltx-te']`:
+ * the full Gemma with the full transformer when it is installed, else the compact one) → { clip, note }.
+ * `clip` = the ComfyUI file name for the CLIPLoader; without an inventory or a known part, the templates' own value
+ * (the graph is then exactly what it always was). `note` = the scanner's sentence when the pairing could not be
+ * made (run.json notes), in the language of the run. A model whose recipe is not validated (`blocked`) never
+ * reaches a graph: it throws, whatever let it through.
+ */
+function ltxParts(x, key = 'model') {
+  const m = model(x, key);
+  if (m && m.blocked) throw new Error(t('recipeBlocked', { name: labelOf(m, 'LTX') }));
+  const te = m && m.parts && m.parts['ltx-te'];
+  return {
+    clip: (te && (te.comfyName || te.file)) || LTX_TE_INT8,
+    note: m && m.partNote ? (m.partNote[lang] || m.partNote.fr || null) : null,
+  };
+}
 
 /** MiniMax H3 (by family or file name). */
 const isMinimax = (m) => !!m && /minimax/i.test(`${m.family || ''} ${m.baseKey || ''} ${(m.comfy && m.comfy.name) || m.file || ''}`);
@@ -1026,7 +1048,7 @@ const notes = (list) => list.filter(Boolean).join('\n') || undefined;
 const exec = {
   setLang, begin, t, abortError, checkAbort,
   snap, even, ltxFrames, ceil8k1, int, seedOf, ltxMinutes, FORMAT_RATIOS, formatRatio, videoSize, shortSide,
-  input, promptOf, model, modelFile, labelOf, isMinimax, minimaxLength, minimaxCanvas,
+  input, promptOf, model, modelFile, labelOf, ltxParts, LTX_TE_INT8, isMinimax, minimaxLength, minimaxCanvas,
   LTX_UPSCALER, LTX_STAGE2_SIGMAS, LTX_KEY_STRENGTH, LTX_END_STRENGTH, ltxPasses, ltxPassesNote, ltxTwoPassMinutes,
   ltxEnhance, enhancedText,
   familyKey, familyLabel, familyLimits, maxSeconds, loraTrigger, withTrigger, listedName, lora, loraPrompt, addLora, requireModels,

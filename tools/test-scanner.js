@@ -414,6 +414,136 @@ async function testLoras() {
   svc.stop();
 }
 
+// --- 5 ter. LoRA entraînés dans Mia (CONCEPTION-entrainement §4.6, cas 23 et 24) : fiche <nom>.mia.json écrite par
+// electron/trainer.js addToLoras, rangés dans models\loras\mia d'un faux labo — rien n'est écrit dans le vrai moteur,
+// et la « corbeille » est un dossier du banc (ctx.trashItem) : rien ne part dans celle de Windows.
+async function testTrainedLoras() {
+  console.log('\n# LoRA entraînés dans Mia : fiche, « entraîné ici », étapes, retrait (faux labo)');
+  const { ModelService } = require(path.join(ROOT, 'electron', 'scanner.js'));
+  const base = path.join(DEV, 'loras-trained');
+  fs.rmSync(base, { recursive: true, force: true });
+  const engine = path.join(base, 'engine');
+  const mia = path.join(engine, 'models', 'loras', 'mia');
+  fs.mkdirSync(path.join(engine, 'models', 'diffusion_models'), { recursive: true });
+  const card = (file, o) => fs.writeFileSync(file.replace(/\.safetensors$/, '.mia.json'), JSON.stringify(o, null, 1));
+  const training = (o) => ({ id: 't_rosa01', base: 'ltx25', tool: 'ltx-trainer 1.6.2', steps: 2500, step: 2500, images: 32, rank: 32, date: '2026-11-19', ...o });
+  const rosaCard = (step) => ({ name: 'Rosa', kind: 'character', trigger: 'rsa woman', strength: 1.0,
+    advice: { fr: 'Entraîné dans Mia sur LTX 2.5.', en: 'Trained in Mia on LTX 2.5.' }, training: training({ step }) });
+  // a) le point final et une étape intermédiaire du même entraînement, rangés par Mia
+  const final = path.join(mia, 'Rosa_ltx25_02500.safetensors');
+  const step1k = path.join(mia, 'Rosa_ltx25_01000.safetensors');
+  fakeLora(final, { fill: 11 }); card(final, rosaCard(2500));
+  fakeLora(step1k, { fill: 12 }); card(step1k, rosaCard(1000));
+  // b) un LoRA de models\loras\mia SANS fiche : ni « entraîné ici », ni étape (le nom finit par 02000 : ignoré)
+  const bare = path.join(mia, 'Mara_ltx25_02000.safetensors');
+  fakeLora(bare, { fill: 13 });
+  // c) une fiche d'entraînement abîmée (pas pas entiers) : rien d'entraîné, le nom de la fiche reste lu
+  const broken = path.join(mia, 'Abime_ltx25_00500.safetensors');
+  fakeLora(broken, { fill: 14 }); card(broken, { name: 'Abîmé', kind: 'place', training: { id: 't_x', steps: 'beaucoup', step: 500 } });
+  // d) un LoRA dont le fichier ne dit pas pour quel modèle il a été fait (clés kohya génériques, largeur inconnue, nom
+  //    sans indice) : la base de la fiche
+  const odd = path.join(mia, 'Atelier_03000.safetensors');
+  {
+    const tensors = {};
+    let off = 0;
+    const add = (n, shape) => { const k = shape.reduce((a, b) => a * b, 1) * 2; tensors[n] = { dtype: 'BF16', shape, data_offsets: [off, off + k] }; off += k; };
+    for (let b = 0; b < 16; b++) { add(`lora_unet_blocks_${b}_proj.lora_down.weight`, [16, 1234]); add(`lora_unet_blocks_${b}_proj.lora_up.weight`, [1234, 16]); }
+    const h = Buffer.from(JSON.stringify({ __metadata__: {}, ...tensors }));
+    const len = Buffer.alloc(8); len.writeBigUInt64LE(BigInt(h.length));
+    fs.writeFileSync(odd, Buffer.concat([len, h, Buffer.alloc(off, 15)]));
+  }
+  card(odd, { name: 'Atelier', kind: 'place', trigger: 'atl studio', training: training({ id: 't_atl', base: 'qwen21', steps: 3000, step: 3000 }) });
+  // d bis) une LoRA LTX ambiguë (aucun LTX-2 dans ce faux labo, aucun indice dans le nom) : sans fiche « LTX-Video 0.9 »,
+  //        avec une fiche d'entraînement LTX 2.5, pour LTX 2.5
+  const amb = path.join(mia, 'Nina_02500.safetensors');
+  const ambBare = path.join(mia, 'Nora_02500.safetensors');
+  fakeLora(amb, { fill: 21 }); card(amb, { name: 'Nina', kind: 'character', training: training({ id: 't_nina' }) });
+  fakeLora(ambBare, { fill: 22 });
+  // e) une fiche d'entraînement recopiée hors du dossier de Mia (dossier de LoRA de l'utilisateur) : l'entraînement et
+  //    l'étape sont lus (« quelle que soit l'origine »), mais ce n'est pas un LoRA rangé par Mia
+  const elsewhereDir = path.join(base, 'mes-loras');
+  const elsewhere = path.join(elsewhereDir, 'Rosa_ltx25_01500.safetensors');
+  fakeLora(elsewhere, { fill: 16 }); card(elsewhere, rosaCard(1500));
+  // f) le même contenu qu'un LoRA de l'utilisateur : un LoRA entraîné n'est jamais pris pour la copie de rangement
+  const twinSrc = path.join(elsewhereDir, 'jumeau.safetensors');
+  const twin = path.join(mia, 'Jumeau_ltx25_02000.safetensors');
+  fakeLora(twinSrc, { fill: 17 }); fakeLora(twin, { fill: 17 });
+  card(twin, { name: 'Jumeau', kind: 'style', training: training({ id: 't_jum', steps: 2000, step: 2000 }) });
+  // g) la logique d'avant Mia : dossier d'entraînement (origine « training »), numéro lu dans le nom du fichier
+  const old = path.join(engine, 'personnages', 'testa', 'lora', 'testa_ltx25_01500.safetensors');
+  fakeLora(old, { fill: 18 });
+  // h) une Mia de test range les siens dans <userData>\loras-mia (electron/trainer.js lorasDir)
+  const testDir = path.join(base, 'userdata', 'loras-mia');
+  const testFile = path.join(testDir, 'Lena_fake_00300.safetensors');
+  fakeLora(testFile, { fill: 19 }); card(testFile, { name: 'Lena', kind: 'character', trigger: 'lna woman', training: training({ id: 't_lena', base: 'fake', steps: 300, step: 300 }) });
+
+  const bin = path.join(base, 'corbeille');
+  fs.mkdirSync(bin, { recursive: true });
+  const binned = [];
+  const trashItem = async (abs) => { const to = path.join(bin, path.basename(abs)); fs.renameSync(abs, to); binned.push(abs); };
+  const data = path.join(base, 'data');
+  fs.mkdirSync(data, { recursive: true });
+  const prefs = { engineRoot: engine, extraModelRoots: [], loraFolders: [elsewhereDir], comfyUrl: 'http://127.0.0.1:9' };
+  const svc = new ModelService({ paths: { data }, prefs: { get: () => prefs }, send: () => {}, logger: () => () => {}, trashItem, miaLoraDirs: [testDir] });
+  svc.loadCacheSync(); svc.loadRegistrySync();
+  const inv = await svc.scan();
+  const find = (f) => inv.models.find((m) => m.path.toLowerCase() === f.replace(/\\/g, '/').toLowerCase());
+  const mF = find(final), mS = find(step1k), mB = find(bare), mX = find(broken), mO = find(odd), mE = find(elsewhere), mT = find(twin), mOld = find(old), mL = find(testFile);
+
+  ok(mF && mF.trainedHere === true && mF.label.fr === 'Rosa' && mF.label.en === 'Rosa' && mF.genre === 'character' && mF.trigger === 'rsa woman'
+    && mF.origin === 'engine' && mF.group === 'loras' && mF.trainingStep == null,
+    `point final : « ${mF && mF.label.fr} », entraîné ici, personnage, « rsa woman » lu dans la fiche, aucune étape`);
+  ok(mF && mF.training && mF.training.id === 't_rosa01' && mF.training.steps === 2500 && mF.training.step === 2500 && mF.training.base === 'ltx25'
+    && mF.training.images === 32 && mF.training.date === '2026-11-19', 'point final : l’entraînement de la fiche est recopié dans l’entrée (id, base, pas, images, date)');
+  ok(mF && mF.loraFor === 'ltx' && mF.caps.includes('lora'), 'point final : pour LTX (lu dans le fichier), proposé comme LoRA');
+  ok(mF && mF.license === 'ok' && mF.licenseNote.fr === 'Entraîné par toi.' && mB && mB.licenseNote.fr === 'Licence non vérifiée.',
+    'licence : « Entraîné par toi. » pour un LoRA entraîné ici, « Licence non vérifiée. » sans fiche');
+  ok(mS && mS.trainedHere === true && mS.trainingStep === 1000 && /^Rosa · étape 1\s000$/.test(mS.label.fr) && mS.label.en === 'Rosa · step 1,000',
+    `étape intermédiaire : « ${mS && mS.label.fr} » / « ${mS && mS.label.en} », trainingStep 1000`);
+  ok(mB && !mB.trainedHere && mB.training == null && mB.trainingStep == null && !/étape/.test(mB.label.fr),
+    `models\\loras\\mia sans fiche : « ${mB && mB.label.fr} », ni entraîné ici, ni étape`);
+  ok(mX && !mX.trainedHere && mX.training == null && mX.label.fr === 'Abîmé' && mX.genre === 'place' && mX.trainingStep == null,
+    'fiche d’entraînement abîmée : rien d’entraîné ni d’étape, son nom et son genre restent lus');
+  ok(mO && mO.trainedHere && mO.loraFor === 'qwen21' && mO.label.fr === 'Atelier' && mO.genre === 'place',
+    `fichier muet sur son modèle : la base de la fiche (qwen21 → « ${mO && mO.loraFor} »)`);
+  const mA = find(amb), mAB = find(ambBare);
+  ok(mAB && mAB.loraFor === 'ltxv' && mA && mA.loraFor === 'ltx' && mA.loraForLabel && mA.loraForLabel.fr === 'LTX 2.5',
+    `LoRA LTX ambiguë : sans fiche « ${mAB && mAB.loraFor} », avec une fiche d’entraînement LTX 2.5 « ${mA && mA.loraFor} »`);
+  ok(mE && !mE.trainedHere && mE.training && mE.training.id === 't_rosa01' && mE.trainingStep === 1500 && /^Rosa · étape 1\s500$/.test(mE.label.fr) && mE.origin === 'folder',
+    `fiche recopiée hors du dossier de Mia : « ${mE && mE.label.fr} », étape lue, pas « entraîné ici »`);
+  ok(mT && mT.trainedHere && mT.label.fr === 'Jumeau', 'même contenu qu’un LoRA de l’utilisateur : le LoRA entraîné reste une entrée (pas une copie de rangement)');
+  ok(mOld && mOld.origin === 'training' && mOld.trainingStep === 1500 && /· étape 1\s500$/.test(mOld.label.fr) && !mOld.trainedHere,
+    `dossier d’entraînement d’avant (origine « training ») : numéro lu dans le nom, « ${mOld && mOld.label.fr} »`);
+  ok(mL && mL.trainedHere && mL.origin === 'folder' && mL.label.fr === 'Lena' && mL.trainingStep == null && mL.status === 'ready',
+    'Mia de test : <userData>\\loras-mia lu, « Lena » entraîné ici');
+  ok(inv.roots.some((r) => r.path.toLowerCase() === testDir.replace(/\\/g, '/').toLowerCase() && r.kind === 'loras' && r.label.fr === 'Entraînés dans Mia'),
+    'Mia de test : le dossier est une racine « Entraînés dans Mia » (surveillée comme les dossiers de LoRA)');
+  const ins = await svc.inspect(final);
+  ok(ins.ok && ins.isLora && ins.suggestedName === 'Rosa' && ins.suggestedTrigger === 'rsa woman' && ins.kindGuess === 'character',
+    `inspect : nom, mot déclencheur et genre de la fiche (« ${ins.suggestedName} »)`);
+  const insO = await svc.inspect(odd);
+  ok(insO.ok && insO.isLora && insO.loraFor === 'qwen21', 'inspect : la base de la fiche quand le fichier ne la dit pas');
+
+  // retrait : seulement le fichier et sa fiche, à la corbeille ; le reste ne bouge pas
+  const refused = await svc.removeLora(mB.id);
+  ok(refused.ok === false && fs.existsSync(bare) && binned.length === 0, 'removeLora : un LoRA du moteur sans fiche reste refusé (rien à la corbeille)');
+  const rm = await svc.removeLora(mF.id);
+  ok(rm.ok && rm.trashed.length === 2 && !fs.existsSync(final) && !fs.existsSync(final.replace(/\.safetensors$/, '.mia.json'))
+    && fs.existsSync(path.join(bin, 'Rosa_ltx25_02500.safetensors')) && fs.existsSync(path.join(bin, 'Rosa_ltx25_02500.mia.json')),
+    'removeLora (entraîné ici) : le fichier et sa fiche vont à la corbeille');
+  ok(fs.existsSync(step1k) && fs.existsSync(bare) && fs.existsSync(twin) && !rm.inventory.models.some((m) => m.id === mF.id)
+    && rm.inventory.models.some((m) => m.id === mS.id), 'removeLora : l’étape intermédiaire et les autres LoRA restent, l’entrée disparaît');
+  const rmL = await svc.removeLora(mL.id);
+  ok(rmL.ok && !fs.existsSync(testFile) && binned.length === 4, 'removeLora : un LoRA d’une Mia de test (<userData>\\loras-mia) aussi, fichier et fiche');
+  // un nom choisi à la main pour un LoRA entraîné : il passe avant la fiche, l'étape reste dite
+  const up = await svc.updateLora(mS.id, { name: 'Rosa essai' });
+  ok(up.ok && /^Rosa essai · étape 1\s000$/.test(up.model.label.fr) && up.model.trainedHere, `renommé : « ${up.model && up.model.label.fr} », toujours entraîné ici`);
+  const rmS = await svc.removeLora(mS.id);
+  ok(rmS.ok && !svc.loras.some((e) => /rosa_ltx25_01000/i.test(e.source)) && !fs.existsSync(step1k),
+    'removeLora : le nom choisi pour un LoRA mis à la corbeille est oublié du registre');
+  svc.stop();
+}
+
 // --- 6. register(ctx) sans Electron : IPC, ctx.models, cache servi tout de suite ------------------
 async function testRegister() {
   console.log('\n# register(ctx) avec un faux contexte');
@@ -460,6 +590,7 @@ async function testRegister() {
   testForbidden(warm.inventory);
   await testComfyScenarios();
   await testLoras();
+  await testTrainedLoras();
   await testRegister();
   const inv = warm.inventory;
   console.log(`\n# Bilan : ${inv.summary.ready} modèles prêts (${inv.models.length} entrées, ${inv.summary.sizeGB} Go), `

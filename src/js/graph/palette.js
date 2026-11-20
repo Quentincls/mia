@@ -23,6 +23,7 @@ import {
 } from '../catalog.js';
 import { localCatalog, cloudCatalog } from '../nodes/profiles.js';
 import { familyOf, localKeyOf, portsOfFamily, chooseWorkflow } from '../nodes/route.js';
+import { machineGB, needGB, fitOf as memFit } from '../nodes/memory.js';
 import { mainPorts } from '../nodes/ports.js';
 import { familyWords, makerColor } from '../nodes/familypicker.js';
 import { fromText, askFromPrices } from '../ui/fromprices.js';
@@ -119,16 +120,16 @@ register({
     'pal.esc': 'fermer',
     'pal.notInstalled': 'Non installé',
     'pal.incomplete': 'Incomplet',
-    'pal.gb': '{n} Go',
+    'pal.gb': '≈ {n} Go',
     'pal.fit.light': 'Léger',
     'pal.fit.comfy': 'Confortable',
     'pal.fit.tight': 'Juste',
     'pal.fit.over': 'Déborde',
-    'pal.memTip': '{name} · jusqu’à {n} Go de mémoire vidéo · {fit}',
-    'pal.fitTip.light': 'léger pour cette carte graphique',
-    'pal.fitTip.comfy': 'à l’aise sur cette carte graphique',
-    'pal.fitTip.tight': 'juste pour cette carte graphique',
-    'pal.fitTip.over': 'plus que la mémoire de cette carte graphique',
+    'pal.memTip': '{name} · ≈ {n} Go de mémoire · {fit}',
+    'pal.fitTip.light': 'léger pour cette machine',
+    'pal.fitTip.comfy': 'à l’aise sur cette machine',
+    'pal.fitTip.tight': 'juste pour cette machine',
+    'pal.fitTip.over': 'plus que la mémoire de cette machine',
     'pal.modelTip': 'Modèle choisi par défaut : {name}',
     'pal.blocks.one': '{n} bloc',
     'pal.blocks.other': '{n} blocs',
@@ -194,16 +195,16 @@ register({
     'pal.esc': 'close',
     'pal.notInstalled': 'Not installed',
     'pal.incomplete': 'Incomplete',
-    'pal.gb': '{n} GB',
+    'pal.gb': '≈ {n} GB',
     'pal.fit.light': 'Light',
     'pal.fit.comfy': 'Comfortable',
     'pal.fit.tight': 'Tight',
     'pal.fit.over': 'Overflows',
-    'pal.memTip': '{name} · up to {n} GB of video memory · {fit}',
-    'pal.fitTip.light': 'light for this graphics card',
-    'pal.fitTip.comfy': 'comfortable on this graphics card',
-    'pal.fitTip.tight': 'tight for this graphics card',
-    'pal.fitTip.over': 'more than this graphics card’s memory',
+    'pal.memTip': '{name} · ≈ {n} GB of memory · {fit}',
+    'pal.fitTip.light': 'light for this machine',
+    'pal.fitTip.comfy': 'comfortable on this machine',
+    'pal.fitTip.tight': 'tight for this machine',
+    'pal.fitTip.over': 'more than this machine’s memory',
     'pal.modelTip': 'Model picked by default: {name}',
     'pal.blocks.one': '{n} block',
     'pal.blocks.other': '{n} blocks',
@@ -536,10 +537,11 @@ export function createPalette(ed) {
   }
 
   /**
-   * « LTX 2.5 · 21 Go » : le modèle « Auto » de ce bloc sur ce PC, en mots (jamais
-   * d'initiales), et sa mémoire en Go (da.md §4.9). Un mot seulement s'il déborde de
-   * la carte graphique (« Déborde », en avertissement) ; léger / à l'aise / juste sont
-   * dans l'infobulle (« JUSTE » seul, en majuscules, se lisait « correct »).
+   * « LTX 2.5 · Pleine · ≈ 71 Go » : le modèle « Auto » de ce bloc sur ce PC, en mots (jamais
+   * d'initiales), sa version quand il en a une, et la mémoire qu'il prendra ici, en Go
+   * (da.md §4.9). Un mot seulement s'il dépasse la mémoire de la machine (« Déborde », en
+   * avertissement) ; léger / à l'aise / juste sont dans l'infobulle (« JUSTE » seul, en
+   * majuscules, se lisait « correct »).
    */
   function modelMeta(ty) {
     const caps = modelCaps(ty.id);
@@ -554,12 +556,14 @@ export function createPalette(ed) {
     const m = (inv.models || []).find((x) => x.id === cap.default);
     if (!m) return null;
     const full = tl(m.label || {}) || m.family || '';
-    const fit = fitOf(m, inv);
-    const tip = m.vramGB
-      ? t('pal.memTip', { name: full, n: fmtNum(m.vramGB), fit: fit ? t(`pal.fitTip.${fit}`) : '' }).replace(/ · $/, '')
+    // la mémoire que le modèle prendra sur CETTE machine (`m.mem`, SPEC §7) et sa place : la règle de la bibliothèque
+    const need = needGB(m);
+    const fit = memFit(m, machineGB(inv, state.engine));
+    const tip = need != null
+      ? t('pal.memTip', { name: full, n: fmtNum(need), fit: fit ? t(`pal.fitTip.${fit}`) : '' }).replace(/ · $/, '')
       : t('pal.modelTip', { name: full });
-    const parts = [shortName(full.split(' · ')[0] || m.family || '')];
-    if (Number(m.vramGB) > 0) parts.push(t('pal.gb', { n: fmtNum(m.vramGB) }));
+    const parts = [shortName(full.split(' · ')[0] || m.family || ''), m.version ? tl(m.version.tag) : ''];
+    if (need != null) parts.push(t('pal.gb', { n: fmtNum(need) }));
     if (fit === 'over') parts.push(t('pal.fit.over'));
     return { text: parts.filter(Boolean).join(' · '), cls: fit === 'over' ? 'over' : '', tip };
   }
@@ -576,18 +580,6 @@ export function createPalette(ed) {
       out += ' ' + w;
     }
     return out;
-  }
-
-  // Mêmes seuils que la pastille Mémoire de la bibliothèque (models.md §6.2).
-  function fitOf(m, inv) {
-    const v = Number(m.vramGB);
-    if (!isFinite(v) || v <= 0 || m.hidden || m.role === 'lora') return null;
-    const g = inv?.machine?.vramGB ?? state.engine?.gpu?.vramTotalGB;
-    const card = g ? Math.round((g * 1e9) / 2 ** 30) : 24;
-    if (v < 8) return 'light';
-    if (v < 16) return 'comfy';
-    if (v <= card - 1) return 'tight';
-    return 'over';
   }
 
   function fmtNum(v) {

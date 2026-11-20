@@ -11,8 +11,9 @@
  *                                  version (a list = 1; a later format would be { version, items })
  * A file without a version is format 0: written before Mia 0.5, or by hand.
  *
- * migrate(kind, doc) walks the steps from the document's version up to the current one. Today every step is a
- * no-op that only stamps the version — the chain is where the next change of format goes: add a function at
+ * migrate(kind, doc) walks the steps from the document's version up to the current one. Most steps are no-ops
+ * that only stamp the version (the preferences have two real ones: lastSeenVersion, then formerEngineRoots) —
+ * the chain is where the next change of format goes: add a function at
  * the end of STEPS[kind] (it receives version N, returns version N + 1) and the current version follows.
  * Whoever writes that format must write the new number too: graph.json is written by the editor
  * (src/js/graph/doc.js, « version: 1 »), the others by store.js; add a case to tools/test-migrations.js.
@@ -58,6 +59,19 @@ const STEPS = {
     // first start of this version shows « Nouveautés » (a fresh install has no prefs.json, hence no toast).
     (p) => {
       if (p.lastSeenVersion === undefined) p.lastSeenVersion = '0.4.0';
+      return p;
+    },
+    // 1 → 2: formerEngineRoots, the engine folders used before the current one (SPEC §7: the id of a model is
+    // made from its path, so the ids kept in boards and in the fingerprints of results name the old folder).
+    // Prefs written before this key existed and pointing at an engine elsewhere than the author's lab folder may
+    // come from an engine that was moved out of it: that folder is the one former root worth knowing. Without an
+    // engine in the settings, or with the lab folder itself: none. A list already there is kept as it is.
+    (p) => {
+      if (!Array.isArray(p.formerEngineRoots)) {
+        const lab = require('./places').LAB_ROOT;
+        const er = typeof p.engineRoot === 'string' ? p.engineRoot.trim().replace(/[\\/]+$/, '') : '';
+        p.formerEngineRoots = er && er.toLowerCase() !== lab.toLowerCase() ? [lab] : [];
+      }
       return p;
     }
   ],

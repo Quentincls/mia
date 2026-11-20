@@ -410,6 +410,8 @@ body {
 }
 .mp-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-top: 1px; }
 .mp-size { font: 10.5px/1.2 var(--nb-mono); font-variant-numeric: tabular-nums; color: var(--txt-2); white-space: nowrap; }
+/* « Trop lourd » : la version demande plus que la mémoire de la machine (même alerte que le nom d'un modèle introuvable) */
+.mp-size.over { color: var(--nb-err); }
 .mp-badge, .mp-note {
   font: 500 9px/1 var(--nb-kicker); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); white-space: nowrap;
 }
@@ -1002,6 +1004,12 @@ body {
 .fp-row.fp-variant { min-height: 30px; padding-left: 46px; gap: 8px; }
 .fp-row.fp-variant .fp-name { font-size: 12px; font-weight: 550; color: var(--txt-2); }
 .fp-row.fp-variant .fp-meta { flex: 1 1 auto; text-transform: none; letter-spacing: 0; font: 11px/1.3 inherit; }
+/* le nom d'une version ne se tasse pas devant sa phrase (« Compacte · RTX 50 » en entier) */
+.fp-row.fp-variant .fp-name { flex: none; }
+/* une version reconnue mais pas proposée (le modèle complet) : grisée, sa raison à côté */
+.fp-row.fp-variant.greyed .fp-name, .fp-row.fp-variant.greyed .fp-meta { opacity: .5; }
+/* « Trop lourd » : même alerte que dans la liste de choix d'un bloc */
+.fp-side.over { color: var(--nb-err); }
 .fp-detail {
   flex: none; display: flex; gap: 12px; min-height: 84px; padding: 11px 14px 12px; border-top: 1px solid var(--line);
   background: var(--surface-2);

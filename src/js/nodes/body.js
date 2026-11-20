@@ -829,8 +829,9 @@ function mountFooter(ctx, host) {
         estDefault = idleText();
       }
       foot.classList.toggle('is-blocked', !!blocked);
-      install.hidden = !blocked;
-      est.hidden = !!blocked;
+      // modèle reconnu mais pas proposé : pas de bouton « Installer » (rien ne manque), la raison à sa place
+      install.hidden = !blocked || !!blocked.noInstall;
+      est.hidden = !!blocked && !blocked.noInstall;
       if (blocked) install.dataset.tip = blocked.sub || blocked.title || '';
       showEst(estDefault);
     },
@@ -1064,18 +1065,21 @@ function computeBody(ctx) {
 
   function emptySpec(st, problem) {
     const ratio = wellRatio();
-    if (st.kind === 'queued') return { title: t('node.queued'), ratio };
+    // derrière un entraînement de LoRA (SPEC §8.7) : pourquoi, en sous-titre (« Attend la fin de l’entraînement… »)
+    if (st.kind === 'queued') return { title: t('node.queued'), sub: runs.trainWaitText(st), ratio };
     if (st.kind === 'waiting-gpu') return { title: t('node.waitingGpu'), sub: st.who ? t('node.waitingWho', { who: st.who }) : '', ratio };
     if (st.kind === 'running') {
       // en ligne, en file chez Higgsfield ou sa file pleine (le compte à rebours en sous-titre) : pas « Calcul en cours »
       const far = runs.remoteText(st);
       if (far) return { title: far.text, sub: far.sub, ratio };
-      return { title: t('node.running'), sub: runs.endText(st.endAt), ratio };
+      // à côté d'un entraînement : « À côté de l’entraînement « Plumo » » (l'heure de fin reste dans le pied)
+      return { title: t('node.running'), sub: runs.besideText(st) || runs.endText(st.endAt), ratio };
     }
     if (problem) {
       return {
         title: problem.title, sub: problem.sub, icon: 'warn', ratio,
-        action: { label: t('node.model.install'), run: () => openInstaller(problem.caps) },
+        // rien à installer pour un modèle reconnu mais pas proposé (recette non validée) : choisir une autre version
+        action: problem.noInstall ? null : { label: t('node.model.install'), run: () => openInstaller(problem.caps) },
       };
     }
     const missing = missingInputs(ctx);

@@ -13,6 +13,7 @@
  *   dataDrive()             → 'D:\\' when D: looks like a big fixed data disk (> 100 GB free), else null
  *   defaultProjectsRoot(documents) / suggestEngineDir()   → D:\Mia\Projets | Documents\Mia Projets, D:\Mia-moteur | ~\Mia-moteur
  *   systemLang(app)         → 'fr' when the system prefers French, else 'en' (first launch only)
+ *   trainingRoot(prefs, userData) / trainingRoots(…) / trainingTools(prefs)   → where LoRA trainings and their tools live
  *
  * Test switches: MIA_NO_LAB=1 (or MIA_ENGINE_FALLBACK=none) hides the lab everywhere, to play someone else's PC;
  * MIA_DATA_DRIVE=<X:\|none> forces the data disk; MIA_LANG=fr|en forces the first-launch language.
@@ -96,4 +97,46 @@ function systemLang(app) {
   return /^fr\b|^fr[-_]/i.test(String(tag)) ? 'fr' : 'en';
 }
 
-module.exports = { LAB_ROOT, labDisabled, labRoot, engineRoot, noEngine, dataDrive, defaultProjectsRoot, suggestEngineDir, systemLang };
+// ---------------------------------------------------------------- trainings (SPEC « Entraîner un LoRA »)
+// A test instance (MIA_USERDATA) or a bench with the fake tool (MIA_TRAIN_FAKE=1) keeps its trainings in its own
+// data folder, whatever the settings say: it never lists nor touches the real ones.
+const trainingIsTest = () => !!process.env.MIA_USERDATA || process.env.MIA_TRAIN_FAKE === '1';
+
+/** <parent of the engine>\entrainement : where the training tools live beside the engine (venv-ltx, venv-aitk, src). */
+function trainingTools(prefs) {
+  const set = prefs && typeof prefs.trainTools === 'string' ? prefs.trainTools.trim() : '';
+  if (set) return set;
+  const er = engineRoot(prefs);
+  return er ? path.join(path.dirname(path.resolve(er)), 'entrainement') : '';
+}
+
+/**
+ * The trainings folder: the one of the settings, else <parent of the engine>\entrainement\mia when that
+ * « entrainement » folder exists, else <userData>\training. Never inside the engine (the scanner reads it).
+ */
+function trainingRoot(prefs, userData) {
+  const own = userData ? path.join(userData, 'training') : '';
+  if (trainingIsTest()) return own;
+  const set = prefs && typeof prefs.trainRoot === 'string' ? prefs.trainRoot.trim() : '';
+  if (set) return set;
+  const er = engineRoot(prefs);
+  const beside = er ? path.join(path.dirname(path.resolve(er)), 'entrainement') : '';
+  try { if (beside && fs.existsSync(beside)) return path.join(beside, 'mia'); } catch { /* unreachable disk */ }
+  return own;
+}
+
+/** Every folder that may hold trainings: the current one first, then the former ones (prefs.trainRoots). */
+function trainingRoots(prefs, userData) {
+  const cur = trainingRoot(prefs, userData);
+  const former = trainingIsTest() || !prefs || !Array.isArray(prefs.trainRoots) ? [] : prefs.trainRoots;
+  const out = [];
+  for (const d of [cur, ...former]) {
+    if (typeof d === 'string' && d && !out.some((x) => path.resolve(x).toLowerCase() === path.resolve(d).toLowerCase())) out.push(d);
+  }
+  return out;
+}
+
+module.exports = {
+  LAB_ROOT, labDisabled, labRoot, engineRoot, noEngine, dataDrive, defaultProjectsRoot, suggestEngineDir, systemLang,
+  trainingIsTest, trainingTools, trainingRoot, trainingRoots
+};

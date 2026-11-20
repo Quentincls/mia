@@ -6,7 +6,8 @@ téléchargement. Ensuite, tout marche sans Internet.
 
 ## Ce qu'il faut
 
-- Windows 10 ou 11, 64 bits.
+- Windows 10 ou 11, 64 bits : un PC classique (x64, processeur Intel ou AMD) ou un PC à processeur ARM (arm64, voir
+  plus bas).
 - Une carte graphique **NVIDIA** récente : 12 Go de mémoire au minimum, 24 Go conseillés (RTX 3090, 4090, 5090…),
   avec un pilote à jour (version 580 ou plus récente : NVIDIA App ou site de NVIDIA).
 - De la place sur un disque : environ 1 Go pour Mia, 15 Go pour le moteur, et de 20 à 150 Go pour les modèles selon
@@ -19,10 +20,17 @@ téléchargement. Ensuite, tout marche sans Internet.
 
 Deux façons, au choix :
 
-- **L'installateur** `Mia-0.7.0-installation.exe` : double-clic, choisir le dossier, c'est tout. Mia s'installe pour
-  l'utilisateur seul (pas besoin d'être administrateur), avec un raccourci sur le Bureau et dans le menu Démarrer.
-- **La version portable** `Mia-0.7.0-portable.zip` : la décompresser où l'on veut (par exemple `D:\Mia`), puis lancer
-  `Mia.exe`. Rien n'est installé dans Windows.
+- **L’installateur** `Mia-0.10.0-installation.exe` : double-clic, choisir le dossier, c’est tout. Mia s’installe
+  pour l’utilisateur seul (pas besoin d’être administrateur), avec un raccourci sur le Bureau et dans le menu Démarrer.
+- **La version portable** `Mia-0.10.0-portable.zip` : la décompresser où l’on veut (par exemple `D:\Mia`), puis
+  lancer `Mia.exe`. Rien n’est installé dans Windows.
+
+Le numéro change à chaque version : prendre les fichiers de la dernière, sur la page Releases du dépôt.
+
+**PC à processeur ARM** (Windows sur ARM, comme la NVIDIA RTX Spark) : prendre les fichiers dont le nom dit
+`arm64`, `Mia-0.10.0-arm64-installation.exe` ou `Mia-0.10.0-arm64-portable.zip`. L’installation automatique du
+moteur (étape 2) n’est pas prévue pour ces PC : y installer le moteur à la main, puis choisir « J’ai déjà un
+moteur ».
 
 ### « Windows a protégé votre ordinateur »
 
@@ -126,6 +134,28 @@ consigne → **Aperçu**. Le premier calcul charge les modèles : il est plus lo
 
 ---
 
+## 5. Entraîner des LoRA (facultatif)
+
+L’écran « Entraînements » (puce **ENTRAÎNER** de la barre de titre) se sert d’outils qui ne sont pas livrés avec
+Mia et qu’elle n’installe pas. Elle les cherche dans le dossier `entrainement` à côté du moteur (dans le même dossier
+parent que le moteur), ou dans le dossier choisi dans Réglages → Entraînement, qui dit pour chaque
+outil s’il est prêt ou ce qui manque.
+
+| Modèle | Ce que Mia cherche dans ce dossier |
+|---|---|
+| LTX 2.5 | `venv-ltx\` : un environnement Python où est installé `ltx-trainer` **1.6.2**, exactement cette version (de Lightricks) ; `src\LTX-2\packages\ltx-trainer\` : ses sources, du dépôt LTX-2 de Lightricks |
+| Qwen-Image 2.1 | `venv-aitk\` : un environnement Python pour ai-toolkit (de ostris) ; `src\ai-toolkit\` : ses sources (`run.py`) |
+
+Les poids de base sont ceux du moteur (dossier `models`) : Mia dit lesquels manquent. Les entraînements sont rangés
+dans `entrainement\mia` quand le dossier `entrainement` existe, sinon dans le dossier choisi dans Réglages →
+Entraînement.
+
+L’entraînement de LTX 2.5 n’a été essayé que sur une NVIDIA RTX Spark (mémoire partagée entre le processeur et la
+carte) : il y prend environ 46 Go de mémoire au plus fort, et les durées que Mia estime viennent de cette machine.
+Qwen-Image 2.1 reste grisé tant qu’il n’a pas été essayé.
+
+---
+
 ## Assistants (Claude, Codex)
 
 Claude ou Codex peuvent piloter Mia sous tes yeux : créer la planche, poser et relier les blocs, lancer le calcul.
@@ -152,18 +182,24 @@ Pour les développeurs, ou si Windows bloque `Mia.exe` :
 
 ## Fabriquer l'installateur (pour qui distribue Mia)
 
-`npm run dist` fabrique les deux dans `release\` (installateur et zip portable), `npm run dist:zip` le zip seul,
-`npm run dist:dir` le dossier `release\win-unpacked` seul. Avant chacun, `tools\check-package.js` vérifie le paquet
+`npm run dist` fabrique dans `release\` l’installateur et le zip portable des deux sortes de PC, l’une après l’autre :
+x64 (`Mia-<version>-installation.exe`, `Mia-<version>-portable.zip`, dossier `release\win-unpacked`), puis arm64
+(`Mia-<version>-arm64-installation.exe`, `Mia-<version>-arm64-portable.zip`, dossier `release\win-arm64-unpacked`).
+`npm run dist:zip` fait les zips seuls, `npm run dist:dir` les dossiers seuls ; `npm run dist -- x64` (ou `arm64`) une
+seule sorte (`tools\dist.js`). Electron vient du téléchargement officiel de chaque architecture (vérifié, puis gardé
+dans `%LOCALAPPDATA%\electron\Cache`) : la première fois, celui de l’architecture qui n’est pas celle du PC se
+télécharge. Avant chacun, `tools\check-package.js` vérifie le paquet
 (fichiers de l'interface présents, LICENSE et NOTICE, aucun fichier vide, aucun chemin personnel, résumé « En bref » /
 « In short » de la version dans CHANGELOG.md) et refuse de continuer s'il manque quelque chose ; il écrit ensuite
-`build-info.json` (version, commit, date) dans le paquet. On peut le lancer seul : `npm run check:package`.
+`build-info.json` (version, commit, date) dans le paquet, après avoir vérifié que `Mia.exe` est bien de l’architecture
+fabriquée. On peut le lancer seul : `npm run check:package`.
 
 Si electron-builder échoue sur des « liens symboliques » en préparant ses outils de signature, activer le **Mode
 développeur** de Windows (Paramètres → Système → Espace développeurs) ou lancer la commande en administrateur ;
 `npm run dist:zip` suffit en attendant.
 
-Pour une publication (GitHub Releases…), joindre seulement `Mia-<version>-installation.exe` et
-`Mia-<version>-portable.zip` : jamais `builder-debug.yml` (il contient des chemins de la machine de fabrication) ni
+Pour une publication (GitHub Releases…), joindre seulement les installateurs et les zips (`Mia-<version>-installation.exe`,
+`Mia-<version>-portable.zip`, `Mia-<version>-arm64-installation.exe`, `Mia-<version>-arm64-portable.zip`) : jamais `builder-debug.yml` (il contient des chemins de la machine de fabrication) ni
 les fichiers `.blockmap`.
 
 ### Signer Mia

@@ -511,8 +511,11 @@ export class NodeView {
 
     // texte d'état
     let txt = '', tip = '';
-    if (kind === 'queued') txt = t('graph.state.queued');
-    else if (kind === 'waiting-gpu') {
+    if (kind === 'queued') {
+      txt = t('graph.state.queued');
+      // derrière un entraînement de LoRA (SPEC §8.7) : pourquoi, au survol, avec les chiffres quand la mémoire manque
+      if (st?.trainWait && st.message) tip = st.message;
+    } else if (kind === 'waiting-gpu') {
       txt = t('graph.state.waiting');
       if (st.who) tip = t('graph.state.waitingWho', { who: st.who });
     } else if (kind === 'running' && st.online && (st.remote === 'queued' || st.remote === 'full')) {
@@ -529,6 +532,8 @@ export class NodeView {
         }
       } else txt = t('graph.state.running');
       if (st.message) tip = tip ? `${st.message} — ${tip}` : st.message;
+      // à côté d'un entraînement de LoRA (SPEC §8.7) : « À côté de l’entraînement « Plumo » » en tête
+      if (st.beside) tip = [t('run.st.beside', { name: st.beside }), tip].filter(Boolean).join(' — ');
     } else if (kind === 'error') {
       txt = t('graph.state.error');
       tip = st.message || '';
@@ -547,7 +552,7 @@ export class NodeView {
     this.lastRun = st;
     // le corps (F) n'est prévenu que si l'état a vraiment changé : cette méthode
     // est rappelée après chaque modification du graphe, pour l'anneau « périmé »
-    const sig = `${kind}|${p}|${st?.eta}|${st?.message}|${st?.jobId}|${st?.preview}|${current?.runId}|${!!stale}`;
+    const sig = `${kind}|${p}|${st?.eta}|${st?.message}|${st?.jobId}|${st?.preview}|${current?.runId}|${!!stale}|${st?.beside || ''}`;
     if (sig !== this._runSig && this.body?.onRun) {
       this._runSig = sig;
       try { this.body.onRun(st || { kind: 'idle' }); } catch (e) { console.error('[editor] onRun', e); }

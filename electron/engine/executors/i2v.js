@@ -274,6 +274,10 @@ async function animate(x, temps) {
     g = P.load('ltx_i2v');
     const unet = (m && m.comfy && m.comfy.name && /ltx/i.test(m.comfy.name)) ? m.comfy.name : LTX_INT8;
     P.set(g, '1', 'unet_name', unet);
+    // the text encoder paired with this transformer (SPEC §7): the full one with the full model, else the template's
+    const lp = E.ltxParts(x);
+    P.set(g, '2', 'clip_name', lp.clip);
+    if (lp.note) notes.push(lp.note);
     P.set(g, '5', 'text', prompt);
     P.set(g, '6', 'text', negative);
     P.set(g, '7', 'frame_rate', fps);

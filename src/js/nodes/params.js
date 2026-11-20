@@ -35,7 +35,7 @@ import { modelPicker, isLoraParam, resolveModel, baseKeyOf, loraKeyOf, loraChoic
 import { boundsFor, limitBounds, usesInput, familyName } from './profiles.js';
 import { familyPicker } from './familypicker.js';
 import { blockWorkflow, portLabels, tierExclusion } from './ports.js';
-import { localModelFor, needsOf, portsOfFamily, chooseWorkflow, tierOf, tierAllows } from './route.js';
+import { localModelFor, needsOf, portsOfFamily, chooseWorkflow, tierOf, tierAllows, findModel } from './route.js';
 import { wayWord } from './familypicker.js';
 import { modeWordKeys } from './waywords.js';
 import { localCatalog } from './profiles.js';
@@ -218,8 +218,7 @@ export function mountParams(host, opts) {
     // une LoRA choisie avec une force conseillée (fiche <nom>.mia.json) : la force la suit ; une LoRA sans conseil
     // rend la force par défaut si celle d'avant venait d'un conseil
     if (loraParam && p === loraParam) {
-      const inv = state.inventory?.models || [];
-      const l = inv.find((m) => m.id === v);
+      const l = findModel(state.inventory, v);
       const sp = (type.params || []).find((x) => x.id === `${loraParam.id}Strength`);
       const cur = sp ? Number(val(sp)) : null;
       const next = l && Number.isFinite(l.strength) ? l.strength
@@ -249,7 +248,7 @@ export function mountParams(host, opts) {
     if (!loraParam) return null;
     const v = val(loraParam);
     if (!v || v === 'none' || v === 'auto') return null;
-    return (state.inventory?.models || []).find((m) => m.id === v) || null;
+    return findModel(state.inventory, v);   // son id, ou celui d'avant un déménagement du dossier du moteur
   }
 
   // ── limites du modèle choisi (SPEC §22) ─────────────────────────────
@@ -754,7 +753,7 @@ export function mountParams(host, opts) {
     const lora = isLoraParam(p);
     const lead = p.id === leadParam?.id;
     const c = p.gen
-      ? familyPicker({ param: p, value: val(p), onChange: (v) => commit(p, v) })
+      ? familyPicker({ param: p, value: val(p), onChange: (v) => commit(p, v), model: chosenModel })
       : modelPicker({ param: p, value: val(p), onChange: (v) => commit(p, v), base: lora ? baseKey : undefined, lead });
     ctrls.set(p.id, { set: (v) => c.setValue(v), owns: (x) => c.contains(x), refresh: () => c.refresh?.() });
     cleanups.push(() => c.destroy?.());

@@ -15,6 +15,8 @@
 <link rel="stylesheet" href="css/nodes.css" />
 <link rel="stylesheet" href="css/queue.css" />
 <link rel="stylesheet" href="css/library.css" />
+<link rel="stylesheet" href="css/library-train.css" />
+<link rel="stylesheet" href="css/train.css" />
 <link rel="stylesheet" href="css/presence.css" data-presence />
 </head>
 <body class="theme-dark">
@@ -32,7 +34,7 @@
     <div class="tb-drag"></div>
 
     <div class="tb-right">
-      <!-- filled at boot, in this order: models (library), GPU chip (queue), settings -->
+      <!-- filled at boot, in this order: models (library), LoRA training chip, GPU chip (queue), settings -->
       <div id="tb-actions" class="tb-actions"></div>
 
       <div class="win-controls">
@@ -110,6 +112,9 @@
     <aside id="inspector" hidden></aside>
     <div id="board-empty"></div>
   </main>
+
+  <!-- ─────────────────────────────────────────────── trainings (ui/train.js: the list, a draft, the instrument) -->
+  <main id="view-train" class="view" hidden></main>
 
   <!-- ─────────────────────────────────────────────── panels -->
   <aside id="library" hidden></aside>

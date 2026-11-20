@@ -32,6 +32,8 @@ import { types, typeLabel, modelCaps } from '../catalog.js';
 import {
   loadProfiles, profileOf, limitsOf, variantOf, familyKeyOf, familyName, familyDesc, makerOf, markOf, cloudProviders,
 } from './profiles.js';
+import { findModel } from './route.js';
+import { machineGB, needGB, fitOf } from './memory.js';
 
 registerIcons({
   pin: '<path d="M9.5 3.5h5l-.8 5.6 3.3 3.4H7l3.3-3.4z"/><path d="M12 12.5v8"/>',
@@ -59,7 +61,7 @@ strings({
   'node.model.rd': 'Recherche seulement',
   'node.model.ok': 'Usage commercial OK',
   'node.model.size': '{n} Go',
-  'node.model.vram': '{n} Go de mémoire vidéo',
+  'node.model.vram': '≈ {n} Go de mémoire',
   'node.model.all': 'Voir tous les modèles',
   'node.model.search': 'Chercher un modèle',
   'node.model.noMatch': 'Aucun modèle ne correspond à « {q} ».',
@@ -100,6 +102,21 @@ strings({
   'node.model.unknownTitle': 'Modèle introuvable',
   'node.model.missingSub': 'Aucun modèle installé ne sait faire ce bloc.',
   'node.model.unknownSub': 'Le modèle choisi n’est plus sur le PC. Choisis-en un autre ou « Auto ».',
+  'node.model.mem': '≈ {n} Go',
+  'node.model.memTip.measured': 'Mémoire estimée : ≈ {n} Go sur les {total} Go de cette machine. Mesuré en {w} × {h}, {f} images : elle monte avec la définition et la durée.',
+  'node.model.memTip.measuredImage': 'Mémoire estimée : ≈ {n} Go sur les {total} Go de cette machine. Mesuré pour une image en {w} × {h} : elle monte avec la définition.',
+  'node.model.memTip.derived': 'Mémoire estimée : ≈ {n} Go sur les {total} Go de cette machine. D’après la mesure de la version RTX 50 ({w} × {h}, {f} images).',
+  'node.model.memTip.plain': 'Mémoire estimée : ≈ {n} Go sur les {total} Go de cette machine.',
+  'node.model.memTip.noTotal': 'Mémoire estimée : ≈ {n} Go.',
+  'node.model.memOf': 'Mémoire : ≈ {n} Go sur {total}',
+  'node.model.memOfNoTotal': 'Mémoire : ≈ {n} Go',
+  'node.model.file': 'Fichier : {size}',
+  'node.model.tooBig': 'Trop lourd',
+  'node.model.pickForMeFull': 'Mia prend la version pleine : ≈ {n} Go, cette machine en a {total}.',
+  'node.model.pickForMeNoRoom': 'Mia prend la version compacte : la pleine demande ≈ {n} Go, cette machine en a {total}.',
+  'node.model.pickForMeUnmeasured': 'Mia garde la version compacte pour ce bloc : la pleine n’y a pas encore été essayée.',
+  'node.model.blockedTitle': 'Modèle non proposé',
+  'node.model.blockedNote': 'Recette non validée',
 }, {
   'node.model.auto': 'Auto',
   'node.model.autoSub': 'The best installed model for this block',
@@ -119,7 +136,7 @@ strings({
   'node.model.rd': 'Research only',
   'node.model.ok': 'Commercial use OK',
   'node.model.size': '{n} GB',
-  'node.model.vram': '{n} GB of video memory',
+  'node.model.vram': '≈ {n} GB of memory',
   'node.model.all': 'See all models',
   'node.model.search': 'Search a model',
   'node.model.noMatch': 'No model matches “{q}”.',
@@ -160,6 +177,21 @@ strings({
   'node.model.unknownTitle': 'Model not found',
   'node.model.missingSub': 'No installed model can do this block.',
   'node.model.unknownSub': 'The chosen model is no longer on the PC. Pick another or “Auto”.',
+  'node.model.mem': '≈ {n} GB',
+  'node.model.memTip.measured': 'Estimated memory: ≈ {n} GB of this machine’s {total} GB. Measured at {w} × {h}, {f} frames: it grows with resolution and length.',
+  'node.model.memTip.measuredImage': 'Estimated memory: ≈ {n} GB of this machine’s {total} GB. Measured for an image at {w} × {h}: it grows with resolution.',
+  'node.model.memTip.derived': 'Estimated memory: ≈ {n} GB of this machine’s {total} GB. From the RTX 50 version’s measurement ({w} × {h}, {f} frames).',
+  'node.model.memTip.plain': 'Estimated memory: ≈ {n} GB of this machine’s {total} GB.',
+  'node.model.memTip.noTotal': 'Estimated memory: ≈ {n} GB.',
+  'node.model.memOf': 'Memory: ≈ {n} of {total} GB',
+  'node.model.memOfNoTotal': 'Memory: ≈ {n} GB',
+  'node.model.file': 'File: {size}',
+  'node.model.tooBig': 'Too big',
+  'node.model.pickForMeFull': 'Mia picks the full version: ≈ {n} GB, this machine has {total}.',
+  'node.model.pickForMeNoRoom': 'Mia picks the compact version: the full one needs ≈ {n} GB, this machine has {total}.',
+  'node.model.pickForMeUnmeasured': 'Mia keeps the compact version for this block: the full one has not been tried here yet.',
+  'node.model.blockedTitle': 'Model not offered',
+  'node.model.blockedNote': 'Recipe not validated',
 });
 
 // ── données ──────────────────────────────────────────────────────────
@@ -187,8 +219,76 @@ export function modelsFor(caps = []) {
   const covered = new Set(greyed.flatMap((m) => m.caps || []));
   const missing = (inv()?.missing || []).filter((x) => (x.caps || []).some((c) => caps.includes(c))
     && !(x.caps || []).every((c) => covered.has(c) || !caps.includes(c)));
-  return { ready, greyed, missing };
+  // reconnus mais pas proposés (`blocked` : recette non validée, SPEC §7) : ils n'ont aucune capacité, on les rattache
+  // au bloc par leur famille (une de ses façons de faire est celle du bloc). Montrés grisés, avec leur raison.
+  const blocked = models.filter((m) => m.blocked && !m.hidden && m.license !== 'forbidden'
+    && (profileOf(m)?.workflows || []).some((wf) => caps.includes(wf.cap)));
+  return { ready, greyed, missing, blocked };
 }
+
+// ── mémoire prévue d'un modèle sur cette machine (SPEC §7, nodes/memory.js) ──
+
+/** Total de mémoire de la machine, en Go (celui de l'inventaire, sinon celui du moteur), ou null. */
+export const machineTotal = () => machineGB(inv(), state.engine);
+
+/** « ≈ 71 Go » : la mémoire que le modèle prendra ici, toujours une estimation ('' si elle n'est pas connue). */
+export function memText(m) {
+  const n = needGB(m);
+  return n == null ? '' : t('node.model.mem', { n: num(n) });
+}
+
+/** La phrase entière : combien, sur combien, et d'où vient le chiffre quand il a été mesuré. */
+export function memTip(m) {
+  const n = needGB(m);
+  if (n == null) return '';
+  const total = machineTotal();
+  if (total == null) return t('node.model.memTip.noTotal', { n: num(n) });
+  const at = m.mem?.at;
+  // une image mesurée (`at` sans nombre d'images, scanner-rules) : la phrase sans durée
+  const key = at && (m.mem.basis === 'measured' || m.mem.basis === 'derived') ? (m.mem.basis === 'measured' && !at.frames ? 'measuredImage' : m.mem.basis) : 'plain';
+  return t(`node.model.memTip.${key}`, { n: num(n), total: num(total), w: at?.w, h: at?.h, f: at?.frames });
+}
+
+/** Le modèle demande-t-il plus que la mémoire de la machine ? */
+export const isTooBig = (m) => fitOf(m, machineTotal()) === 'over';
+
+/** Note sur les pièces assorties (« Encodeur de texte en version compacte… »), '' s'il n'y a rien à dire. */
+export const partNoteOf = (m) => (m?.partNote ? tl(m.partNote) : '');
+
+/** Raison d'un modèle reconnu mais pas proposé ('' s'il est proposable). */
+export const blockedWhy = (m) => (m?.blocked ? tl(m.blocked.note || m.statusNote || {}) : '');
+
+/** À droite d'une ligne de modèle : sa mémoire prévue, « Trop lourd » si elle dépasse la machine ; à défaut le poids du fichier. */
+function sideOf(m) {
+  if (isTooBig(m)) return { text: t('node.model.tooBig'), over: true };
+  return { text: memText(m) || sizeText(m.sizeGB), over: false };
+}
+
+/** Pourquoi « Auto » a pris cette version (capabilities[c].auto, SPEC §7) : null si la mémoire n'a rien décidé. */
+function autoWhy(caps = []) {
+  const i = inv();
+  for (const c of caps) {
+    const cap = i?.capabilities?.[c];
+    if (cap?.default) return cap.auto || null;
+  }
+  return null;
+}
+
+/** Sous « Choisir pour moi » : ce que Mia prend, et pourquoi quand la mémoire de la machine en a décidé. */
+function pickForMeSub(caps, def) {
+  if (!def) return t('node.model.pickForMeNone');
+  const a = autoWhy(caps);
+  const vars = a ? { n: num(a.needGB), total: num(a.totalGB) } : null;
+  if (a?.why === 'full-fits') return t('node.model.pickForMeFull', vars);
+  if (a?.why === 'full-too-big') return t('node.model.pickForMeNoRoom', vars);
+  if (a?.why === 'full-unmeasured') return t('node.model.pickForMeUnmeasured');
+  return t('node.model.pickForMeSub', { name: modelName(def) });
+}
+
+/** Des phrases mises bout à bout : chacune finit par son point. */
+const sentences = (...parts) => parts.filter(Boolean).map((s) => (/[.!?…]$/.test(s) ? s : `${s}.`)).join(' ');
+/** La phrase d'une ligne, suivie de la note sur les pièces assorties quand il y en a une (sinon telle quelle). */
+const withNote = (sub, m) => (partNoteOf(m) ? sentences(sub, partNoteOf(m)) : sub);
 
 /** Modèle choisi par « Auto » pour ces capacités. */
 export function defaultModel(caps = []) {
@@ -197,7 +297,7 @@ export function defaultModel(caps = []) {
   for (const c of caps) {
     const id = i.capabilities?.[c]?.default;
     if (id) {
-      const m = (i.models || []).find((x) => x.id === id);
+      const m = findModel(i, id);
       if (m) return m;
     }
   }
@@ -206,19 +306,28 @@ export function defaultModel(caps = []) {
 
 /**
  * Le modèle du bloc est-il utilisable ? null si oui, sinon
- * { title, sub, caps } (non installé, incomplet, ou choisi puis disparu).
+ * { title, sub, caps, noInstall? } (non installé, incomplet, choisi puis disparu, ou reconnu mais pas proposé).
  */
 export function modelProblem(type, node) {
   const inv = state.inventory;
   if (!inv) return null;                       // inventaire pas encore là : on ne crie pas au loup
   for (const p of type.params || []) {
-    // la famille d'un bloc Modèle (SPEC §23) : le moteur dit au lancement ce qui manque (« aucun modèle MiniMax… »)
-    if (p.kind !== 'model' || p.allowNone || p.gen) continue;
+    if (p.kind !== 'model' || p.allowNone) continue;
+    // la famille d'un bloc Modèle (SPEC §23) : le moteur dit au lancement ce qui manque (« aucun modèle MiniMax… ») ;
+    // seule une variante reconnue mais pas proposée se dit avant (le moteur la refuse, planGen)
+    if (p.gen) {
+      const g = findModel(inv, node?.params?.[p.id]);
+      if (g && g.blocked) return { title: t('node.model.blockedTitle'), sub: blockedWhy(g), caps: [], noInstall: true };
+      continue;
+    }
     const caps = p.caps || [];
     const v = node?.params?.[p.id] ?? p.default ?? 'auto';
     if (v && v !== 'auto' && v !== 'none') {
-      const m = (inv.models || []).find((x) => x.id === v);
+      const m = findModel(inv, v);
       if (!m) return { title: t('node.model.unknownTitle'), sub: t('node.model.unknownSub'), caps };
+      // reconnu mais pas proposé (recette non validée) : le moteur le refusera, le bloc le dit avant
+      // (rien à installer : `noInstall` retire le bouton « Installer le modèle » du bloc)
+      if (m.blocked) return { title: t('node.model.blockedTitle'), sub: blockedWhy(m), caps, noInstall: true };
       if (m.status === 'ready') continue;
       return { title: t('node.model.incompleteTitle'), sub: m.statusNote ? tl(m.statusNote) : t('node.model.missingSub'), caps };
     }
@@ -240,7 +349,7 @@ export function resolveModel(param, value) {
   const v = value ?? param?.default ?? 'auto';
   if (!param || v === 'none') return null;
   if (v === 'auto' || v === '' || v == null) return defaultModel(param.caps || []);
-  return (inv()?.models || []).find((x) => x.id === v) || null;
+  return findModel(inv(), v);   // son id, ou celui d'avant un déménagement du dossier du moteur
 }
 
 export const modelName = (m) => (m ? tl(m.label || { fr: m.file || m.id }) : '');
@@ -315,8 +424,8 @@ export function modelValueLabel(param, value) {
     const incomplete = modelsFor(param.caps || []).greyed.length > 0;
     return { text: t(incomplete ? 'node.model.nothingReady' : 'node.model.nothing'), muted: true, warn: true };
   }
-  const m = (inv()?.models || []).find((x) => x.id === v);
-  if (m) return { text: modelName(m) };
+  const m = findModel(inv(), v);
+  if (m) return m.blocked ? { text: modelName(m), warn: true, tip: blockedWhy(m) } : { text: modelName(m) };
   if (!inv()) return { text: '…', muted: true };
   return isLoraParam(param)
     ? { text: t('node.lora.unknown'), muted: true, warn: true, tip: t('node.lora.unknownTip') }
@@ -380,7 +489,9 @@ export function otherModels(caps = []) {
   return out;
 }
 
-const pinned = () => new Set(Array.isArray(state.prefs?.pinnedModels) ? state.prefs.pinnedModels : []);
+// un modèle épinglé avant un déménagement du dossier du moteur le reste : son ancien id désigne le même fichier
+const pinned = () => new Set((Array.isArray(state.prefs?.pinnedModels) ? state.prefs.pinnedModels : [])
+  .map((id) => findModel(inv(), id)?.id || id));
 async function togglePin(id) {
   const p = pinned();
   if (p.has(id)) p.delete(id); else p.add(id);
@@ -415,6 +526,9 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
   const lora = isLoraParam(param);
   const card = lead && !lora;
   let current = value ?? param.default ?? (lora ? 'none' : 'auto');
+  // l'id d'aujourd'hui du modèle gardé (la planche peut porter celui d'avant un déménagement du dossier du moteur) :
+  // sert à cocher la bonne ligne ; la valeur gardée, elle, n'est jamais réécrite
+  const currentId = () => findModel(inv(), current)?.id || current;
   let disabled = false;
   let disabledWhy = '';
 
@@ -454,9 +568,13 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
       const v = variantOf(m);
       txt.textContent = profileOf(m) ? familyName(m) : modelName(m);
       cardMark.textContent = markOf(m, modelName(m));
-      const chips = [v?.tag, ...modelChips(m, param, { short: true })].filter(Boolean);
-      // espaces insécables : un mot ne se coupe pas en deux lignes, « · » ne commence jamais une ligne
-      cardChips.textContent = chips.map((c) => String(c).replace(/ /g, '\u00a0')).join('\u00a0· ');
+      // la version et la mémoire qu'elle prendra ici d'abord (« PLEINE · ≈ 71 GO »), puis ce que le modèle sait faire ;
+      // un modèle reconnu mais pas proposé : sa version et la raison, en alerte
+      const chips = (m.blocked ? [v?.tag, t('node.model.blockedNote')]
+        : [v?.tag, memText(m), ...modelChips(m, param, { short: true })]).filter(Boolean);
+      // espaces insécables : un mot ne se coupe pas en deux lignes, « · » ne commence jamais une ligne ; une puce
+      // longue (« Complète (non distillée) ») garde ses espaces, sinon elle sort d'un bloc étroit
+      cardChips.textContent = chips.map((c) => (String(c).length > 16 ? String(c) : String(c).replace(/ /g, '\u00a0'))).join('\u00a0· ');
       cardChips.hidden = !chips.length;
     } else {
       txt.textContent = auto && !inv() ? t('node.model.auto') : l.text;
@@ -466,13 +584,19 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
     }
     cardAuto.hidden = !(auto && m);
     trigger.classList.toggle('muted', !m && !!l.muted);
-    trigger.classList.toggle('warn', !m && !!l.warn);
+    trigger.classList.toggle('warn', m ? !!m.blocked : !!l.warn);
   }
   tip(trigger, () => {
     if (disabled && disabledWhy) return disabledWhy;
     if (card) {
       const m = resolveModel(param, current);
-      if (m) return modelPurpose(m);
+      if (m && m.blocked) return { kicker: t('node.model.blockedTitle'), title: modelName(m), body: blockedWhy(m) };
+      // à quoi sert la version, la mémoire qu'elle prendra sur cette machine, et la pièce assortie s'il y a à dire
+      // (titre : la famille et la version, « LTX 2.5 · Compacte » — le libellé de la version compacte est « LTX 2.5 » tout court)
+      if (m) {
+        const tag = profileOf(m) ? variantOf(m)?.tag : '';
+        return { title: tag ? `${familyName(m)} · ${tag}` : modelName(m), body: sentences(modelPurpose(m), memTip(m), partNoteOf(m)) };
+      }
     }
     return modelValueLabel(param, current).tip || '';
   });
@@ -493,8 +617,8 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
     onChange?.(v);
   }
 
-  function row({ value: v, title, family, sub, size, badge, greyed, note, selected, muted }) {
-    const r = el('div', { class: `mp-row${greyed ? ' greyed' : ''}${selected ? ' sel' : ''}${muted ? ' muted' : ''}`, role: 'option', tabindex: '-1' },
+  function row({ value: v, title, family, sub, size, over, badge, greyed, note, selected, muted, cls = '' }) {
+    const r = el('div', { class: `mp-row${cls ? ` ${cls}` : ''}${greyed ? ' greyed' : ''}${selected ? ' sel' : ''}${muted ? ' muted' : ''}`, role: 'option', tabindex: '-1' },
       el('span', { class: 'mp-check', html: selected ? icon('check', 13) : '' }),
       el('span', { class: 'mp-main' },
         el('span', { class: 'mp-line' },
@@ -503,7 +627,7 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
         sub ? el('span', { class: 'mp-sub' }, sub) : null),
       el('span', { class: 'mp-side' },
         note ? el('span', { class: 'mp-note' }, note) : null,
-        size ? el('span', { class: 'mp-size' }, size) : null,
+        size ? el('span', { class: `mp-size${over ? ' over' : ''}` }, size) : null,
         badge ? el('span', { class: 'mp-badge' }, badge) : null));
     if (!greyed && v !== undefined) {
       r.dataset.value = String(v);
@@ -518,8 +642,9 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
     const { compatible, incompatible } = loraChoices(key);
     if (compatible.length) {
       list.append(el('div', { class: 'mp-group' }, t('node.lora.forThis', { base: familyLabel(key) })));
+      const cur = currentId();
       for (const l of compatible) {
-        list.append(row({ value: l.id, title: modelName(l), sub: loraSub(l), size: sizeText(l.sizeGB), selected: current === l.id }));
+        list.append(row({ value: l.id, title: modelName(l), sub: loraSub(l), size: sizeText(l.sizeGB), selected: cur === l.id }));
       }
     }
     if (incompatible.length) {
@@ -533,7 +658,7 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
   }
 
   function fillModels(list, caps) {
-    const { ready, greyed, missing } = modelsFor(caps);
+    const { ready, greyed, missing, blocked } = modelsFor(caps);
     const def = defaultModel(caps);
     if (param.allowNone) {
       list.append(row({ value: 'none', title: t('node.model.none'), sub: t('node.model.noneSub'), selected: current === 'none' }));
@@ -550,25 +675,32 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
     }
     if (ready.length) {
       list.append(el('div', { class: 'mp-group' }, t('node.model.onPc')));
+      const cur = currentId();
       for (const m of ready) {
+        // à droite, la mémoire que le modèle prendra ici (le poids du fichier est dans l'infobulle)
+        const side = sideOf(m);
         list.append(row({
           value: m.id, title: modelName(m), family: famTag(m),
-          sub: modelPurpose(m),
-          size: sizeText(m.sizeGB),
+          sub: withNote(modelPurpose(m), m),
+          size: side.text, over: side.over,
           badge: licenseBadge(m),
-          selected: current === m.id,
+          selected: cur === m.id,
         }));
       }
-    } else if (inv() && !greyed.length && !missing.length) {
+    } else if (inv() && !greyed.length && !missing.length && !blocked.length) {
       list.append(el('div', { class: 'mp-empty' }, t('node.model.nothing')));
     }
-    fillUnavailable(list, greyed, missing);
+    fillUnavailable(list, greyed, missing, blocked);
     return ready;
   }
 
-  function fillUnavailable(list, greyed, missing) {
-    if (!greyed.length && !missing.length) return;
+  function fillUnavailable(list, greyed, missing, blocked = []) {
+    if (!greyed.length && !missing.length && !blocked.length) return;
     list.append(el('div', { class: 'mp-group' }, t('node.model.unavailable')));
+    // reconnus mais pas proposés (le modèle complet, non distillé) : jamais cliquables, la raison sous le nom
+    for (const m of blocked) {
+      list.append(row({ title: modelName(m), sub: blockedWhy(m), note: t('node.model.blockedNote'), greyed: true }));
+    }
     for (const m of greyed) {
       list.append(row({
         title: modelName(m), family: famTag(m),
@@ -586,10 +718,11 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
     for (const r of list.querySelectorAll('.mp-row[data-value]')) {
       const m = models.find((x) => x.id === r.dataset.value);
       if (!m) continue;
-      tip(r, () => [
+      tip(r, () => sentences(
         m.licenseNote ? tl(m.licenseNote) : (m.license === 'ok' ? t('node.model.ok') : ''),
-        m.vramGB ? t('node.model.vram', { n: num(m.vramGB) }) : '',
-      ].filter(Boolean).join(' · '));
+        memTip(m),
+        m.sizeGB ? t('node.model.file', { size: sizeText(m.sizeGB) }) : '',
+      ));
     }
     // une raison tronquée se lit en entier au survol
     for (const r of list.querySelectorAll('.mp-row.greyed')) {
@@ -640,7 +773,7 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
       const q = fold(search.value.trim());
       list.replaceChildren();
       if (tab === 'cloud') { fillCloud(list); return; }
-      const { ready, greyed, missing } = modelsFor(caps);
+      const { ready, greyed, missing, blocked } = modelsFor(caps);
       const def = defaultModel(caps);
       const auto = current === 'auto' || current == null || current === '';
       const match = (m) => !q || fold([modelName(m), familyName(m), makerOf(m), variantOf(m)?.tag, modelPurpose(m), familyDesc(m)].join(' ')).includes(q);
@@ -658,7 +791,7 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
         const autoRow = el('div', { class: 'mp-autorow' },
           el('span', { class: 'mp-main' },
             el('span', { class: 'mp-name' }, t('node.model.pickForMe')),
-            el('span', { class: 'mp-sub' }, def ? t('node.model.pickForMeSub', { name: modelName(def) }) : t('node.model.pickForMeNone'))),
+            el('span', { class: 'mp-sub' }, pickForMeSub(caps, def))),
           sw);
         sw.addEventListener('pointerdown', (e) => e.stopPropagation());
         list.append(autoRow);
@@ -679,10 +812,14 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
         if (!fams.has(k)) fams.set(k, []);
         fams.get(k).push(m);
       }
+      // une version reconnue mais pas proposée (le modèle complet) se lit sous sa famille, après ses versions ; sans
+      // famille montrée (rien de prêt, ou recherche), elle va dans « Pas disponible »
+      const stray = [];
+      for (const m of blocked) { const k = familyKeyOf(m); if (k && fams.has(k) && !q) fams.get(k).push(m); else stray.push(m); }
       for (const models of fams.values()) list.append(familyBlock(models, { auto, def }));
       const others = fillOthers(list, ready, (m) => match(m));
       if (q && !shown.length && !others) list.append(el('div', { class: 'mp-empty' }, t('node.model.noMatch', { q: search.value.trim() })));
-      if (!q) fillUnavailable(list, greyed, missing);
+      if (!q) fillUnavailable(list, greyed, missing, stray);
       else if (!inv()) list.append(el('div', { class: 'mp-empty' }, t('node.model.scanning')));
       richTips(list, ready);
       paintFocus();
@@ -703,7 +840,11 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
       const desc = familyDesc(m0);
       const box = el('div', { class: 'mp-family' }, headEl);
       if (desc && prof) box.append(el('div', { class: 'mp-famdesc' }, desc));
-      for (const m of models) box.append(variantRow(m, { auto, def }));
+      for (const m of models) {
+        box.append(m.blocked
+          ? row({ title: variantOf(m)?.tag || modelName(m), sub: blockedWhy(m), note: t('node.model.blockedNote'), greyed: true, cls: 'mp-var mp-stop' })
+          : variantRow(m, { auto, def }));
+      }
       return box;
     }
 
@@ -713,7 +854,7 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
       // dans sa famille, une variante se nomme par son étiquette (« Rapide ») ; épinglée, par son nom complet
       const title = pinnedRow || !prof ? modelName(m) : (v?.tag || familyName(m));
       const chips = modelChips(m, param);
-      const isSel = current === m.id || (auto && def?.id === m.id);
+      const isSel = currentId() === m.id || (auto && def?.id === m.id);
       const pin = el('button', {
         class: `mp-pin${pinned().has(m.id) ? ' on' : ''}`, type: 'button', html: icon('pin', 13),
         'data-tip': pinned().has(m.id) ? t('node.model.unpin') : t('node.model.pin'),
@@ -731,6 +872,10 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
       if (pinnedRow) sub = modelPurpose(m);
       else if (prof) sub = v?.desc || '';
       else sub = modelPurpose(m);
+      sub = withNote(sub, m);          // « Encodeur de texte en version compacte… » quand la pièce assortie manque
+      // à droite : la mémoire que la version prendra ici, « Trop lourd » si elle dépasse la machine (le poids du fichier
+      // est dans l'infobulle)
+      const side = sideOf(m);
       const r = el('div', { class: `mp-row mp-var${isSel ? ' sel' : ''}${pinnedRow ? ' pinned' : ''}`, role: 'option', tabindex: '-1' },
         el('span', { class: 'mp-check', html: isSel ? icon('check', 13) : '' }),
         pinnedRow ? markEl(m, modelName(m), 'sm') : null,
@@ -739,7 +884,7 @@ export function modelPicker({ param, value, onChange, base, lead = false }) {
             el('span', { class: 'mp-name' }, title),
             chips.length ? el('span', { class: 'mp-fam' }, chips.join(' · ')) : null),
           sub ? el('span', { class: 'mp-sub' }, sub) : null),
-        el('span', { class: 'mp-side' }, m.sizeGB ? el('span', { class: 'mp-size' }, sizeText(m.sizeGB)) : null, pin));
+        el('span', { class: 'mp-side' }, side.text ? el('span', { class: `mp-size${side.over ? ' over' : ''}` }, side.text) : null, pin));
       r.dataset.value = m.id;
       r.addEventListener('click', (e) => { e.stopPropagation(); choose(m.id); });
       return r;

@@ -77,6 +77,10 @@ async function run(x) {
 
   const g = P.load('ltx_t2v');
   P.set(g, '5004:5569', 'unet_name', unet);
+  // the text encoder paired with this transformer (SPEC §7): the full one with the full model, else the template's
+  const lp = E.ltxParts(x);
+  P.set(g, '5004:5572', 'clip_name', lp.clip);
+  if (lp.note) notes.push(lp.note);
   P.set(g, '5508', 'value', prompt);
   P.set(g, '5509', 'value', negative);
   P.set(g, '5511', 'value', FPS);

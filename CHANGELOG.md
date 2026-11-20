@@ -10,6 +10,320 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## 0.10.0 — 20/11/2026
+
+### En bref
+- **Entraîne tes LoRA dans Mia** : un nouvel écran « Entraînements », ouvert par la puce **ENTRAÎNER** de la barre
+  de titre. Tu glisses tes images, tu donnes un nom et un mot déclencheur, tu choisis la durée, puis « Lancer
+  l’entraînement ». Pendant les heures de calcul, tu vois tout : la progression, l’heure de fin, la courbe, les
+  essais qui arrivent, la mémoire. Les outils d’entraînement s’installent à part : Réglages → Entraînement dit ce
+  qui manque.
+- **Rien ne se perd** : « Pause » et « Arrêter… » enregistrent là où on en est, tu peux toujours reprendre, et
+  fermer Mia par erreur ne casse rien. À la fin, le LoRA arrive tout seul dans « Mes LoRA », prêt dans tes blocs.
+- **Génère une image pendant un entraînement** : elle part à côté quand la mémoire le permet, sinon elle attend de
+  la place et part toute seule dès qu’il y en a. Une vidéo attend la fin de l’entraînement.
+- **Chaque calcul en attente dit pourquoi**, en clair : « Une vidéo ne part pas à côté : après l’entraînement, vers
+  15 h 10 », « Manque de mémoire : il faut ≈ 23 Go, 34 libres moins 16 de marge »…
+- **La jauge GPU dit juste** : elle compte la mémoire prise par tous les programmes, comme le panneau NVIDIA. Avant,
+  sur la RTX Spark, elle affichait « 2,9 / 94 Go » pendant un entraînement qui en prenait 46.
+- **« Je valide » ou « Claude agit seul »**, en un clic en bas à gauche de la planche : avec « Je valide », Claude
+  attend ton feu vert ; avec « Claude agit seul », il lance tout sans te demander,
+  **y compris les calculs en ligne payants**, pour quand tu n’es pas devant ton PC. « Pause » l’arrête toujours.
+  Un entraînement préparé par Claude part alors lui aussi sans ton clic.
+- **Tu sais quelle version de LTX 2.5 tu choisis** : « Compacte », « Pleine »…, chacune avec la mémoire qu’elle
+  prendra (« ≈ 71 Go ») à côté de celle de ta machine. « Auto » reste sur la compacte : même image, moins de temps
+  et de mémoire.
+- **Et aussi** : plus de fenêtre noire au démarrage de ComfyUI (moteur dans un environnement virtuel Python), tes
+  résultats restent à jour si le dossier du moteur change de place, et un seul chiffre pour la mémoire de la
+  machine, le même partout.
+- **Mia existe aussi pour les PC ARM64** (Windows sur processeur ARM, comme la RTX Spark) : un installateur et une
+  version portable arm64, en plus de ceux pour les PC classiques (x64), comme avant. Sur ARM64, le moteur (ComfyUI)
+  s’installe à la main : l’installation automatique reste pour les PC x64.
+
+### In short
+- **Train your LoRAs in Mia**: a new “Trainings” screen, opened by the **TRAIN** chip in the title bar. Drop your
+  images, give a name and a trigger word, pick a length, then “Start training”. During the hours of computing, you
+  see everything: the progress, the end time, the curve, the samples as they come, the memory. The training tools
+  are installed separately: Settings → Training tells what is missing.
+- **Nothing is lost**: “Pause” and “Stop…” save where it is, you can always resume, and closing Mia by mistake
+  breaks nothing. At the end, the LoRA lands in “My LoRAs” by itself, ready in your blocks.
+- **Generate an image during a training**: it runs alongside when the memory allows it, else it waits for room and
+  starts by itself as soon as there is some. A video waits for the end of the training.
+- **Each waiting job says why**, plainly: “A video does not run alongside: after the training, around 3:10 PM”,
+  “Not enough memory: needs ≈ 23 GB, 34 free minus the 16 GB margin”…
+- **The GPU gauge tells the truth**: it counts the memory taken by all programs, as NVIDIA’s panel does. Before, on
+  the RTX Spark, it showed “2.9 / 94 GB” during a training that took 46.
+- **“I approve” or “Claude acts alone”**, one click at the bottom left of the board: with “I approve”, Claude waits
+  for your go-ahead; with “Claude acts alone”, it starts everything without asking you,
+  **paid online computations included**, for when you are away from your PC. “Pause” still stops it. A training
+  Claude prepared then starts without your click too.
+- **You know which LTX 2.5 version you pick**: “Compact”, “Full”…, each with the memory it will take (“≈ 71 GB”)
+  next to your machine’s. “Auto” stays on the compact one: same picture, less time and memory.
+- **Also**: no more black window when ComfyUI starts (engine in a Python virtual environment), your results stay
+  current if the engine folder moves, and one number for the machine’s memory, the same everywhere.
+- **Mia now also exists for ARM64 PCs** (Windows on an ARM processor, like the RTX Spark): an installer and a
+  portable arm64 version, besides the ones for regular PCs (x64), as before. On ARM64, the engine (ComfyUI) is
+  installed by hand: the automatic install stays for x64 PCs.
+
+### Ajouté
+- Interrupteur « Je valide · Claude agit seul » / “I approve · Claude acts alone”, un îlot en bas à gauche de la
+  planche, à droite de « Bloc · Recettes · Section » : le même réglage que Réglages → Assistants → « Demander mon feu
+  vert » (chacun suit l’autre). Infobulle de « Claude agit seul » : « Claude lance tout sans te demander, y compris les
+  calculs en ligne payants. » Passer en « agit seul » accepte la demande qui attend sur sa carte ; les calculs déjà dans
+  « À générer » y restent, avec la ligne « Proposés avant « Claude agit seul » : ils attendent ta coche. » (rien ne part
+  sans que tu l’aies vu) ; revenir à « Je valide » redemande ton feu vert à la prochaine action de Claude, sans rien
+  annuler. « Claude agit seul » se voit en bleu. Dans une fenêtre étroite (montant Higgsfield affiché), l’îlot ne montre
+  que le mode choisi : « Claude demande » ou « Claude agit seul », précédé d’un petit interrupteur, et un clic passe à
+  l’autre.
+- Écran « Entraînements » / “Trainings” (une troisième vue à côté de l’accueil et de la planche, ouverte par la puce
+  « ENTRAÎNER » ou par « Entraîner un LoRA » dans Mes LoRA ; « ‹ Retour à … » et Échap ramènent à la planche
+  quittée) : la liste (état, taille sur le disque, date, point « pas encore ouvert », « Dupliquer en brouillon »,
+  « Mettre à la corbeille », « Retrouver le dossier… »), le brouillon (images glissées, légendes `.txt` du même nom,
+  images trop petites repérées, nom et mot déclencheur, modèle : LTX 2.5, ou Qwen-Image 2.1 grisé tant qu’il n’a pas
+  été essayé sur la machine, durée Court, Normal ou Long, raisons écrites quand « Lancer » est éteint, estimation de
+  la durée et de l’heure de fin, « Avancés » replié) et l’instrument (barre, ligne d’état, courbe de perte, essais
+  vidéo ou image avec la bande des tuiles, points de contrôle et « Mettre dans Mes LoRA », cadence, mémoire GPU et
+  RAM, ÉVÈNEMENTS filtrables, journal de l’outil, « Pause », « Arrêter… », « Reprendre », « Laisser passer »,
+  « Essayer sur une planche » à la fin). Tes images et tes légendes d’origine ne sont jamais modifiées.
+- Puce de la barre de titre : « ENTRAÎNER » au repos, puis « LORA · ROSA 49 % », « GPU OCCUPÉ », « ESSAI », « EN
+  PAUSE », « FINI » ou « ERREUR » (ces deux-là jusqu’à ce que tu aies ouvert l’entraînement), « 1 PROPOSITION ».
+- Erreurs d’un entraînement en clair, chacune avec son explication : mémoire GPU pleine, mémoire Windows
+  insuffisante, disque plein, fichier de poids introuvable, reprise refusée, outil muet, outil arrêté ; reprise
+  proposée depuis le dernier point de contrôle.
+- File des calculs : rangée « Entraînement LoRA · Rosa » en tête (pourcentage, heure de fin, croix qui demande avant
+  d’arrêter) ; l’heure de fin de la file est comptée après l’entraînement.
+- Bibliothèque → Mes LoRA : bouton « Entraîner un LoRA », mention « ENTRAÎNÉ ICI · 300 PAS », ligne « Entraînement »
+  dans le détail, « Voir l’entraînement », « Retirer de Mes LoRA » (question d’abord, fichier et fiche à la
+  corbeille), étapes intermédiaires repliées sous leur LoRA final (« Rosa · étape 100 »).
+- Réglages → Entraînement : dossier des entraînements et dossier des outils (champ, « Parcourir… », dépôt d’un
+  dossier, « Par défaut »), état de chaque outil, place libre ; un dossier dans le moteur, les projets ou un dossier
+  de LoRA est refusé ; rien ne change pendant un entraînement.
+- Fermer Mia pendant un entraînement : boîte « Rester » / « Arrêter et quitter », « ÉCRITURE DU POINT DE CONTRÔLE… »
+  puis « Quitter sans attendre ». Sans réponse au bout de 4 minutes, Mia reste ouverte.
+- Barre des tâches de Windows : progression de l’entraînement sur l’icône, clignotement à la fin si Mia n’est pas
+  devant ; pas de mise en veille pendant un entraînement.
+- Assistants : outils `mia_train_options`, `mia_train_prepare`, `mia_train_start` (en « Je valide », il ne fait que
+  proposer : carte « Claude propose un entraînement » avec « Voir », « Refuser », « Plus tard », « Lancer » ; en
+  « Claude agit seul », il lance directement), `mia_train_status`,
+  `mia_train_wait`, `mia_train_control` (pause, ranger un point), `mia_train_note` ; `training:true` sur
+  `mia_request` ; `mia_status.training`, `mia_pending.training`.
+- Versions de LTX 2.5, nommées par ce qu’elles sont : « Compacte » (poids compressés, réglée pour 24 Go de
+  mémoire), « Compacte · RTX 50 », « Pleine » (poids non compressés : même image que la compacte d’après nos essais,
+  plus de mémoire, un peu plus lente ; elle sert surtout à entraîner un LoRA) et « Complète (non distillée) », grisée
+  avec sa raison « Recette non validée ». Étiquette de version et mémoire estimée sur la carte du modèle d’un bloc,
+  dans la liste de choix, dans le bloc Modèle, dans la bibliothèque et dans « + Bloc ». L’estimation est mesurée sur
+  un plan type (960 × 544, 121 images), pas une garantie : elle monte avec la définition et la durée. « Trop lourd »
+  prévient quand une version dépasse la machine. Avec la version pleine, Mia prend l’encodeur de texte plein s’il est
+  installé, sinon le compact, et le dit.
+- Bibliothèque, fiche d’un modèle : lignes « Version », « Mémoire » (avec l’origine du chiffre : mesuré, repris de
+  la mesure d’une version voisine, ou d’après la taille du fichier) et « Encodeur de texte ».
+- Assistants : `mia_catalog` donne pour chaque modèle sa version et sa mémoire estimée (`version`, `memoryGB`), la
+  mémoire de la machine (`machine.memoryGB`) et les modèles reconnus mais non proposés (`notOffered`).
+- Réglage interne `formerEngineRoots` : les anciens dossiers du moteur, tenus à jour tout seuls quand le dossier
+  change.
+- Réglages → Entraînement : « Générer pendant un entraînement » (activé par défaut). Une génération sur ce PC part à
+  côté d’un entraînement qui fait ses pas quand la mémoire utilisée (lue à l’instant, jamais moins que le pic connu de
+  l’entraînement), plus le pic **mesuré** de son modèle, plus une marge de 16 Go (la même que partout ailleurs dans
+  Mia), reste sous le total de la machine ; une à la fois. Pics mesurés le 19/11 sur la RTX Spark à côté d’un
+  entraînement LTX : FLUX.2 Klein 9B ≈ 29 Go en 1K, Qwen-Image 2.1 ≈ 23 Go jusqu’en 2K (la bibliothèque et le bloc
+  Modèle les montrent aussi sur cette machine : « Mesuré pour une image en 1344 × 768 »). Elle attend pendant la
+  préparation et les essais de l’entraînement, ses trois premiers pas après chacun d’eux, et quand Mia n’a pas mesuré
+  la mémoire de son modèle (un chiffre « réglé pour 24 Go » ne compte pas). Une vidéo attend toujours la fin. Le
+  calcul suivant de la file dit qu’il attend le calcul à côté. À la fin de chaque calcul, même modèle compris, ComfyUI
+  rend sa mémoire pour l’essai suivant de l’entraînement. Ligne « Calcul à côté : {bloc} » dans ÉVÈNEMENTS ; « À côté
+  de l’entraînement « Plumo » » sur le bloc et dans la file ; la raison d’une attente, chiffres compris, au même
+  endroit. Assistants : `mia_run` fait pareil ; `mia_jobs` et `mia_wait` donnent `besideTraining` et
+  `waitsForTraining`.
+- Mia pour les PC Windows ARM64 (comme la RTX Spark) : un installateur et une version portable arm64
+  (`Mia-0.10.0-arm64-installation.exe`, `Mia-0.10.0-arm64-portable.zip`), en plus de ceux pour les PC classiques
+  (x64), qui gardent leurs noms. Sur ARM64, l’assistant « Installer le moteur de Mia » n’est pas prévu (il installe
+  un Python et un PyTorch x64) : le moteur s’y installe à la main, puis « J’ai déjà un moteur ».
+- Les outils d’entraînement ne sont pas installés par Mia : ltx-trainer 1.6.2 de Lightricks pour LTX 2.5,
+  ai-toolkit pour Qwen-Image 2.1, dans le dossier « entrainement » à côté du moteur (voir `docs/INSTALL.md`).
+  L’entraînement de LTX 2.5 n’a été essayé que sur la RTX Spark : il y prend ≈ 46 Go de mémoire au plus fort, et
+  les durées estimées viennent de cette machine.
+
+### Changé
+- « Pause » (barre de titre) se montre aussi en « Claude agit seul » dès qu’un assistant travaille : c’est le seul
+  frein quand tu n’es pas là.
+- La file des calculs écrit la raison d’une attente derrière un entraînement **d’abord, en court et en entier**, sur
+  deux lignes au plus : « Une vidéo ne part pas à côté : après l’entraînement, vers 15 h 10 », « Manque de mémoire :
+  il faut ≈ 23 Go, 34 libres moins 16 de marge », « Après le calcul en cours à côté »… La phrase complète reste au
+  survol et sur le bloc.
+- Un calcul local lancé pendant un entraînement, quand il ne peut pas partir à côté (voir « Générer pendant un
+  entraînement »), attend, avec la raison : « En file : entraînement « Rosa » en cours (fin vers 3 h 40) ». Un calcul
+  sans GPU passe quand même, y compris pendant un calcul à côté, sauf pendant le chargement du modèle de
+  l’entraînement. Les calculs légers du PC (extraire une image, redimensionner…) attendent toujours.
+- Un LoRA rangé dans `models\loras\mia` avec une fiche `.mia.json` d’entraînement : son nom, son genre et son modèle
+  viennent de la fiche, sa licence dit « Entraîné par toi. », et une étape intermédiaire se lit « · étape N »
+  quelle que soit son origine. L’inventaire des modèles est refait une fois au démarrage (`CATALOG_REV` 6).
+- « Auto » ne change pas : il garde la version compacte de LTX 2.5. Le mécanisme qui lui ferait prendre une version
+  pleine quand la machine a la place existe (`autoOver` / `autoCaps` au catalogue, `autoByMemory` au scan), mais le
+  service ne le demande pas (`AUTO_BY_MEMORY = false`, `electron/scanner.js`) : essai du 18/11/2026 sur RTX Spark,
+  la pleine et la compacte int8 donnent la même image (écart moyen 3,1 à 3,6 sur 255, autant que deux décodages du
+  même calcul) pour 13 s et 32 Go de plus. S’il est rallumé un jour, un résultat fait en Auto avec l’ancien défaut
+  reste « à jour » (`legacyDefault`).
+- Vocabulaire : « mémoire » (plus « mémoire vidéo ») ; précisions nommées « Pleine », « Compacte », « Compacte ·
+  RTX 50 », « Très compacte ».
+- La liste de choix d’un modèle montre sa mémoire estimée à droite ; le poids du fichier passe dans l’infobulle.
+- La pastille de mémoire affiche le total que ComfyUI annonce (Mia le retient quand ComfyUI est éteint), avec une
+  décimale, au lieu d’un total arrondi qui changeait selon que ComfyUI tournait ou non.
+- Un fichier d’une autre précision que celle attendue (par exemple un MiniMax non compressé) le dit dans son nom et
+  n’affiche plus la mémoire du fichier attendu.
+
+### Corrigé
+- Pendant un entraînement de LoRA, la fenêtre de la puce GPU disait « GPU libre » alors que l’entraînement tenait
+  46 Go ; elle dit maintenant « L’entraînement « Plumo » tient le GPU (fin vers 15 h 10) », et nomme le calcul qui
+  tourne à côté (« · à côté : « Portrait » »).
+- La file coupait la raison d’une attente avant sa partie utile (« Attend la fin de l’entraînement « Plumo » (… »).
+- Pendant un entraînement de LoRA, la mémoire GPU affichée (puce, fenêtre de la puce, écran d’entraînement,
+  `mia_status`, `mia_train_status`) ne comptait que ce que ComfyUI voyait : sur une machine à mémoire unifiée
+  comme la RTX Spark, l’entraînement (46 Go) n’y apparaissait pas. Mia prend maintenant le plus grand de ComfyUI et
+  du pilote NVIDIA (nvidia-smi), relu toutes les 3 s pendant un entraînement ou un calcul.
+- Les calculs en attente derrière un entraînement gardaient le message de leur mise en file : le 2ᵉ calcul lourd
+  et les vidéos disaient « En file : entraînement … en cours » pendant qu’une image tournait à côté, et seule la
+  première vidéo de la file disait qu’une vidéo ne part pas à côté. Chacun lit maintenant sa raison, recalculée à
+  chaque changement, sans clignoter ; l’ordre de la file et les départs ne changent pas.
+- Une image placée derrière une vidéo (ou derrière un modèle dont Mia n’a pas mesuré la mémoire) disait
+  « Attend son tour à côté de l’entraînement … », alors qu’elle ne partira qu’à la fin de l’entraînement. Elle dit
+  maintenant « Attend la fin de l’entraînement « Plumo » (vers 15 h 10), puis « LTX 2.5 », placé avant lui dans la
+  file ». Avec « 4 variantes », les suivantes disent « un autre « Qwen 2.1 » passe avant » au lieu de nommer leur
+  propre bloc.
+- Une image placée derrière **trois** vidéos disait dans la file « Après l’entraînement (vers 6 h 07), puis « Plumo
+  marche dans le village » », comme si elle partait juste après la première. Les calculs placés avant elle sont
+  maintenant comptés : « Après l’entraînement (vers 6 h 07), puis 3 calculs placés avant » (la phrase entière, sur le
+  bloc, nomme le premier : « … dont « Plumo marche dans le village » »). De même, à côté de l’entraînement : « Son tour
+  à côté : 3 calculs passent avant ».
+- Deux clics rapides sur un réglage (par exemple « Claude agit seul » puis « Je valide ») pouvaient remettre un
+  instant le premier choix, le temps que Mia l’enregistre : en « Je valide », des actions d’assistants passaient alors
+  sans ton feu vert. Le dernier choix tient, sans retour en arrière.
+- Une action d’assistant retenue par « Pause » en « Claude agit seul » partait sans feu vert si tu repassais en « Je
+  valide » avant « Reprendre ». Elle demande maintenant ton feu vert, comme les suivantes.
+- La jauge relisait le pilote NVIDIA une fois sur deux pendant un entraînement (toutes les 6 s au lieu de 3) ; elle
+  gardait jusqu’à 10 s une mémoire que ComfyUI venait de libérer ; sur un PC à deux cartes NVIDIA, elle pouvait lire
+  l’autre carte. Corrigé.
+- Le modèle complet de LTX (non distillé) n’est plus proposé comme une simple « autre précision », lancé avec une
+  recette qui n’est pas la sienne. Un bloc qui le garde dit pourquoi il ne part pas, au lieu de basculer en silence
+  sur une autre version. Cela vaut aussi pour un modèle complet de LTX 2.5 en poids compressés (int8) : s’il est le
+  seul LTX installé, la vidéo LTX et « LTX · détails » ne sont plus proposés tant que la version distillée manque.
+  Les modèles « dev » des générations précédentes (LTX 2.0, 2.3) ne sont pas concernés : ils restent proposés
+  comme avant.
+- Plus de fenêtre de console noire au démarrage de ComfyUI ni à chaque tâche Python quand le moteur est installé
+  dans un environnement virtuel (venv).
+- Avec deux encodeurs de texte installés, celui que Mia retenait dépendait de l’ordre des fichiers sur le disque.
+  Le choix est maintenant toujours le même.
+- Après un déménagement du dossier du moteur, les blocs ne signalent plus « LoRA introuvable » ou « à relancer »
+  pour des modèles qui sont toujours là.
+
+### Pour les développeurs
+- Feu vert (SPEC §13.7) : `greenlight.js` `mountMode` / `paintMode` / `pick` (îlot `#gl-mode`, `greenlight.css`
+  `.gl-mode`), `mode()`, `follow()` (suit le réglage d’où qu’il change : accepte la demande en cours en « agit seul »,
+  reprend `grant` au retour à « Je valide »), `launched()` (une ligne « À générer » lancée par un `mia_run` en « agit
+  seul »), `snapshot()` → `mode`, `granted` vrai en « agit seul ». `presence.js` : « Pause » visible dès qu’un
+  assistant travaille, `mia_request` et `mia_pending` disent `mode` (+ `note` en « agit seul »), `mia_run` appelle
+  `GL.launched`. `settings.js` : phrase du réglage. `bridge.js` : note `trainStarted`. Consignes MCP
+  (`mcp/mia-mcp.js`) : les deux modes. `tools/test-bridge.js` : `testModeSwitch` (interrupteur, Réglages, cas a à d,
+  calcul lourd et calcul en ligne payant partis aussitôt, `mia_jobs` sans `waitShort`), rouge sur le code d’avant.
+- File et puce (SPEC §8.6, §8.7) : le moteur donne `job.waitShort` (clés `…Q` de `STR`, `besideWhy(…, true)`,
+  `besideWaitMessage(v, true)`, `besideVideoMessage(v, true)`, `trainingMessage(true)`, `setWaitingMessage(job, msg,
+  short)`) dans `pub()` et `engine:event` (pas dans `mia_jobs`) ; `runs.js` le garde ; `queuetrain.js` `waitLine` et
+  `gpuHolder` ; `queue.js` `holderText(status)` d’après `status.training`, `.q-sub.is-why` (`queue.css`, deux lignes).
+  `tools/test-engine.js` (+9) et `tools/test-train-queue.mjs` (+15), rouges sur le code d’avant.
+- Relecture du 19/11 au soir : `presence.js` `gated()` relit `GL.allowed()` après une « Pause » (une action retenue
+  ne passe plus sans feu vert si le mode a changé pendant la pause) ; `settings.js` `setPrefs()` numérote les écritures
+  par clé (`prefSeq`, `prefLast`) : la réponse d’une écriture plus ancienne ne remet pas une clé réécrite depuis, et un
+  échec ne remet que les clés qui n’ont pas été réécrites ; `greenlight.js` `.tight` : `gl.mode.askTight` (« Claude
+  demande » / “Claude asks”), `.gl-mode-sw` (`greenlight.css`), `place()` mesure avec les mots longs puis resserre ;
+  moteur : `besideAfterN`/`besideAfterEndN`/`besideBehindN` (+ clés `…Q`), `ctx.afterN` et `ctx.headN` comptés dans
+  `pump()`. Tests : `test-bridge.js` (pause puis « Je valide » puis « Reprendre », deux clics rapides et appels
+  d’assistants pendant ce temps, fenêtre étroite), `test-engine.js` (+1 contrôle, 5 revus), rouges sur le code d’avant.
+- Moteur (`electron/engine/index.js`) : `tick()` prend le plus grand de ComfyUI et de nvidia-smi (`smiUsedNow()`,
+  `SMI_FRESH_MS` 20 s ; `smiEveryMs()` : 3 s pendant un entraînement ou un calcul local, 10 s sinon ou sans pilote) ;
+  `smi()` ne met plus NaN dans le statut sur un « [N/A] » et accepte `opts.smiQuery` (bancs). `pump()` :
+  `besideRunning` mis à jour dans le passage, raison de chaque calcul lourd en attente par `besideWhy()`, nouveaux
+  textes `besideStart`, `besideSettle`, `besideSample`, `besideMeasuring`, `besideBehind` (fr/en). SPEC §8.6, §8.7.
+  `tools/test-engine.js` : cas réels du 19/11 (jauge à 46,5 au lieu de 2,9, cadence de nvidia-smi, « [N/A] », PC
+  classique ; préparation, calcul à côté, 2ᵉ et 3ᵉ vidéos, image derrière une vidéo, essai, réglage coupé,
+  stabilité), rouges sur le code d’avant.
+- Relecture du 19/11 (`electron/engine/index.js`) : `smiDue()` (lecture due 1 s avant son heure, `SMI_SLACK_MS` ;
+  relue aussitôt quand la lecture de ComfyUI bouge d’1 Go, `SMI_MOVE_GB`) ; `smiEveryMs()` garde 3 s pendant 15 s
+  après un entraînement ou un calcul (`SMI_TAIL_MS`, `_smiFastUntil`) ; `smi()` lit toutes les lignes de nvidia-smi
+  (`_smiRead.gpus`, sans les lignes sans total comme le NPU) et `smiUsedNow(nom)` ne prend que la carte de ComfyUI ;
+  `pump()` passe `never` à `besideWhy()` (`besideNever()` : vidéo, pas d’estimation mesurée), nouveaux textes
+  `besideAfter`, `besideAfterEnd`, `besideOther`, `besideFirst` (fr/en), `besideBehind` prend le nom déjà entre
+  guillemets (`besideFirstOf()`). `tools/test-engine.js` : 17 contrôles rouges sur le code d’avant (cadence réelle
+  sur 10 tours, traîne, modèle libéré, deux cartes, NPU ; vidéos en tête, tête sans estimation, « 4 variantes »,
+  image, vidéo, image).
+- Catalogue (`electron/scanner-rules.js`, `CATALOG_REV` 5, puis 6 avec l’entraînement) : entrées `ltx-dev` (bloquée) et
+  `ltx-full`, tables `VERSIONS`, `MEM_AT`, `MEM_MARGIN_GB` ; critères `quantClass` et `notName` dans `matchWhen`.
+  Inventaire : champs `aliases`, `version`, `mem`, `blocked`, `partNote`, `pairTag`, `offCatalog`, `machine.memGB`,
+  `capabilities[c].auto` et `legacyDefault` (SPEC §7.1 à §7.5).
+- Une seule résolution de référence de modèle : `findModel(inventory, ref)` dans `src/js/nodes/route.js` (id, alias,
+  id de registre, chemin), lue par le scanner, le moteur, le pont et l’interface.
+- Empreintes (SPEC §8.2.2) : `+te:full` quand l’encodeur retenu est plein ; `spec().hashAlts` reconnaît les versions
+  faites sous un ancien dossier du moteur ou avec l’ancien défaut d’Auto. Refus `modelBlocked` à la planification.
+- Executors LTX (`i2v`, `t2v`, `real`, `guided`) : `clip_name` posé par `patch.js` `ltxParts` ; graphes identiques à
+  ceux d’avant avec une version compacte. Aucun gabarit modifié.
+- Mémoire : total unique retenu dans `data/machine.json` (`mergeMachine`), `gpu.totalSource` dans `engine:status`,
+  règle de place partagée `src/js/nodes/memory.js`. Préférences au format 2 (`formerEngineRoots`).
+- Nouveau banc `node tools/test-variants.js` (sans disque réel, sans GPU, sans ComfyUI) et références dans
+  `tools/fixtures/variants/`.
+- `ltx-dev` ne prend que les fichiers dont le nom dit « ltx-2.5 » et « dev ». Dans le tri de préférence, `ltx-full`
+  a le rang de `ltx-other` (`PREFER_AS`) : seul le choix « Auto » selon la mémoire peut la mettre par défaut. La
+  version pleine affiche toujours sa mémoire mesurée (≈ 71 Go) dès que le total de la machine est connu.
+- `electron/engine/pyexe.js` `pythonFor(py)` : pour un venv, ComfyUI et les tâches Python sont lancés avec
+  l’interpréteur réel (`home` de `pyvenv.cfg`) et la variable `__PYVENV_LAUNCHER__`, au lieu du lanceur
+  `Scripts\python.exe` ; sans `pyvenv.cfg` (python_embeded), rien ne change.
+- Entraînement de LoRA (SPEC §12.6, §8.7, §13.8) : service `electron/trainer.js` (canaux `train:*`, évènement
+  `train:event`, `brief()`, `stopForQuit()`, `killSync()`), descripteurs d’outil
+  `electron/train/{common,ltx,aitk,fake}.js`, adaptateurs `python/train/mia_train_{common,ltx,aitk}.py` (`--dry` écrit
+  et valide la configuration sans GPU), catalogue `src/catalog/train-bases.json`, `electron/trainshell.js` (barre des
+  tâches, clignotement, `powerSaveBlocker`, `release()` à la fermeture). Le dossier de l’entraînement est la source de
+  vérité : `train.json` (Mia seule, chemins relatifs), `events.jsonl` et `metrics.jsonl` (l’adaptateur seul),
+  `control\`, `log.txt` passé à l’outil par descripteur de fichier, jamais un tuyau.
+- Moteur : porte `holdGpu()` / `adoptGpu()` (attend tous les calculs locaux, verrou écrit pour min(reste, 30) min et
+  réécrit toutes les 5 min), `pump()` qui retient lourds et légers (les `gpu:'none'` passent, sauf en phase `load`),
+  messages `waitTraining*`, `engine:status.training`, `shutdown()` → `trainer.killSync()`.
+- Calcul à côté d’un entraînement (SPEC §8.7) : préférence `trainGenBeside` (`store.js`, absente = `true`) ; moteur
+  `besideCheck` / `besideNeedGB` (seulement `mem.basis` `measured` ou `derived`, et jusqu’à la taille de la mesure
+  `mem.at`) / `besideIsVideo` / `besideTotalGB` / `besideMeasure` (nvidia-smi lu à l’instant, `smi()` rend sa lecture ;
+  `engineOpts.gpuUsedGB`, `besideFreshMs`, `besideRetryMs`, `besideSettleSteps`, `besideSettleMs` pour les bancs ;
+  relecture à 1 ×, 3 ×, 12 × `BESIDE_RETRY_MS` tant qu’elle ne bouge pas) / `besideWaitMessage` (`besideWait`,
+  `besideWaitEnd`, `besideRun`, `besideBusy`, `besideVideo*`) / `besideTakeOver` (verrou repris sous le nom du calcul
+  quand l’entraînement rend le GPU) / `besideFree` (`POST /free` après chaque calcul à côté) ; `BESIDE_MARGIN_GB = 16`,
+  `BESIDE_SETTLE_STEPS = 3`, `BESIDE_SETTLE_MS = 10000` dans `_internals` ; `trainer.brief().peakVramGB` ; catalogue :
+  `mem: { peakGB, basis, at: { w, h } }` pour `flux2-klein9b` (29) et `qwen-image21` (23), `memOf` rend ce `at` (sinon
+  `MEM_AT`), phrases `memoryAt.measuredImage` / `memTip.measuredImage` ; champs `beside` et `trainWait` des jobs et de
+  `engine:event` ; `trainer.noteBeside(label)` (`act: 'beside'`) ; `runs.trainWaitText` / `runs.besideText` ; pont :
+  `besideTraining`, `waitsForTraining`. Bancs étendus : `test-engine.js`, `test-migrations.js`,
+  `test-train-settings.js`, `test-train-ui.mjs`, `test-bridge.js`.
+- `main.js` : module `trainer` chargé entre `engine` et `bridge` ; `app:flush` porte `training` ; `finishClose`
+  appelle `trainer.stopForQuit()` sur tous les chemins (7 min au plus), puis `trainShell.release()` ;
+  `flushed({now:true})` = quitter sans attendre ; après le délai de 5 min, un entraînement actif garde Mia ouverte.
+- Préférences `trainRoot`, `trainRoots[]`, `trainTools` (`places.trainingRoot` / `trainingRoots` / `trainingTools`,
+  `store.js` `checkTrainRoot`, `setTrainBusyCheck`) ; `allowedRoots()` sert les dossiers d’entraînement par `mia://m/`.
+  Instance de test (`MIA_USERDATA` ou `MIA_TRAIN_FAKE=1`) : `<userData>\training` et `<userData>\loras-mia`.
+- Interface : vue `#view-train` (`app.js` `goTrain`, `leaveTrain`, `tryLora`, `openTrain`), modules
+  `src/js/ui/train.js`, `traintext.js` (mots fr/en et règles d’affichage, purs), `trainchart.js`, `trainclose.js`,
+  `queuetrain.js`, styles `src/css/train.css` et `library-train.css` ; `settings.js` section `train` ;
+  `greenlight.js` `proposeTraining`.
+- Scanner : `sidecarTraining`, `trainedHere`, `miaLoraDirs` (racine « Entraînés dans Mia » d’une Mia de test),
+  `removeLora` pour `trainedHere`, `TRAIN_BASES` / `trainBaseKey` (`scanner-rules.js`), `CATALOG_REV` 6.
+- Pont : `train_options`, `train_status`, `train_wait`, `train_start` côté principal, `train_prepare` relayé avec
+  son propre délai (140 s), `train_control` et `train_note` relayés ; `NEEDS_GO` de `presence.js` ; 33 outils MCP.
+- Faux outil `tools/fixtures/train/fake-trainer.js` (base `fake`, seulement avec `MIA_TRAIN_FAKE=1`). Nouveaux bancs :
+  `tools/test-trainer.js`, `test-train-config.js`, `test-train-ui.mjs`, `test-train-queue.mjs`,
+  `test-train-settings.js` ; sur une Mia de test cachée : `check-train-screen.mjs`, `test-train-close.mjs`,
+  `check-train-queue.mjs`, `check-library-train.mjs`, `test-train-settings-ui.mjs`. Étendus : `test-engine.js`,
+  `test-scanner.js`, `test-bridge.js`.
+- Paquet : `npm run dist`, `dist:zip` et `dist:dir` passent par `tools/dist.js`, qui lance electron-builder une fois
+  par architecture (x64 puis arm64 ; `npm run dist -- arm64` pour une seule). Les fichiers x64 gardent leurs noms,
+  ceux d’arm64 disent `arm64` (`nsis.artifactName` et `win.artifactName` changés pour cette passe seulement).
+  `build.electronDist` est retiré : `node_modules/electron/dist` est l’Electron du PC qui a fait `npm install` (arm64
+  sur un PC ARM), et un paquet x64 l’aurait embarqué ; electron-builder prend maintenant l’Electron officiel de
+  chaque architecture (vérifié par SHASUMS256, gardé dans `%LOCALAPPDATA%\electron\Cache`). L’afterPack de
+  `tools/check-package.js` refuse un `.exe` dont l’en-tête PE n’est pas de l’architecture fabriquée (`peArch()`).
+
 ## 0.9.0 — 17/11/2026
 
 ### En bref
