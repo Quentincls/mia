@@ -7,13 +7,13 @@
  *  2. « À générer »: a heavy or paid computation asked by an assistant is not started, it is listed in a panel on
  *     the right, one group per chain of wired blocks (a « plan »); the user ticks what he wants and starts it
  *     himself. Online (paid) ones arrive unticked.
- * Off (Réglages → Assistants → « Demander mon feu vert », or the switch « Je valide · Claude agit seul » at the bottom
+ * Off (Réglages → Assistants → « Demander mon feu vert », or the switch « Je valide · Auto » at the bottom
  * left of the board — one preference, prefs.assistantAsk, both sides): assistants act and compute at once, heavy jobs
  * of the PC and paid online ones included (Quentin's decision, 19/11/2026: « Oui ils partent aussi pour les calculs
  * payants »), with neither card nor « À générer ».
- * Switching (SPEC §13.7, « Je valide · Claude agit seul »):
- *  - to « agit seul » while a request card waits: that request is accepted (the assistant goes on);
- *  - to « agit seul » while « À générer » holds lines: they STAY there, unticked ones unticked, with a line that says so —
+ * Switching (SPEC §13.7, « Je valide · Auto »):
+ *  - to « Auto » while a request card waits: that request is accepted (the assistant goes on);
+ *  - to « Auto » while « À générer » holds lines: they STAY there, unticked ones unticked, with a line that says so —
  *    the switch never starts computations nobody looked at (paid ones arrive unticked); an assistant that asks for the
  *    same block again (mia_run) starts it at once, and its line leaves the list (launched);
  *  - back to « Je valide »: the green light given before is taken back, the next action of every assistant asks
@@ -32,6 +32,7 @@ import { state } from '../state.js';
 import { t, register } from '../i18n.js';
 import { on, emit } from '../bus.js';
 import { tip } from './tooltip.js';
+import { icon } from '../icons.js';
 import { money } from './budget.js';
 import { typeOf } from '../catalog.js';
 import { tl } from '../i18n.js';
@@ -84,13 +85,13 @@ register({
     'gl.train.failed': 'Le départ n’a pas pu se faire.',
     'gl.mode.group': 'Feu vert des assistants',
     'gl.mode.ask': 'Je valide',
-    'gl.mode.auto': 'Claude agit seul',
+    'gl.mode.auto': 'Auto',
     // a narrow window shows only the chosen mode: « Je valide » alone would read as a button to validate something
     'gl.mode.askTight': 'Claude demande',
     'gl.mode.askTip': 'Claude te montre ce qu’il veut faire et attend ton « C’est parti ». Ses calculs lourds ou payants vont dans « À générer ».',
     'gl.mode.autoTip': 'Claude lance tout sans te demander, y compris les calculs en ligne payants.',
     'gl.mode.flip': 'Clic : passer en « {mode} ».',
-    'gl.tray.before': 'Proposés avant « Claude agit seul » : ils attendent ta coche.',
+    'gl.tray.before': 'Proposés avant « Auto » : ils attendent ta coche.',
   },
   en: {
     'gl.ask.title': '{name} is waiting for your go-ahead',
@@ -138,12 +139,12 @@ register({
     'gl.train.failed': 'It could not start.',
     'gl.mode.group': 'Assistants’ go-ahead',
     'gl.mode.ask': 'I approve',
-    'gl.mode.auto': 'Claude acts alone',
+    'gl.mode.auto': 'Auto',
     'gl.mode.askTight': 'Claude asks',
     'gl.mode.askTip': 'Claude shows you what it wants to do and waits for your “Go ahead”. Its heavy or paid computations go to “To generate”.',
     'gl.mode.autoTip': 'Claude starts everything without asking you, including paid online computations.',
     'gl.mode.flip': 'Click: switch to “{mode}”.',
-    'gl.tray.before': 'Proposed before “Claude acts alone”: they wait for your tick.',
+    'gl.tray.before': 'Proposed before “Auto”: they wait for your tick.',
   }
 });
 
@@ -173,10 +174,10 @@ const ICON = {
 
 // ── public ──────────────────────────────────────────────────────────────
 
-/** Is the green light asked at all? (« Je valide », the default; « Claude agit seul » = off. Réglages → Assistants too) */
+/** Is the green light asked at all? (« Je valide », the default; « Auto » = off. Réglages → Assistants too) */
 export function enabled() { return state.prefs?.assistantAsk !== false; }
 
-/** « ask » (Je valide) or « auto » (Claude agit seul): what the bridge tells the assistants (mia_request, mia_pending). */
+/** « ask » (Je valide) or « auto » (Auto): what the bridge tells the assistants (mia_request, mia_pending). */
 export function mode() { return enabled() ? 'ask' : 'auto'; }
 
 // The mode seen last: a change is followed wherever it comes from (the switch, Réglages, a preference set without the
@@ -187,7 +188,7 @@ function follow() {
   if (seenAsk === on) return;
   const was = seenAsk;
   seenAsk = on;
-  if (!on) answer('accepted');                 // « agit seul »: the request waiting on its card is accepted
+  if (!on) answer('accepted');                 // « Auto »: the request waiting on its card is accepted
   else if (was === false) grant = null;        // back to « Je valide »: every next action asks again
   paintMode();
   if (was !== null) paintTray();
@@ -253,9 +254,9 @@ export function snapshot() {
   follow();
   return {
     enabled: enabled(),
-    mode: mode(),                                       // « ask » (Je valide) or « auto » (Claude agit seul)
+    mode: mode(),                                       // « ask » (Je valide) or « auto » (Auto)
     request: ask ? { requestId: ask.id, state: ask.state, title: ask.title } : null,
-    // may the assistants act now: always in « agit seul », with a green light still alive in « Je valide »
+    // may the assistants act now: always in « Auto », with a green light still alive in « Je valide »
     granted: !enabled() || !!(grant && Date.now() < grant.until),
     toGenerate: [
       ...items.map((i) => ({ pendingId: i.id, nodeId: i.nodeId, boardId: i.boardId, mode: i.mode || null, ticked: i.checked, state: 'waiting' })),
@@ -278,7 +279,7 @@ export function addRun({ nodeId, boardId, mode, variants, by, online }) {
 }
 
 /**
- * « Claude agit seul »: an assistant started a block itself (mia_run) — its line of « À générer », proposed before the
+ * « Auto »: an assistant started a block itself (mia_run) — its line of « À générer », proposed before the
  * switch, leaves the list, marked launched (mia_pending), as if the user had ticked and started it. → true when one left.
  */
 export function launched({ nodeId, boardId, jobId, jobIds }) {
@@ -729,7 +730,7 @@ function paintTray(fresh = false) {
   }
   card.append(list);
   if (elsewhere) card.append(el('div', 'gl-else', elsewhere === 1 ? t('gl.tray.elsewhere1') : t('gl.tray.elsewhere', { n: elsewhere })));
-  // « Claude agit seul »: what was proposed before the switch does not start by itself — it waits for the tick
+  // « Auto »: what was proposed before the switch does not start by itself — it waits for the tick
   if (!enabled()) card.append(el('div', 'gl-before', t('gl.tray.before')));
 
   const foot = el('div', 'gl-tray-foot');
@@ -764,11 +765,11 @@ function paintTray(fresh = false) {
   list.scrollTop = scroll;
 }
 
-// ── « Je valide · Claude agit seul » (bottom left of the board) ─────────
+// ── « Je valide · Auto » (bottom left of the board) ─────────
 
 /**
  * The switch, an island of its own right of the dock (« Bloc · Recettes · Section »), in the dock's style: two
- * choices, one click. « Claude agit seul » on = the one accent of Mia (a filled dot and a ring), visible at a glance.
+ * choices, one click. « Auto » on = the one accent of Mia (a filled dot and a ring), visible at a glance.
  * Same preference as Réglages → Assistants → « Demander mon feu vert » (prefs.assistantAsk).
  */
 function mountMode() {
@@ -777,8 +778,10 @@ function mountMode() {
   const root = el('div', 'gl-mode');
   root.id = 'gl-mode';
   root.setAttribute('role', 'radiogroup');
+  // a small plug: the assistants this switch governs are plugged into Mia (its MCP server)
   const glyph = el('span', 'gl-mode-glyph');
-  glyph.innerHTML = svg(ICON.arrow, 13);
+  glyph.innerHTML = icon('plug', 15);
+  glyph.setAttribute('aria-hidden', 'true');
   const opt = (value) => {
     const b = el('button', 'gl-mode-opt');
     b.type = 'button';

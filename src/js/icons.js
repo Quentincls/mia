@@ -61,6 +61,8 @@ const RAW = {
   'zoom-in': '<circle cx="10.6" cy="10.6" r="6.6"/><path d="M15.4 15.4l4.8 4.8M10.6 7.8v5.6M7.8 10.6h5.6"/>',
   'zoom-out': '<circle cx="10.6" cy="10.6" r="6.6"/><path d="M15.4 15.4l4.8 4.8M7.8 10.6h5.6"/>',
   refresh: '<path d="M19.4 12a7.4 7.4 0 1 1-2.2-5.2"/><path d="M19.6 4.4v4.2h-4.2"/>',
+  // a plug: the assistants plugged into Mia (switch « Je valide · Auto », greenlight.js)
+  plug: '<path d="M9 3.5v4.5M15 3.5v4.5"/><path d="M6.5 8h11v3a5.5 5.5 0 0 1-11 0z"/><path d="M12 16.5v4"/>',
   link: '<path d="M10.2 13.8a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7"/><path d="M13.8 10.2a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7"/>',
   image: '<rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><circle cx="8.5" cy="9.6" r="1.7"/><path d="M3.6 16.4l4.6-4.1a1.8 1.8 0 0 1 2.4 0l3.6 3.3M13.6 14.2l1.9-1.7a1.8 1.8 0 0 1 2.4 0l2.5 2.2"/>',
   video: '<rect x="2.8" y="5.4" width="13" height="13.2" rx="2.2"/><path d="M15.8 10.6l4-2.5a.8.8 0 0 1 1.3.7v6.4a.8.8 0 0 1-1.3.7l-4-2.5z"/>',

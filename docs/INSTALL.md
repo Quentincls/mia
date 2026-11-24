@@ -20,15 +20,15 @@ téléchargement. Ensuite, tout marche sans Internet.
 
 Deux façons, au choix :
 
-- **L’installateur** `Mia-0.10.0-installation.exe` : double-clic, choisir le dossier, c’est tout. Mia s’installe
+- **L’installateur** `Mia-0.10.1-installation.exe` : double-clic, choisir le dossier, c’est tout. Mia s’installe
   pour l’utilisateur seul (pas besoin d’être administrateur), avec un raccourci sur le Bureau et dans le menu Démarrer.
-- **La version portable** `Mia-0.10.0-portable.zip` : la décompresser où l’on veut (par exemple `D:\Mia`), puis
+- **La version portable** `Mia-0.10.1-portable.zip` : la décompresser où l’on veut (par exemple `D:\Mia`), puis
   lancer `Mia.exe`. Rien n’est installé dans Windows.
 
 Le numéro change à chaque version : prendre les fichiers de la dernière, sur la page Releases du dépôt.
 
 **PC à processeur ARM** (Windows sur ARM, comme la NVIDIA RTX Spark) : prendre les fichiers dont le nom dit
-`arm64`, `Mia-0.10.0-arm64-installation.exe` ou `Mia-0.10.0-arm64-portable.zip`. L’installation automatique du
+`arm64`, `Mia-0.10.1-arm64-installation.exe` ou `Mia-0.10.1-arm64-portable.zip`. L’installation automatique du
 moteur (étape 2) n’est pas prévue pour ces PC : y installer le moteur à la main, puis choisir « J’ai déjà un
 moteur ».
 

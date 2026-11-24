@@ -124,8 +124,8 @@ const STR = {
     en: 'Nothing is resumed: the user sees the card “{name} suggests resuming” in Mia and clicks “Resume” themselves. mia_pending → training.state tells what follows.'
   },
   trainStarted: {
-    fr: 'Lancé (mode « Claude agit seul » : le feu vert n’est pas demandé). Suis-le avec mia_train_status ou mia_train_wait.',
-    en: 'Started (mode “Claude acts alone”: the go-ahead is not asked). Follow it with mia_train_status or mia_train_wait.'
+    fr: 'Lancé (mode « Auto » : le feu vert n’est pas demandé). Suis-le avec mia_train_status ou mia_train_wait.',
+    en: 'Started (mode “Auto”: the go-ahead is not asked). Follow it with mia_train_status or mia_train_wait.'
   }
 };
 

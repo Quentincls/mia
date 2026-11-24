@@ -15,7 +15,7 @@
 
 import { emit } from '../bus.js';
 import { t, tl } from '../i18n.js';
-import { openMenu } from '../ui/menu.js';
+import { openMenu, nodeMenuExtras } from '../ui/menu.js';
 import { toast } from '../ui/toasts.js';
 import { recipes, compatible, portDef, inputDefs, outputDefs, computes, typeOf } from '../catalog.js';
 import { wirePathScreen } from './wires.js';
@@ -1220,6 +1220,9 @@ export function attachInteract(ed) {
     const ro = ed.readonly;
     const out = resultOf(node);
     const items = [];
+    // clic droit sur la vidéo d'un bloc : ses actions (Extraire l'image…) en tête du même menu (nodes/media.js)
+    const extra = many ? [] : nodeMenuExtras(id, at);
+    if (extra.length) items.push(...extra, 'sep');
     if (computes(node.type)) {
       const run = (mode) => {
         const list = ids.filter((k) => computes(ed.doc.node(k)?.type) && !ed.doc.node(k)?.bypass)
@@ -1259,7 +1262,8 @@ export function attachInteract(ed) {
       'sep',
       { label: t('graph.menu.delete'), icon: 'trash', key: t('graph.key.del'), danger: true, disabled: ro, action: () => ed.removeNodes(ids) }
     );
-    openMenu(items, at);
+    // une liste d'actions courte et toujours la même : pas de champ « Rechercher… » (même avec les entrées vidéo)
+    openMenu(items, at, { search: false });
   }
 
   /** Pastille de teinte (menu « Teinte › »), aux couleurs du thème. */

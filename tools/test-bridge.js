@@ -210,7 +210,7 @@ async function main() {
     try { fs.unlinkSync(BRIDGE_FILE); } catch { /* none */ }
     console.log('· launching a hidden Mia (CDP port', CDP_PORT, ')');
     // its own profile, projects and bridge file; no GPU job ever (MIA_NO_GPU), trainings with the fake tool only
-    // MIA_HF_BASE: never Higgsfield — a run of an online block in « Claude agit seul » reaches the engine, which refuses
+    // MIA_HF_BASE: never Higgsfield — a run of an online block in « Auto » reaches the engine, which refuses
     // it anyway here (no account linked in this profile); a port where nobody listens, in case it did not
     const miaEnv = { ...process.env, MIA_HEADLESS: '1', MIA_USERDATA: USERDATA, MIA_PROJECTS_ROOT: PROJECTS, MIA_NO_GPU: '1', MIA_TRAIN_FAKE: '1', MIA_BRIDGE_FILE: BRIDGE_FILE, MIA_HF_BASE: 'http://127.0.0.1:9' };
     delete miaEnv.MIA_BRIDGE_MIRROR;
@@ -530,14 +530,14 @@ async function testGreenlight(mcp) {
   check(!free.isError && free.json?.state === 'accepted', 'setting off: mia_request answers accepted at once', free.text.slice(0, 120));
 }
 
-// « Je valide · Claude agit seul » (SPEC §13.7, asked by Quentin on 19/11/2026: « si je suis pas devant mon PC je pourrais
+// « Je valide · Auto » (SPEC §13.7, asked by Quentin on 19/11/2026: « si je suis pas devant mon PC je pourrais
 // pas le faire »): the switch at the bottom left of the board, the same preference as Réglages → « Demander mon feu
-// vert ». In « agit seul » EVERYTHING starts at once, heavy jobs of the PC and paid online ones included (his decision).
+// vert ». In « Auto » EVERYTHING starts at once, heavy jobs of the PC and paid online ones included (his decision).
 // Cases: (a) a card waits and he switches → accepted; (b) lines in « À générer » at the switch → they stay, with a line,
 // and a run asked again starts at once; (c) back to « Je valide » → the next action asks again, nothing cancelled;
-// (d) « Pause » keeps its role (and shows in « agit seul » too).
+// (d) « Pause » keeps its role (and shows in « Auto » too).
 async function testModeSwitch(mcp, image) {
-  console.log('· « Je valide · Claude agit seul »: the switch of the board, cases a to d');
+  console.log('· « Je valide · Auto »: the switch of the board, cases a to d');
   const sw = () => cdpEval(`(() => {
     const r = document.getElementById('gl-mode');
     if (!r) return null;
@@ -570,13 +570,13 @@ async function testModeSwitch(mcp, image) {
   await click('ask');
   await sleep(300);
   let s = await sw();
-  check(s && s.shown && s.role === 'radiogroup' && s.opts.join() === askWord(s) + '|true,Claude agit seul|false' && !s.auto && s.titles === 0,
-    'the switch is on the board: « Je valide » chosen, « Claude agit seul » next to it, radio buttons, no title=', s);
+  check(s && s.shown && s.role === 'radiogroup' && s.opts.join() === askWord(s) + '|true,Auto|false' && !s.auto && s.titles === 0,
+    'the switch is on the board: « Je valide » chosen, « Auto » next to it, radio buttons, no title=', s);
   check(s && s.bottomLeft && s.rightOfDock && s.sameRow, 'bottom left of the board, right of the dock, on its row', s);
   const tipAuto = await tipOf('auto');
   const tipAsk = await tipOf('ask');
   // (a narrow window adds what a click does: « Clic : passer en « Je valide ». »)
-  check(String(tipAuto || '').startsWith('Claude lance tout sans te demander, y compris les calculs en ligne payants.'), 'Mia’s tooltip of « Claude agit seul » says what it implies, in one sentence', tipAuto);
+  check(String(tipAuto || '').startsWith('Claude lance tout sans te demander, y compris les calculs en ligne payants.'), 'Mia’s tooltip of « Auto » says what it implies, in one sentence', tipAuto);
   check(/attend ton « C’est parti »/.test(tipAsk || '') && /À générer/.test(tipAsk || ''), 'the tooltip of « Je valide »', tipAsk);
 
   // a narrow window (relecture of 19/11: 900 px with the Higgsfield amount): only the chosen mode shows. Alone, « Je
@@ -637,28 +637,28 @@ async function testModeSwitch(mcp, image) {
   const accentRgb = await cdpEval(`(() => { const d = document.createElement('i'); d.style.color = 'var(--accent)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()`);
   check(narrow && narrow.ask.tight && narrow.ask.shown.join() === 'Claude demande' && narrow.ask.sw && !narrow.ask.dot && narrow.ask.pref === true && (narrow.ask.room >= 0 || narrow.vw < 900),
     'narrow window, « Je valide »: only « Claude demande » shows, with a small switch in front of it (not « Je valide » alone)', narrow && narrow.ask);
-  check(narrow && /Clic\s:\spasser en\s«\sClaude agit seul\s»/.test(narrow.tip || '') && /attend ton\s«\sC’est parti\s»/.test(narrow.tip || ''),
+  check(narrow && /Clic\s:\spasser en\s«\sAuto\s»/.test(narrow.tip || '') && /attend ton\s«\sC’est parti\s»/.test(narrow.tip || ''),
     'narrow window: its tooltip says the mode and what a click does', narrow && narrow.tip);
-  check(narrow && narrow.auto.tight && narrow.auto.shown.join() === 'Claude agit seul' && narrow.auto.sw && narrow.auto.pref === false
+  check(narrow && narrow.auto.tight && narrow.auto.shown.join() === 'Auto' && narrow.auto.sw && narrow.auto.pref === false
     && /matrix\(1, 0, 0, 1, 10, 0\)/.test(narrow.auto.knob || '') && narrow.auto.swColor === accentRgb,
-    'narrow window: a click switches to « Claude agit seul », the knob moves right, in the accent', { auto: narrow && narrow.auto, accentRgb });
-  check(narrow && narrow.back.shown.join() === 'Claude demande' && narrow.back.pref === true && !narrow.wide.tight && narrow.wide.shown.join() === 'Je valide,Claude agit seul' && !narrow.wide.sw,
+    'narrow window: a click switches to « Auto », the knob moves right, in the accent', { auto: narrow && narrow.auto, accentRgb });
+  check(narrow && narrow.back.shown.join() === 'Claude demande' && narrow.back.pref === true && !narrow.wide.tight && narrow.wide.shown.join() === 'Je valide,Auto' && !narrow.wide.sw,
     'narrow window: a click switches back; wide again, both choices and their own words come back, no switch', narrow && { back: narrow.back, wide: narrow.wide });
 
-  // (a) a request card waits; the user switches to « Claude agit seul » → the request is accepted, the card leaves
+  // (a) a request card waits; the user switches to « Auto » → the request is accepted, the card leaves
   const asked = mcp.tool('mia_request', { title: 'Poser deux blocs', summary: 'Une profondeur et un calcul en ligne.', runs: 2 });
   await sleep(700);
   check(await cdpEval(`!!document.querySelector('.gl-ask')`), '(a) the card « Claude attend ton feu vert » waits');
   await click('auto');
   const got = await asked;
   s = await sw();
-  check(!got.isError && got.json?.state === 'accepted' && got.json?.mode === 'auto' && /Claude agit seul/.test(got.json?.note || '') && /payants/.test(got.json?.note || ''),
+  check(!got.isError && got.json?.state === 'accepted' && got.json?.mode === 'auto' && /Auto/.test(got.json?.note || '') && /payants/.test(got.json?.note || ''),
     '(a) switched while the card waits → accepted, mode "auto", the note says that everything starts, paid ones included', got.text.slice(0, 300));
-  check(!(await cdpEval(`!!document.querySelector('.gl-ask, .gl-stack .gl-chip')`)) && s && s.auto && s.opts.join() === askWord(s) + '|false,Claude agit seul|true' && s.pref === false,
-    '(a) the card leaves; the switch shows « Claude agit seul » (the accent)', s);
+  check(!(await cdpEval(`!!document.querySelector('.gl-ask, .gl-stack .gl-chip')`)) && s && s.auto && s.opts.join() === askWord(s) + '|false,Auto|true' && s.pref === false,
+    '(a) the card leaves; the switch shows « Auto » (the accent)', s);
   check((await filePref()) === false, 'the preference is written (prefs.assistantAsk false)');
   const accent = await cdpEval(`(() => { const o = document.querySelector('.gl-mode-opt[data-mode="auto"]'); const d = o.querySelector('.gl-mode-dot'); const cs = getComputedStyle(d); const root = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); return { dot: cs.backgroundColor, accent: root, ring: getComputedStyle(o).boxShadow, glow: [...getComputedStyle(o).boxShadow.matchAll(/(-?[0-9.]+)px (-?[0-9.]+)px ([0-9.]+)px/g)].some((m) => +m[3] > 0) }; })()`);
-  check(accent && /rgb\(77, 130, 243\)|rgb\(59, 111, 224\)/.test(accent.dot) && /inset/.test(accent.ring) && !accent.glow, '« Claude agit seul » chosen: the dot in Mia’s one accent, a 1 px ring, no glow', accent);
+  check(accent && /rgb\(77, 130, 243\)|rgb\(59, 111, 224\)/.test(accent.dot) && /inset/.test(accent.ring) && !accent.glow, '« Auto » chosen: the dot in Mia’s one accent, a 1 px ring, no glow', accent);
 
   // the same preference in Réglages → Assistants
   const setRow = () => cdpEval(`(() => { const r = [...document.querySelectorAll('.set-row')].find((x) => x.textContent.includes('Demander mon feu vert')); const t = r && r.querySelector('[role="switch"]'); return t ? t.getAttribute('aria-checked') : null; })()`);
@@ -666,7 +666,7 @@ async function testModeSwitch(mcp, image) {
   await sleep(900);
   check((await setRow()) === 'false', 'Réglages → « Demander mon feu vert » shows it off', await setRow());
   const hint = await cdpEval(`(() => { const r = [...document.querySelectorAll('.set-row')].find((x) => x.textContent.includes('Demander mon feu vert')); return r ? r.textContent : null; })()`);
-  check(/Claude agit seul/.test(hint || '') && /en bas à gauche de la planche/.test(hint || ''), 'its sentence names « Claude agit seul » and the switch of the board', hint);
+  check(/Auto/.test(hint || '') && /en bas à gauche de la planche/.test(hint || ''), 'its sentence names « Auto » and the switch of the board', hint);
   await cdpEval(`(() => { const r = [...document.querySelectorAll('.set-row')].find((x) => x.textContent.includes('Demander mon feu vert')); r.querySelector('[role="switch"]').click(); return 1; })()`);
   await sleep(700);
   s = await sw();
@@ -674,11 +674,11 @@ async function testModeSwitch(mcp, image) {
   await cdpEval(`(() => { const r = [...document.querySelectorAll('.set-row')].find((x) => x.textContent.includes('Demander mon feu vert')); r.querySelector('[role="switch"]').click(); return 1; })()`);
   await sleep(700);
   s = await sw();
-  check(s && s.auto && (await filePref()) === false, 'turned off in Réglages → « Claude agit seul » on the board', s);
+  check(s && s.auto && (await filePref()) === false, 'turned off in Réglages → « Auto » on the board', s);
   await cdpEval(`(() => { const b = document.querySelector('.set-close, .modal-close'); if (b) b.click(); else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1; })()`);
   await sleep(500);
 
-  // « Claude agit seul »: everything starts — a board, blocks, a heavy job of the PC, a paid online one
+  // « Auto »: everything starts — a board, blocks, a heavy job of the PC, a paid online one
   const board = await mcp.tool('mia_create_project', { name: `Agit seul ${STAMP}` });
   check(!board.isError && board.json?.boardId, 'no request: the assistant creates a board', board.text.slice(0, 160));
   const imp = await mcp.tool('mia_import_media', { paths: [image] });
@@ -687,7 +687,7 @@ async function testModeSwitch(mcp, image) {
   await mcp.tool('mia_connect', { from: { node: src }, to: { node: dep.json?.nodeId } });
   check(!imp.isError && src && !dep.isError && dep.json?.nodeId, 'it imports and places blocks without asking', [imp.text.slice(0, 100), dep.text.slice(0, 100)]);
   const pend0 = await mcp.tool('mia_pending');
-  check(!pend0.isError && pend0.json?.mode === 'auto' && pend0.json?.enabled === false && pend0.json?.granted === true && /Claude agit seul/.test(pend0.json?.note || ''),
+  check(!pend0.isError && pend0.json?.mode === 'auto' && pend0.json?.enabled === false && pend0.json?.granted === true && /Auto/.test(pend0.json?.note || ''),
     'mia_pending: mode "auto", granted, and a note that says what it means', pend0.text.slice(0, 300));
   const heavy = await mcp.tool('mia_run', { nodeId: dep.json?.nodeId });
   // this test Mia refuses heavy jobs (MIA_NO_GPU): the refusal proves the run went to the engine, not to « À générer »
@@ -699,25 +699,25 @@ async function testModeSwitch(mcp, image) {
   check(!hf.isError && !paid.json?.awaitingUser && (paid.json?.jobId || (paid.isError && /Higgsfield/.test(paid.text))) && !(await trayRows()),
     'a PAID online job starts at once too (the engine answers: no account here), nothing in « À générer »', paid.text.slice(0, 200));
 
-  // (d) « Pause » keeps its role, and shows while an assistant works in « agit seul » too (the preference set
+  // (d) « Pause » keeps its role, and shows while an assistant works in « Auto » too (the preference set
   // directly too: this part does not depend on the switch)
   await askGo(false);
   const ren = mcp.tool('mia_rename_block', { nodeId: dep.json?.nodeId, title: 'Profondeur seule' });
   let seen = false;
   for (let i = 0; i < 12 && !seen; i++) { seen = await pauseShown(); if (!seen) await sleep(100); }
   await ren;
-  check(seen, '(d) « Pause » shows in the title bar while the assistant works in « Claude agit seul »');
+  check(seen, '(d) « Pause » shows in the title bar while the assistant works in « Auto »');
   await cdpEval(`document.querySelector('.pr-pause').click()`);
   const held = mcp.tool('mia_rename_block', { nodeId: dep.json?.nodeId, title: 'Profondeur en pause' });
   await sleep(1500);
   const during = await cdpEval(`window.__mia.editor.getNode(${JSON.stringify(dep.json?.nodeId)}).title`);
   // (not mia_pending here: the calls of one assistant wait in a row, it would wait behind the paused one)
   const pill = await cdpEval(`document.querySelector('.pr-pill-txt').textContent`);
-  check(during === 'Profondeur seule' && /pause/i.test(pill || ''), '(d) « Pause » holds the assistant in « Claude agit seul » too', { during, pill });
+  check(during === 'Profondeur seule' && /pause/i.test(pill || ''), '(d) « Pause » holds the assistant in « Auto » too', { during, pill });
   await cdpEval(`document.querySelector('.pr-pause').click()`);
   const after = await held;
   check(!after.isError && after.json?.title === 'Profondeur en pause', '(d) « Reprendre »: it goes on', after.text.slice(0, 120));
-  // (c + d) relecture of 19/11: « Pause » in « agit seul », then « Je valide », then « Reprendre »: the action held by the
+  // (c + d) relecture of 19/11: « Pause » in « Auto », then « Je valide », then « Reprendre »: the action held by the
   // pause was checked before the switch, it used to pass without a green light. Now it is looked at again.
   await cdpEval(`document.querySelector('.pr-pause').click()`);
   const heldAsk = mcp.tool('mia_rename_block', { nodeId: dep.json?.nodeId, title: 'Profondeur retenue' });
@@ -728,7 +728,7 @@ async function testModeSwitch(mcp, image) {
   const heldOut = await heldAsk;
   const heldTitle = await cdpEval(`window.__mia.editor.getNode(${JSON.stringify(dep.json?.nodeId)}).title`);
   check(heldOut.isError && /mia_request/.test(heldOut.text) && heldTitle === 'Profondeur en pause',
-    '(c + d) held by « Pause » in « agit seul », then « Je valide », then « Reprendre »: the held action asks for the green light, nothing moves', { err: heldOut.text.slice(0, 120), heldTitle });
+    '(c + d) held by « Pause » in « Auto », then « Je valide », then « Reprendre »: the held action asks for the green light, nothing moves', { err: heldOut.text.slice(0, 120), heldTitle });
   await click('auto');
   await sleep(300);
 
@@ -738,7 +738,7 @@ async function testModeSwitch(mcp, image) {
   const n0 = await count();
   const refused = await mcp.tool('mia_add_block', { type: 'depth', near: src });
   check(refused.isError && /mia_request/.test(refused.text) && (await count()) === n0, '(c) back to « Je valide »: the next action is refused until mia_request', refused.text.slice(0, 160));
-  // a green light given in « Je valide », then « agit seul », then « Je valide » again: taken back too
+  // a green light given in « Je valide », then « Auto », then « Je valide » again: taken back too
   const yes = mcp.tool('mia_request', { title: 'Une profondeur de plus', runs: 1 });
   await sleep(700);
   await cdpEval(`document.querySelector('.gl-ask-acts .btn-primary').click()`);
@@ -749,9 +749,9 @@ async function testModeSwitch(mcp, image) {
   await click('ask');
   await sleep(300);
   const again = await mcp.tool('mia_add_block', { type: 'depth', near: src });
-  check(again.isError && /mia_request/.test(again.text), '(c) the green light given before « agit seul » does not come back with « Je valide »: asked again', again.text.slice(0, 160));
-  // (c) relecture of 19/11: « Claude agit seul » then « Je valide » at once (a click by mistake, taken back): the answer
-  // to the first write used to bring « agit seul » back for a few milliseconds (assistants passed without a green light)
+  check(again.isError && /mia_request/.test(again.text), '(c) the green light given before « Auto » does not come back with « Je valide »: asked again', again.text.slice(0, 160));
+  // (c) relecture of 19/11: « Auto » then « Je valide » at once (a click by mistake, taken back): the answer
+  // to the first write used to bring « Auto » back for a few milliseconds (assistants passed without a green light)
   const race = await cdpEval(`(async () => {
     const st = window.__mia.state, bus = window.__mia.bus, seen = [];
     const spy = () => seen.push(st.prefs.assistantAsk + '/' + document.getElementById('gl-mode').classList.contains('is-auto'));
@@ -764,14 +764,14 @@ async function testModeSwitch(mcp, image) {
     return { seen: [...new Set(seen)], file: (await window.mia.prefs.get()).assistantAsk, now: st.prefs.assistantAsk };
   })()`);
   check(race && race.seen.join() === 'true/false' && race.file === true && race.now === true,
-    '(c) two quick clicks « Claude agit seul » then « Je valide »: « Je valide » holds, « agit seul » never comes back, not even for a moment', race);
+    '(c) two quick clicks « Auto » then « Je valide »: « Je valide » holds, « Auto » never comes back, not even for a moment', race);
   const n1 = await count();
   await cdpEval(`(() => { document.querySelector('.gl-mode-opt[data-mode="auto"]').click(); document.querySelector('.gl-mode-opt[data-mode="ask"]').click(); return 1; })()`);
   const raced = await Promise.all([0, 2, 4, 6, 8, 12, 20, 40].map(async (d) => { await sleep(d); const x = await mcp.tool('mia_add_block', { type: 'depth', near: src }); return x.isError; }));
   await sleep(300);
   check(raced.every(Boolean) && (await count()) === n1, '(c) …and no assistant action passes during the two clicks', { raced, n1, now: await count() });
 
-  // (b) lines in « À générer » when the user switches to « agit seul »: they stay, unticked ones unticked, with a line
+  // (b) lines in « À générer » when the user switches to « Auto »: they stay, unticked ones unticked, with a line
   const go = mcp.tool('mia_request', { title: 'Deux calculs', runs: 2 });
   await sleep(700);
   await cdpEval(`document.querySelector('.gl-ask-acts .btn-primary').click()`);
@@ -784,21 +784,21 @@ async function testModeSwitch(mcp, image) {
   await sleep(500);
   const kept = await trayRows();
   check(before && kept && kept.rows.join() === before.rows.join() && [...kept.rows].sort().join() === 'Kling payant|false,Profondeur en pause|true',
-    '(b) switched to « agit seul »: the lines stay as they were (the paid one unticked), nothing starts by itself', { before, kept });
-  check(kept && kept.before === 'Proposés avant « Claude agit seul » : ils attendent ta coche.', '(b) …with a line that says they wait for the tick', kept && kept.before);
+    '(b) switched to « Auto »: the lines stay as they were (the paid one unticked), nothing starts by itself', { before, kept });
+  check(kept && kept.before === 'Proposés avant « Auto » : ils attendent ta coche.', '(b) …with a line that says they wait for the tick', kept && kept.before);
   const pendB = await mcp.tool('mia_pending');
   const waitingB = (pendB.json?.toGenerate || []).filter((x) => x.state === 'waiting').map((x) => x.pendingId).sort().join();
   check(pendB.json?.mode === 'auto' && waitingB === [p1.json?.pendingId, p2.json?.pendingId].sort().join() && /mia_run/.test(pendB.json?.note || ''),
     '(b) mia_pending: both still waiting, and the note says mia_run starts them now', pendB.text.slice(0, 400));
   // a run asked again for a line of the list starts at once: here the engine refuses it (MIA_NO_GPU), the line stays
   const re = await mcp.tool('mia_run', { nodeId: dep.json?.nodeId });
-  check(!re.json?.awaitingUser && (re.json?.jobId || (re.isError && /MIA_NO_GPU|Aucun modèle installé|No model installed|n’est plus disponible|no longer available/.test(re.text))), '(b) mia_run of a line in « agit seul » goes to the engine at once', re.text.slice(0, 160));
+  check(!re.json?.awaitingUser && (re.json?.jobId || (re.isError && /MIA_NO_GPU|Aucun modèle installé|No model installed|n’est plus disponible|no longer available/.test(re.text))), '(b) mia_run of a line in « Auto » goes to the engine at once', re.text.slice(0, 160));
   // once started, its line leaves the list as « launched » (the same function presence.js calls after a start)
   const left = await cdpEval(`(async () => { const g = await import(new URL('js/ui/greenlight.js', location.href).href); return g.launched({ nodeId: ${JSON.stringify(dep.json?.nodeId)}, boardId: window.__mia.state.project.id, jobId: 'j_banc' }); })()`);
   const pendL = await mcp.tool('mia_pending');
   const l1 = (pendL.json?.toGenerate || []).find((x) => x.pendingId === p1.json?.pendingId);
   check(left === true && l1 && l1.state === 'launched' && l1.jobId === 'j_banc' && (await trayRows())?.rows.join() === 'Kling payant|false',
-    '(b) a line started in « agit seul » leaves the list, mia_pending says launched with its jobId', { left, l1 });
+    '(b) a line started in « Auto » leaves the list, mia_pending says launched with its jobId', { left, l1 });
   await cdpEval(`(() => { const b = document.querySelector('.gl-tray-head .btn'); if (b) b.click(); })()`);
   await askGo(false);
 }

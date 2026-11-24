@@ -158,7 +158,7 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 | `mia_focus` · `mia_say` | te montrer des blocs ; t'écrire un mot dans une bulle |
 | `mia_train_options` | sur quels modèles un LoRA peut être entraîné ici, les durées, la place disque, le GPU, l’entraînement en cours |
 | `mia_train_prepare` | préparer un brouillon d’entraînement : nom, modèle, mot déclencheur, images (chemins complets, 300 au plus), légendes, durée |
-| `mia_train_start` | **proposer** de lancer un brouillon, ou de reprendre un entraînement (`resume: true`) : rien ne part, c’est toi qui cliques (en « Claude agit seul », il lance directement) |
+| `mia_train_start` | **proposer** de lancer un brouillon, ou de reprendre un entraînement (`resume: true`) : rien ne part, c’est toi qui cliques (en « Auto », il lance directement) |
 | `mia_train_status` · `mia_train_wait` | où en est l’entraînement (pas, perte, temps restant, essais et points de contrôle avec leurs chemins) ; attendre le prochain essai, le prochain point, la fin |
 | `mia_train_control` | mettre en pause, ou ranger un point de contrôle dans « Mes LoRA » — jamais reprendre, arrêter ni supprimer |
 | `mia_train_note` | écrire une courte note signée dans les évènements de l’entraînement |
@@ -175,12 +175,12 @@ droite de la planche, rangé par plan (une case par plan, une case par calcul). 
 coches ce que tu veux (les calculs en ligne, payants, arrivent décochés), tu lis le temps prévu et le prix, puis
 « Générer la sélection ». Pour revenir à l'ancien comportement : Réglages → Assistants → « Demander mon feu vert ».
 
-**« Je valide » ou « Claude agit seul »** : le même réglage se change d’un clic en bas à gauche de la planche, à droite
-de « Bloc · Recettes · Section ». « Je valide », c’est ce qui est décrit plus haut. « Claude agit seul » (en bleu),
+**« Je valide » ou « Auto »** : le même réglage se change d’un clic en bas à gauche de la planche, à droite
+de « Bloc · Recettes · Section ». « Je valide », c’est ce qui est décrit plus haut. « Auto » (en bleu),
 pour quand tu n’es pas devant ton PC : l’assistant agit sans carte et **tout part aussitôt, les calculs lourds du PC
 comme les calculs en ligne payants**, et un entraînement qu’il lance démarre. Si une carte attend quand tu passes en
-« agit seul », elle est acceptée. Ce qui est déjà dans « À générer » y reste, à cocher (« Proposés avant « Claude agit
-seul » ») : rien ne part sans que tu l’aies vu ; l’assistant peut le relancer lui-même, c’est alors parti. Revenir à
+« Auto », elle est acceptée. Ce qui est déjà dans « À générer » y reste, à cocher (« Proposés avant « Auto » »
+) : rien ne part sans que tu l’aies vu ; l’assistant peut le relancer lui-même, c’est alors parti. Revenir à
 « Je valide » ne coupe rien de ce qui tourne : sa prochaine action te redemande ton feu vert. « Pause » l’arrête
 toujours, dans les deux modes. Pour l’assistant : `mia_request` et `mia_pending` disent `mode` (`ask` ou `auto`).
 
@@ -204,7 +204,7 @@ minute au plus), mettre en pause ou ranger un point de contrôle dans « Mes LoR
 ton feu vert s’il a expiré : il s’éteint après 10 minutes sans appel). Il ne peut ni reprendre, ni arrêter, ni
 supprimer : cela reste à toi. Quand il ne fait que regarder, la pastille « Claude pilote Mia » ne s’allume pas.
 
-En « Claude agit seul » (« Demander mon feu vert » coupé), il n’y a ni carte ni clic : `mia_train_start` lance
+En « Auto » (« Demander mon feu vert » coupé), il n’y a ni carte ni clic : `mia_train_start` lance
 directement l’entraînement, qui tient ensuite le GPU pendant des heures.
 
 Pour l’assistant : `mia_status` donne `training` (l’entraînement actif : état, phase, pas, progression, heure de fin)
@@ -287,7 +287,7 @@ résultat payé : Mia le récupère (la note du résultat le dit).
 - Un entraînement préparé par un assistant vit dans son propre dossier (Réglages → Entraînement) : les images y sont
   liées ou copiées, les légendes copiées, jamais les originaux modifiés ; 300 fichiers au plus par
   `mia_train_prepare`, chemins complets qui existent. L’assistant ne peut ni lancer, ni reprendre (il le propose
-  seulement, sauf en « Claude agit seul » où il le fait lui-même), ni arrêter, ni supprimer un entraînement.
+  seulement, sauf en « Auto » où il le fait lui-même), ni arrêter, ni supprimer un entraînement.
 
 ## En cas de souci
 

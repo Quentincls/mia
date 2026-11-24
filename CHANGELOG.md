@@ -10,6 +10,38 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## 0.10.1 — 24/11/2026
+
+### En bref
+- **« Je valide · Auto »** : l’interrupteur en bas à gauche de la planche dit maintenant « Auto » au lieu de
+  « Claude agit seul » (même rôle : Claude lance tout sans te demander, y compris les calculs en ligne payants).
+  Une petite prise remplace la flèche à côté ; elle passe en bleu en « Auto ».
+- **Toutes les versions d’un bloc se retrouvent** : quand la bande des versions sous un résultat est trop longue,
+  des flèches ‹ › la font défiler (la molette aussi). Elle s’ouvre sur la plus récente. Avant, les plus anciennes
+  disparaissaient dans « +4 » sans moyen de les voir.
+- **Un seul menu au clic droit sur une vidéo** : « Extraire cette image » et « Copier le numéro d’image » sont en
+  haut du menu du bloc, séparés par un trait, et le menu reste ouvert. Avant, le menu du bloc s’ouvrait puis un
+  second le remplaçait une fraction de seconde après.
+
+### In short
+- **“I approve · Auto”**: the switch at the bottom left of the board now says “Auto” instead of “Claude acts
+  alone” (same role: Claude starts everything without asking you, paid online computations included). A small
+  plug replaces the arrow next to it; it turns blue in “Auto”.
+- **Every version of a block is within reach**: when the strip of versions under a result is too long, ‹ › arrows
+  scroll it (the mouse wheel too). It opens on the latest one. Before, the oldest ones vanished into “+4” with no
+  way to see them.
+- **One menu on a right click on a video**: “Extract this frame” and “Copy the frame number” sit at the top of the
+  block’s menu, under a line, and the menu stays open. Before, the block’s menu opened, then a second one replaced
+  it a split second later.
+
+### Pour les développeurs
+- `ui/menu.js` : `registerNodeMenuExtras(fn)` / `nodeMenuExtras(nodeId, at)`, des entrées en tête du menu d’un bloc
+  selon l’endroit du clic ; `nodes/media.js` y inscrit celles du puits vidéo (hors planche, le puits garde son
+  propre menu). Le menu d’un bloc s’ouvre sans champ « Rechercher… ».
+- `nodes/versions.js` : piste défilante `.nb-vers-track` et boutons `.nb-vers-nav` au lieu du compte « +N » ;
+  vignettes en `loading="lazy"`.
+- Assistants (MCP) : le mode `"auto"` s’appelle « Auto » dans les textes ; l’identifiant ne change pas.
+
 ## 0.10.0 — 20/11/2026
 
 ### En bref

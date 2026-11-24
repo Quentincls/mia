@@ -113,8 +113,8 @@ register({
     'presence.err.paused': 'L’utilisateur a mis les assistants en pause dans Mia. Attends qu’il clique « Reprendre », puis réessaie cette action.',
     'presence.note.goPending': 'L’utilisateur n’a pas encore répondu. Dis-lui que tu attends son feu vert dans Mia, puis rappelle mia_request {requestId} pour continuer d’attendre.',
     'presence.note.goAccepted': 'Feu vert donné : tu peux agir. Les calculs lourds ou payants que tu lances (mia_run) vont dans sa liste « À générer » : c’est lui qui les coche et les démarre.',
-    'presence.note.goOff': 'Mode « Claude agit seul » (choisi par l’utilisateur en bas à gauche de la planche) : tu peux agir sans demander. Tes calculs partent aussitôt, y compris les calculs lourds du PC et les calculs en ligne payants. S’il repasse en « Je valide », tes actions suivantes redemandent son feu vert (mia_request).',
-    'presence.note.autoBefore': 'Mode « Claude agit seul » : les calculs encore « waiting » ont été proposés avant le passage. Ils restent dans sa liste « À générer » jusqu’à ce qu’il les coche, ou que tu les relances avec mia_run (ils partent alors aussitôt).',
+    'presence.note.goOff': 'Mode « Auto » (choisi par l’utilisateur en bas à gauche de la planche) : tu peux agir sans demander. Tes calculs partent aussitôt, y compris les calculs lourds du PC et les calculs en ligne payants. S’il repasse en « Je valide », tes actions suivantes redemandent son feu vert (mia_request).',
+    'presence.note.autoBefore': 'Mode « Auto » : les calculs encore « waiting » ont été proposés avant le passage. Ils restent dans sa liste « À générer » jusqu’à ce qu’il les coche, ou que tu les relances avec mia_run (ils partent alors aussitôt).',
     'presence.note.toGenerate': 'Pas lancé : ajouté à la liste « À générer » de l’utilisateur, qui coche ce qu’il veut et le démarre lui-même. Ne relance pas. mia_pending dit ce que chaque demande est devenue (jobId une fois lancée, à suivre avec mia_wait).',
     'presence.note.goTraining': 'Feu vert donné : prépare l’entraînement avec mia_train_prepare. mia_train_start ne fera que le proposer : c’est l’utilisateur qui le lance dans Mia.',
     'presence.err.noTrain': 'L’entraînement de LoRA n’est pas disponible dans cette Mia.',
@@ -128,7 +128,7 @@ register({
     'presence.note.trainImporting': 'L’import des images continue dans Mia : suis-le avec mia_train_status (importing). Les légendes données ici ne sont pas encore écrites : rappelle mia_train_prepare {trainingId, captions} quand l’import est fini.',
     'presence.note.trainCaptions': 'Légendes ignorées, image introuvable dans le jeu : {list}.',
     'presence.note.trainReady': 'Brouillon prêt. mia_train_start ne fera que le proposer : l’utilisateur le lance lui-même dans Mia.',
-    'presence.note.trainReadyAuto': 'Brouillon prêt. Mode « Claude agit seul » : mia_train_start le lance aussitôt, sans attendre le clic de l’utilisateur. Un entraînement tient le GPU pendant des heures : ne le lance que s’il te l’a demandé.',
+    'presence.note.trainReadyAuto': 'Brouillon prêt. Mode « Auto » : mia_train_start le lance aussitôt, sans attendre le clic de l’utilisateur. Un entraînement tient le GPU pendant des heures : ne le lance que s’il te l’a demandé.',
     'presence.note.trainNotReady': 'Le brouillon ne peut pas encore partir : {why}',
     'presence.note.trainPause': 'Pause demandée : l’outil écrit un point de contrôle puis rend le GPU (après l’essai en cours s’il y en a un). L’entraînement ne repart pas seul : pour reprendre, mia_train_start {resume:true}.',
     'presence.pause': 'Pause',
@@ -220,8 +220,8 @@ register({
     'presence.err.paused': 'The user paused the assistants in Mia. Wait until they click “Resume”, then try this action again.',
     'presence.note.goPending': 'The user has not answered yet. Tell them you are waiting for their go-ahead in Mia, then call mia_request {requestId} again to keep waiting.',
     'presence.note.goAccepted': 'Go-ahead given: you may act. Heavy or paid computations you start (mia_run) go to their “To generate” list: they tick and start them themselves.',
-    'presence.note.goOff': 'Mode “Claude acts alone” (chosen by the user at the bottom left of the board): you may act without asking. Your computations start at once, heavy ones on this PC and paid online ones included. If they switch back to “I approve”, your next actions need their go-ahead again (mia_request).',
-    'presence.note.autoBefore': 'Mode “Claude acts alone”: the computations still “waiting” were proposed before the switch. They stay in the user’s “To generate” list until they tick them, or until you run them again with mia_run (they then start at once).',
+    'presence.note.goOff': 'Mode “Auto” (chosen by the user at the bottom left of the board): you may act without asking. Your computations start at once, heavy ones on this PC and paid online ones included. If they switch back to “I approve”, your next actions need their go-ahead again (mia_request).',
+    'presence.note.autoBefore': 'Mode “Auto”: the computations still “waiting” were proposed before the switch. They stay in the user’s “To generate” list until they tick them, or until you run them again with mia_run (they then start at once).',
     'presence.note.toGenerate': 'Not started: added to the user’s “To generate” list; they tick what they want and start it themselves. Do not run it again. mia_pending tells what became of each one (jobId once started, to follow with mia_wait).',
     'presence.note.goTraining': 'Go-ahead given: prepare the training with mia_train_prepare. mia_train_start will only suggest it: the user starts it in Mia.',
     'presence.err.noTrain': 'LoRA training is not available in this Mia.',
@@ -235,7 +235,7 @@ register({
     'presence.note.trainImporting': 'The images are still being imported in Mia: follow it with mia_train_status (importing). The captions given here are not written yet: call mia_train_prepare {trainingId, captions} again once the import is over.',
     'presence.note.trainCaptions': 'Captions skipped, image not found in the set: {list}.',
     'presence.note.trainReady': 'Draft ready. mia_train_start will only suggest it: the user starts it in Mia.',
-    'presence.note.trainReadyAuto': 'Draft ready. Mode “Claude acts alone”: mia_train_start starts it at once, without waiting for the user’s click. A training holds the GPU for hours: start it only if they asked you to.',
+    'presence.note.trainReadyAuto': 'Draft ready. Mode “Auto”: mia_train_start starts it at once, without waiting for the user’s click. A training holds the GPU for hours: start it only if they asked you to.',
     'presence.note.trainNotReady': 'The draft cannot start yet: {why}',
     'presence.note.trainPause': 'Pause asked: the tool writes a checkpoint, then releases the GPU (after the running sample, if any). The training does not resume by itself: to resume, mia_train_start {resume:true}.',
     'presence.pause': 'Pause',
@@ -377,7 +377,7 @@ async function gated(msg, A) {
     if (paused) {
       await Promise.race([new Promise((r) => resumeWaiters.push(r)), sleep(PAUSE_WAIT_MS)]);
       if (paused) { if (msg.id != null) reply(msg.id, { ok: false, error: t('presence.err.paused') }); return; }
-      // the mode may have changed during the pause (« Claude agit seul » → « Je valide »): the green light is
+      // the mode may have changed during the pause (« Auto » → « Je valide »): the green light is
       // looked at again, an action held by the pause never passes without it
       if (!GL.allowed(A.name)) { touch(msg.client, null); if (msg.id != null) reply(msg.id, { ok: false, error: t('presence.err.needGo') }); return; }
     }
@@ -1154,7 +1154,7 @@ function refreshPill() {
   else text = t('presence.pillMixed', { n: live.length });
   if (paused) text = t('presence.pillPaused');
   if (dom.pillTxt.textContent !== text) dom.pillTxt.textContent = text;
-  // « Pause » while someone works — under a green light or in « Claude agit seul », where it is the only brake — and
+  // « Pause » while someone works — under a green light or in « Auto », where it is the only brake — and
   // « Reprendre » for as long as it is paused
   const working = live.some((a) => a.busy || a.visible);
   dom.pause.hidden = !(paused || working);
@@ -2142,7 +2142,7 @@ const METHODS = {
     await pace(A);
     press(A);
     const out = await launchRun(e, n, mode, variants, where, A);
-    // « Claude agit seul »: the line this block had in « À générer » (proposed before the switch) is now launched
+    // « Auto »: the line this block had in « À générer » (proposed before the switch) is now launched
     GL.launched({ nodeId: n.id, boardId: where.boardId, jobId: out.jobId || null, jobIds: out.jobIds || null });
     return out;
   },
@@ -2228,7 +2228,7 @@ const METHODS = {
     // training:true — a LoRA training is being prepared: the card says so, and that a second click will follow
     const r = GL.request({ client: A.name, id: p.requestId ? String(p.requestId) : null, title: p.title, summary: p.summary, steps: p.steps, runs: p.runs, training: p.training === true });
     const st = await Promise.race([r.answered, sleep(PAUSE_WAIT_MS).then(() => 'pending')]);
-    // the card waits, and the user switches to « Claude agit seul » meanwhile: accepted, and it says so
+    // the card waits, and the user switches to « Auto » meanwhile: accepted, and it says so
     const out = { requestId: r.id, state: st, mode: GL.mode() };
     if (st === 'pending') out.note = t('presence.note.goPending');
     else if (st === 'accepted') out.note = !GL.enabled() ? t('presence.note.goOff') : t(p.training === true ? 'presence.note.goTraining' : 'presence.note.goAccepted');
@@ -2245,7 +2245,7 @@ const METHODS = {
       ...snap, paused,
       toGenerate: snap.toGenerate.map((x) => ({ ...x, block: x.boardId === state.project?.id && e?.loaded && e.getNode(x.nodeId) ? blockName(e.getNode(x.nodeId)) : null }))
     };
-    // « Claude agit seul »: what it means, and what became of the lines proposed before the switch
+    // « Auto »: what it means, and what became of the lines proposed before the switch
     if (snap.mode === 'auto') out.note = t(snap.toGenerate.some((x) => x.state === 'waiting') ? 'presence.note.autoBefore' : 'presence.note.goOff');
     return out;
   },

@@ -49,6 +49,19 @@ let subTimer = 0;
 
 export const isMenuOpen = () => stack.length > 0;
 
+// Entrées en plus en tête du menu d'un bloc, selon l'endroit du clic (ex. le puits vidéo : « Extraire l'image »,
+// « Copier le numéro d'image »). Un seul menu : celui du bloc les réunit (graph/interact.js openNodeMenu).
+const nodeExtras = new Set();
+/** fn(nodeId, at:{x,y}|Element) → items[] | null */
+export function registerNodeMenuExtras(fn) { nodeExtras.add(fn); return () => nodeExtras.delete(fn); }
+export function nodeMenuExtras(nodeId, at) {
+  const out = [];
+  for (const fn of nodeExtras) {
+    try { const items = fn(nodeId, at); if (items?.length) out.push(...items.filter(Boolean)); } catch (err) { console.error(err); }
+  }
+  return out;
+}
+
 export function closeMenu() {
   if (!stack.length) return;
   clearTimeout(subTimer);

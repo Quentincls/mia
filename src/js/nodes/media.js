@@ -17,7 +17,7 @@ import { icon, register as registerIcons, hasIcon } from '../icons.js';
 import { el, isTyping, measureLater, measureOnResize } from '../util.js';
 import { on, emit } from '../bus.js';
 import { toast } from '../ui/toasts.js';
-import { openMenu, isMenuOpen } from '../ui/menu.js';
+import { openMenu, isMenuOpen, registerNodeMenuExtras } from '../ui/menu.js';
 import { isModalOpen } from '../ui/modal.js';
 import { attachPlayer, playerKey } from './player.js';
 
@@ -848,30 +848,25 @@ on('selection:changed', ({ ids } = {}) => {
 });
 
 // Clic droit sur un puits vidéo : « Extraire cette image », « Copier le numéro d'image ».
-// L'éditeur ouvre son menu au relâché ; le « contextmenu » qui suit le remplace
-// (même geste, pas de glisser : un clic droit glissé reste un déplacement de planche).
-let rightDown = null;
-window.addEventListener('pointerdown', (e) => {
-  rightDown = e.button === 2 ? { x: e.clientX, y: e.clientY } : null;
-}, true);
-window.addEventListener('contextmenu', (e) => {
-  const rd = rightDown;
-  rightDown = null;
-  if (!rd || Math.hypot(e.clientX - rd.x, e.clientY - rd.y) > 5 || isTyping(e.target)) return;
-  const hit = document.elementFromPoint(e.clientX, e.clientY);
-  if (!hit || hit.closest('.media-ctl')) return;
-  let w = null;
-  for (const x of wells) if (x.isVideo() && x.root.isConnected && x.root.contains(hit)) { w = x; break; }
-  if (!w) return;
+// Sur la planche, ces entrées vont EN TÊTE du menu du bloc (un seul menu, qui reste ouvert : avant, le menu du bloc
+// s'ouvrait au relâché puis un second le remplaçait). Ailleurs (inspecteur…), le puits ouvre son propre menu.
+
+/** Le puits vidéo sous le point (x, y) de l'écran, hors commandes du lecteur. */
+function videoWellAt(x, y) {
+  const hit = document.elementFromPoint(x, y);
+  if (!hit || hit.closest('.media-ctl')) return null;
+  for (const w of wells) if (w.isVideo() && w.root.isConnected && w.root.contains(hit)) return w;
+  return null;
+}
+
+/** Entrées du menu vidéo, image figée : celle qu'on voit est celle qu'on extrait (dans l'original, même numéro). */
+function videoItems(w) {
   const p = w.arm();
-  if (!p) return;
-  e.preventDefault();
-  e.stopPropagation();
-  // on fige l'image : celle qu'on voit est celle qu'on extrait (dans l'original, même numéro)
+  if (!p) return null;
   w.precise?.();
   p.step(0);
   const f = p.frame();
-  openMenu([
+  return [
     w.extract ? { label: t('player.extract'), icon: 'camera', action: () => w.extract(f) } : null,
     {
       label: t('node.frame.copy'), icon: 'copy',
@@ -880,7 +875,34 @@ window.addEventListener('contextmenu', (e) => {
         catch { toast(t('node.shell.failed'), { kind: 'error' }); }
       },
     },
-  ], { x: e.clientX, y: e.clientY });
+  ].filter(Boolean);
+}
+
+// le menu du bloc (graph/interact.js) demande ses entrées en plus à l'endroit du clic
+registerNodeMenuExtras((nodeId, at) => {
+  if (!at || at.nodeType === 1 || typeof at.x !== 'number') return null;     // bouton « ⋯ » : pas d'image visée
+  const w = videoWellAt(at.x, at.y);
+  if (!w || w.root.closest('.node')?.dataset.id !== nodeId) return null;
+  return videoItems(w);
+});
+
+let rightDown = null;
+window.addEventListener('pointerdown', (e) => {
+  rightDown = e.button === 2 ? { x: e.clientX, y: e.clientY } : null;
+}, true);
+window.addEventListener('contextmenu', (e) => {
+  const rd = rightDown;
+  rightDown = null;
+  if (!rd || Math.hypot(e.clientX - rd.x, e.clientY - rd.y) > 5 || isTyping(e.target)) return;
+  const w = videoWellAt(e.clientX, e.clientY);
+  if (!w) return;
+  // un puits dans un bloc de la planche : le menu du bloc porte déjà ces entrées, on n'en ouvre pas un second
+  if (w.root.closest('#stage .node')) return;
+  const items = videoItems(w);
+  if (!items) return;
+  e.preventDefault();
+  e.stopPropagation();
+  openMenu(items, { x: e.clientX, y: e.clientY });
 }, true);
 
 // ── le puits ─────────────────────────────────────────────────────────

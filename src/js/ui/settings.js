@@ -107,7 +107,7 @@ register({
     'set.bridgeChecking': 'Vérification…',
     'set.bridgeLast': 'Dernier passage : {who}, {when}',
     'set.assistAsk': 'Demander mon feu vert',
-    'set.assistAskHint': 'Un assistant montre d’abord ce qu’il veut faire et attend ton « C’est parti ». Ses calculs lourds ou payants vont dans « À générer » : tu coches ce que tu veux lancer. Coupé, c’est « Claude agit seul » (aussi en bas à gauche de la planche) : il lance tout sans te demander, y compris les calculs en ligne payants.',
+    'set.assistAskHint': 'Un assistant montre d’abord ce qu’il veut faire et attend ton « C’est parti ». Ses calculs lourds ou payants vont dans « À générer » : tu coches ce que tu veux lancer. Coupé, c’est « Auto » (aussi en bas à gauche de la planche) : il lance tout sans te demander, y compris les calculs en ligne payants.',
     'set.assist1': 'Dis à Claude ou à Codex ce que tu veux faire (« anime cette image », « passe ce clip en profondeur ») : tu les vois créer la planche, poser et relier les blocs, régler et lancer le calcul, ici même. Ctrl+Z annule ce qu’ils font.',
     'set.assist2': 'Ensuite, il la trouve sous le nom « mia » et l’ouvre si elle est fermée. Tout reste sur ce PC.',
     'set.assistAdd': 'Ajoute Mia à ton assistant, une seule fois :',
@@ -246,7 +246,7 @@ register({
     'set.bridgeChecking': 'Checking…',
     'set.bridgeLast': 'Last visit: {who}, {when}',
     'set.assistAsk': 'Ask for my go-ahead',
-    'set.assistAskHint': 'An assistant first shows what it wants to do and waits for your “Go ahead”. Its heavy or paid computations go to “To generate”: you tick what you want to start. Off, it is “Claude acts alone” (also at the bottom left of the board): it starts everything without asking you, including paid online computations.',
+    'set.assistAskHint': 'An assistant first shows what it wants to do and waits for your “Go ahead”. Its heavy or paid computations go to “To generate”: you tick what you want to start. Off, it is “Auto” (also at the bottom left of the board): it starts everything without asking you, including paid online computations.',
     'set.assist1': 'Tell Claude or Codex what you want to do (“animate this picture”, “make a depth pass of this clip”): you see them create the board, place and wire the blocks, set them and start the run, right here. Ctrl+Z undoes what they do.',
     'set.assist2': 'Then it finds Mia under the name “mia”, and opens it if it is closed. Everything stays on this PC.',
     'set.assistAdd': 'Add Mia to your assistant, once:',
@@ -317,7 +317,7 @@ export async function setPrefs(patch) {
   for (const k of keys) prefLast.set(k, mine);
   state.prefs = { ...state.prefs, ...patch };   // optimistic: the UI moves at once
   // a key written again since this call (two clicks in a row): the newer value stays — the answer to this older
-  // call never brings back, even for a moment, a value the user has already left (« Claude agit seul » → « Je valide »)
+  // call never brings back, even for a moment, a value the user has already left (« Auto » → « Je valide »)
   const newer = (k) => prefLast.has(k) && prefLast.get(k) !== mine;
   const done = () => { for (const k of keys) if (prefLast.get(k) === mine) prefLast.delete(k); };
   try {
