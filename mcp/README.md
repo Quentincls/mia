@@ -151,7 +151,8 @@ Relance l'assistant après la modification ; il voit alors les outils `mia_…`.
 | `mia_set_params` · `mia_rename_block` | régler un bloc (valeurs vérifiées), lui donner un titre |
 | `mia_remove_blocks` | retirer des blocs de la planche (aucun fichier effacé, Ctrl+Z possible) |
 | `mia_import_media` | importer des images/vidéos par leur chemin complet (`D:\…\plan12.mp4`) |
-| `mia_insert_recipe` · `mia_arrange` | poser une recette ; ranger la planche de gauche à droite |
+| `mia_insert_recipe` · `mia_arrange` | poser une recette ; ranger la planche de gauche à droite selon les fils, ou seulement certains blocs ou une section, en grille (`layout: "grid"`, `columns`) |
+| `mia_move_blocks` | déplacer des blocs à une place précise ; refusé si un bloc en recouvrirait un autre (`mia_get_board` → `overlaps` dit ceux qui se recouvrent) |
 | `mia_run` · `mia_wait` · `mia_jobs` · `mia_cancel` | lancer (aperçu d'abord ; `variants: 4` = le bouton « 4 variantes » d'un bloc image du PC ; sur une Consigne « Réécrire en anglais », la réécriture seule), attendre la fin, voir la file, annuler |
 | `mia_get_output` · `mia_snapshot` | les fichiers du résultat ; une capture de Mia pour que l'assistant regarde |
 | `mia_add_section` | encadrer des blocs dans une section nommée, à la manière de Figma ou Miro |

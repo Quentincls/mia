@@ -251,7 +251,7 @@ async function main() {
     const list = await mcp.request('tools/list', {});
     const names = (list.result?.tools || []).map((t) => t.name);
     const expected = ['mia_status', 'mia_catalog', 'mia_list_projects', 'mia_create_folder', 'mia_create_project', 'mia_open_project', 'mia_get_board', 'mia_add_block', 'mia_connect',
-      'mia_set_params', 'mia_rename_block', 'mia_remove_blocks', 'mia_import_media', 'mia_insert_recipe', 'mia_arrange', 'mia_run', 'mia_wait', 'mia_jobs',
+      'mia_set_params', 'mia_rename_block', 'mia_remove_blocks', 'mia_import_media', 'mia_insert_recipe', 'mia_arrange', 'mia_move_blocks', 'mia_run', 'mia_wait', 'mia_jobs',
       'mia_cancel', 'mia_get_output', 'mia_snapshot', 'mia_focus', 'mia_add_section', 'mia_say', 'mia_request', 'mia_pending',
       'mia_train_options', 'mia_train_prepare', 'mia_train_start', 'mia_train_status', 'mia_train_wait', 'mia_train_control', 'mia_train_note'];
     check(expected.every((n) => names.includes(n)) && names.length === expected.length, `tools/list: ${names.length} tools`, names);
@@ -374,6 +374,21 @@ async function main() {
 
     const arr = await mcp.tool('mia_arrange');
     check(!arr.isError && arr.json?.arranged === 3, 'mia_arrange', arr.text);
+    // a tidy board (asked by Quentin on 24/11/2026: « ils superposent les choses ») — overlaps listed, a move onto
+    // another block refused, a free move, a grid of some blocks: nothing covers anything afterwards
+    const gb0 = await mcp.tool('mia_get_board');
+    check(Array.isArray(gb0.json?.overlaps) && gb0.json.overlaps.length === 0 && (gb0.json?.sections || []).every((s) => Array.isArray(s.nodeIds)),
+      'mia_get_board: overlaps listed (none after mia_arrange), sections give their blocks', gb0.json?.overlaps);
+    const bl = gb0.json?.blocks || [];
+    const onto = await mcp.tool('mia_move_blocks', { moves: [{ nodeId: bl[0].id, x: bl[1].x, y: bl[1].y }] });
+    check(onto.isError && /serait posé sur|would sit on/.test(onto.text), 'mia_move_blocks refuses a place on another block, nothing moves', onto.text.slice(0, 200));
+    const shift = await mcp.tool('mia_move_blocks', { nodeIds: [bl[0].id], dx: 0, dy: -1200 });
+    check(!shift.isError && shift.json?.moved?.[0]?.nodeId === bl[0].id && shift.json.moved[0].y <= bl[0].y - 1150, 'mia_move_blocks by dx / dy', shift.text.slice(0, 200));
+    const gridded = await mcp.tool('mia_arrange', { nodeIds: bl.map((x) => x.id), layout: 'grid', columns: 2 });
+    check(!gridded.isError && gridded.json?.arranged === bl.length && gridded.json?.layout === 'grid' && gridded.json?.overlaps?.length === 0,
+      'mia_arrange {nodeIds, layout: grid, columns: 2}: nothing covers', gridded.text.slice(0, 300));
+    const badLayout = await mcp.tool('mia_arrange', { layout: 'spiral' });
+    check(badLayout.isError, 'mia_arrange refuses an unknown layout', badLayout.text.slice(0, 160));
 
     const foc = await mcp.tool('mia_focus', { nodeIds: [importId, depthId] });
     check(!foc.isError, 'mia_focus', foc.text);

@@ -183,4 +183,39 @@ export function layered(nodes, edges, { origin = null, hGap = H_GAP, vGap = GAP 
   return out;
 }
 
+/**
+ * Grille : les blocs dans l'ordre donné (lecture : gauche → droite, puis rangée suivante), `columns` par rangée.
+ * Chaque colonne prend la largeur de son plus large bloc, chaque rangée la hauteur de son plus haut : rien ne se
+ * chevauche, même quand les blocs n'ont pas la même taille. Coin haut-gauche : `origin`.
+ */
+export function grid(nodes, { columns = 0, origin = { x: 0, y: 0 }, hGap = GAP, vGap = GAP } = {}) {
+  const pos = new Map();
+  if (!nodes.length) return pos;
+  const cols = Math.max(1, Math.min(nodes.length, Math.round(columns) || Math.ceil(Math.sqrt(nodes.length))));
+  const colW = [], rowH = [];
+  nodes.forEach((n, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    colW[c] = Math.max(colW[c] || 0, n.w);
+    rowH[r] = Math.max(rowH[r] || 0, n.h);
+  });
+  const snap = (v) => Math.round(v / GRID) * GRID;
+  nodes.forEach((n, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    let x = origin.x, y = origin.y;
+    for (let k = 0; k < c; k++) x += colW[k] + hGap;
+    for (let k = 0; k < r; k++) y += rowH[k] + vGap;
+    pos.set(n.id, { x: snap(x), y: Math.ceil(y / GRID) * GRID });
+  });
+  return pos;
+}
+
+/** Les paires de boîtes qui se recouvrent (marge `pad`) : [[idA, idB], …]. */
+export function overlapPairs(boxes, pad = 0) {
+  const out = [];
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) if (overlaps(boxes[i], boxes[j], pad)) out.push([boxes[i].id, boxes[j].id]);
+  }
+  return out;
+}
+
 export { overlaps };

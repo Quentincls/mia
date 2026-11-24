@@ -107,6 +107,11 @@ register({
     'presence.err.importFailed': 'Aucun fichier n’a pu être importé (voir le message dans Mia).',
     'presence.err.emptyText': 'Le texte est vide.',
     'presence.err.needIds': 'Donne au moins un id de bloc.',
+    'presence.err.needMoves': 'Donne moves : [{nodeId, x, y}] (coin haut-gauche, coordonnées de la planche), ou nodeIds avec dx / dy.',
+    'presence.err.badMove': 'Position invalide pour « {block} » : x et y doivent être des nombres.',
+    'presence.err.moveOverlap': 'Rien n’a bougé : « {a} » serait posé sur « {b} ». Choisis une place libre (mia_get_board donne x, y, w, h de chaque bloc ; garde 48 d’écart) ou range-les avec mia_arrange {nodeIds, layout: "grid"}.',
+    'presence.err.unknownSection': 'Section inconnue : « {id} ». Sections de la planche : {list}.',
+    'presence.err.badLayout': 'layout : « flow » (de gauche à droite selon les fils) ou « grid » (en grille).',
     'presence.err.busy': 'Mia n’a pas pu finir cette action (fenêtre réduite ou occupée). Réessaie.',
     'presence.err.needGo': 'L’utilisateur n’a pas encore donné son feu vert. Appelle d’abord mia_request {title, summary, steps, runs} : il voit ta demande dans Mia et clique « C’est parti ». Rien ne bouge avant.',
     'presence.err.declined': 'L’utilisateur a refusé cette demande dans Mia. N’agis pas ; demande-lui ce qu’il préfère.',
@@ -214,6 +219,11 @@ register({
     'presence.err.importFailed': 'No file could be imported (see the message in Mia).',
     'presence.err.emptyText': 'The text is empty.',
     'presence.err.needIds': 'Give at least one block id.',
+    'presence.err.needMoves': 'Give moves: [{nodeId, x, y}] (top-left corner, board coordinates), or nodeIds with dx / dy.',
+    'presence.err.badMove': 'Invalid position for “{block}”: x and y must be numbers.',
+    'presence.err.moveOverlap': 'Nothing moved: “{a}” would sit on “{b}”. Pick a free place (mia_get_board gives x, y, w, h of each block; keep a 48 gap) or tidy them with mia_arrange {nodeIds, layout: "grid"}.',
+    'presence.err.unknownSection': 'Unknown section: “{id}”. Sections of the board: {list}.',
+    'presence.err.badLayout': 'layout: “flow” (left to right following the wires) or “grid” (in a grid).',
     'presence.err.busy': 'Mia could not finish this action (window minimised or busy). Try again.',
     'presence.err.needGo': 'The user has not given the go-ahead yet. Call mia_request {title, summary, steps, runs} first: they see your request in Mia and click “Go ahead”. Nothing moves before that.',
     'presence.err.declined': 'The user declined this request in Mia. Do not act; ask them what they prefer.',
@@ -304,18 +314,18 @@ let excl = Promise.resolve();
 const running = new Set();
 let switching = false;
 let lastSwitch = null;              // key of the actor that changed the open board last (null: the user did)
-const EXCLUSIVE = new Set(['create_project', 'open_project', 'arrange']);
+const EXCLUSIVE = new Set(['create_project', 'open_project', 'arrange', 'move_blocks']);
 // Green light (SPEC §13.7): what an assistant may not do before the user said « C'est parti » (reading and
 // talking stay free), and the pause of the title bar.
 const NEEDS_GO = new Set(['create_project', 'open_project', 'create_folder', 'add_block', 'connect', 'set_params', 'rename_block',
-  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'focus', 'add_section',
+  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'move_blocks', 'run', 'focus', 'add_section',
   // a LoRA training: preparing, suggesting a start, pausing, filing a checkpoint (reading and noting stay free)
   'train_prepare', 'train_start', 'train_control']);
 const PAUSE_WAIT_MS = 40000;        // a paused action waits that long for « Reprendre », then says so
 let paused = false;
 let resumeWaiters = [];
 const BOARD_METHODS = new Set(['get_board', 'add_block', 'connect', 'set_params', 'rename_block', 'remove_blocks',
-  'import_media', 'insert_recipe', 'arrange', 'run', 'get_output', 'focus', 'add_section']);
+  'import_media', 'insert_recipe', 'arrange', 'move_blocks', 'run', 'get_output', 'focus', 'add_section']);
 
 // ── public ──────────────────────────────────────────────────────────────
 
@@ -848,6 +858,14 @@ function union(boxes) {
   const x0 = Math.min(...list.map((b) => b.x)), y0 = Math.min(...list.map((b) => b.y));
   const x1 = Math.max(...list.map((b) => b.x + b.w)), y1 = Math.max(...list.map((b) => b.y + b.h));
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+const centerOf = (b) => (b ? { x: b.x + b.w / 2, y: b.y + b.h / 2 } : { x: 0, y: 0 });
+
+/** Blocks that cover each other now (real heights): [{a, b, blocks: [name, name]}]. */
+function overlapsOf(e) {
+  const pairs = typeof e.overlapping === 'function' ? safe(() => e.overlapping()) || [] : [];
+  return pairs.map(([a, b]) => ({ a, b, blocks: [blockName(e.getNode(a)), blockName(e.getNode(b))] }));
 }
 
 const snapUp = (v) => Math.ceil(v / GRID) * GRID;
@@ -1811,7 +1829,9 @@ const METHODS = {
       readOnly: !!state.readOnly,
       blocks: g.nodes.map((n) => describeNode(e, n, R)),
       wires: g.edges.map((x) => ({ id: x.id, from: { ...x.from }, to: { ...x.to } })),
-      sections: (g.groups || []).map((s) => ({ id: s.id, title: s.title || null, x: s.x, y: s.y, w: s.w, h: s.h })),
+      sections: (g.groups || []).map((s) => ({ id: s.id, title: s.title || null, x: s.x, y: s.y, w: s.w, h: s.h, nodeIds: safe(() => e.sectionNodes?.(s.id)) || [] })),
+      // blocks that cover each other now, at their real height (a block grows when its result arrives): tidy them
+      overlaps: overlapsOf(e),
       selection: e.selection(),
       camera: g.camera || null,
       // what the user has on screen right now (ids of the blocks in view) and the other boards open in tabs
@@ -2089,18 +2109,79 @@ const METHODS = {
     const e = await board(p, { write: true });
     const g = e.getGraph();
     if (!g.nodes.length) fail('noNodes');
-    await glideTo(A, viewCenter(e));
+    const layout = p.layout == null ? 'flow' : String(p.layout);
+    if (layout !== 'flow' && layout !== 'grid') fail('badLayout');
+    let ids = (Array.isArray(p.nodeIds) ? p.nodeIds : p.nodeIds ? [p.nodeIds] : []).map(String);
+    ids = ids.map((id) => nodeOf(e, id).id);
+    let section = null;
+    if (p.sectionId) {
+      section = String(p.sectionId);
+      const members = typeof e.sectionNodes === 'function' ? e.sectionNodes(section) : null;
+      if (!members) {
+        const list = (g.groups || []).map((x) => (x.title ? `${x.id} (« ${x.title} »)` : x.id)).join(', ');
+        fail('unknownSection', { id: section, list: list || t('presence.err.none') });
+      }
+      if (!ids.length) ids = members;
+    }
+    const part = ids.length > 0;
+    const target = part ? ids : g.nodes.map((n) => n.id);
+    await glideTo(A, part ? centerOf(union(target.map((id) => boxOf(e, e.getNode(id))))) : viewCenter(e));
     await pace(A);
     let moved;
+    const opts = { layout, columns: Number(p.columns) || 0, section };
     // the editor's own arrange glides on animation frames: a minimised window gives none, so it never
     // holds the assistant longer than a few seconds (it finishes when the window comes back)
-    if (typeof e.arrange === 'function') moved = await Promise.race([e.arrange(), sleep(3000)]);
+    if (typeof e.arrange === 'function') moved = await Promise.race([e.arrange(part ? ids : null, opts), sleep(3000)]);
     else moved = await arrangeFallback(e);
     acted(A);
     await sleep(60);
-    try { e.fit(); } catch { /* view stays */ }
+    try { e.fit(part ? ids : undefined); } catch { /* view stays */ }
     await sleep(CAMERA_MS);
-    return { arranged: g.nodes.length, moved: typeof moved === 'number' ? moved : null };
+    return {
+      arranged: target.length, layout, moved: typeof moved === 'number' ? moved : null,
+      blocks: target.map((id) => { const b = boxOf(e, e.getNode(id)); return { nodeId: id, x: b.x, y: b.y, w: b.w, h: b.h }; }),
+      overlaps: overlapsOf(e)
+    };
+  },
+
+  /** Move blocks (top-left corner, board coordinates), never onto another block; one undoable step. */
+  async move_blocks(p, A) {
+    const e = await board(p, { write: true });
+    const moves = new Map();
+    if (Array.isArray(p.moves) && p.moves.length) {
+      for (const m of p.moves) {
+        const n = nodeOf(e, m?.nodeId);
+        const x = Number(m.x), y = Number(m.y);
+        if (m.x == null || m.y == null || !Number.isFinite(x) || !Number.isFinite(y)) fail('badMove', { block: blockName(n) });
+        moves.set(n.id, { x: snapNear(x), y: snapNear(y) });
+      }
+    } else if (p.nodeIds != null && (Number.isFinite(Number(p.dx)) || Number.isFinite(Number(p.dy)))) {
+      const ids = (Array.isArray(p.nodeIds) ? p.nodeIds : [p.nodeIds]).map(String);
+      const dx = Number(p.dx) || 0, dy = Number(p.dy) || 0;
+      for (const id of ids) { const n = nodeOf(e, id); moves.set(n.id, { x: snapNear(n.x + dx), y: snapNear(n.y + dy) }); }
+    } else fail('needMoves');
+    if (!moves.size) fail('needMoves');
+    // where every block would be: none may cover another (moved or not), at their real height
+    const after = e.getGraph().nodes.map((n) => ({ id: n.id, ...boxOf(e, n), ...(moves.get(n.id) || {}) }));
+    for (const [id] of moves) {
+      const b = after.find((x) => x.id === id);
+      const hit = after.find((o) => o.id !== id && b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
+      if (hit) fail('moveOverlap', { a: blockName(e.getNode(id)), b: blockName(e.getNode(hit.id)) });
+    }
+    const first = e.getNode([...moves.keys()][0]);
+    await ensureVisible(e, boxOf(e, first), A);
+    await glideTo(A, elPoint(e, first, '.n-title', 0.5, 0.9));
+    await pace(A);
+    press(A);
+    if (typeof e.moveNodes === 'function') await Promise.race([e.moveNodes(moves), sleep(3000)]);
+    else for (const [id, m] of moves) e.updateNode(id, m);
+    acted(A);
+    const end = moves.get([...moves.keys()].pop());
+    await glideTo(A, { x: end.x + 26, y: end.y + 18 });
+    return {
+      moved: [...moves.keys()].map((id) => { const b = boxOf(e, e.getNode(id)); return { nodeId: id, x: b.x, y: b.y, w: b.w, h: b.h }; }),
+      overlaps: overlapsOf(e)
+    };
   },
 
   async run(p, A) {

@@ -24,8 +24,8 @@ import { Camera, SmoothZoom, easeCam } from './camera.js';
 import { WireLayer } from './wires.js';
 import { Views, estimateHeight, displayTitle, setText } from './view.js';
 import { nodeInputs, nodeOutputs, nodePortDef } from '../nodes/ports.js';
-import { freeOffset, settleColumns, layered, GAP } from './layout.js';
-import { paintSections, ellipsize, adopt as adoptSections, boxAround, toneKey, titlePx, titleLift } from './sections.js';
+import { freeOffset, settleColumns, layered, grid, overlapPairs, GAP } from './layout.js';
+import { paintSections, ellipsize, adopt as adoptSections, sectionAt, boxAround, toneKey, titlePx, titleLift } from './sections.js';
 import { attachInteract } from './interact.js';
 import { createPalette } from './palette.js';
 import { createMinimap } from './minimap.js';
@@ -375,8 +375,14 @@ export const editor = {
   // pour le pont des assistants (G, SPEC §13) : poser, relier, ranger « à vue »
   /** {ok, from:{node,port}, to:{node,port}, error} : le fil serait-il accepté ? ports devinés si omis. */
   canConnect: (a, ap, b, bp) => (ed ? resolveConnect(a, ap, b, bp) : { ok: false, error: 'invalid' }),
-  /** Range des blocs de gauche à droite selon les fils (tous si `ids` est vide), animé. */
+  /** Range des blocs (tous si `ids` est vide), animé : {layout: 'flow' | 'grid', columns, section}. */
   arrange: (ids, opts) => arrange(ids, opts),
+  /** Déplace des blocs : Map ou objet id → {x, y} ; glisse, une entrée d'annulation. */
+  moveNodes: (moves, opts) => moveNodes(moves instanceof Map ? moves : new Map(Object.entries(moves || {})), opts),
+  /** Les blocs d'une section (centre dedans), ou null si elle n'existe pas. */
+  sectionNodes: (gid) => sectionNodes(gid),
+  /** Les paires de blocs qui se recouvrent, à leur vraie hauteur. */
+  overlapping: () => overlapping(),
   /** Petite arrivée (180 ms) sur un bloc déjà posé. */
   animateAdd: (id) => animateAdd(id),
   /** Une section : `box` = {x,y,w,h} ou {around:[ids]} ; renvoie son id. */
@@ -1950,28 +1956,76 @@ function pushBelow(id, h0, h1, exclude = null) {
 // ── pour le pont des assistants : ranger, faire apparaître, sections ──
 
 /**
- * Range des blocs de gauche à droite selon les fils (layout.js `layered`),
- * en glissant 420 ms (--ease-cam). Une seule entrée d'annulation.
+ * Range des blocs (tous si `ids` est vide), en glissant 420 ms (--ease-cam). Une seule entrée d'annulation.
+ *   layout 'flow' (défaut) : de gauche à droite selon les fils (layout.js `layered`) ;
+ *   layout 'grid'          : en grille, `columns` par rangée (par défaut ≈ racine du nombre de blocs), dans
+ *                            l'ordre de `ids` s'il est donné, sinon dans l'ordre de lecture de la planche.
+ * Un rangement partiel part du coin haut-gauche des blocs rangés ; s'il touchait un autre bloc, tout le lot
+ * glisse à la place libre la plus proche. `section` (id) : la section est ajustée autour des blocs rangés ;
+ * sinon une section qui contient un bloc rangé s'agrandit s'il le faut.
  */
-function arrange(ids, { animate = true, fitAfter = false } = {}) {
+function arrange(ids, { animate = true, fitAfter = false, layout = 'flow', columns = 0, section = null } = {}) {
   if (!ed?.project || ed.readonly) return Promise.resolve(false);
-  const list = (ids && ids.length ? ids : ed.doc.nodes.map((n) => n.id)).filter((id) => ed.doc.node(id));
+  const given = !!(ids && ids.length);
+  const list = (given ? ids : ed.doc.nodes.map((n) => n.id)).filter((id, i, a) => ed.doc.node(id) && a.indexOf(id) === i);
   if (!list.length) return Promise.resolve(false);
   const set = new Set(list);
   const boxes = list.map((id) => ({ id, ...nodeBox(id) }));
-  const portIndex = (e) => Math.max(0, nodeInputs(ed.doc.node(e.to.node), [e.to.port]).findIndex((p) => p.id === e.to.port));
-  const edges = ed.doc.edges.filter((e) => set.has(e.from.node) && set.has(e.to.node))
-    .map((e) => ({ from: e.from.node, to: e.to.node, port: portIndex(e) }));
-  const pos = layered(boxes, edges);
+  let pos;
+  if (layout === 'grid') {
+    const order = given && !section ? boxes
+      : [...boxes].sort((a, b) => (Math.abs(a.y - b.y) > Math.min(a.h, b.h) / 2 ? a.y - b.y : a.x - b.x));
+    const origin = { x: Math.min(...boxes.map((b) => b.x)), y: Math.min(...boxes.map((b) => b.y)) };
+    pos = grid(order, { columns, origin });
+  } else {
+    const portIndex = (e) => Math.max(0, nodeInputs(ed.doc.node(e.to.node), [e.to.port]).findIndex((p) => p.id === e.to.port));
+    const edges = ed.doc.edges.filter((e) => set.has(e.from.node) && set.has(e.to.node))
+      .map((e) => ({ from: e.from.node, to: e.to.node, port: portIndex(e) }));
+    pos = layered(boxes, edges);
+  }
+  // un rangement partiel ne se pose jamais sur les autres blocs
+  if (set.size < ed.doc.nodes.length) {
+    const placed = boxes.map((b) => ({ ...b, ...pos.get(b.id) }));
+    const x0 = Math.min(...placed.map((b) => b.x)), y0 = Math.min(...placed.map((b) => b.y));
+    const all = { x: x0, y: y0, w: Math.max(...placed.map((b) => b.x + b.w)) - x0, h: Math.max(...placed.map((b) => b.y + b.h)) - y0 };
+    const others = ed.doc.nodes.filter((n) => !set.has(n.id)).map((n) => nodeBox(n.id)).filter(Boolean);
+    const { dx, dy } = freeOffset(all, others, { pad: GAP, prefer: 'below' });
+    if (dx || dy) for (const [id, p] of pos) pos.set(id, { x: Math.round(p.x + dx), y: Math.round(p.y + dy) });
+  }
+  return placeNodes(pos, { animate, label: 'arrange', section, fitAfter: fitAfter ? list : null });
+}
+
+/**
+ * Déplace des blocs : `moves` = Map id → {x, y} (monde, coin haut-gauche). Glisse comme « Ranger », une seule
+ * entrée d'annulation ; une section qui reçoit un bloc s'agrandit pour l'envelopper. Ne vérifie pas la place :
+ * l'appelant le fait (le pont des assistants refuse un déplacement qui poserait un bloc sur un autre).
+ */
+function moveNodes(moves, { animate = true } = {}) {
+  if (!ed?.project || ed.readonly) return Promise.resolve(false);
+  const pos = new Map();
+  for (const [id, p] of moves) if (ed.doc.node(id) && Number.isFinite(p?.x) && Number.isFinite(p?.y)) pos.set(id, { x: Math.round(p.x), y: Math.round(p.y) });
+  if (!pos.size) return Promise.resolve(false);
+  return placeNodes(pos, { animate, label: 'move' });
+}
+
+/** Pose les blocs de `pos` (Map id → {x, y}), en glissant ; sections ajustées ; une entrée d'annulation. */
+function placeNodes(pos, { animate = true, label = 'arrange', section = null, fitAfter = null } = {}) {
+  const list = [...pos.keys()];
   ed.interact.cancel();
-  ed.history.begin('arrange');
+  ed.history.begin(label);
   const from = new Map(list.map((id) => { const n = ed.doc.node(id); return [id, { x: n.x, y: n.y }]; }));
   return new Promise((resolve) => {
     const finish = () => {
       for (const [id, p] of pos) { const n = ed.doc.node(id); if (n) { n.x = p.x; n.y = p.y; } }
+      const g = section ? ed.doc.groups.find((x) => x.id === section) : null;
+      if (g) {
+        const b = boxAround(bbox(list));
+        g.x = b.x; g.y = b.y; g.w = b.w; g.h = b.h;
+      } else adoptSections(ed.doc.groups, list.map((id) => nodeBox(id)));
       ed.history.commit();
-      afterChange({ changed: new Set(), reason: 'arrange' });
-      if (fitAfter) fit(list);
+      afterChange({ changed: new Set(), reason: label });
+      requestDraw();
+      if (fitAfter) fit(fitAfter);
       resolve(true);
     };
     const D = ms('cam');
@@ -1994,6 +2048,19 @@ function arrange(ids, { animate = true, fitAfter = false } = {}) {
     };
     requestAnimationFrame(step);
   });
+}
+
+/** Les blocs d'une section : ceux dont le centre est dedans (la plus petite section qui le contient). */
+function sectionNodes(gid) {
+  const g = ed?.doc.groups.find((x) => x.id === gid);
+  if (!g) return null;
+  return ed.doc.nodes.filter((n) => { const b = nodeBox(n.id); return b && sectionAt(ed.doc.groups, b) === g; }).map((n) => n.id);
+}
+
+/** Les blocs qui se recouvrent, à leur vraie hauteur : [[idA, idB], …]. */
+function overlapping() {
+  if (!ed?.doc) return [];
+  return overlapPairs(ed.doc.nodes.map((n) => ({ id: n.id, ...nodeBox(n.id) })).filter((b) => Number.isFinite(b.h)), -1);
 }
 
 /** Rejoue la petite arrivée d'un bloc (180 ms, depuis son centre) : un assistant vient de le poser. */

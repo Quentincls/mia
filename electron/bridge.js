@@ -55,7 +55,7 @@ const TRAIN_ENDED = new Set(['fini', 'erreur', 'annule', 'interrompu']);
 
 const RELAYED = new Set([
   'ui_state', 'create_project', 'open_project', 'get_board', 'add_block', 'connect', 'set_params', 'rename_block',
-  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'run', 'get_output', 'focus', 'say', 'add_section',
+  'remove_blocks', 'import_media', 'insert_recipe', 'arrange', 'move_blocks', 'run', 'get_output', 'focus', 'say', 'add_section',
   'create_folder', 'request', 'pending',
   // LoRA training: the page checks the green light (and the pause) and runs them through window.mia.train.*
   'train_control', 'train_note'

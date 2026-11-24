@@ -10,6 +10,27 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## 0.10.2 — 24/11/2026
+
+### En bref
+- **Claude range bien la planche** : il voit les blocs qui se recouvrent (un bloc grandit quand son image
+  arrive), peut les ranger en grille, seulement les siens ou ceux d’une section (la section s’ajuste autour), et
+  peut déplacer un bloc à une place précise, jamais par-dessus un autre. Tout s’annule avec Ctrl+Z.
+
+### In short
+- **Claude tidies the board well**: it sees the blocks that cover each other (a block grows when its image
+  arrives), can arrange them in a grid, only its own or those of a section (the section fits around them), and can
+  move a block to a precise place, never onto another one. Ctrl+Z undoes it all.
+
+### Pour les développeurs
+- MCP : nouvel outil `mia_move_blocks` (`moves: [{nodeId, x, y}]` ou `nodeIds` + `dx` / `dy`, refusé si un bloc
+  en recouvrirait un autre) ; `mia_arrange` prend `nodeIds`, `sectionId`, `layout: "flow" | "grid"` et `columns`,
+  et rend les nouvelles positions ; `mia_get_board` donne `overlaps` (blocs qui se recouvrent, à leur vraie
+  hauteur) et les `nodeIds` de chaque section. Consigne « A TIDY BOARD » dans les instructions du serveur.
+- `graph/layout.js` : `grid()` et `overlapPairs()` ; `graph/editor.js` : `moveNodes`, `sectionNodes`,
+  `overlapping`, et `arrange(ids, {layout, columns, section})` (un rangement partiel ne se pose jamais sur les
+  autres blocs).
+
 ## 0.10.1 — 24/11/2026
 
 ### En bref
