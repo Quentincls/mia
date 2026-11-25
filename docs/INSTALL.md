@@ -83,8 +83,8 @@ une fois décompressées). Choisir un dossier au chemin court (80 caractères au
 certains fichiers du moteur.
 
 Ce qu'il installe, toujours aux mêmes versions que le moteur avec lequel Mia est testée : uv (le gestionnaire
-Python), Python 3.13, ComfyUI v0.39.2, PyTorch 2.14.1 pour carte NVIDIA (`versions.txt`), trois nœuds ajoutés à
-ComfyUI à un commit précis (`custom_nodes.txt` : profondeur, LTX, agrandissement), les bibliothèques du calcul de Mia
+Python), Python 3.13, ComfyUI v0.46.3, PyTorch 2.14.1 pour carte NVIDIA (`versions.txt`), quatre nœuds ajoutés à
+ComfyUI à un commit précis (`custom_nodes.txt` : profondeur, LTX, agrandissement, MiniMax rapide), les bibliothèques du calcul de Mia
 (`requirements-mia.txt`), et chaque autre paquet Python à la version relevée sur le moteur de test
 (`constraints.txt`).
 

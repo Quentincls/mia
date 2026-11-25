@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-29",
+  "updated": "2026-11-25",
   "about": {
     "fr": "Ce que Mia sait installer, capacité par capacité : fichiers exacts, dépôt Hugging Face figé sur une version, taille, empreinte, licence. Mis à jour depuis setup/models.yaml du labo et les gabarits officiels de ComfyUI.",
     "en": "What Mia can install, capability by capability: exact files, Hugging Face repository pinned to a version, size, checksum, license. Built from the lab's setup/models.yaml and ComfyUI's official templates."
@@ -755,6 +755,108 @@
       "gated": false,
       "license": "qwen-research",
       "sha256": "07aa961570ac0e03d4ca936aecd76854d077a33cde69b5092399afba01b3715d"
+    },
+    {
+      "key": "minimax-pih3-fast",
+      "model": "minimax-pih3",
+      "label": {
+        "fr": "Accélérateur MiniMax pi-H3 (4 étapes)",
+        "en": "MiniMax pi-H3 accelerator (4 steps)"
+      },
+      "repo": "Lakonik/pi-H3",
+      "revision": "4a864589b0fac3d14768f932c930c4dcf1a17b56",
+      "path": "pi_h3_4step_dwd_adapter_int8_convrot.safetensors",
+      "dest": "loras",
+      "bytes": 2192176240,
+      "sizeGB": 2.19,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "a2fa1caae2cd4a12f85cc3eccd2a360fe9dabf430623d47deca619605e96ee6d"
+    },
+    {
+      "key": "minimax-pih3-draft",
+      "model": "minimax-pih3",
+      "label": {
+        "fr": "Accélérateur MiniMax pi-H3 (2 étapes)",
+        "en": "MiniMax pi-H3 accelerator (2 steps)"
+      },
+      "repo": "Lakonik/pi-H3",
+      "revision": "4a864589b0fac3d14768f932c930c4dcf1a17b56",
+      "path": "pi_h3_2step_dwd_adapter_int8_convrot.safetensors",
+      "dest": "loras",
+      "bytes": 2192176240,
+      "sizeGB": 2.19,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "ef98527409eee4eaec8183265f4ee22d265680524237fae7149dbc203e11e739"
+    },
+    {
+      "key": "minimax-pika",
+      "model": "minimax-pika",
+      "label": {
+        "fr": "Style Pika H3 Flex",
+        "en": "Pika H3 Flex style"
+      },
+      "repo": "Pika-Labs/Pika-H3-Flex",
+      "revision": "ca45d99f9b1d1859ffb9dc1cd6bfaaa994257f56",
+      "path": "comfy/loras/pika_h3_flex_fl2va_comfy_bf16.safetensors",
+      "dest": "loras",
+      "bytes": 1956172176,
+      "sizeGB": 1.96,
+      "gated": false,
+      "license": "minimax",
+      "sha256": "68783e6447696ec365d13c0554941e070bee4cfea13c37da52498ec4f9a53f89"
+    },
+    {
+      "key": "pan2",
+      "model": "pan2",
+      "label": {
+        "fr": "PAN 2",
+        "en": "PAN 2"
+      },
+      "repo": "Comfy-Org/PAN2",
+      "revision": "a97db318eab044a42abba9841b16b308078c6db2",
+      "path": "diffusion_models/pan2_int8_convrot.safetensors",
+      "dest": "diffusion_models",
+      "bytes": 26680974884,
+      "sizeGB": 26.68,
+      "gated": false,
+      "license": "apache",
+      "sha256": "a906882e609f91be1cbe8ca26365d6c3d10535c998b0a99b92e462f92be57327"
+    },
+    {
+      "key": "pan2-te",
+      "model": "pan2-te",
+      "label": {
+        "fr": "Encodeur de texte PAN 2",
+        "en": "PAN 2 text encoder"
+      },
+      "repo": "Comfy-Org/PAN2",
+      "revision": "a97db318eab044a42abba9841b16b308078c6db2",
+      "path": "text_encoders/qwen3.5_9b_int8_convrot.safetensors",
+      "dest": "text_encoders",
+      "bytes": 9748121532,
+      "sizeGB": 9.75,
+      "gated": false,
+      "license": "apache",
+      "sha256": "32e3787472f708fa5f83624acbf5ef23f7fc89c439e05065ea57cfe5a97f025a"
+    },
+    {
+      "key": "pan2-vae",
+      "model": "pan2-vae",
+      "label": {
+        "fr": "Décodeur d’image PAN 2 (Wan 2.2)",
+        "en": "PAN 2 image decoder (Wan 2.2)"
+      },
+      "repo": "Comfy-Org/PAN2",
+      "revision": "a97db318eab044a42abba9841b16b308078c6db2",
+      "path": "vae/wan2.2_vae.safetensors",
+      "dest": "vae",
+      "bytes": 1409400960,
+      "sizeGB": 1.41,
+      "gated": false,
+      "license": "apache",
+      "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156"
     }
   ],
   "capabilities": {
@@ -801,6 +903,59 @@
             "minimax-vae",
             "minimax-audio-vae"
           ]
+        },
+        {
+          "id": "minimax-fast",
+          "label": {
+            "fr": "MiniMax H3 plus rapide (pi-H3)",
+            "en": "Faster MiniMax H3 (pi-H3)"
+          },
+          "desc": {
+            "fr": "Les rendus Esquisse et Rapide de MiniMax : 2 à 4 fois plus vite.",
+            "en": "The Sketch and Fast renders of MiniMax: 2 to 4 times faster."
+          },
+          "keys": [
+            "minimax",
+            "minimax-te",
+            "minimax-vae",
+            "minimax-audio-vae",
+            "minimax-pih3-fast",
+            "minimax-pih3-draft"
+          ]
+        },
+        {
+          "id": "minimax-pika",
+          "label": {
+            "fr": "Style Pika pour MiniMax H3",
+            "en": "Pika style for MiniMax H3"
+          },
+          "desc": {
+            "fr": "Le rendu Pika de MiniMax : le réglage esthétique de Pika H3 Flex.",
+            "en": "The Pika render of MiniMax: the Pika H3 Flex look."
+          },
+          "keys": [
+            "minimax",
+            "minimax-te",
+            "minimax-vae",
+            "minimax-audio-vae",
+            "minimax-pika"
+          ]
+        },
+        {
+          "id": "pan2",
+          "label": {
+            "fr": "PAN 2 (actions et caméra précises, sans son)",
+            "en": "PAN 2 (precise actions and camera, no sound)"
+          },
+          "desc": {
+            "fr": "Un modèle « du monde », lent, pour les plans importants.",
+            "en": "A “world” model, slow, for the shots that matter."
+          },
+          "keys": [
+            "pan2",
+            "pan2-te",
+            "pan2-vae"
+          ]
         }
       ]
     },
@@ -814,6 +969,24 @@
         "ltx-te",
         "ltx-vae",
         "ltx-audio-vae"
+      ],
+      "options": [
+        {
+          "id": "pan2",
+          "label": {
+            "fr": "PAN 2 (actions et caméra précises, sans son)",
+            "en": "PAN 2 (precise actions and camera, no sound)"
+          },
+          "desc": {
+            "fr": "Un modèle « du monde », lent, pour les plans importants.",
+            "en": "A “world” model, slow, for the shots that matter."
+          },
+          "keys": [
+            "pan2",
+            "pan2-te",
+            "pan2-vae"
+          ]
+        }
       ]
     },
     "3d-to-real": {

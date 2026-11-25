@@ -412,9 +412,9 @@ function testCatalog() {
   const cat = (k) => RULES.CATALOG.find((c) => c.key === k);
   // La pleine n'a pas de rang à elle : elle garde celui de « ltx-other » (le tri d'avant), et seul le choix « Auto »
   // selon la mémoire peut la promouvoir, devant une compacte comme devant une autre précision (autoOver).
-  check('ordre de préférence : int8, nvfp4, puis autre ; la pleine au rang de « autre » (PREFER_AS), promue par Auto seulement',
-    RULES.CAPS.find((c) => c.id === 'text-to-video').prefer.join() === 'ltx-int8,ltx-nvfp4,ltx-other'
-    && RULES.CAPS.find((c) => c.id === 'image-to-video').prefer.join() === 'ltx-int8,ltx-nvfp4,ltx-other,minimax'
+  check('ordre de préférence : int8, nvfp4, puis autre (puis MiniMax, PAN 2) ; la pleine au rang de « autre » (PREFER_AS), promue par Auto seulement',
+    RULES.CAPS.find((c) => c.id === 'text-to-video').prefer.join() === 'ltx-int8,ltx-nvfp4,ltx-other,pan2'
+    && RULES.CAPS.find((c) => c.id === 'image-to-video').prefer.join() === 'ltx-int8,ltx-nvfp4,ltx-other,minimax,pan2'
     && RULES.CAPS.find((c) => c.id === '3d-to-real').prefer.join() === 'ltx-int8,ltx-nvfp4,ltx-other'
     && RULES.CAPS.find((c) => c.id === 'guided-video').prefer.join() === 'ltx-int8,ltx-nvfp4,ltx-other,minimax'
     && JSON.stringify(RULES.PREFER_AS) === '{"ltx-full":"ltx-other"}' && RULES.CAPS.every((c) => !c.prefer.includes('ltx-full'))

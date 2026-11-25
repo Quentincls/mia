@@ -58,8 +58,8 @@
       "mark": "MM",
       "match": { "baseKey": "minimax", "family": "minimax" },
       "desc": {
-        "fr": "Le seul du PC qui fait une vidéo à partir de tes références : jusqu’à 9 images, 3 vidéos et 3 sons, sans image de début. Anime aussi une image, prolonge une vidéo, suit une vidéo guide. Jusqu’à 15 s avec le son, 24 i/s, 768p (à essayer).",
-        "en": "The only one on this PC that makes a video from your references: up to 9 images, 3 videos and 3 sounds, no start image needed. Also animates an image, extends a video, follows a guide video. Up to 15 s with sound, 24 fps, 768p (to try)."
+        "fr": "Le seul du PC qui fait une vidéo à partir de tes références : jusqu’à 9 images, 3 vidéos et 3 sons, sans image de début. Anime aussi une image, prolonge une vidéo, suit une vidéo guide. Jusqu’à 15 s avec le son, 24 i/s, 768p (à essayer). Pour animer une image ou partir d’un texte, « Rendu » le fait jusqu’à 3 fois plus vite (Esquisse, Rapide) ou dans le style Pika.",
+        "en": "The only one on this PC that makes a video from your references: up to 9 images, 3 videos and 3 sounds, no start image needed. Also animates an image, extends a video, follows a guide video. Up to 15 s with sound, 24 fps, 768p (to try). To animate an image or start from text, “Render” makes it up to 3 times faster (Sketch, Fast) or in the Pika style."
       },
       "emptyHint": {
         "fr": "Rien de branché : MiniMax part de ta consigne. Branche des images de référence pour les mélanger, une image de début pour l’animer, ou une vidéo pour la prolonger.",
@@ -93,7 +93,7 @@
           "label": { "fr": "Animer une image", "en": "Animate an image" },
           "ports": { "start": {}, "end": {}, "keys": { "multi": true, "max": 4 }, "audio": { "trial": true } },
           "required": ["start"],
-          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] },
+          "params": ["prompt", "duration", "format", "resolution", "h3mode", "lora", "loraStrength", "seed"] },
         { "id": "extend", "executor": "i2v", "cap": "image-to-video", "as": "i2v", "promptRequired": true,
           "label": { "fr": "Prolonger une vidéo", "en": "Extend a video" },
           "ports": { "video": { "label": { "fr": "Vidéo à prolonger", "en": "Video to extend" } } }, "required": ["video"],
@@ -104,7 +104,39 @@
         { "id": "t2v", "executor": "i2v", "cap": "image-to-video", "as": "i2v", "promptRequired": true,
           "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
           "ports": { "keys": { "multi": true, "max": 4, "trial": true }, "audio": { "trial": true } }, "required": [],
-          "params": ["prompt", "duration", "format", "resolution", "lora", "loraStrength", "seed"] }
+          "params": ["prompt", "duration", "format", "resolution", "h3mode", "lora", "loraStrength", "seed"] }
+      ]
+    },
+    "pan2": {
+      "provider": "local",
+      "name": "PAN 2",
+      "maker": "MBZUAI · IFM",
+      "mark": "P2",
+      "match": { "baseKey": "pan2", "family": "pan2" },
+      "desc": {
+        "fr": "Un modèle « du monde » : il comprend l’espace, les actions et la caméra, et suit précisément ce que tu décris, seconde par seconde. Pas de son. Lent (environ 30 min pour 5 s en 720p) : pour les plans qui comptent, après avoir cherché avec MiniMax ou LTX.",
+        "en": "A “world” model: it understands space, actions and the camera, and closely follows what you describe, second by second. No sound. Slow (about 30 min for 5 s at 720p): for the shots that matter, once you have explored with MiniMax or LTX."
+      },
+      "emptyHint": {
+        "fr": "Rien de branché : PAN 2 part de ta consigne. Branche une image de début pour l’animer. Mia rédige pour lui une description détaillée à partir de ta consigne (elle apparaît dans la version).",
+        "en": "Nothing connected: PAN 2 starts from your prompt. Connect a start image to animate it. Mia writes a detailed description for it from your prompt (shown in the version)."
+      },
+      "variants": [],
+      "limits": { "seconds": [2, 15], "fps": [24], "resolutions": ["540", "720"], "audio": false, "inputs": ["start", "prompt"] },
+      "kind": "video",
+      "main": ["start"],
+      "workflows": [
+        { "id": "i2v", "executor": "pan2", "cap": "image-to-video", "as": "i2v", "promptRequired": true,
+          "label": { "fr": "Animer une image", "en": "Animate an image" },
+          "paramOverrides": { "prompt": { "placeholder": {
+            "fr": "Dis ce qui se passe et quand, et ce que fait la caméra : « La femme au manteau crème avance vers le fleuve, la foule reste immobile, la caméra avance lentement au-dessus des têtes. »",
+            "en": "Say what happens and when, and what the camera does: “The woman in the cream coat walks towards the river, the crowd stays still, the camera slowly moves forward over the heads.”" } } },
+          "ports": { "start": {} }, "required": ["start"],
+          "params": ["prompt", "duration", "format", "resolution", "seed"] },
+        { "id": "t2v", "executor": "pan2", "cap": "text-to-video", "as": "t2v", "promptRequired": true,
+          "label": { "fr": "Vidéo depuis un texte", "en": "Video from text" },
+          "ports": {}, "required": [],
+          "params": ["prompt", "duration", "format", "resolution", "seed"] }
       ]
     },
     "wan": {
@@ -257,7 +289,7 @@
   "makers": {
     "Higgsfield": "HF", "Kling": "KL", "Bytedance": "BD", "ByteDance": "BD", "Google": "G", "Black Forest Labs": "BF",
     "xAI": "xA", "MiniMax": "MM", "Hailuo": "MM", "Wan": "WA", "OpenAI": "OA", "Lightricks": "LT", "Happy Horse": "HH",
-    "Alibaba · Wan": "WA", "Alibaba · Qwen": "QW", "Nankai University": "BR"
+    "Alibaba · Wan": "WA", "Alibaba · Qwen": "QW", "Nankai University": "BR", "MBZUAI · IFM": "P2"
   },
   "cloud": {
     "higgsfield": {

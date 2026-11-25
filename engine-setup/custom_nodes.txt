@@ -7,3 +7,5 @@ https://github.com/yuvraj108c/ComfyUI-Video-Depth-Anything.git a0db08e63d1ea5716
 https://github.com/Lightricks/ComfyUI-LTXVideo.git 3bf3ca62595f1764c47d01c35c8e5dfe47e1a88f
 # Agrandir : SeedVR2
 https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git 4490bd1f482e026674543386bb2a4d176da245b9
+# MiniMax H3 rapide (réglage « Rendu » : 2 ou 4 étapes, pi-H3) : adaptateurs pi-Flow et décodage DWD (ComfyUI >= 0.45)
+https://github.com/Lakonik/ComfyUI-piFlow.git 4355cc47944e3dbfb175d5f4be3f5af0cfdc08f1

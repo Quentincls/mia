@@ -346,7 +346,7 @@ const GIB = 1024 ** 3;
 // A cancelled or failed version keeps only these; the rest (partial video, frames…) goes to the Recycle Bin.
 const KEEP_ON_FAIL = new Set(['run.json', 'log.txt']);
 // Settings that change a block's duration a lot, learned apart (timings.json).
-const TIMING_PARAMS = ['speed', 'detail'];
+const TIMING_PARAMS = ['speed', 'detail', 'h3mode'];
 // First-run lock estimates (minutes) until real durations are learned — from the catalog's estimates.
 const DEFAULT_MINUTES = {
   'i2v|preview': 2, 'i2v|final': 9, 't2v|preview': 2, 't2v|final': 9, 'real|preview': 3, 'real|final': 20,

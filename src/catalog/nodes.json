@@ -810,6 +810,50 @@
           ]
         },
         {
+          "id": "h3mode",
+          "kind": "seg",
+          "default": "standard",
+          "hashOmitDefault": true,
+          "label": {
+            "fr": "Rendu",
+            "en": "Render"
+          },
+          "options": [
+            {
+              "value": "draft",
+              "label": {
+                "fr": "Esquisse",
+                "en": "Sketch"
+              }
+            },
+            {
+              "value": "fast",
+              "label": {
+                "fr": "Rapide",
+                "en": "Fast"
+              }
+            },
+            {
+              "value": "standard",
+              "label": {
+                "fr": "Standard",
+                "en": "Standard"
+              }
+            },
+            {
+              "value": "pika",
+              "label": {
+                "fr": "Pika",
+                "en": "Pika"
+              }
+            }
+          ],
+          "hint": {
+            "fr": "Esquisse : 2 étapes, environ 3 fois plus vite, pour chercher le mouvement et le cadrage. Rapide : 4 étapes, presque la qualité Standard en 2 fois moins de temps. Standard : 8 étapes, le rendu habituel. Pika : le style de Pika H3 Flex, en 6 étapes. Avec peu d’étapes, le son peut être moins bon.",
+            "en": "Sketch: 2 steps, about 3 times faster, to find the motion and the framing. Fast: 4 steps, close to Standard in half the time. Standard: 8 steps, the usual render. Pika: the Pika H3 Flex style, in 6 steps. With few steps, the sound can be weaker."
+          }
+        },
+        {
           "id": "lora",
           "kind": "model",
           "caps": [

@@ -15,6 +15,7 @@ const path = require('node:path');
 const P = require('../patch');
 
 const E = P.exec;
+const PAN2 = require('./pan2.js');
 
 const LTX_INT8 = 'ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors';
 const FPS = 24;
@@ -63,6 +64,8 @@ function plan(x) {
 }
 
 async function run(x) {
+  // PAN 2 chosen in the task block: its own executor (two steps, no sound)
+  if (PAN2.isPan2(E.model(x, 'model'))) return PAN2._run(x);
   E.begin(x);
   const pl = plan(x);
   const { w, h, seconds } = pl;
@@ -159,6 +162,7 @@ async function run(x) {
 }
 
 function estimate(x) {
+  if (PAN2.isPan2(E.model(x, 'model'))) return PAN2.estimate(x);
   try {
     const { w, h, frames, twoPass, enhance, sheet } = plan(x);
     const extra = enhance ? 0.5 : 0;

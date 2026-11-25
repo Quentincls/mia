@@ -266,6 +266,33 @@
         "459:456": "image vide",
         "459:458": "échantillonneur"
       }
+    },
+    "pan2_caption": {
+      "executor": "pan2 (1re étape : la légende)",
+      "source": "écrit pour Mia (Apache-2.0) ; consigne du rédacteur et prompt négatif : ifm-ai/PAN2 (Apache-2.0), dossier pan2/",
+      "changes": [],
+      "nodes": {
+        "1": "Qwen 3.5 9B (l’encodeur de PAN 2), type pan2",
+        "2/3": "image de début réduite à 448 px (supprimés sans image)",
+        "4": "TextGenerateV2 : demande JSON (type, original_prompt, duration_sec) + system_prompt du rédacteur",
+        "5": "PreviewAny : la réponse, relue par l’executor"
+      },
+      "requires": "ComfyUI >= 0.45 (TextGenerateV2, type pan2)"
+    },
+    "pan2_i2v": {
+      "executor": "pan2 (2e étape : la vidéo)",
+      "source": "écrit pour Mia (Apache-2.0) d’après la chaîne native de ComfyUI pour PAN 2 (PR #17755) et les réglages des auteurs (generate.py)",
+      "changes": [],
+      "nodes": {
+        "1": "UNET PAN 2 int8, sans ModelSamplingSD3 (le décalage 9 est celui du modèle)",
+        "5": "légende JSON compacte",
+        "6": "négatif fixe des auteurs, durée du plan",
+        "7/8": "image de début (supprimés sans image)",
+        "9": "Wan22ImageToVideoLatent : taille, 4n + 1 images",
+        "10": "KSampler 50 étapes, euler / simple, CFG 2,5, graine",
+        "9990": "PNG"
+      },
+      "requires": "ComfyUI >= 0.45 (PAN 2 natif)"
     }
   }
 }

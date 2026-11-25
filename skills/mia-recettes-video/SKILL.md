@@ -191,6 +191,19 @@ Toutes passent par un bloc Modèle (`type:"gen"`, voir mia-piloter) ; le moteur 
   qui les cite + « Vidéo à partir de références » (MiniMax).
 - **MiniMax 768p** : la taille native (1344 × 768) au lieu de 704 px ; si la mémoire manque, revenir en 720p.
 
+## 11. Aller plus vite avec MiniMax, ou suivre précisément une action avec PAN 2 (25/11)
+
+- **Rendu** de MiniMax (`h3mode`, bloc Modèle, « Animer une image » et « Vidéo depuis un texte ») : `draft`
+  (Esquisse, 2 étapes) pour chercher le mouvement et le cadrage, `fast` (Rapide, 4 étapes) pour un plan presque
+  final, `standard` (8 étapes) pour le rendu final, `pika` pour le style de Pika H3 Flex. Sur la RTX Spark, 5 s en
+  704 × 1248 : 143 s, 267 s, 487 s et 354 s. La démarche conseillée : plusieurs Esquisses (graines différentes), puis
+  la meilleure en Standard. Avec peu d'étapes, le son peut être moins bon. Prolonger une vidéo reste en Standard.
+- **PAN 2** (`fam:pan2`, bloc Modèle) : à garder pour les plans où l'action et la caméra doivent suivre exactement
+  ce qui est décrit (« elle avance à 2 s, la caméra la suit »). Pas de son (ajouter un bloc Son ensuite), lent : environ
+  30 min pour 5 s en 720p, 3 à 4 min en aperçu. Écrire une consigne qui dit **quoi, quand et ce que fait la caméra** ;
+  Mia en fait une description détaillée (visible dans la version). Un assistant peut aussi écrire directement la
+  légende JSON de PAN 2 dans la consigne (sept clés, voir mia-piloter / mcp README). Commencer par un aperçu.
+
 ## Durées indicatives (GPU portable de 24 Go, un calcul lourd à la fois)
 Retoucher une image ≈ 15 s (rapide) / ≈ 3 min (qualité) · Animer une image : aperçu ≈ 1 min, final 5-9 min ·
 Rendre photoréaliste : aperçu ≈ 2 min, ≈ 9 min par 4 s · Vidéo guidée ≈ 8 min par 4 s · Références ≈ 6 min pour

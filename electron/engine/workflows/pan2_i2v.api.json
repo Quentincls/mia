@@ -1,0 +1,49 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": { "unet_name": "pan2_int8_convrot.safetensors", "weight_dtype": "default" }
+  },
+  "3": {
+    "class_type": "CLIPLoader",
+    "inputs": { "clip_name": "qwen3.5_9b_int8_convrot.safetensors", "type": "pan2", "device": "default" }
+  },
+  "4": {
+    "class_type": "VAELoader",
+    "inputs": { "vae_name": "wan2.2_vae.safetensors" }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "clip": ["3", 0], "text": "" }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "clip": ["3", 0], "text": "" }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "mia/placeholder_start.png" }
+  },
+  "8": {
+    "class_type": "ImageScale",
+    "inputs": { "image": ["7", 0], "upscale_method": "lanczos", "width": 704, "height": 1248, "crop": "center" }
+  },
+  "9": {
+    "class_type": "Wan22ImageToVideoLatent",
+    "inputs": { "vae": ["4", 0], "width": 704, "height": 1248, "length": 121, "batch_size": 1, "start_image": ["8", 0] }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["1", 0], "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["9", 0],
+      "seed": 42, "steps": 50, "cfg": 2.5, "sampler_name": "euler", "scheduler": "simple", "denoise": 1
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["10", 0], "vae": ["4", 0] }
+  },
+  "9990": {
+    "class_type": "SaveImage",
+    "inputs": { "images": ["11", 0], "filename_prefix": "mia/pan2/frame" }
+  }
+}

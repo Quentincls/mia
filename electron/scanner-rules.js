@@ -14,8 +14,8 @@
 // Révision locale des règles d'IDENTIFICATION : à incrémenter dès qu'un champ du cache de fichiers change de sens
 // (tout est alors relu de zéro). Le catalogue d'affichage a sa propre révision (CATALOG_REV) : la changer jette
 // seulement l'inventaire mis en cache, pas l'identification des fichiers (le démarrage reste rapide).
-const RULES_REV = 2;   // 2 : FLUX.2 Klein 9B et Qwen-Image 2.1 (modèles et LoRA), 25/10/2026
-const CATALOG_REV = 6;   // 6 : LoRA entraînés dans Mia (fiche .mia.json : nom, genre, entraînement, « · étape N ») ; 5 : versions de LTX 2.5 (Compacte, Pleine, Complète), mémoire par version, précision d’un fichier inattendu ; 4 : FLUX.2 Klein 9B, Qwen-Image 2.1 (à l’essai) ; 3 : textes neutres (licence MiniMax, mémoire vidéo, dossier du moteur), identités hors dépôt
+const RULES_REV = 3;   // 3 : PAN 2 (MBZUAI IFM), 25/11/2026 ; 2 : FLUX.2 Klein 9B et Qwen-Image 2.1 (modèles et LoRA), 25/10/2026
+const CATALOG_REV = 7;   // 7 : PAN 2 et ses pièces, accélérateur pi-H3 et style Pika H3 Flex (pièces cachées), 25/11/2026 ; 6 : LoRA entraînés dans Mia (fiche .mia.json : nom, genre, entraînement, « · étape N ») ; 5 : versions de LTX 2.5 (Compacte, Pleine, Complète), mémoire par version, précision d’un fichier inattendu ; 4 : FLUX.2 Klein 9B, Qwen-Image 2.1 (à l’essai) ; 3 : textes neutres (licence MiniMax, mémoire vidéo, dossier du moteur), identités hors dépôt
 
 // ---------------------------------------------------------------------------------------------
 // 1. Règles de classification (port de model_rules.json, ordre significatif : la 1re règle gagne)
@@ -25,6 +25,7 @@ const RULES = {
   loraSuffix: "\\.(lora\\.(a|b|down|up)(\\.weight)?|lokr\\.w[12]|hada\\.w[12]\\.[ab]|alpha|diff\\.b|diff)$",
   auxTensor: "(scale|comfy\\.quant|absmax|quant\\.map|quant\\.state|scaled\\.fp8|hf\\.asset|tokenizer|spiece|position\\.ids|num\\.batches\\.tracked|running\\.(mean|var)|^__)",
   rules: [
+    {"id":"pan2","family":"PAN 2","role":"diffusion_model","task":"video","all":["adaln.t.table","context.type.embedding"],"any":["context.refiner.#.attn"]},
     {"id":"minimax_h3","family":"MiniMax H3","role":"diffusion_model","task":"video_audio","all":["token.refiner.blocks","video.patch.proj"],"any":["audio.patch.proj","final.layer.video.out"],"lora_all":["blocks.#.attn.qkv.proj","token.refiner.blocks"]},
     {"id":"minimax_h3_control","family":"MiniMax H3","role":"controlnet","task":"video_control","all":["^control.blocks.#","^control.proj.in"]},
     {"id":"ltx2_av","family":"LTX-2.x","role":"diffusion_model","task":"video_audio","any":["audio.adaln.single","av.ca.a2v.gate.adaln.single","audio.patchify.proj"],"probe":["adaln.single.linear",1],"sizes":{"4096":"22B"},"blocks":"transformer.blocks.#.attn1.to.q"},
@@ -239,6 +240,12 @@ const FILES = {
   ref2v: F('minimax_h3_ref2va_pruned_int8_convrot.safetensors', 'diffusion_models', 21),
   ref2vTurbo: F('minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors', 'loras', 2),
   wan: F('wan_animate_2_int8_convrot.safetensors', 'diffusion_models', 16.7),
+  pan2: F('pan2_int8_convrot.safetensors', 'diffusion_models', 26.7),
+  pan2Te: F('qwen3.5_9b_int8_convrot.safetensors', 'text_encoders', 9.7),
+  pan2Vae: F('wan2.2_vae.safetensors', 'vae', 1.4),
+  pih3Fast: F('pi_h3_4step_dwd_adapter_int8_convrot.safetensors', 'loras', 2.2),
+  pih3Draft: F('pi_h3_2step_dwd_adapter_int8_convrot.safetensors', 'loras', 2.2),
+  pikaFlex: F('pika_h3_flex_fl2va_comfy_bf16.safetensors', 'loras', 2),
   wanTe: F('umt5_xxl_fp8_e4m3fn_scaled.safetensors', 'text_encoders', 6.7),
   wanVision: F('clip_vision_h.safetensors', 'clip_vision', 1.3),
   wanVae: F('Wan2_1_VAE_bf16.safetensors', 'vae', 0.25),
@@ -266,12 +273,12 @@ const PREFER_AS = { 'ltx-full': 'ltx-other' };
 // `name` = le modèle attendu, `files` = ce qu'il faut ajouter quand la capacité manque ; `download` = rien n'est encore sur le PC.
 // `optional` = capacité facultative (jamais listée dans « Il manque »).
 const CAPS = [
-  { id: 'image-to-video', group: 'video', prefer: [...LTX_ORDER, 'minimax'],
+  { id: 'image-to-video', group: 'video', prefer: [...LTX_ORDER, 'minimax', 'pan2'],
     name: { fr: 'LTX 2.5', en: 'LTX 2.5' },
     label: { fr: 'Animer une image', en: 'Animate an image' },
     missing: { fr: 'Aucun modèle vidéo prêt (LTX 2.5 ou MiniMax H3).', en: 'No video model ready (LTX 2.5 or MiniMax H3).' },
     files: [FILES.ltx] },
-  { id: 'text-to-video', group: 'video', prefer: LTX_ORDER,
+  { id: 'text-to-video', group: 'video', prefer: [...LTX_ORDER, 'pan2'],
     name: { fr: 'LTX 2.5', en: 'LTX 2.5' },
     label: { fr: 'Vidéo depuis un texte', en: 'Video from text' },
     missing: { fr: "LTX 2.5 n’est pas installé.", en: 'LTX 2.5 is not installed.' },
@@ -341,6 +348,7 @@ const BASES = {
   ltx: { families: ['LTX-2.x'], label: { fr: 'LTX 2.5', en: 'LTX 2.5' }, media: 'video' },
   minimax: { families: ['MiniMax H3'], label: { fr: 'MiniMax H3', en: 'MiniMax H3' }, media: 'video' },
   wan: { families: ['Wan 2.x'], label: { fr: 'Wan', en: 'Wan' }, media: 'video' },
+  pan2: { families: ['PAN 2'], label: { fr: 'PAN 2', en: 'PAN 2' }, media: 'video' },
   qwen: { families: ['Qwen-Image'], label: { fr: 'Qwen Image', en: 'Qwen Image' }, media: 'image' },
   seedvr2: { families: ['SeedVR2'], label: { fr: 'SeedVR2', en: 'SeedVR2' }, media: 'video' },
   ltxv: { families: ['LTX-Video 0.9'], label: { fr: 'LTX-Video 0.9 (ancienne version)', en: 'LTX-Video 0.9 (old version)' }, media: 'video' },
@@ -587,6 +595,13 @@ const CATALOG = [
       en: 'Your character, from a single image, replays the motion of a video with a steady face.' },
     caps: ['character-performance'], needs: ['wan-te', 'wan-vision', 'wan-vae'], expect: FILES.wan,
     license: 'ok', licenseNote: LIC.apache, vramGB: 18, speed: 1, quality: 3 },
+  // PAN 2 (MBZUAI IFM, 25/11/2026) : modèle « du monde », 29B, sans son ; Mia rédige sa légende structurée (pan2.js)
+  { key: 'pan2', when: { family: 'PAN 2', role: 'diffusion_model' },
+    label: { fr: 'PAN 2', en: 'PAN 2' },
+    desc: { fr: 'Une vidéo qui suit précisément les actions et la caméra que tu décris, sans le son. Lent : à garder pour les plans importants.',
+      en: 'A video that closely follows the actions and the camera you describe, without sound. Slow: keep it for the shots that matter.' },
+    caps: ['image-to-video', 'text-to-video'], needs: ['pan2-te', 'pan2-vae'], expect: FILES.pan2,
+    license: 'ok', licenseNote: LIC.apache, vramGB: 30, speed: 1, quality: 3 },
   { key: 'qwen-edit', when: { family: 'Qwen-Image', role: 'diffusion_model', name: /edit/ },
     label: { fr: 'Qwen Image Edit', en: 'Qwen Image Edit' },
     desc: { fr: 'Change une image selon ta consigne, sans bouger le cadrage.',
@@ -725,6 +740,14 @@ const CATALOG = [
     label: { fr: 'Accélérateur Wan', en: 'Wan accelerator' },
     desc: { fr: 'Moins d’étapes de calcul pour Wan Animate.', en: 'Fewer compute steps for Wan Animate.' },
     license: 'ok', licenseNote: LIC.apache },
+  { key: 'minimax-pih3', when: { role: 'lora', name: /pi.?h3/ }, ...PART('speedup'), expect: FILES.pih3Fast,
+    label: { fr: 'Accélérateur MiniMax pi-H3 (2 ou 4 étapes)', en: 'MiniMax pi-H3 accelerator (2 or 4 steps)' },
+    desc: { fr: 'Le rendu Esquisse ou Rapide de MiniMax H3 : 2 à 4 fois plus vite.', en: 'The Sketch or Fast render of MiniMax H3: 2 to 4 times faster.' },
+    license: 'rd', licenseNote: LIC.minimax },
+  { key: 'minimax-pika', when: { role: 'lora', name: /pika.?h3.?flex/ }, ...PART('mode'), expect: FILES.pikaFlex,
+    label: { fr: 'Style Pika H3 Flex', en: 'Pika H3 Flex style' },
+    desc: { fr: 'Le rendu Pika de MiniMax H3 : le réglage esthétique de Pika, en 6 étapes.', en: 'The Pika render of MiniMax H3: Pika’s look, in 6 steps.' },
+    license: 'rd', licenseNote: LIC.minimax },
   { key: 'minimax-ref2v-turbo', when: { role: 'lora', name: /(ref2v|r2v).*turbo|turbo.*(ref2v|r2v)/ }, ...PART('speedup'), expect: FILES.ref2vTurbo,
     label: { fr: 'Accélérateur MiniMax Références (4 étapes)', en: 'MiniMax References accelerator (4 steps)' },
     desc: { fr: 'La vidéo à partir de références en 4 étapes de calcul.', en: 'Video from references in 4 compute steps.' },
@@ -751,6 +774,10 @@ const CATALOG = [
   { key: 'qwen21-te', when: { family: ['Qwen3-VL', 'Qwen3'], name: /qwen3.?vl.?8b/ }, ...PART('text_encoder'), expect: FILES.qwen21Te,
     label: { fr: 'Encodeur de texte Qwen-Image 2.1', en: 'Qwen-Image 2.1 text encoder' },
     desc: { fr: 'Lit ta consigne pour Qwen-Image 2.1 (Qwen3-VL 8B).', en: 'Reads your prompt for Qwen-Image 2.1 (Qwen3-VL 8B).' },
+    license: 'ok', licenseNote: LIC.apache },
+  { key: 'pan2-te', when: { family: ['Qwen3', 'Qwen3.5'], name: /qwen3[._-]?5/ }, ...PART('text_encoder'), expect: FILES.pan2Te,
+    label: { fr: 'Encodeur de texte PAN 2', en: 'PAN 2 text encoder' },
+    desc: { fr: 'Lit ta consigne pour PAN 2 et en rédige la légende détaillée (Qwen 3.5 9B).', en: 'Reads your prompt for PAN 2 and writes its detailed caption (Qwen 3.5 9B).' },
     license: 'ok', licenseNote: LIC.apache },
   { key: 'flux2-klein9b-te', when: { family: 'Qwen3', name: /qwen_?3_?8b/ }, ...PART('text_encoder'), expect: FILES.klein9bTe,
     label: { fr: 'Encodeur de texte FLUX.2 Klein 9B', en: 'FLUX.2 Klein 9B text encoder' },
@@ -816,6 +843,10 @@ const CATALOG = [
   { key: 'qwen-vae', when: { family: 'Qwen-Image', role: 'vae' }, ...PART('vae'), expect: FILES.qwenVae,
     label: { fr: 'Décodeur Qwen', en: 'Qwen decoder' },
     desc: { fr: 'Transforme le calcul de Qwen en image.', en: "Turns Qwen's computation into an image." },
+    license: 'ok', licenseNote: LIC.apache },
+  { key: 'pan2-vae', when: { rule: 'wan_vae', name: /wan2[._-]?2/ }, ...PART('vae'), expect: FILES.pan2Vae,
+    label: { fr: 'Décodeur d’image PAN 2 (Wan 2.2)', en: 'PAN 2 image decoder (Wan 2.2)' },
+    desc: { fr: 'Transforme le calcul de PAN 2 en images.', en: 'Turns PAN 2’s computation into images.' },
     license: 'ok', licenseNote: LIC.apache },
   { key: 'wan-vae', when: { rule: 'wan_vae' }, ...PART('vae'), expect: FILES.wanVae,
     label: { fr: 'Décodeur Wan', en: 'Wan decoder' },

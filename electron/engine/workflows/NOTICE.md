@@ -31,6 +31,8 @@ aggregated with Mia, not linked into its code.
 | `seedvr2_native.api.json` | ComfyUI, `blueprints/Upscale Video (SeedVR2 3B Int8).json` | GPL-3.0 |
 | `depth_vda.api.json` | written by the author for Mia | Apache-2.0 |
 | `seedvr2_node.api.json` | written by the author for Mia | Apache-2.0 |
+| `pan2_caption.api.json`, `pan2_i2v.api.json` | written by the author for Mia | Apache-2.0 |
+| `pan2/rewriter_system_prompt.md`, `pan2/generic_negative.txt` | MBZUAI IFM, https://github.com/ifm-ai/PAN2 | Apache-2.0 |
 
 Full licence texts, in `docs/licenses/`:
 [LTX-2.x-Community-License.txt](../../../docs/licenses/LTX-2.x-Community-License.txt),
@@ -160,6 +162,12 @@ Source: `templates/video_minimax_h3_i2v.json`. Same chain as the template (`UNET
   Mia (multiples of 32, 17k + 5 frames at 24 fps) and an `ImageScale` (lanczos, centred crop) before `first_frame`.
 - The executor adds the end image (`last_frame`, nodes `7` and `19`) when one is given.
 - Seed 1 → 42; `CreateVideo` + `SaveVideo` → `9990` `SaveImage` + `9991` `SaveAudioAdvanced` (FLAC).
+- « Rendu » (executor `i2v.js`, `h3mode`): « Pika » swaps the turbo LoRA for `pika_h3_flex_fl2va_comfy_bf16` with
+  `lcm` and the `ManualSigmas` of Comfy-Org's `video_pika_h3_flex_fl2va.json` template (MIT); « Esquisse » and
+  « Rapide » follow Lakonik's `pi-H3-DWD.json` (ComfyUI-piFlow, Apache-2.0): `Load LakonLab Adapter` (2- or 4-step
+  DWD adapter) in place of the turbo LoRA, `MiniMaxH3SigmaShift` 12 / 3, `pi-Flow Scheduler` (max_raw_t 0.93 / 0.96,
+  final_step_size_scale 0.6), `euler`, and `DWD Decode` in place of the video `VAEDecode` (sparse attention left out:
+  Spark-H3 has no Windows ARM64 build).
 
 ### `minimax_r2v.api.json` (block « Vidéo à partir de références »)
 
@@ -250,3 +258,15 @@ Modified by Quentin Colus for Mia, 17 October 2026 (Mia 0.5.0):
 `seedvr2_node.api.json` (SeedVR2 through the nodes of ComfyUI-SeedVR2_VideoUpscaler, with the settings of the
 author's command-line tool) were written by the author from those nodes' inputs. They are under Apache-2.0, like the
 rest of Mia.
+
+`pan2_caption.api.json` and `pan2_i2v.api.json` (PAN 2, executor `pan2`) were written by the author for Mia from the
+native ComfyUI nodes (ComfyUI ≥ 0.45: `TextGenerateV2`, `CLIPLoader` type `pan2`, `Wan22ImageToVideoLatent`) and the
+defaults of the PAN 2 authors (50 steps, euler / simple, CFG 2.5, 24 fps). They are under Apache-2.0.
+
+### `pan2/` (rewriter system prompt and fixed negative of PAN 2)
+
+`pan2/rewriter_system_prompt.md` (from `inference/pan-prompt-rewriter/system_prompt.md`) and
+`pan2/generic_negative.txt` (from `inference/pan-prompt-rewriter/assets/generic_negative.txt`) are copied unchanged
+from the PAN 2 repository of MBZUAI's Institute of Foundation Models, https://github.com/ifm-ai/PAN2 (commit
+`0fb907b6e16a82ead6d691d1de2eef6299c71e9a`), under the Apache License 2.0. Mia only replaces `{duration_sec}` in the
+negative with the shot's length at run time.

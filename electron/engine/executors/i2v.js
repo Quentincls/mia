@@ -7,6 +7,11 @@
 //     frame (padded, never cropped), looped over the whole shot and given as an IC-LoRA guide at frame 0.
 //   MiniMax H3 (when chosen): first + last frame, turbo 8 steps, 24 fps (adapted from one of the author's tests).
 //     The sheet is ignored with MiniMax (note).
+//     « Rendu » (Model block, catalog `h3mode`, checked on the GPU 25/11 on the Spark, same shot each time):
+//       standard = turbo lightx2v 8 steps (as before, 487 s) · pika = Pika H3 Flex LoRA, lcm, the 6 sigmas of the
+//       Comfy-Org template (354 s) · fast / draft = pi-H3 DWD adapter 4 / 2 steps (pi-Flow Scheduler, sigma shift
+//       12 / 3, the adapter predicts the pixels at the last step: « DWD Decode » instead of the VAE decode; 267 / 143 s).
+//       Not for « Prolonger une vidéo » (standard there).
 //   Keyframes (« Images-clés », Model block): up to 4 images the shot passes through, spread evenly between the first
 //     and the last frame in wire order — MiniMaxH3AddGuide (MiniMax, checked on the GPU 24/10: same framing as the
 //     start image or the shot cuts to it) / LTXVAddGuide (LTX: imposed at strength 1 in 1 pass, « à essayer » ;
@@ -27,9 +32,19 @@ const path = require('node:path');
 const P = require('../patch');
 
 const E = P.exec;
+const PAN2 = require('./pan2.js');
 
 const LTX_INT8 = 'ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors';
 const MINIMAX_INT8 = 'minimax_h3_fl2va_pruned_int8_convrot.safetensors';
+// « Rendu » of MiniMax H3 (catalog `h3mode`): the files each one needs, its steps, and the share of a standard run it
+// takes once the model is loaded (GPU 25/11, Spark: ≈ 70 s of loading, then ≈ 46 s a step at 704×1248×124)
+const H3_MODES = {
+  standard: { steps: 8, share: 1 },
+  pika: { steps: 6, share: 0.75, lora: 'pika_h3_flex_fl2va_comfy_bf16.safetensors', name: 'Pika H3 Flex',
+    sigmas: '1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0' },
+  fast: { steps: 4, share: 0.5, adapter: 'pi_h3_4step_dwd_adapter_int8_convrot.safetensors', name: 'pi-H3', maxT: 0.96 },
+  draft: { steps: 2, share: 0.25, adapter: 'pi_h3_2step_dwd_adapter_int8_convrot.safetensors', name: 'pi-H3', maxT: 0.93 },
+};
 const INGREDIENTS = 'ltx-2.3-22b-ic-lora-ingredients-0.9.safetensors';
 const PREVIEW_MAX_S = 3;
 const GUIDE_PASSTHROUGH = { 0: 'positive', 1: 'negative', 2: 'latent' };
@@ -86,6 +101,11 @@ const TXT = {
   },
   tooShort: { fr: 'La vidéo à prolonger est trop courte (moins de 0,2 s).', en: 'The video to extend is too short (under 0.2 s).' },
   minimaxRes: { fr: 'MiniMax H3 travaille jusqu’à 768p : taille ramenée.', en: 'MiniMax H3 works up to 768p: size reduced.' },
+  h3fast: { fr: 'Rendu {name} : pi-H3 en {n} étapes.', en: '{name} render: pi-H3 in {n} steps.' },
+  h3draftName: { fr: 'Esquisse', en: 'Sketch' },
+  h3fastName: { fr: 'Rapide', en: 'Fast' },
+  h3pika: { fr: 'Rendu Pika : Pika H3 Flex en 6 étapes.', en: 'Pika render: Pika H3 Flex in 6 steps.' },
+  h3extend: { fr: 'Prolonger une vidéo se fait en rendu Standard.', en: 'Extending a video uses the Standard render.' },
   defaultPrompt: {
     fr: 'Cinematic live-action shot, the scene comes alive with natural motion, steady camera, realistic light.',
     en: 'Cinematic live-action shot, the scene comes alive with natural motion, steady camera, realistic light.',
@@ -114,6 +134,31 @@ function keyFrames(frames, n, grid8 = false) {
     const top = Math.max(8, Math.floor((frames - 2) / 8) * 8);
     return Math.min(top, Math.max(8, Math.round(f / 8) * 8));
   });
+}
+
+/** The MiniMax « Rendu » asked for (catalog `h3mode`), standard when unknown. */
+const h3ModeOf = (x) => (H3_MODES[x.params && x.params.h3mode] ? x.params.h3mode : 'standard');
+
+/**
+ * Turns the minimax_i2v template (standard: turbo LoRA « 2 », res_multistep « 10 », 8-step scheduler « 11 », VAE
+ * decode « 14 ») into the asked render. The character LoRA is added after « 2 » afterwards, so it stays right after
+ * the speed LoRA or the pi-H3 adapter.
+ */
+function applyH3Mode(g, key) {
+  const mode = H3_MODES[key];
+  if (!mode || key === 'standard') return;
+  if (mode.lora) {
+    P.set(g, '2', 'lora_name', mode.lora);
+    P.set(g, '10', 'sampler_name', 'lcm');
+    g['11'] = { class_type: 'ManualSigmas', inputs: { sigmas: mode.sigmas } };
+    return;
+  }
+  g['2'] = { class_type: 'Load LakonLab Adapter', inputs: { model: ['1', 0], adapter_name: mode.adapter, adapter_strength: 1 } };
+  P.insertAfter(g, '2', '16', { class_type: 'MiniMaxH3SigmaShift', inputs: { shift_video: 12, shift_audio: 3 } }, { 0: 'model' });
+  P.set(g, '10', 'sampler_name', 'euler');
+  g['11'] = { class_type: 'pi-Flow Scheduler',
+    inputs: { model: ['16', 0], steps: mode.steps, min_raw_t: 0, max_raw_t: mode.maxT, final_step_size_scale: 0.6 } };
+  g['14'] = { class_type: 'DWD Decode', inputs: { samples: ['13', 0] } };
 }
 
 function plan(x, vmeta = null) {
@@ -158,6 +203,8 @@ function plan(x, vmeta = null) {
 }
 
 async function run(x) {
+  // PAN 2 chosen in the task block: its own executor (two steps, no sound)
+  if (PAN2.isPan2(E.model(x, 'model'))) return PAN2._run(x);
   const temps = [];                    // _files of this run (sound to follow, video to extend), always removed
   try { return await animate(x, temps); } finally { await E.cleanup(temps); }
 }
@@ -266,7 +313,17 @@ async function animate(x, temps) {
       P.addNode(g, 'ImageScale', { upscale_method: 'lanczos', width: w, height: h, crop: 'center', image: ['7', 0] }, '19');
       P.set(g, '8', 'last_frame', ['19', 0]);
     }
-    if (lora) E.addLora(g, '2', lora, '40');            // after the turbo LoRA
+    // « Rendu » (not when extending a video: the anchored tail was only checked with the standard render)
+    const h3 = ext ? 'standard' : h3ModeOf(x);
+    if (ext && h3ModeOf(x) !== 'standard') notes.push(E.t(TXT.h3extend));
+    if (h3 !== 'standard') {
+      const mode = H3_MODES[h3];
+      await E.requireModels(x, [['loras', mode.lora || mode.adapter]], `${E.t(TXT.minimax)} · ${mode.name}`);
+      applyH3Mode(g, h3);
+      notes.push(mode.lora ? E.t(TXT.h3pika)
+        : E.t(TXT.h3fast, { n: mode.steps, name: E.t(h3 === 'draft' ? TXT.h3draftName : TXT.h3fastName) }));
+    }
+    if (lora) E.addLora(g, '2', lora, '40');            // after the turbo LoRA (or the pi-H3 adapter)
     if (pl.asked !== 24) notes.push(E.t(TXT.fpsForced));
     if (pl.capped) notes.push(E.t(TXT.minimaxRes));
     if (pl.native) notes.push(E.t('minimax768'));
@@ -430,10 +487,12 @@ async function animate(x, temps) {
 }
 
 function estimate(x) {
+  if (PAN2.isPan2(E.model(x, 'model'))) return PAN2.estimate(x);
   try {
-    const { mm, preview, sheet, w, h, frames, twoPass, enhance } = plan(x);
-    // MiniMax: 704×1248×56 in ~2 min, ×124 in ~5 min 17 (lab)
-    if (mm) return preview ? 1.5 : 0.6 + 2.2 * (frames / 56) * ((w * h) / (704 * 1248));
+    const { mm, preview, sheet, w, h, frames, twoPass, enhance, ext } = plan(x);
+    // MiniMax: 704×1248×56 in ~2 min, ×124 in ~5 min 17 (lab); the « Rendu » scales the steps, not the loading
+    const share = mm && !ext ? H3_MODES[h3ModeOf(x)].share : 1;
+    if (mm) return preview ? 0.6 + 0.9 * share : 0.6 + 2.2 * share * (frames / 56) * ((w * h) / (704 * 1248));
     // two passes: 8 steps at a quarter of the pixels, then the ×2 refining pass; Gemma's rewrite ~ half a minute
     if (twoPass) return E.ltxTwoPassMinutes(w, h, frames) + (enhance ? 0.5 : 0);
     // a looped sheet doubles the tokens: attention grows ~ tokens^1.5

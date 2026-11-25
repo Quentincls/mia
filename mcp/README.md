@@ -232,7 +232,7 @@ demande de nommer l'entrée (`to.port`).
 
 ### Le bloc Modèle (un bloc par modèle)
 Quand tu demandes un modèle par son nom (« fais-le avec MiniMax », « essaie Seedance »), l'assistant pose un bloc
-Modèle (`type: "gen"`, `params.model` = `fam:ltx`, `fam:minimax`, `fam:wan`, `fam:qwen`, ou `hf:…` en ligne,
+Modèle (`type: "gen"`, `params.model` = `fam:ltx`, `fam:minimax`, `fam:pan2`, `fam:wan`, `fam:qwen`, ou `hf:…` en ligne,
 payant, seulement si tu l'as demandé). Il sait, par `mia_catalog`, ce que chaque modèle fait selon ce qu'on lui
 branche (`ways` : ce qu'il faut brancher, combien, quels réglages, ce qui est « à essayer ») et relie en nommant
 l'entrée (`start`, `keys`, `refs`, `refAudios`, `video`, `audio`…), même celles que l'écran range derrière
@@ -240,6 +240,12 @@ l'entrée (`start`, `keys`, `refs`, `refAudios`, `video`, `audio`…), même cel
 quoi il se sert (`model.uses`), ce qui manque et ce qui est ignoré ; sur un bloc encore vide, `model.startFrom`
 donne les points de départ de la ligne « Partir de : » (entrée et ce qu'elle ferait). Les nouveautés « à essayer » (images-clés de LTX, son à suivre, sons de référence, 768p) sont signalées comme telles : juge le résultat à l'œil. Prolonger une vidéo et les images-clés de MiniMax
 sont validés (essais du 24/10).
+
+MiniMax a un réglage `h3mode` (« Rendu », pour animer une image et partir d'un texte) : `draft` (Esquisse, 2 étapes,
+environ 3 fois plus vite), `fast` (Rapide, 4 étapes), `standard` (8 étapes, par défaut) et `pika` (le style Pika H3 Flex,
+6 étapes). PAN 2 (`fam:pan2`, sans son, lent) suit de près les actions et la caméra décrites seconde par seconde : Mia
+fait rédiger sa description détaillée par Qwen 3.5 à partir de la consigne (elle apparaît dans la version) ; une
+consigne qui est déjà une légende JSON de PAN 2 (sept clés) est utilisée telle quelle. Essais GPU du 25/11.
 
 Sur ce PC, le réglage `passes` des blocs LTX (`auto`, `1`, `2`, ou leurs libellés « Auto », « 1 passe »,
 « 2 passes ») choisit une ou deux passes ; `auto` en fait deux dès qu'une image de fin ou des images-clés sont

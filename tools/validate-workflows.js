@@ -231,6 +231,7 @@ const INV = {
   ltxFp4: inv('ltx-2.5-22b-distilled-transformer-nvfp4.safetensors', 'diffusion_models', 'LTX-2.x', 'LTX 2.5 · rapide',
     { en: 'LTX 2.5 · fast' }),
   minimax: inv('minimax_h3_fl2va_pruned_int8_convrot.safetensors', 'diffusion_models', 'MiniMax H3', 'MiniMax H3'),
+  pan2: inv('pan2_int8_convrot.safetensors', 'diffusion_models', 'PAN 2', 'PAN 2', { baseKey: 'pan2' }),
   ref2va: inv(REF2V.REF2VA, 'diffusion_models', 'MiniMax H3', 'MiniMax H3 · références', { en: 'MiniMax H3 · references' }),
   mara: inv('mara_ltx25_02000.safetensors', 'loras', 'LTX-2.x', 'Mara', { role: 'lora', trigger: 'mra woman', loraFor: 'ltx' }),
   rooftop: inv('rooftop_ltx25.safetensors', 'loras', 'LTX-2.x', 'Rooftop', { role: 'lora', trigger: 'rooftop place' }),
@@ -297,6 +298,46 @@ const ltxWay = (id) => {
   return { provider: 'local', key: 'ltx', family: 'LTX 2.5', workflow: w.id, what: w.label.fr, executor: w.executor, as: w.as,
     cap: w.cap, kind: 'video', ports: Object.keys(w.ports || {}), params: w.params };
 };
+// une façon de faire du bloc Modèle, telle que planGen la donne (famille locale quelconque)
+const famWay = (key, id) => {
+  const fam = FAMILIES.families[key];
+  const w = fam.workflows.find((x) => x.id === id);
+  return { provider: 'local', key, family: fam.name, workflow: w.id, what: w.label.fr, executor: w.executor, as: w.as,
+    cap: w.cap, kind: 'video', ports: Object.keys(w.ports || {}), params: w.params };
+};
+// PAN 2 : la réponse du rédacteur (Qwen 3.5) telle qu'il l'a donnée sur la Spark le 25/11 (chaînes encodées deux fois)
+const PAN2_ANSWER = JSON.stringify({ refined_prompt: JSON.stringify({ video_style: 'Cinematic documentary, single continuous shot.',
+  lighting: 'Golden hour sunlight.', perspective_view: 'Eye level, behind the crowd.',
+  subjects_lifecycle: [JSON.stringify({ subject_id: '<|Subject1|>', display_name: 'Woman', subject_attribute: 'Cream coat.' })],
+  init_frame_visual_description: 'A crowd on a cobbled quay, seen from behind.',
+  events: [{ event_index: 0, time_range_sec: '0 to 13', event_description: 'The camera slowly moves forward.',
+    camera_motion: [JSON.stringify({ time_range_sec: '0 to 13', camera_motion: ['dolly_forward'] })],
+    contained_actions: [{ time_range_sec: '2 to 13', action: '<|Subject1|> walks forward.' }] }],
+  quality: { video_quality: 'Sharp.', text_logos_overlays: null, artifacts: null } }) });
+// et celle donnée dans la vraie Mia le 25/11 : une chaîne jamais refermée autour de deux sujets, caméra en simple liste
+const PAN2_BROKEN = JSON.stringify({ refined_prompt: '{"video_style": "Documentary.", "lighting": "Daylight.", "perspective_view": "Eye level.", '
+  + '"subjects_lifecycle": ["{\\"subject_id\\": \\"<|Subject1|>\\", \\"display_name\\": \\"Woman\\", \\"subject_attribute\\": \\"Cream coat\\"}, '
+  + '{\\"subject_id\\": \\"<|Subject2|>\\", \\"display_name\\": \\"Crowd\\", \\"subject_attribute\\": \\"Autumn coats\\"}], '
+  + '"init_frame_visual_description": "A crowd on a quay.", "events": [{"event_index": 0, "time_range_sec": "0 to 3.0", '
+  + '"event_description": "The camera moves forward.", "camera_motion": ["dolly_forward"], "contained_actions": '
+  + '[{"time_range_sec": "0 to 3.0", "action": "<|Subject1|> walks forward"}]}], "quality": {"video_quality": "Sharp.", '
+  + '"text_logos_overlays": null, "artifacts": null}}' });
+// la légende envoyée à PAN 2 : décodée, 7 clés dans l'ordre, temps ramenés à la durée du plan
+const wantPan2 = (seconds, graphs, camera = 'dolly_forward') => (gs) => {
+  if (gs.length !== graphs) return `${gs.length} calcul(s) au lieu de ${graphs}`;
+  const g = gs[gs.length - 1];
+  if (Object.values(g).some((n) => n.class_type === 'ModelSamplingSD3')) return 'ModelSamplingSD3 présent';
+  let c = null;
+  try { c = JSON.parse(g['5'].inputs.text); } catch { return 'légende illisible'; }
+  const keys = Object.keys(c).join(',');
+  if (keys !== 'video_style,lighting,perspective_view,subjects_lifecycle,init_frame_visual_description,events,quality') return `clés : ${keys}`;
+  if (typeof c.subjects_lifecycle[0] === 'string' || typeof c.events[0].camera_motion[0] === 'string') return 'chaînes encodées deux fois';
+  if (c.events[0].camera_motion[0].camera_motion.join() !== camera) return `caméra ${c.events[0].camera_motion[0].camera_motion}`;
+  const last = c.events[c.events.length - 1].time_range_sec;
+  if (!last.endsWith(` to ${seconds}`)) return `fin de la légende ${last} au lieu de ${seconds} s`;
+  if (!String(g['6'].inputs.text).includes(`"0 to ${seconds}"`)) return 'négatif sans la durée';
+  return null;
+};
 const enriched = (gs) => Object.values(gs[gs.length - 1] || {}).some((n) => n.class_type === 'TextGenerateLTX2Prompt')
   && Object.values(gs[gs.length - 1]).some((n) => n.class_type === 'CLIPTextEncode' && Array.isArray(n.inputs.text)
     && (gs[gs.length - 1][n.inputs.text[0]] || {}).class_type === 'TextGenerateLTX2Prompt');
@@ -306,6 +347,24 @@ const kleinSize = (gs, size) => {
   const a = gs[0]['9'] && gs[0]['9'].inputs, b = gs[0]['8'] && gs[0]['8'].inputs;
   const got = a ? `${a.width}x${a.height}` : '?';
   return got === size && b && b.width === a.width && b.height === a.height ? null : `taille ${got} (échelle ${b && b.width}x${b && b.height}) au lieu de ${size}`;
+};
+// MiniMax « Rendu » pi-H3 : adaptateur -> [LoRA perso] -> décalage 12/3 -> pi-Flow Scheduler (n étapes), DWD Decode
+const wantH3 = (adapter, steps, lora = null) => (gs) => {
+  const g = gs[0];
+  const of = (cls) => Object.entries(g).find(([, n]) => n.class_type === cls) || [];
+  const [aid, a] = of('Load LakonLab Adapter');
+  const [sid, s] = of('MiniMaxH3SigmaShift');
+  const [, sch] = of('pi-Flow Scheduler');
+  if (!a || !String(a.inputs.adapter_name).includes(adapter)) return `adaptateur ${adapter} absent`;
+  if (!sch || sch.inputs.steps !== steps || String(sch.inputs.model[0]) !== String(sid)) return 'pi-Flow Scheduler mal branché';
+  if (!s || s.inputs.shift_video !== 12 || s.inputs.shift_audio !== 3) return 'décalage 12/3 absent';
+  if (!of('DWD Decode')[1]) return 'DWD Decode absent';
+  if (of('VAEDecode')[1]) return 'décodage VAE resté';
+  if (lora) {
+    const [lid, l] = Object.entries(g).find(([, n]) => n.class_type === 'LoraLoaderModelOnly' && String(n.inputs.lora_name).includes(lora)) || [];
+    if (!l || String(l.inputs.model[0]) !== String(aid) || String(s.inputs.model[0]) !== String(lid)) return `LoRA ${lora} pas entre l’adaptateur et le décalage`;
+  } else if (String(s.inputs.model[0]) !== String(aid)) return 'décalage pas branché sur l’adaptateur';
+  return null;
 };
 const hasLora = (gs, name) => (Object.values(gs[0]).some((n) => n.class_type === 'LoraLoaderModelOnly' && String(n.inputs.lora_name).includes(name))
   ? null : `LoRA ${name} absent`);
@@ -513,6 +572,20 @@ const VARIANTS = {
       models: { model: INV.minimax }, expectGraph: wantSize('704x1248') },
     { name: 'MiniMax · 768p demandé · aperçu', mode: 'preview', inputs: { start: IMG_H }, params: { resolution: '768', format: '16:9' },
       models: { model: INV.minimax }, expectGraph: wantSize('800x448') },
+    // « Rendu » (h3mode, GPU 25/11) : pi-H3 2 / 4 étapes (adaptateur, décalage 12/3, pi-Flow, DWD), Pika H3 Flex (6 sigmas)
+    { name: 'MiniMax · Rendu Esquisse (pi-H3 2 étapes)', mode: 'final', inputs: { start: IMG_V }, params: { h3mode: 'draft', format: '9:16' },
+      models: { model: INV.minimax }, expectNotes: /pi-H3 en 2 étapes/, expectGraph: wantH3('pi_h3_2step_dwd', 2) },
+    { name: 'MiniMax · Rendu Rapide + LoRA MiniMax', mode: 'final', inputs: { start: IMG_H, end: IMG_H }, params: { h3mode: 'fast', format: '16:9' },
+      models: { model: INV.minimax, lora: INV.mmLora }, assume: TEST_LORAS, expectGraph: wantH3('pi_h3_4step_dwd', 4, 'minimax_style_test') },
+    { name: 'MiniMax · Rendu Pika · texte seul', mode: 'final', params: { h3mode: 'pika', prompt: 'a slow ocean wave', format: '16:9' },
+      models: { model: INV.minimax }, expectNotes: /Pika H3 Flex en 6 étapes/,
+      expectGraph: (gs) => (hasLora(gs, 'pika_h3_flex_fl2va') || (Object.values(gs[0]).some((n) => n.class_type === 'ManualSigmas') ? null : 'sigmas Pika absents')) },
+    { name: 'MiniMax · prolonger en Rendu Rapide → Standard', mode: 'final', inputs: { video: vid(1920, 1080, 240, 30, { hasAudio: true }) },
+      params: { prompt: 'the car keeps driving', duration: 5, h3mode: 'fast' }, models: { model: INV.minimax },
+      expectNotes: /Prolonger une vidéo se fait en rendu Standard/, expectGraph: (gs) => hasLora(gs, 'turbo_8step') },
+    // PAN 2 choisi dans le bloc « Animer une image » : son exécuteur prend la main (légende puis vidéo)
+    { name: 'PAN 2 choisi dans Animer une image', mode: 'final', inputs: { start: IMG_H }, params: { prompt: 'a slow push-in', duration: 5, format: '16:9' },
+      models: { model: INV.pan2 }, previewText: PAN2_ANSWER, expectGraph: wantPan2(5, 2) },
   ],
   t2v: [
     // fiche personnage seule, sans image de début (bloc Modèle, à essayer) : gabarit officiel Ingredients, la vidéo au
@@ -672,6 +745,27 @@ const VARIANTS = {
     { name: 'LTX · Photoréaliste · passes « 2 »', mode: 'final', gen: ltxWay('real'), inputs: { video: vid(1920, 1080, 97), start: IMG_H },
       params: { model: 'fam:ltx', passes: '2' }, models: { model: INV.ltxInt8 },
       expectGraph: (gs) => (gs[0]['9601'] && gs[0]['9603'] ? null : 'passe 2 ou look absents') },
+    // MiniMax « Rendu » par le bloc Modèle (le réglage passe par la façon de faire) ; Prolonger ne le montre pas
+    { name: 'MiniMax · Animer · Rendu Rapide', mode: 'final', gen: famWay('minimax', 'i2v'), inputs: { start: IMG_V },
+      params: { model: 'fam:minimax', h3mode: 'fast', format: '9:16', prompt: 'she turns around' }, models: { model: INV.minimax },
+      expectGraph: wantH3('pi_h3_4step_dwd', 4) },
+    { name: 'MiniMax · Prolonger · Rendu gardé d’avant ignoré', mode: 'final', gen: famWay('minimax', 'extend'),
+      inputs: { video: vid(1920, 1080, 240, 30) }, params: { model: 'fam:minimax', h3mode: 'draft', prompt: 'the car drives on', duration: 5 },
+      models: { model: INV.minimax }, expectGraph: (gs) => hasLora(gs, 'turbo_8step') },
+    // PAN 2 : légende rédigée (2 calculs), rédaction illisible (légende simple), légende JSON fournie (1 calcul)
+    { name: 'PAN 2 · Animer · légende rédigée et réparée', mode: 'final', gen: famWay('pan2', 'i2v'), inputs: { start: IMG_V },
+      params: { model: 'fam:pan2', duration: 5, prompt: 'la femme avance vers le fleuve' }, models: { model: INV.pan2 },
+      previewText: PAN2_ANSWER, expectNotes: /Description rédigée par Mia pour PAN 2/, expectGraph: wantPan2(5, 2) },
+    { name: 'PAN 2 · Animer · aperçu · réponse mal formée de Qwen réparée', mode: 'preview', gen: famWay('pan2', 'i2v'), inputs: { start: IMG_V },
+      params: { model: 'fam:pan2', duration: 5, prompt: 'la femme avance' }, models: { model: INV.pan2 },
+      previewText: PAN2_BROKEN, expectNotes: /Description rédigée par Mia pour PAN 2/,
+      expectGraph: (gs) => wantPan2(3, 2)(gs) || (JSON.parse(gs[1]['5'].inputs.text).subjects_lifecycle.length === 2 ? null : 'sujets perdus') },
+    { name: 'PAN 2 · Texte · aperçu · rédaction illisible', mode: 'preview', gen: famWay('pan2', 't2v'),
+      params: { model: 'fam:pan2', duration: 10, format: '16:9', prompt: 'a red kite above the dunes' }, models: { model: INV.pan2 },
+      previewText: 'Sorry, I cannot help.', expectNotes: /n’a pas pu rédiger/, expectGraph: wantPan2(3, 2, 'static') },
+    { name: 'PAN 2 · Texte · légende JSON fournie', mode: 'final', gen: famWay('pan2', 't2v'),
+      params: { model: 'fam:pan2', duration: 4, format: '16:9', prompt: JSON.parse(PAN2_ANSWER).refined_prompt }, models: { model: INV.pan2 },
+      expectNotes: /fournie dans la consigne/, expectGraph: wantPan2(4, 1) },
   ],
   guided: [
     { name: 'LTX · profondeur calculée · aperçu', mode: 'preview', inputs: { guide: vid(1920, 1080, 120) },

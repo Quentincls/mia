@@ -10,6 +10,49 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## À venir
+
+### En bref
+- **MiniMax jusqu’à 3 fois plus rapide** : un nouveau réglage **Rendu** sur MiniMax (animer une image, partir d’un
+  texte) : **Esquisse** (2 étapes, environ 2 min 30 au lieu de 8 min pour 5 s sur la Spark) pour chercher le mouvement
+  et le cadrage, **Rapide** (4 étapes, presque la qualité habituelle en 2 fois moins de temps), **Standard** (comme
+  avant) et **Pika** (le style de Pika H3 Flex).
+- **PAN 2, un nouveau modèle vidéo** : un modèle « du monde » qui suit de près les actions et les mouvements de caméra
+  que tu décris, seconde par seconde. Pas de son, et lent (environ 30 min pour 5 s en 720p) : pour les plans importants.
+  Mia rédige pour lui une description détaillée à partir de ta consigne et de ton image ; elle apparaît dans la version.
+- **Moteur à jour** : ComfyUI passe en 0.46.3.
+
+### In short
+- **MiniMax up to 3 times faster**: a new **Render** setting on MiniMax (animate an image, start from text): **Sketch**
+  (2 steps, about 2 min 30 instead of 8 min for 5 s on the Spark) to find the motion and framing, **Fast** (4 steps,
+  close to the usual quality in half the time), **Standard** (as before) and **Pika** (the Pika H3 Flex look).
+- **PAN 2, a new video model**: a “world” model that closely follows the actions and camera moves you describe, second
+  by second. No sound, and slow (about 30 min for 5 s at 720p): for the shots that matter. Mia writes a detailed
+  description for it from your prompt and your image; it shows in the version.
+- **Engine up to date**: ComfyUI moves to 0.46.3.
+
+### Ajouté
+- Bloc Modèle, MiniMax H3 : réglage `h3mode` (« Rendu ») sur « Animer une image » et « Vidéo depuis un texte ».
+  Esquisse et Rapide = adaptateurs pi-H3 (Lakonik, 2 ou 4 étapes, l’image sort directement du modèle sans décodeur
+  vidéo) ; Pika = LoRA Pika H3 Flex, 6 étapes. Prolonger une vidéo reste en Standard (note dans la version).
+- Bloc Modèle : famille **PAN 2** (MBZUAI IFM, Apache-2.0), animer une image ou partir d’un texte, 540p ou 720p, 2 à
+  15 s. Une consigne qui est déjà une légende JSON de PAN 2 est utilisée telle quelle. PAN 2 choisi dans les blocs
+  « Animer une image » ou « Vidéo depuis un texte » marche aussi.
+- Modèles : PAN 2 et ses pièces reconnus ; les adaptateurs pi-H3 et le style Pika rangés dans les pièces (jamais
+  proposés comme LoRA de personnage) ; installation possible depuis Mia (fichiers, versions et empreintes figés).
+
+### Changé
+- Moteur : ComfyUI v0.39.2 → **v0.46.3**, nouveau nœud **ComfyUI-piFlow** (commit figé), paquets ComfyUI à jour
+  (`engine-setup`). Tous les graphes de Mia ont été revalidés sur la 0.46.3.
+
+### Pour les développeurs
+- `electron/engine/executors/pan2.js` (deux calculs : légende par Qwen 3.5 avec la consigne système des auteurs, puis
+  vidéo) ; `workflows/pan2_caption.api.json`, `workflows/pan2_i2v.api.json`, `workflows/pan2/` (Apache-2.0, ifm-ai/PAN2).
+- `tools/fixtures/comfy_object_info.json` refait depuis ComfyUI 0.46.3, listes de fichiers limitées aux modèles publics.
+- Essais GPU du 25/11 (Spark) : 487 s (Standard), 354 s (Pika), 267 s (Rapide), 143 s (Esquisse) pour 5 s en
+  704 × 1248 ; PAN 2 ≈ 31 s par étape. `ModelSamplingSD3` ne doit jamais précéder PAN 2 (multiplicateur forcé à 1000 :
+  du bruit).
+
 ## 0.11.0 — 25/11/2026
 
 ### En bref
