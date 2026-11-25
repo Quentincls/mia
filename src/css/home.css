@@ -325,3 +325,24 @@ body.card-dragging, body.card-dragging * { cursor: grabbing !important; }
   height: 100%; object-fit: contain; object-position: left center;
 }
 @keyframes vt-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* new online models at Higgsfield (SPEC §23.8): the same calm line, no alarm colour */
+.home-watch .home-watch-ico { color: var(--txt-2); }
+.watch h2 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.watch-lead { margin: 0 0 14px; font-size: 12.5px; line-height: 1.45; color: var(--txt-2); }
+.watch-list { display: flex; flex-direction: column; max-height: min(52vh, 460px); overflow: auto; margin: 0 0 16px; border-top: 1px solid var(--line); }
+.watch-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
+.watch-mark {
+  flex: none; width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+  border: 1px solid var(--line-2); font: 600 10px/1 var(--nb-mono); color: var(--txt-2);
+}
+.watch-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.watch-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.watch-name { font-size: 13px; font-weight: 600; color: var(--txt); }
+.watch-maker { font-size: 11px; color: var(--txt-3); }
+.watch-line .mp-badge { align-self: center; }
+.watch-desc { font-size: 12px; line-height: 1.4; color: var(--txt-2); }
+.watch-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font: 500 9.5px/1.3 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; color: var(--txt-3); }
+.watch-meta:empty { display: none; }
+.watch-price { font: 11px/1.3 var(--nb-mono); letter-spacing: 0; text-transform: none; color: var(--txt-2); font-variant-numeric: tabular-nums; }
+.watch-acts { flex: none; display: flex; gap: 6px; align-self: center; }

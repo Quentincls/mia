@@ -78,6 +78,8 @@ strings({
   'node.wf.hint': 'Avec {family}, ce que tu branches décide : {list}. Quand deux façons vont aussi bien, tu choisis ici.',
   'node.wf.nothing': 'rien',
   'node.wf.trial': 'À essayer',
+  'node.wf.fresh': 'Nouveau',
+  'node.wf.freshWhole': 'Nouveau chez Higgsfield, installé par la veille de Mia : pas encore essayé. Regarde le prix et le résultat.',
   'node.wf.trialWhole': 'Nouveau, pas encore validé au labo : regarde le résultat d’un œil critique.',
   'node.wf.trialPorts': '{ports} : nouveau, pas encore validé au labo. Regarde le résultat d’un œil critique.',
   'node.wf.mode': 'Mode',
@@ -131,6 +133,8 @@ strings({
   'node.wf.hint': 'With {family}, what you connect decides: {list}. When two ways fit equally well, pick one here.',
   'node.wf.nothing': 'nothing',
   'node.wf.trial': 'To try',
+  'node.wf.fresh': 'New',
+  'node.wf.freshWhole': 'New at Higgsfield, installed by Mia’s watch: not tried yet. Check the price and the result.',
   'node.wf.trialWhole': 'New, not checked at the lab yet: look at the result with a critical eye.',
   'node.wf.trialPorts': '{ports}: new, not checked at the lab yet. Look at the result with a critical eye.',
   'node.wf.mode': 'Mode',
@@ -493,7 +497,8 @@ export function mountParams(host, opts) {
       const extra = !blocked && !(workflow.required || []).length && !(workflow.oneOf || []).length
         ? connected.filter((id) => (workflow.ports || {})[id] && !(unused || []).includes(id)) : [];
       value.textContent = extra.length ? `${tl(workflow.label || {})} + ${words(extra)}` : tl(workflow.label || {});
-      trial.hidden = !(workflow.trial || trialPorts.length) || !!blocked;
+      trial.hidden = !(workflow.trial || workflow.fresh || trialPorts.length) || !!blocked;
+      trial.textContent = workflow.fresh ? t('node.wf.fresh') : t('node.wf.trial');
       row.classList.toggle('blocked', !!blocked);
       box.querySelector('.seg')?.remove();
       box.querySelector('.dd')?.remove();
@@ -577,7 +582,8 @@ export function mountParams(host, opts) {
       }
       // rien de branché : ce que fait le modèle, et quoi brancher pour le reste
       if (!connected.length && wfInfo.fam.def.emptyHint) msgs.push(tl(wfInfo.fam.def.emptyHint));
-      if (!blocked && workflow.trial) msgs.push(t('node.wf.trialWhole'));
+      if (!blocked && workflow.fresh) msgs.push(t('node.wf.freshWhole'));
+      else if (!blocked && workflow.trial) msgs.push(t('node.wf.trialWhole'));
       else if (!blocked && trialPorts.length) msgs.push(t('node.wf.trialPorts', { ports: words(trialPorts) }));
       note.hidden = !msgs.length;
       if (msgs.length) {

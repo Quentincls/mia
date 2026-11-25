@@ -110,6 +110,7 @@ register({
     'pal.models': 'Modèles',
     'pal.cloud': 'En ligne',
     'pal.online': 'En ligne',
+    'pal.fresh': 'Nouveau',
     'pal.from': 'Se branche sur',
     'pal.priceFrom': 'dès {price}',
     'pal.priceTip': 'Le moins cher chez Higgsfield : plus petite définition, durée la plus courte. « ≈ » : tarif public (sans compte relié), le prix exact est connu au lancement.',
@@ -185,6 +186,7 @@ register({
     'pal.models': 'Models',
     'pal.cloud': 'Online',
     'pal.online': 'Online',
+    'pal.fresh': 'New',
     'pal.from': 'Plugs into',
     'pal.priceFrom': 'from {price}',
     'pal.priceTip': 'The cheapest at Higgsfield: smallest resolution, shortest length. “≈”: public rate (no linked account); the exact price is known when it runs.',
@@ -482,7 +484,9 @@ export function createPalette(ed) {
       push(`fam:${key}`, def, 'models', installed ? familyWords(def) : [t('pal.notInstalled')], installed ? '' : 'missing');
     }
     for (const def of cloudCatalog().families || []) {
-      push(def.key, def, 'cloud', [t('pal.online'), ...familyWords(def)], 'online');
+      // installée par la veille et jamais essayée (SPEC §23.8) : « Nouveau » d'abord
+      const fresh = def.fresh || (def.workflows || []).some((w) => w.fresh);
+      push(def.key, def, 'cloud', [...(fresh ? [t('pal.fresh')] : []), t('pal.online'), ...familyWords(def)], 'online');
     }
     return out;
   }

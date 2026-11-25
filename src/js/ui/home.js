@@ -26,6 +26,7 @@ import { tip, hideTip } from './tooltip.js';
 import { openSettings } from './settings.js';
 import { toggle } from './controls.js';
 import { ms, play, flip, rects, reduced, viewTransition } from './motion.js';
+import { watchLine } from './cloudwatch.js';
 
 /** A card name cut by its box: too wide (one line) or past its two lines (line clamp). */
 const isCut = (n) => n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1;
@@ -412,7 +413,8 @@ export function initHome(cb = {}) {
   // dropping a board of a project on « PLANCHES » takes it out (search results show those)
   const boardsHead = el('div', { class: 'home-part-head home-boards-head', hidden: true, dataset: { dropRoot: '' } },
     el('h2', { class: 'kicker' }, t('home.boards')), boardsCount);
-  grid.before(banner, foldersSec, boardsHead);
+  // new online models at Higgsfield (SPEC §23.8): one calm line, hidden while there is nothing
+  grid.before(watchLine(), banner, foldersSec, boardsHead);
 
   const artMark = $('.home-empty-mark', empty);
   if (artMark) artMark.innerHTML = logo(64, { tight: false });

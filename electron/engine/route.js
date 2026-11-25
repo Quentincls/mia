@@ -9,6 +9,8 @@ const path = require('node:path');
 const SRC = path.join(__dirname, '..', '..', 'src');
 let rules = null;
 let catalogs = null;
+let builtinCloud = null;
+let extraOf = () => null;      // the watch's extra catalog (electron/cloudwatch.js), merged after the shipped one
 
 /** findModel, familyOf, chooseWorkflow, needsOf, portsOfFamily, portsOfWorkflow, localModelFor, localKeyOf. */
 function load() {
@@ -19,12 +21,29 @@ function load() {
   return rules;
 }
 
-/** { local: model-families.json, cloud: cloud-higgsfield.json } (read once; an unreadable file counts as empty). */
+const read = (f, empty) => { try { return JSON.parse(fs.readFileSync(path.join(SRC, 'catalog', f), 'utf8')); } catch { return empty; } };
+
+/** The shipped online catalog alone (cloud-higgsfield.json), what the watch compares the pages with. */
+function builtin() {
+  if (!builtinCloud) builtinCloud = read('cloud-higgsfield.json', { families: [] });
+  return builtinCloud;
+}
+
+/**
+ * { local: model-families.json, cloud: cloud-higgsfield.json + the models the watch installed (SPEC §23.8) }
+ * (read once, again after reload(); an unreadable file counts as empty, a broken extra catalog is ignored).
+ */
 function cats() {
   if (catalogs) return catalogs;
-  const read = (f, empty) => { try { return JSON.parse(fs.readFileSync(path.join(SRC, 'catalog', f), 'utf8')); } catch { return empty; } };
-  catalogs = { local: read('model-families.json', { families: {} }), cloud: read('cloud-higgsfield.json', { families: [] }) };
+  let cloud = builtin();
+  try { cloud = require('../cloudwatch').mergeCatalog(cloud, extraOf()); } catch { /* the shipped catalog alone */ }
+  catalogs = { local: read('model-families.json', { families: {} }), cloud };
   return catalogs;
 }
 
-module.exports = { rules: load, catalogs: cats };
+/** The watch installed a model: read the catalogs again on their next use. */
+function reload() { catalogs = null; }
+/** fn() → the extra catalog (or null). */
+function setExtra(fn) { extraOf = typeof fn === 'function' ? fn : () => null; catalogs = null; }
+
+module.exports = { rules: load, catalogs: cats, builtin, reload, setExtra };

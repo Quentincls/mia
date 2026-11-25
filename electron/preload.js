@@ -105,7 +105,14 @@ const INVOKE = {
     budget: 'cloud:budget',          // ({fresh}?) → {linked, currency, month, topUp, sinceTopUp, left, at} | {…, error}
     setTopUp: 'cloud:setTopUp',      // ({amount, at?} | null) → {ok, topUp?, error?} — the last top-up, for « left »
     price: 'cloud:price',            // ({family, workflow?, params, ports}) → {ok, usd?, error?} — a block's price
-    fromPrices: 'cloud:fromPrices'   // ([« hf:… »]) → {key: usd|null} — « dès … $ » of « + Bloc », kept a day
+    fromPrices: 'cloud:fromPrices',  // ([« hf:… »]) → {key: usd|null} — « dès … $ » of « + Bloc », kept a day
+    // SPEC §23.8: the watch of new online models (public pages, once a day at most, while the account is linked)
+    catalog: 'cloud:catalog',        // () → the online catalog: shipped + what the watch installed
+    watch: 'cloud:watch',            // () → {off, linked, lastCheck, ok, reason, pending:[{key, name, maker, isNew, desc, does, priceFrom}]}
+    watchCheck: 'cloud:watchCheck',  // () → same, after a look at the pages now
+    watchInstall: 'cloud:watchInstall', // ([keys] | null = all) → {ok, installed:[keys], watch}
+    watchIgnore: 'cloud:watchIgnore',   // ([keys]) → watch: not offered again
+    watchSet: 'cloud:watchSet'       // ({off}) → watch: Settings → Online accounts
   },
   // Training a LoRA (electron\trainer.js). The training folder is the truth; the window keeps nothing.
   train: {
@@ -143,6 +150,7 @@ const EVENTS = {
   engineEvent: 'engine:event',
   bridgeCall: 'bridge:call',         // {id, method, params, client}: an assistant asks the interface
   installerProgress: 'installer:progress',  // {kind:'job'|'queue'|'engine', job?, status?, line?, p?, state?}
+  cloudWatch: 'cloud:watch',        // what the watch found or installed (same shape as cloud.watch())
   trainEvent: 'train:event'          // {id, summary} one training moved (once a second at most) · {id:null, list:true} the list changed
 };
 const SEND = {
@@ -193,7 +201,9 @@ const mia = {
     onTitlebarMenu: (cb) => listen(EVENTS.titlebarMenu, cb)
   }),
   app: invokers(INVOKE.app),
-  cloud: invokers(INVOKE.cloud),
+  cloud: Object.assign(invokers(INVOKE.cloud), {
+    onWatch: (cb) => listen(EVENTS.cloudWatch, cb)
+  }),
   installer: Object.assign(invokers(INVOKE.installer), {
     onProgress: (cb) => listen(EVENTS.installerProgress, cb)
   }),

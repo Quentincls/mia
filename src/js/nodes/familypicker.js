@@ -56,6 +56,8 @@ strings({
   'node.fam.byWires': 'MiniMax prend lui-même le bon modèle selon ce que tu branches : références, image de début, vidéo à prolonger, vidéo guide ou texte seul.',
   'node.fam.cloudChecking': 'Vérification du compte Higgsfield…',
   'node.fam.online': 'En ligne',
+  'node.fam.fresh': 'Nouveau',
+  'node.fam.freshTip': 'Nouveau chez Higgsfield, installé par la veille de Mia : pas encore essayé.',
   'node.fam.tipLocal': 'Modèle · sur ce PC',
   'node.fam.tipCloud': 'Modèle · en ligne, payant',
   'node.fam.paid': 'Payant',
@@ -104,6 +106,8 @@ strings({
   'node.fam.byWires': 'MiniMax picks the right model itself from what you connect: references, a start image, a video to extend, a guide video or text alone.',
   'node.fam.cloudChecking': 'Checking the Higgsfield account…',
   'node.fam.online': 'Online',
+  'node.fam.fresh': 'New',
+  'node.fam.freshTip': 'New at Higgsfield, installed by Mia’s watch: not tried yet.',
   'node.fam.tipLocal': 'Model · on this PC',
   'node.fam.tipCloud': 'Model · online, paid',
   'node.fam.paid': 'Paid',
@@ -183,6 +187,9 @@ function localFamilies() {
     return { key, def, models: mine, able, variants: same ? byMem : [], blocked, installed: mine.length > 0 };
   });
 }
+
+/** Une famille (ou un de ses modes) installée par la veille de Mia et jamais essayée (SPEC §23.8). */
+export const isFresh = (def) => !!(def && (def.fresh || (def.workflows || []).some((w) => w.fresh)));
 
 /** Toutes les familles en une liste : { fam (« fam:ltx » | « hf:… »), def, cloud, kind, words, installed, variants, hay } */
 function allFamilies() {
@@ -425,7 +432,8 @@ export function familyPicker({ param, value, onChange, model }) {
         star.addEventListener('click', (e) => { e.stopPropagation(); toggleFav(f.fam); });
         r.append(markEl(f.def),
           el('span', { class: 'fp-main' },
-            el('span', { class: 'fp-line' }, el('span', { class: 'fp-name' }, f.def.name), el('span', { class: 'fp-maker' }, f.def.maker || '')),
+            el('span', { class: 'fp-line' }, el('span', { class: 'fp-name' }, f.def.name), el('span', { class: 'fp-maker' }, f.def.maker || ''),
+              isFresh(f.def) ? el('span', { class: 'mp-badge fp-new', 'data-tip': t('node.fam.freshTip') }, t('node.fam.fresh')) : null),
             el('span', { class: 'fp-words' }, f.words.join(' · '))),
           side, star);
       }

@@ -11,6 +11,7 @@
 
 import { tl } from '../i18n.js';
 import { readJSON } from '../catalog.js';
+import { emit } from '../bus.js';
 
 const URL_FAMILIES = new URL('../../catalog/model-families.json', import.meta.url);
 const URL_CLOUD = new URL('../../catalog/cloud-higgsfield.json', import.meta.url);
@@ -42,14 +43,37 @@ export function loadProfiles() {
       .then((d) => { data = { families: d.families || {}, makers: d.makers || {}, cloud: d.cloud || {} }; })
       .catch((e) => { console.warn('[profiles] model-families.json illisible', e); });
     const strengths = readJSON(URL_STRENGTHS).catch((e) => { console.warn('[profiles] cloud-strengths.json illisible', e); return null; });
-    const cloud = Promise.all([readJSON(URL_CLOUD), strengths])
+    const cloud = Promise.all([readCloud(), strengths])
       .then(([d, s]) => { cloudCat = withStrengths(d && Array.isArray(d.families) ? d : { families: [] }, s); })
       .catch((e) => { console.warn('[profiles] cloud-higgsfield.json illisible', e); });
+    // la veille a installé un modèle, ou un premier essai lui a ôté « Nouveau » : le catalogue est relu
+    try { window.mia?.cloud?.onWatch?.(() => { reloadCloud(); }); } catch { /* sans pont : rien */ }
     loading = Promise.all([local, cloud]).then(() => { ready = true; return data; });
   }
   return loading;
 }
 export const profilesReady = () => ready;
+
+/**
+ * Le catalogue en ligne : celui du processus principal (le livré + ce que la veille a installé, SPEC §23.8), sinon le
+ * fichier livré seul (sans pont, ou un pont qui ne répond pas comme prévu).
+ */
+async function readCloud() {
+  try {
+    const c = window.mia?.cloud?.catalog ? await window.mia.cloud.catalog() : null;
+    if (c && Array.isArray(c.families)) return c;
+  } catch { /* le fichier livré */ }
+  return readJSON(URL_CLOUD);
+}
+
+/** Relit le catalogue en ligne (après une installation) ; prévient l'écran (« catalog:cloud »). */
+export async function reloadCloud() {
+  try {
+    const [d, s] = await Promise.all([readCloud(), readJSON(URL_STRENGTHS).catch(() => null)]);
+    if (d && Array.isArray(d.families)) cloudCat = withStrengths(d, s);
+    emit('catalog:cloud', { families: cloudCat.families.length });
+  } catch (e) { console.warn('[profiles] catalogue en ligne illisible', e); }
+}
 
 /** Les deux catalogues tels que les lit nodes/route.js (le moteur lit les mêmes fichiers). */
 export const localCatalog = () => ({ families: data.families });

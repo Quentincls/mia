@@ -18,6 +18,11 @@ concerne que les développeurs.
   30 s, avec le son) ; en image, **Kling Image 4.0** (jusqu’en 8K) et **Seedream 5.0 Pro**.
 - **Prix en ligne à jour** : Higgsfield a changé ses tarifs (Kling, Wan, Hailuo et Happy Horse plus chers, Seedance
   et Cinema Studio 4.0 moins chers) ; les coûts affichés suivent.
+- **Mia repère seule les nouveaux modèles en ligne** : une fois par jour au plus, quand ton compte Higgsfield est
+  relié, elle regarde les pages publiques de Higgsfield (sans ta clé, sans crédit). Un modèle qu’elle n’a pas encore
+  s’annonce sur l’accueil (« 2 nouveaux modèles en ligne ») : **Installer** l’ajoute aussitôt, sans attendre une
+  nouvelle version de Mia. Il porte « Nouveau » jusqu’à son premier calcul réussi. On coupe la veille dans Réglages →
+  Comptes en ligne.
 
 ### In short
 - **Six new online models (Higgsfield)**: for video, **MiniMax H3 Lite** (the cheapest video, to look for an idea),
@@ -25,8 +30,17 @@ concerne que les développeurs.
   images, **Kling Image 4.0** (up to 8K) and **Seedream 5.0 Pro**.
 - **Online prices up to date**: Higgsfield changed its rates (Kling, Wan, Hailuo and Happy Horse cost more, Seedance
   and Cinema Studio 4.0 less); the costs shown follow.
+- **Mia spots new online models by itself**: once a day at most, while your Higgsfield account is linked, it looks
+  at Higgsfield’s public pages (without your key, without credits). A model it does not have yet shows on the home
+  page (“2 new online models”): **Install** adds it at once, without waiting for a new version of Mia. It reads
+  “New” until its first successful run. Turn the watch off in Settings → Online accounts.
 
 ### Pour les développeurs
+- Veille des modèles en ligne (SPEC §23.8) : `electron/cloudwatch.js` (repérer, installer, ignorer, « essayé »),
+  normalisation partagée avec le builder dans `electron/cloud-catalog.js` (le builder ne garde que la lecture des
+  pages et l’écriture des fichiers), catalogue complémentaire `%APPDATA%Miadatacloud-extra.json` fusionné par
+  `engine/route.js` (le livré passe devant). Canaux `cloud:catalog`, `cloud:watch*`, évènement `cloud:watch`.
+  Bancs `tools/test-cloud-watch.js` (faux Higgsfield) et `tools/check-cloud-watch-ui.mjs` (Mia de test cachée).
 - Catalogue Higgsfield relevé le 25/11 (`tools/build-cloud-catalog.mjs`) : 43 familles, 95 workflows. Écartés :
   les séries Kling Image (`/series`, 2 à 10 images payées alors que Mia n’en garde qu’une) et
   `seedance-2.5/finalize-draft` (`draft_id`) ; le champ `draft` de Seedance 2.5 passe en « interface à venir ». Points

@@ -80,6 +80,10 @@ register({
     'set.secCloud': 'Comptes en ligne',
     'set.hf': 'Higgsfield',
     'set.hfParallel': 'Calculs en ligne simultanés',
+    'set.hfWatch': 'Repérer les nouveaux modèles',
+    'set.hfWatchHint': 'Une fois par jour au plus, Mia lit les pages publiques de Higgsfield (sans ta clé, sans crédit) et te montre sur l’accueil les modèles qu’elle n’a pas encore.',
+    'set.hfWatchLast': 'Dernier coup d’œil : {when}.',
+    'set.hfWatchNow': 'Regarder maintenant',
     'set.hfParallelHint': 'Ils partent en même temps, sans attendre ta carte graphique. Higgsfield met en file au-delà de la limite de ton compte (visible dans sa console) ; rien n’est facturé en double.',
     'set.hfHint': 'Les modèles en ligne (Seedance, Kling, MiniMax 2K…) calculent chez Higgsfield : ta carte graphique reste libre, mais chaque calcul est payant, en $. Crée une clé sur console.higgsfield.ai, puis colle-la ici (ID:SECRET). Elle reste chiffrée sur ce PC et Mia ne la montre plus.',
     'set.hfLinked': 'Relié · clé …{tail}',
@@ -219,6 +223,10 @@ register({
     'set.secCloud': 'Online accounts',
     'set.hf': 'Higgsfield',
     'set.hfParallel': 'Online jobs at once',
+    'set.hfWatch': 'Spot new models',
+    'set.hfWatchHint': 'Once a day at most, Mia reads Higgsfield’s public pages (without your key, without credits) and shows on the home page the models it does not have yet.',
+    'set.hfWatchLast': 'Last look: {when}.',
+    'set.hfWatchNow': 'Look now',
     'set.hfParallelHint': 'They start together, without waiting for your graphics card. Higgsfield queues beyond your account’s limit (shown in its console); nothing is charged twice.',
     'set.hfHint': 'Online models (Seedance, Kling, MiniMax 2K…) run at Higgsfield: your graphics card stays free, but each job is paid, in $. Create a key on console.higgsfield.ai, then paste it here (ID:SECRET). It stays encrypted on this PC and Mia never shows it again.',
     'set.hfLinked': 'Linked · key …{tail}',
@@ -791,11 +799,35 @@ export function openSettings(opts = {}) {
   });
   const parallelRow = rowEl(t('set.hfParallel'), t('set.hfParallelHint'), parallelCtl);
 
+  // the watch of new online models (SPEC §23.8): on by default, only while the account is linked
+  const watchLast = el('div', { class: 'set-hint', hidden: true });
+  const watchNow = button({ label: t('set.hfWatchNow'), size: 'sm', kind: 'ghost', onClick: async () => {
+    watchNow.setDisabled(true);
+    try { paintWatch(await window.mia?.cloud?.watchCheck?.()); } catch { /* rien */ }
+    watchNow.setDisabled(false);
+  } });
+  const watchCtl = toggle({ value: true, label: t('set.hfWatch'), onChange: async (v) => {
+    try { paintWatch(await window.mia?.cloud?.watchSet?.({ off: !v })); } catch { /* rien */ }
+  } });
+  const watchRow = rowEl(t('set.hfWatch'), el('div', {}, el('div', { class: 'set-hint' }, t('set.hfWatchHint')), watchLast), watchNow, watchCtl);
+  function paintWatch(w) {
+    if (!w || typeof w !== 'object' || !('off' in w)) { watchRow.hidden = true; return; }
+    watchRow.hidden = false;
+    watchCtl.setValue(!w.off);
+    watchNow.hidden = !!w.off;
+    const when = w.lastCheck ? new Date(w.lastCheck).toLocaleString(lang() === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    watchLast.textContent = w.off ? '' : [when ? t('set.hfWatchLast', { when }) : '', w.reason || ''].filter(Boolean).join(' ');
+    watchLast.hidden = !watchLast.textContent;
+  }
+  watchRow.hidden = true;
+  window.mia?.cloud?.watch?.().then(paintWatch, () => {});
+
   const hfRow = el('div', { class: 'set-cloud' },
     rowEl(t('set.hf'), t('set.hfHint'), hfState),
     el('div', { class: 'set-hf' }, hfForm, hfLinkedCtl, hfMsg),
     topRow,
-    parallelRow);
+    parallelRow,
+    watchRow);
 
   const bridgeState = el('span', { class: 'set-state' }, t('set.bridgeChecking'));
   const bridgeHint = el('div', { class: 'set-hint' });

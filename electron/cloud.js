@@ -6,9 +6,13 @@
 //   Windows account) in %APPDATA%\Mia\data\cloud.json. It is never written in clear, never logged, never sent to
 //   the window again (the window only learns « linked, since…, key …abcd »), never sent anywhere but Higgsfield.
 // - The cloud executor uses it when Quentin clicks Run on an online Model block; the board's corner reads what the
-//   account spent (GET /models/usage), only while it is linked. Nothing else leaves the PC (no catalog download, no
-//   telemetry). Higgsfield gives no balance to an API key: the « left » figure is Quentin's own top-up amount minus
-//   what was spent since (`topUp` in cloud.json, not a secret).
+//   account spent (GET /models/usage), only while it is linked. The watch of new models (cloudwatch.js) reads
+//   Higgsfield's PUBLIC pages, without the key, once a day at most, only while the account is linked, and can be
+//   turned off (Settings → Online accounts). Nothing else leaves the PC (no telemetry). Higgsfield gives no
+//   balance to an API key: the « left » figure is Quentin's own top-up amount minus what was spent since (`topUp`
+//   in cloud.json, not a secret).
+// - Hosts: console.higgsfield.ai and dash.higgsfield.ai (public pages, the watch only; MIA_HF_CONSOLE / MIA_HF_DASH
+//   point them at a fake server in tests, tools/test-cloud-watch.js).
 // - Hosts: api.higgsfield.ai (calls), the presigned storage URL Higgsfield gives for each upload (PUT of the
 //   file, without our key), the output URLs it returns (GET). MIA_HF_BASE points the calls at a local fake
 //   server in tests (tools/test-cloud.js).
@@ -351,8 +355,41 @@ function register(ctx) {
   const pricing = () => (prices = prices || require('./engine/cloudprice').createPrices(svc));
   ctx.ipcMain.handle('cloud:price', (_e, block) => pricing().priceOf(block));
   ctx.ipcMain.handle('cloud:fromPrices', (_e, keys) => pricing().fromPrices(Array.isArray(keys) ? keys : []));
+  watchModels(ctx, svc);
   ctx.cloud = svc;
   return svc;
+}
+
+/**
+ * The watch of new online models (SPEC §23.8, electron/cloudwatch.js): Higgsfield's public pages, once a day at
+ * most, only while the account is linked and the watch is on. The window gets the merged catalog (cloud:catalog),
+ * what the watch found (cloud:watch, and the event of the same name), and installs or ignores with one click.
+ */
+function watchModels(ctx, svc) {
+  const route = require('./engine/route');
+  const { createWatch } = require('./cloudwatch');
+  const log = (m) => { try { (ctx.log || console.log)(m); } catch { /* no log */ } };
+  const changed = (brief) => { route.reload(); ctx.send && ctx.send('cloud:watch', brief); };
+  const watch = createWatch({ dir: ctx.paths.data, builtin: route.builtin, lang: ctx.lang, log, onChange: changed });
+  route.setExtra(() => watch.extra());
+  svc.watch = watch;
+  svc.markTried = (family, workflow) => { if (watch.tried(family, workflow)) changed(watch.state()); };
+  ctx.ipcMain.handle('cloud:catalog', () => route.catalogs().cloud);
+  ctx.ipcMain.handle('cloud:watch', () => ({ ...watch.state(), linked: svc.linked() }));
+  ctx.ipcMain.handle('cloud:watchCheck', async () => {
+    if (!svc.linked()) return { ...watch.state(), linked: false };
+    return { ...(await watch.check({ force: true })), linked: true };
+  });
+  ctx.ipcMain.handle('cloud:watchInstall', (_e, keys) => watch.install(Array.isArray(keys) ? keys : null));
+  ctx.ipcMain.handle('cloud:watchIgnore', (_e, keys) => watch.ignore(Array.isArray(keys) ? keys : []));
+  ctx.ipcMain.handle('cloud:watchSet', (_e, o) => watch.setOff(!!(o && o.off)));
+  // a first look a little after start (the window first), then every hour: due() says whether a day went by
+  const first = Number(process.env.MIA_WATCH_DELAY_MS) || 60e3;
+  const tick = () => { if (svc.linked() && watch.due()) watch.check().catch(() => {}); };
+  const t1 = setTimeout(tick, first);
+  const t2 = setInterval(tick, 3600e3);
+  if (t1.unref) t1.unref();
+  if (t2.unref) t2.unref();
 }
 
 module.exports = { register, createService, retryAfter };

@@ -719,6 +719,8 @@ class Bridge {
         } else w.settings = (wf.params || []).map((p) => (typeof p === 'string' ? p : p.id));
         if (wf.promptRequired) w.promptRequired = true;
         if (wf.trial) w.trial = true;
+        // installé par la veille de Mia (SPEC §23.8) : jamais essayé, le dire à l'utilisateur
+        if (wf.fresh) w.notTriedYet = true;
         return w;
       });
       // un réglage en ligne tel que le donne le catalogue (bornes, choix, paliers, aide)
@@ -754,7 +756,9 @@ class Bridge {
         }
         out.push({ value: def.key, label: def.name, maker: def.maker, where: 'online (Higgsfield, paid)', kind: def.kind,
           does: (def.workflows || []).map((w) => L(w.label)), inputs: portsOf(fam), ways: waysOf(def, true), settings,
-          settingsNote: 'Union of all modes (first definition): each mode\'s own settings, bounds, tiers and notes are in ways[].settings.' });
+          settingsNote: 'Union of all modes (first definition): each mode\'s own settings, bounds, tiers and notes are in ways[].settings.',
+          ...(def.fresh || (def.workflows || []).some((w) => w.fresh)
+            ? { notTriedYet: 'New at Higgsfield, installed by Mia\'s watch: never run in Mia yet. Say so to the user before spending credits.' } : {}) });
       }
       return out;
     };

@@ -990,6 +990,7 @@ body {
   min-width: 0; font: 500 9.5px/1.3 var(--nb-kicker); letter-spacing: .07em; text-transform: uppercase; color: var(--txt-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.fp-new { flex: none; align-self: center; }
 .fp-side {
   flex: none; display: flex; align-items: center; gap: 6px; font: 11px/1 var(--nb-mono); font-variant-numeric: tabular-nums;
   color: var(--txt-2); white-space: nowrap;

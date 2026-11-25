@@ -30,6 +30,7 @@ const TXT = {
   canceled: { fr: 'Le calcul a été annulé chez Higgsfield.', en: 'The job was cancelled at Higgsfield.' },
   noOutput: { fr: 'Higgsfield a fini sans renvoyer de fichier.', en: 'Higgsfield finished without returning a file.' },
   tooLong: { fr: 'Toujours pas fini chez Higgsfield après {m} min : la demande reste visible sur leur console.', en: 'Still not done at Higgsfield after {m} min: the request stays visible in their console.' },
+  firstTry: { fr: 'Premier essai de ce modèle dans Mia : il vient d’arriver chez Higgsfield, regarde bien le résultat.', en: 'First try of this model in Mia: it has just arrived at Higgsfield, look closely at the result.' },
   done: { fr: 'Calculé en ligne par Higgsfield : {family} · {what}.', en: 'Computed online by Higgsfield: {family} · {what}.' },
   preview: { fr: 'Aperçu : la plus petite résolution et la durée la plus courte du modèle (moins de crédits).', en: 'Preview: the model’s smallest resolution and shortest length (fewer credits).' },
   // the job message while a cancelled job that Higgsfield can no longer stop is still fetched (« cloud-locked »)
@@ -54,11 +55,9 @@ const MAX_MIN = 60;
 const IMAGE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 
 // ── catalog helpers ────────────────────────────────────────────────────────────────────────────────────
-let catalogCache = null;
+// read through engine/route.js each time (it keeps them): a model the watch installs is known at once
 function catalog() {
-  if (catalogCache) return catalogCache;
-  try { catalogCache = require('../route').catalogs().cloud || { families: [] }; } catch { catalogCache = { families: [] }; }
-  return catalogCache;
+  try { return require('../route').catalogs().cloud || { families: [] }; } catch { return { families: [] }; }
 }
 /**
  * The workflow as the catalog describes it, with what the planner handed (x.gen: endpoints, ports, params). The
@@ -441,6 +440,10 @@ async function run(x) {
   await svc.download(out.url, dst, { signal: live() });
   x.progress(1, E.t(locked ? TXT.locked : TXT.downloading));
   notes.unshift(E.t(TXT.done, { family: g.family, what: g.what }));
+  // a model the watch installed (SPEC §23.8): its first success takes « not tried yet » off
+  const wfNow = wfOf(x);
+  if (wfNow && wfNow.fresh) notes.push(E.t(TXT.firstTry));
+  try { if (typeof svc.markTried === 'function') svc.markTried(g.key, g.workflow); } catch { /* never fails a finished job */ }
   if (locked) notes.unshift(E.t(TXT.lockedNote));
   notes.push(...said);
   return {
