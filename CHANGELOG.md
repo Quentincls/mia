@@ -10,7 +10,7 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
-## Prochaine version — en cours
+## 0.11.0 — 25/11/2026
 
 ### En bref
 - **Six nouveaux modèles en ligne (Higgsfield)** : en vidéo, **MiniMax H3 Lite** (la vidéo la moins chère, pour
