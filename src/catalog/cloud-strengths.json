@@ -1,7 +1,7 @@
 {
  "version": 1,
  "_doc": "Points forts des modèles en ligne de Higgsfield (SPEC §23), tenus à la main : pour chaque famille de cloud-higgsfield.json (clé hf:…), « à choisir quand… » en une ou deux phrases FR/EN (strengths) et les critères où elle se distingue (bestFor, mots de la liste criteria). Écrits d’après docs.higgsfield.ai (pages des familles et de leurs workflows) et le connecteur Higgsfield (models_explore : descriptions, tags), sans aucun calcul : rien n’a encore été jugé à l’œil. Ne parler que de ce que Mia sait envoyer (pas de styles, de Soul ID ni de multi-plans). Une famille du catalogue sans entrée ici : tools/build-cloud-catalog.mjs et tools/test-route.js le signalent.",
- "checked": "2026-10-30",
+ "checked": "2026-11-25",
  "criteria": ["quality", "motion", "faces", "text", "sound", "long", "4k", "fast", "references", "edit", "camera", "style", "product"],
  "families": {
   "hf:genjutsu": {
@@ -262,6 +262,48 @@
     "en": "Pick it for very fast, cheap tries from a short prompt (800 characters at most), in 1K or 2K. “Expand the prompt” costs more."
    },
    "bestFor": ["fast"]
+  },
+  "hf:kling-4-0-flash": {
+   "strengths": {
+    "fr": "À choisir pour essayer vite et moins cher qu’avec Kling 4.0 : 720p, de 3 à 20 s, depuis un texte, une image de départ, des références (10 images, 5 vidéos) ou pour modifier une vidéo que tu as.",
+    "en": "Pick it for quick tries, cheaper than Kling 4.0: 720p, 3 to 20 s, from text, a start image, references (10 images, 5 videos) or to edit a video you have."
+   },
+   "bestFor": ["fast", "edit", "references"]
+  },
+  "hf:minimax-h3-highspeed": {
+   "strengths": {
+    "fr": "À choisir pour des essais rapides de MiniMax H3 : 480p ou 768p, de 4 à 15 s, images de début et de fin, ou références (9 images, 3 vidéos, 3 sons ; un son jamais seul).",
+    "en": "Pick it for quick MiniMax H3 tries: 480p or 768p, 4 to 15 s, start and end images, or references (9 images, 3 videos, 3 sounds; never a sound alone)."
+   },
+   "bestFor": ["fast", "references"]
+  },
+  "hf:minimax-h3-lite": {
+   "strengths": {
+    "fr": "La vidéo la moins chère de Higgsfield : pour chercher une idée avant de la refaire en mieux. 480p ou 768p, de 4 à 15 s, images de début et de fin, ou références (9 images, 3 vidéos, 3 sons).",
+    "en": "The cheapest video on Higgsfield: to look for an idea before redoing it better. 480p or 768p, 4 to 15 s, start and end images, or references (9 images, 3 videos, 3 sounds)."
+   },
+   "bestFor": ["fast", "references"]
+  },
+  "hf:magi-2": {
+   "strengths": {
+    "fr": "À choisir pour un plan long (jusqu’à 30 s) en 1080p, avec le son si tu veux, depuis un texte, des images de début et de fin, ou des références (images, vidéos, sons).",
+    "en": "Pick it for a long shot (up to 30 s) in 1080p, with sound if you want, from text, start and end images, or references (images, videos, sounds)."
+   },
+   "bestFor": ["long", "sound", "references"]
+  },
+  "hf:seedream-5-0-pro": {
+   "strengths": {
+    "fr": "À choisir pour des visuels produit, des affiches ou des illustrations jusqu’en 2K, ou pour retoucher et mêler jusqu’à 10 images en disant quoi changer.",
+    "en": "Pick it for product visuals, posters or illustrations up to 2K, or to edit and blend up to 10 images by saying what to change."
+   },
+   "bestFor": ["product", "edit", "text"]
+  },
+  "hf:kling-image-4-0": {
+   "strengths": {
+    "fr": "À choisir pour le plus de détail : jusqu’en 8K, scènes réalistes et texte dans l’image, ou retouche avec jusqu’à 10 images de référence.",
+    "en": "Pick it for the most detail: up to 8K, realistic scenes and text in the image, or edits with up to 10 reference images."
+   },
+   "bestFor": ["quality", "4k", "text", "edit"]
   }
  }
 }

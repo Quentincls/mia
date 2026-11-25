@@ -237,6 +237,7 @@ const FAMILIES = [
   { key: 'hf:kling-o3', name: 'Kling O3', maker: 'Kling', kind: 'video', m: /^kling-video\/o3\// },
   { key: 'hf:kling-omni', name: 'Kling Omni', maker: 'Kling', kind: 'video', m: /^kling-video\/omni\// },
   { key: 'hf:kling-4-0', name: 'Kling 4.0', maker: 'Kling', kind: 'video', m: /^kling-video\/v4\.0\// },
+  { key: 'hf:kling-4-0-flash', name: 'Kling 4.0 Flash', maker: 'Kling', kind: 'video', m: /^kling-video\/v4\.0-flash\// },
   { key: 'hf:happy-horse-1-0', name: 'Happy Horse 1.0', maker: 'Alibaba', kind: 'video', m: /^alibaba\/happy-horse\/[a-z-]+-to-video$/ },
   { key: 'hf:happyhorse-1-1', name: 'HappyHorse 1.1', maker: 'Alibaba', kind: 'video', m: /^alibaba\/happy-horse\/v1\.1\// },
   { key: 'hf:wan-3-0', name: 'Wan 3.0', maker: 'Alibaba', kind: 'video', m: /^alibaba\/wan-3\.0\// },
@@ -244,16 +245,21 @@ const FAMILIES = [
   { key: 'hf:cinema-studio-4-0', name: 'Cinema Studio 4.0', maker: 'Higgsfield', kind: 'video', m: /^higgsfield\/cinema-studio\/4\.0$/ },
   { key: 'hf:ltx-2-5', name: 'LTX-2.5', maker: 'Lightricks', kind: 'video', m: /^lightricks\/ltx-2\.5\// },
   { key: 'hf:minimax-h3', name: 'MiniMax H3', maker: 'MiniMax', kind: 'video', m: /^minimax\/h3\// },
+  { key: 'hf:minimax-h3-highspeed', name: 'MiniMax H3 Highspeed', maker: 'MiniMax', kind: 'video', m: /^minimax\/h3-highspeed\// },
+  { key: 'hf:minimax-h3-lite', name: 'MiniMax H3 Lite', maker: 'MiniMax', kind: 'video', m: /^minimax\/h3-lite\// },
   { key: 'hf:hailuo-2-3', name: 'Hailuo 2.3', maker: 'MiniMax', kind: 'video', m: /^minimax\/hailuo-2\.3\// },
   { key: 'hf:pixverse-v6', name: 'PixVerse V6', maker: 'PixVerse', kind: 'video', m: /^pixverse\/v6\// },
   { key: 'hf:wan-2-6', name: 'Wan 2.6', maker: 'Alibaba', kind: 'video', m: /^wan\/v2\.6\// },
   { key: 'hf:wan-2-7', name: 'Wan 2.7', maker: 'Alibaba', kind: 'video', m: /^wan\/v2\.7\// },
+  { key: 'hf:magi-2', name: 'MAGI-2', maker: 'Sand AI', kind: 'video', m: /^sand\/magi-2\// },
   { key: 'hf:grok-imagine-video-1-5', name: 'Grok Imagine Video 1.5', maker: 'xAI', kind: 'video', m: /^xai\/grok-imagine-video\/v1\.5\// },
   { key: 'hf:soul', name: 'SOUL', maker: 'Higgsfield', kind: 'image', m: /^higgsfield-ai\/soul\/standard$/ },
   { key: 'hf:soul-v2', name: 'SOUL V2', maker: 'Higgsfield', kind: 'image', m: /^higgsfield-ai\/soul\/v2\// },
   { key: 'hf:soul-cinema', name: 'SOUL Cinema', maker: 'Higgsfield', kind: 'image', m: /^higgsfield-ai\/soul\/cinema$/ },
   { key: 'hf:marketing-studio-image', name: 'Marketing Studio Image', maker: 'Higgsfield', kind: 'image', m: /^marketing-studio\/image(\/|$)/ },
   { key: 'hf:ads-studio', name: 'Ads Studio', maker: 'Higgsfield', kind: 'image', m: /^higgsfield\/ads-studio\// },
+  { key: 'hf:seedream-5-0-pro', name: 'Seedream 5.0 Pro', maker: 'ByteDance', kind: 'image', m: /^bytedance\/seedream\/v5\.0\/pro\// },
+  { key: 'hf:kling-image-4-0', name: 'Kling Image 4.0', maker: 'Kling', kind: 'image', m: /^kling-image\/v4\.0\// },
   { key: 'hf:grok-image-2-0', name: 'Grok Image 2.0', maker: 'xAI', kind: 'image', m: /^xai\/grok-imagine-image-2\.0$/ },
   { key: 'hf:recraft-v4-1', name: 'Recraft V4.1', maker: 'Recraft', kind: 'image', m: /^recraft\/v4\.1\/text-to-image$/ },
   { key: 'hf:recraft-v4-1-pro', name: 'Recraft V4.1 Pro', maker: 'Recraft', kind: 'image', m: /^recraft\/v4\.1\/pro\// },
@@ -266,6 +272,7 @@ const FAMILIES = [
 // Ce que la console liste mais qui n'est pas un modèle pour le bloc Modèle de Mia.
 const EXCLUDE = [
   [/^workflows\//, L('application de la console, pas un modèle', 'console app, not a model')],
+  [/^kling-image\/.*\/series$/, L('série de 2 à 10 images payées chacune : Mia n’en garde qu’une par calcul', 'a series of 2 to 10 images, each one paid: Mia keeps only one per run')],
   [/^higgsfiled\//, L('slug mal écrit dans la console (404)', 'misspelt console slug (404)')],
   [/^higgsfield\/ai-influencer$/, L('application (palier, sélection, variantes de traits), pas un modèle', 'an app (tier, selection, trait variants), not a model')],
   [/^soul-id$|custom-references$/, L('entraînement d’un visage, pas une génération', 'face training, not a generation')],
@@ -291,11 +298,13 @@ const WHY = {
   colors: L('palette de couleurs : interface à venir', 'colour palette: interface to come'),
   background_color: L('couleur de fond : interface à venir', 'background colour: interface to come'),
   batch_size: L('Mia garde une seule image par version', 'Mia keeps one picture per version'),
+  draft: L('brouillon 480p à finaliser ensuite par son numéro de calcul : interface à venir', '480p draft to finalise later from its request id: interface to come'),
 };
 // Identifiant obligatoire que Mia ne sait pas lister : le workflow n'est pas proposé.
 const BLOCKING = {
   preset_id: L('demande un préréglage Higgsfield (identifiant) que Mia ne sait pas lister', 'needs a Higgsfield preset id that Mia cannot list'),
   name: L('entraînement (nom du visage), pas une génération', 'training (face name), not a generation'),
+  draft_id: L('finalise un brouillon Seedance par son numéro de calcul, que Mia ne garde pas encore', 'finalises a Seedance draft from its request id, which Mia does not keep yet'),
 };
 const PARAM_LABEL = {
   duration: L('Durée', 'Duration'), resolution: L('Résolution', 'Resolution'), aspect_ratio: L('Format', 'Aspect ratio'),
@@ -690,6 +699,10 @@ const DESC_FR = {
   'Cinema Studio 4.0': 'Plans de cinéma : caméra, objectif, lumière, époque et rythme au choix.',
   'LTX-2.5': 'LTX dans le cloud : vidéo depuis un texte ou une image, en Rapide ou Pro.',
   'MiniMax H3': 'MiniMax dans le cloud, en 2K : texte, images-clés ou références (images, vidéos, sons).',
+  'Kling 4.0 Flash': 'Kling 4.0 rapide et moins cher, en 720p : texte, image de départ, références ou montage d’une vidéo.',
+  'MiniMax H3 Highspeed': 'MiniMax H3 rapide, en 480p ou 768p : texte, images de début et de fin, ou références.',
+  'MiniMax H3 Lite': 'Le MiniMax H3 le moins cher, en 480p ou 768p : texte, images de début et de fin, ou références.',
+  'MAGI-2': 'Vidéo 1080p jusqu’à 30 s, avec le son si tu veux : texte, images de début et de fin, ou références.',
   'Hailuo 2.3': 'Vidéo depuis un texte ou une image, mouvements naturels.',
   'PixVerse V6': 'Vidéo depuis un texte ou une image, avec le son.',
   'Wan 2.6': 'Vidéo depuis un texte, une image ou une vidéo de référence.',
@@ -701,6 +714,8 @@ const DESC_FR = {
   'Soul ID': 'Apprend un visage à partir de tes photos.',
   'Marketing Studio Image': 'Visuels publicitaires à partir d’un texte et de tes images.',
   'Ads Studio': 'Visuels publicitaires à partir d’un texte et de tes images.',
+  'Seedream 5.0 Pro': 'Images jusqu’en 2K depuis un texte, ou retouche en mêlant jusqu’à 10 images.',
+  'Kling Image 4.0': 'Images très détaillées jusqu’en 8K depuis un texte, ou retouche avec jusqu’à 10 images.',
   'Grok Image 2.0': 'Images depuis un texte, avec des images de référence.',
   'Recraft V4.1': 'Images et illustrations depuis un texte.',
   'Recraft V4.1 Pro': 'Images et illustrations depuis un texte, version Pro.',
@@ -731,6 +746,10 @@ const DESC_EN = {
   'Cinema Studio 4.0': 'Cinema shots: pick the camera, lens, light, era and pace.',
   'LTX-2.5': 'LTX in the cloud: video from text or an image, in Fast or Pro.',
   'MiniMax H3': 'MiniMax in the cloud, in 2K: text, keyframes or references (images, videos, sounds).',
+  'Kling 4.0 Flash': 'Faster, cheaper Kling 4.0, in 720p: text, start image, references or editing a video.',
+  'MiniMax H3 Highspeed': 'Fast MiniMax H3, in 480p or 768p: text, start and end images, or references.',
+  'MiniMax H3 Lite': 'The cheapest MiniMax H3, in 480p or 768p: text, start and end images, or references.',
+  'MAGI-2': '1080p video up to 30 s, with sound if you want: text, start and end images, or references.',
   'Hailuo 2.3': 'Video from text or an image, natural motion.',
   'PixVerse V6': 'Video from text or an image, with sound.',
   'Wan 2.6': 'Video from text, an image or a reference video.',
@@ -742,6 +761,8 @@ const DESC_EN = {
   'Soul ID': 'Learns a face from your photos.',
   'Marketing Studio Image': 'Ad visuals from text and your images.',
   'Ads Studio': 'Ad visuals from text and your images.',
+  'Seedream 5.0 Pro': 'Images up to 2K from text, or edits blending up to 10 images.',
+  'Kling Image 4.0': 'Highly detailed images up to 8K from text, or edits with up to 10 images.',
   'Grok Image 2.0': 'Images from text, with reference images.',
   'Recraft V4.1': 'Images and illustrations from text.',
   'Recraft V4.1 Pro': 'Images and illustrations from text, Pro version.',
@@ -752,7 +773,7 @@ const DESC_EN = {
   'Z-Image Turbo': 'Very fast images from text.',
 };
 const MARK = { Higgsfield: 'HF', ByteDance: 'BD', Kling: 'KL', Alibaba: 'AL', Lightricks: 'LT', MiniMax: 'MM', PixVerse: 'PV',
-  xAI: 'xA', Recraft: 'RC', Ideogram: 'ID', Qwen: 'QW', Wan: 'WA', Tongyi: 'TY' };
+  xAI: 'xA', 'Sand AI': 'SA', Recraft: 'RC', Ideogram: 'ID', Qwen: 'QW', Wan: 'WA', Tongyi: 'TY' };
 const slugify = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /** Cache brut (console + dash + docs) → familles brutes { key, name, maker, kind, desc, doc, workflows[{id,name,schema,notes,price,pricing}] }. */

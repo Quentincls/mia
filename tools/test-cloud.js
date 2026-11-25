@@ -580,12 +580,12 @@ async function main() {
     const off = createPrices({ linked: () => false, estimate: async () => { throw new Error('appel interdit sans compte'); } });
     pr = await off.priceOf({ family: 'hf:kling-4-0', params: { 'hf.duration': 10, 'hf.resolution': '1080p' }, ports: [] });
     const pr720 = await off.priceOf({ family: 'hf:kling-4-0', params: { 'hf.duration': 10, 'hf.resolution': '720p' }, ports: [] });
-    ok(pr.ok && pr.source === 'public' && pr.approx && pr.usd === 1.645 && pr720.usd === 1.099,
-      'sans compte : 10 s de Kling 4.0 ≈ 1,645 $ en 1080p, 1,099 $ en 720p (fourchette publique), marqué « public »', JSON.stringify([pr, pr720]));
+    ok(pr.ok && pr.source === 'public' && pr.approx && pr.usd === 3.374 && pr720.usd === 1.257,
+      'sans compte : 10 s de Kling 4.0 ≈ 3,374 $ en 1080p, 1,257 $ en 720p (fourchette publique), marqué « public »', JSON.stringify([pr, pr720]));
     from = await off.fromPrices(['hf:kling-4-0', 'hf:soul', 'hf:inconnu']);
-    ok(from['hf:kling-4-0'] === 0.33 && from['hf:soul'] === 0.094 && from['hf:inconnu'] === null
+    ok(from['hf:kling-4-0'] === 0.377 && from['hf:soul'] === 0.094 && from['hf:inconnu'] === null
       && from._public.includes('hf:kling-4-0') && from._public.includes('hf:soul'),
-    'sans compte : « dès » public (Kling 4.0 : 0,1099 $/s × 3 s ; SOUL : par image), aucun appel', JSON.stringify(from));
+    'sans compte : « dès » public (Kling 4.0 : 0,1257 $/s × 3 s ; SOUL : par image), aucun appel', JSON.stringify(from));
     from = await off.fromPrices(['hf:soul-v2']);
     ok(from['hf:soul-v2'] === 0.003 && from._public.includes('hf:soul-v2'),
       'sans compte : SOUL V2 « dès » 0,003 $, marqué public (l’interface doit montrer « ≈ » et 3 décimales)', JSON.stringify(from));

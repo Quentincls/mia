@@ -10,6 +10,29 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
+## Prochaine version — en cours
+
+### En bref
+- **Six nouveaux modèles en ligne (Higgsfield)** : en vidéo, **MiniMax H3 Lite** (la vidéo la moins chère, pour
+  chercher une idée), **MiniMax H3 Highspeed**, **Kling 4.0 Flash** (720p, rapide) et **MAGI-2** (1080p jusqu’à
+  30 s, avec le son) ; en image, **Kling Image 4.0** (jusqu’en 8K) et **Seedream 5.0 Pro**.
+- **Prix en ligne à jour** : Higgsfield a changé ses tarifs (Kling, Wan, Hailuo et Happy Horse plus chers, Seedance
+  et Cinema Studio 4.0 moins chers) ; les coûts affichés suivent.
+
+### In short
+- **Six new online models (Higgsfield)**: for video, **MiniMax H3 Lite** (the cheapest video, to look for an idea),
+  **MiniMax H3 Highspeed**, **Kling 4.0 Flash** (720p, fast) and **MAGI-2** (1080p up to 30 s, with sound); for
+  images, **Kling Image 4.0** (up to 8K) and **Seedream 5.0 Pro**.
+- **Online prices up to date**: Higgsfield changed its rates (Kling, Wan, Hailuo and Happy Horse cost more, Seedance
+  and Cinema Studio 4.0 less); the costs shown follow.
+
+### Pour les développeurs
+- Catalogue Higgsfield relevé le 25/11 (`tools/build-cloud-catalog.mjs`) : 43 familles, 95 workflows. Écartés :
+  les séries Kling Image (`/series`, 2 à 10 images payées alors que Mia n’en garde qu’une) et
+  `seedance-2.5/finalize-draft` (`draft_id`) ; le champ `draft` de Seedance 2.5 passe en « interface à venir ». Points
+  forts des 6 familles dans `cloud-strengths.json`. L’ancien MiniMax H3 n’est plus dans la console (gardé d’après la
+  doc, sans prix public).
+
 ## 0.10.2 — 24/11/2026
 
 ### En bref

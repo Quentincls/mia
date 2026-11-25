@@ -2,7 +2,7 @@
  "version": 2,
  "_doc": "Modèles en ligne de Higgsfield, relevés sur console.higgsfield.ai (liste, tarifs publics), dash.higgsfield.ai (schémas, notes) et docs.higgsfield.ai (appoint) par tools/build-cloud-catalog.mjs (SPEC §23). Ne pas éditer à la main : relancer l’outil (--renormalize sans réseau).",
  "source": "https://console.higgsfield.ai/explore + https://dash.higgsfield.ai/models/<slug>/llms.txt",
- "built": "2026-10-30",
+ "built": "2026-11-25",
  "api": {
   "base": "https://api.higgsfield.ai",
   "auth": "Authorization: Key {id}:{secret}",
@@ -115,12 +115,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.159,
-      "max": 0.816,
+      "min": 0.154,
+      "max": 0.8346,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Per-second pricing. Each second of input video costs $0.318 at 480p, $0.681 at 720p, $1.632 at 1080p. Input duration is rounded up to the nearest whole second. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.1540; 720p: $0.3446; 1080p: $0.8346. Billed duration is the source video duration rounded up to a whole second. Total price = selected rate × billed duration in seconds."
      }
     },
     {
@@ -197,12 +197,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.159,
-      "max": 0.816,
+      "min": 0.154,
+      "max": 0.8346,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Per-second pricing. Each second of input video costs $0.318 at 480p, $0.681 at 720p, $1.632 at 1080p. Input duration is rounded up to the nearest whole second. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.1540; 720p: $0.3446; 1080p: $0.8346. Billed duration is the source video duration rounded up to a whole second. Total price = selected rate × billed duration in seconds."
      }
     }
    ]
@@ -312,12 +312,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.025,
-      "max": 0.1,
+      "min": 0.0739,
+      "max": 0.2936,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Priced per total second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount. Billable seconds = output duration + the sum of input reference video durations. Input video durations are measured during preprocessing; without video references, only output duration is billed. Genjutsu Light trims the source to 15 seconds; output duration is rounded up to whole seconds before billing."
+      "note": "Price per second (output): 480p — $0.0739; 720p — $0.1471; 1080p — $0.2936."
      }
     },
     {
@@ -394,12 +394,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.025,
-      "max": 0.1,
+      "min": 0.0739,
+      "max": 0.2936,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Priced per total second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount. Billable seconds = output duration + the sum of input reference video durations. Input video durations are measured during preprocessing; without video references, only output duration is billed. Genjutsu Light trims the source to 15 seconds; output duration is rounded up to whole seconds before billing."
+      "note": "Price per second (output): 480p — $0.0739; 720p — $0.1471; 1080p — $0.2936."
      }
     }
    ]
@@ -590,12 +590,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0985,
-      "max": 1.0887,
+      "min": 0.0804,
+      "max": 0.8907,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Token-metered pricing. Billable video tokens = ceil(generated video seconds × output width × output height × 24 fps / 1024). Image and audio references do not count as video input. Per 1,000 video tokens: 480p/720p/1080p $0.014, 4K $0.008. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.0804; 720p: $0.1735; 1080p: $0.4293; 4K: $0.8907. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -704,12 +704,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0985,
-      "max": 1.0887,
+      "min": 0.0804,
+      "max": 0.8907,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Token-metered pricing. Billable video tokens = ceil(generated video seconds × output width × output height × 24 fps / 1024). Image and audio references do not count as video input. Per 1,000 video tokens: 480p/720p/1080p $0.014, 4K $0.008. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.0804; 720p: $0.1735; 1080p: $0.4293; 4K: $0.8907. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -882,12 +882,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.1182,
-      "max": 1.3064,
+      "min": 0.0991,
+      "max": 1.0669,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Token-metered pricing. Billable video tokens = ceil((input video seconds + generated video seconds) × output width × output height × 24 fps / 1024). Image and audio references do not count as video input. Per 1,000 video tokens: without video input — 480p/720p/1080p $0.014, 4K $0.008; with video input — 480p/720p/1080p $0.0084, 4K $0.0048 (0.6× the standard rate). With video references, both input and generated video durations are billable. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per second of generated video.\n\n- Without video input: 480p: $0.0804; 720p: $0.1735; 1080p: $0.4293; 4K: $0.8907.\n- With video input: 480p: $0.0991; 720p: $0.2128; 1080p: $0.5183; 4K: $1.0669.\n\nTotal price = selected rate × output duration in seconds. Input video duration is not added to the billed duration. Image or audio references alone use the rate without video input."
      }
     }
    ]
@@ -1126,15 +1126,23 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": [],
+     "unsupported": [
+      {
+       "field": "draft",
+       "reason": {
+        "fr": "brouillon 480p à finaliser ensuite par son numéro de calcul : interface à venir",
+        "en": "480p draft to finalise later from its request id: interface to come"
+       }
+      }
+     ],
      "notes": [],
      "price": {
-      "min": 0.144,
-      "max": 0.7961,
+      "min": 0.1177,
+      "max": 0.6518,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "For 16:9 video without video input, your request costs roughly $0.2056 per second of generated video at 480p, $0.4622 at 720p, and $1.1372 at 1080p. Each 1,000 video tokens costs $0.0214 at 480p or 720p and $0.0234 at 1080p. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.1177; 720p: $0.2647; 1080p: $0.6518. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -1260,15 +1268,23 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": [],
+     "unsupported": [
+      {
+       "field": "draft",
+       "reason": {
+        "fr": "brouillon 480p à finaliser ensuite par son numéro de calcul : interface à venir",
+        "en": "480p draft to finalise later from its request id: interface to come"
+       }
+      }
+     ],
      "notes": [],
      "price": {
-      "min": 0.144,
-      "max": 0.7961,
+      "min": 0.1177,
+      "max": 0.6518,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "For 16:9 video without video input, your request costs roughly $0.2056 per second of generated video at 480p, $0.4622 at 720p, and $1.1372 at 1080p. Each 1,000 video tokens costs $0.0214 at 480p or 720p and $0.0234 at 1080p. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.1177; 720p: $0.2647; 1080p: $0.6518. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -1459,15 +1475,23 @@
       }
      ],
      "promptRequired": false,
-     "unsupported": [],
+     "unsupported": [
+      {
+       "field": "draft",
+       "reason": {
+        "fr": "brouillon 480p à finaliser ensuite par son numéro de calcul : interface à venir",
+        "en": "480p draft to finalise later from its request id: interface to come"
+       }
+      }
+     ],
      "notes": [],
      "price": {
-      "min": 0.1728,
-      "max": 0.9553,
+      "min": 0.1387,
+      "max": 0.7858,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "For 16:9 video without video input, your request costs roughly $0.2056 per second of generated video at 480p, $0.4622 at 720p, and $1.1372 at 1080p. Each 1,000 video tokens costs $0.0214 at 480p or 720p and $0.0234 at 1080p. If video inputs are provided, the token rate is multiplied by 0.6: $0.01284 per 1,000 tokens at 480p or 720p and $0.01404 at 1080p. Both input and generated video durations are billable. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual p"
+      "note": "Standard self-serve rates in USD per second of generated video.\n\n- Without video input: 480p: $0.1177; 720p: $0.2647; 1080p: $0.6518.\n- With video input: 480p: $0.1387; 720p: $0.3264; 1080p: $0.7858.\n\nTotal price = selected rate × output duration in seconds. Input video duration is not added to the billed duration. Image or audio references alone use the rate without video input."
      }
     },
     {
@@ -1590,15 +1614,23 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": [],
+     "unsupported": [
+      {
+       "field": "draft",
+       "reason": {
+        "fr": "brouillon 480p à finaliser ensuite par son numéro de calcul : interface à venir",
+        "en": "480p draft to finalise later from its request id: interface to come"
+       }
+      }
+     ],
      "notes": [],
      "price": {
-      "min": 0.1728,
-      "max": 0.9553,
+      "min": 0.1387,
+      "max": 0.7858,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Video input is required. Each 1,000 video tokens costs $0.01284 at 480p or 720p and $0.01404 at 1080p (0.6× the no-video-input rate). For 16:9 output, this is roughly $0.1234 at 480p, $0.2773 at 720p, and $0.6823 at 1080p per second of combined input and generated video duration. Both input and generated video durations are billable. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are b"
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.1387; 720p: $0.3264; 1080p: $0.7858. The edited video duration is determined from the primary input video and rounded up to a whole second. Total price = selected rate × that duration in seconds; input duration is not added again."
      }
     },
     {
@@ -1736,15 +1768,23 @@
       }
      ],
      "promptRequired": true,
-     "unsupported": [],
+     "unsupported": [
+      {
+       "field": "draft",
+       "reason": {
+        "fr": "brouillon 480p à finaliser ensuite par son numéro de calcul : interface à venir",
+        "en": "480p draft to finalise later from its request id: interface to come"
+       }
+      }
+     ],
      "notes": [],
      "price": {
-      "min": 0.1728,
-      "max": 0.9553,
+      "min": 0.1387,
+      "max": 0.7858,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Video input is required. Each 1,000 video tokens costs $0.01284 at 480p or 720p and $0.01404 at 1080p (0.6× the no-video-input rate). For 16:9 output, this is roughly $0.1234 at 480p, $0.2773 at 720p, and $0.6823 at 1080p per second of combined input and generated video duration. Both input and generated video durations are billable. Billable video tokens = ceil(output height × output width × (input video duration + generated video duration) × 24 / 1024). Image and audio references do not count as video input. Actual pricing depends on output dimensions and billable duration. Rates shown are b"
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.1387; 720p: $0.3264; 1080p: $0.7858. Total price = selected rate × requested extension duration in seconds. The duration of the existing input video is not added to the billed duration."
      }
     }
    ]
@@ -1850,11 +1890,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.035,
-      "max": 0.035,
+      "min": 0.0525,
+      "max": 0.0525,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.0525. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -1970,19 +2011,20 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.021,
-      "max": 0.035,
+      "min": 0.0315,
+      "max": 0.0525,
       "unit": "second",
       "currency": "USD",
       "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.0525. Total price = selected rate × output duration in seconds.",
       "tiers": {
        "standard": {
-        "min": 0.021,
-        "max": 0.021
+        "min": 0.0315,
+        "max": 0.0315
        },
        "pro": {
-        "min": 0.035,
-        "max": 0.035
+        "min": 0.0525,
+        "max": 0.0525
        }
       }
      }
@@ -2126,11 +2168,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.035,
-      "max": 0.07,
+      "min": 0.0666,
+      "max": 0.1332,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.0666. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -2255,11 +2298,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.035,
-      "max": 0.07,
+      "min": 0.0666,
+      "max": 0.1332,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.0666. Total price = selected rate × output duration in seconds."
      }
     }
    ]
@@ -2398,19 +2442,20 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.035,
-      "max": 0.056,
+      "min": 0.0523,
+      "max": 0.0779,
       "unit": "second",
       "currency": "USD",
       "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.0779. Billed duration is the motion-reference video duration rounded to the nearest whole second. Total price = selected rate × billed duration in seconds.",
       "tiers": {
        "std": {
-        "min": 0.035,
-        "max": 0.035
+        "min": 0.0523,
+        "max": 0.0523
        },
        "pro": {
-        "min": 0.056,
-        "max": 0.056
+        "min": 0.0779,
+        "max": 0.0779
        }
       }
      }
@@ -2654,27 +2699,28 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.042,
-      "max": 0.21,
+      "min": 0.0714,
+      "max": 0.3151,
       "unit": "second",
       "currency": "USD",
       "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.0962. Total price = selected rate × output duration in seconds. For explicit multi-shot requests, output duration is the sum of the shot durations.",
       "tiers": {
        "turbo": {
-        "min": 0.056,
-        "max": 0.07
+        "min": 0.0839,
+        "max": 0.1049
        },
        "std": {
-        "min": 0.042,
-        "max": 0.042
+        "min": 0.0714,
+        "max": 0.0714
        },
        "pro": {
-        "min": 0.056,
-        "max": 0.084
+        "min": 0.0962,
+        "max": 0.1443
        },
        "4k": {
-        "min": 0.21,
-        "max": 0.21
+        "min": 0.3151,
+        "max": 0.3151
        }
       }
      }
@@ -2874,27 +2920,28 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.042,
-      "max": 0.21,
+      "min": 0.0714,
+      "max": 0.3151,
       "unit": "second",
       "currency": "USD",
       "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.0962. Total price = selected rate × output duration in seconds. For explicit multi-shot requests, output duration is the sum of the shot durations.",
       "tiers": {
        "turbo": {
-        "min": 0.056,
-        "max": 0.07
+        "min": 0.0839,
+        "max": 0.1049
        },
        "std": {
-        "min": 0.042,
-        "max": 0.063
+        "min": 0.0714,
+        "max": 0.1071
        },
        "pro": {
-        "min": 0.056,
-        "max": 0.084
+        "min": 0.0962,
+        "max": 0.1443
        },
        "4k": {
-        "min": 0.21,
-        "max": 0.21
+        "min": 0.3151,
+        "max": 0.3151
        }
       }
      }
@@ -3035,19 +3082,20 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.063,
-      "max": 0.084,
+      "min": 0.092,
+      "max": 0.1189,
       "unit": "second",
       "currency": "USD",
       "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 1080p: $0.1189. Billed duration is the motion-reference video duration rounded to the nearest whole second. Total price = selected rate × billed duration in seconds.",
       "tiers": {
        "std": {
-        "min": 0.063,
-        "max": 0.063
+        "min": 0.092,
+        "max": 0.092
        },
        "pro": {
-        "min": 0.084,
-        "max": 0.084
+        "min": 0.1189,
+        "max": 0.1189
        }
       }
      }
@@ -3239,11 +3287,12 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.042,
-      "max": 0.056,
+      "min": 0.0683,
+      "max": 0.086,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0683; 1080p: $0.0860. Total price = selected rate × output duration in seconds. For explicit multi-shot requests, output duration is the sum of the shot durations."
      }
     },
     {
@@ -3434,11 +3483,12 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.042,
-      "max": 0.042,
+      "min": 0.0683,
+      "max": 0.0683,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0683; 1080p: $0.0860. Total price = selected rate × output duration in seconds. For explicit multi-shot requests, output duration is the sum of the shot durations."
      }
     },
     {
@@ -3522,11 +3572,12 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.063,
-      "max": 0.063,
+      "min": 0.0945,
+      "max": 0.0945,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0945; 1080p: $0.1263. Billed duration is the source video duration rounded to the nearest whole second, capped at 15 seconds. Multi-shot requests use the sum of the specified shot durations. Total price = selected rate × billed duration in seconds; input duration is not added again."
      }
     },
     {
@@ -3652,11 +3703,12 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.063,
-      "max": 0.084,
+      "min": 0.0945,
+      "max": 0.1263,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0945; 1080p: $0.1263. Total price = selected rate × output duration in seconds. Input video duration is not added to the billed duration. For explicit multi-shot requests, output duration is the sum of the shot durations."
      }
     }
    ]
@@ -3823,11 +3875,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.042,
-      "max": 0.056,
+      "min": 0.0632,
+      "max": 0.0837,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0632; 1080p: $0.0837. Total price = selected rate × output duration in seconds. For explicit multi-shot requests, output duration is the sum of the shot durations."
      }
     },
     {
@@ -3945,11 +3998,12 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.042,
-      "max": 0.056,
+      "min": 0.0632,
+      "max": 0.0837,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0632; 1080p: $0.0837. Total price = selected rate × output duration in seconds. For explicit multi-shot requests, output duration is the sum of the shot durations."
      }
     },
     {
@@ -4026,11 +4080,12 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.063,
-      "max": 0.063,
+      "min": 0.0945,
+      "max": 0.0945,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0945; 1080p: $0.1252. Billed duration is the source video duration rounded to the nearest whole second, capped at 10 seconds. Multi-shot requests use the sum of the specified shot durations. Total price = selected rate × billed duration in seconds; input duration is not added again."
      }
     },
     {
@@ -4156,11 +4211,12 @@
      ],
      "notes": [],
      "price": {
-      "min": 0.063,
-      "max": 0.084,
+      "min": 0.0945,
+      "max": 0.1252,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0945; 1080p: $0.1252. Total price = selected rate × output duration in seconds. Input video duration is not added to the billed duration. For explicit multi-shot requests, output duration is the sum of the shot durations."
      }
     }
    ]
@@ -4267,6 +4323,13 @@
           "fr": "1080p",
           "en": "1080p"
          }
+        },
+        {
+         "value": "4k",
+         "label": {
+          "fr": "4K",
+          "en": "4K"
+         }
         }
        ]
       },
@@ -4310,6 +4373,33 @@
          }
         }
        ]
+      },
+      {
+       "id": "hf.dynamic_range",
+       "field": "dynamic_range",
+       "label": {
+        "fr": "Dynamic range",
+        "en": "Dynamic range"
+       },
+       "default": "sdr",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "sdr",
+         "label": {
+          "fr": "Sdr",
+          "en": "Sdr"
+         }
+        },
+        {
+         "value": "hdr",
+         "label": {
+          "fr": "Hdr",
+          "en": "Hdr"
+         }
+        }
+       ]
       }
      ],
      "promptRequired": true,
@@ -4322,11 +4412,12 @@
       "A non-empty prompt is required. Use one of the four listed aspect ratios; `adaptive` is not allowed for Text to Video."
      ],
      "price": {
-      "min": 0.1099,
-      "max": 0.1645,
+      "min": 0.1257,
+      "max": 0.549,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.1257; 1080p: $0.1879; 4K: $0.549. Total price = selected rate × output duration in seconds.\n\nHDR adds $0.047 per second of output video at 1080p or $0.078 at 4K, after base-price discounts, including fixed-price agreements. SDR has no additional charge."
      }
     },
     {
@@ -4412,6 +4503,40 @@
           "fr": "1080p",
           "en": "1080p"
          }
+        },
+        {
+         "value": "4k",
+         "label": {
+          "fr": "4K",
+          "en": "4K"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.dynamic_range",
+       "field": "dynamic_range",
+       "label": {
+        "fr": "Dynamic range",
+        "en": "Dynamic range"
+       },
+       "default": "sdr",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "sdr",
+         "label": {
+          "fr": "Sdr",
+          "en": "Sdr"
+         }
+        },
+        {
+         "value": "hdr",
+         "label": {
+          "fr": "Hdr",
+          "en": "Hdr"
+         }
         }
        ]
       }
@@ -4427,11 +4552,12 @@
       "The first frame is required even when middle or end frames are supplied. Nine or more middle frames are rejected. `aspect_ratio` is not a documented control for this mode."
      ],
      "price": {
-      "min": 0.1099,
-      "max": 0.1645,
+      "min": 0.1257,
+      "max": 0.549,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.1257; 1080p: $0.1879; 4K: $0.549. Total price = selected rate × output duration in seconds.\n\nHDR adds $0.047 per second of output video at 1080p or $0.078 at 4K, after base-price discounts, including fixed-price agreements. SDR has no additional charge."
      }
     },
     {
@@ -4547,6 +4673,13 @@
           "fr": "1080p",
           "en": "1080p"
          }
+        },
+        {
+         "value": "4k",
+         "label": {
+          "fr": "4K",
+          "en": "4K"
+         }
         }
        ]
       },
@@ -4597,6 +4730,33 @@
          }
         }
        ]
+      },
+      {
+       "id": "hf.dynamic_range",
+       "field": "dynamic_range",
+       "label": {
+        "fr": "Dynamic range",
+        "en": "Dynamic range"
+       },
+       "default": "sdr",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "sdr",
+         "label": {
+          "fr": "Sdr",
+          "en": "Sdr"
+         }
+        },
+        {
+         "value": "hdr",
+         "label": {
+          "fr": "Hdr",
+          "en": "Hdr"
+         }
+        }
+       ]
       }
      ],
      "promptRequired": true,
@@ -4616,12 +4776,12 @@
       "A prompt with no usable reference is invalid. An empty reference array does not satisfy the source requirement."
      ],
      "price": {
-      "min": 0.0658,
-      "max": 0.1645,
+      "min": 0.1257,
+      "max": 0.549,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Without input video: 720p $0.157/s, 1080p $0.235/s, charged on output duration. With input video: 720p $0.094/s, 1080p $0.141/s, charged on output duration + max(total input video duration, output duration). Input duration includes video elements and explicit videos after the 30-second trim."
+      "note": "Standard self-serve rates (USD). Per output second, without / with video input: 720p $0.1257 / $0.1544; 1080p $0.1879 / $0.2336.\n\n4K: $0.549/output s without video; with video, $0.329 × (output + max(input, output)), in seconds. Input totals reference videos and video elements after the 30s trim.\n\nHDR adds $0.047/output s at 1080p or $0.078 at 4K, after base-price discounts (including fixed-price agreements). SDR has no surcharge."
      }
     },
     {
@@ -4741,6 +4901,13 @@
           "fr": "1080p",
           "en": "1080p"
          }
+        },
+        {
+         "value": "4k",
+         "label": {
+          "fr": "4K",
+          "en": "4K"
+         }
         }
        ]
       },
@@ -4791,6 +4958,33 @@
          }
         }
        ]
+      },
+      {
+       "id": "hf.dynamic_range",
+       "field": "dynamic_range",
+       "label": {
+        "fr": "Dynamic range",
+        "en": "Dynamic range"
+       },
+       "default": "sdr",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "sdr",
+         "label": {
+          "fr": "Sdr",
+          "en": "Sdr"
+         }
+        },
+        {
+         "value": "hdr",
+         "label": {
+          "fr": "Hdr",
+          "en": "Hdr"
+         }
+        }
+       ]
       }
      ],
      "promptRequired": true,
@@ -4811,12 +5005,508 @@
       "A reference video in `video_urls` does not satisfy the required `video_url`. Keep the source and reference roles separate."
      ],
      "price": {
-      "min": 0.0658,
-      "max": 0.0987,
+      "min": 0.1544,
+      "max": 0.329,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Without input video: 720p $0.157/s, 1080p $0.235/s, charged on output duration. With input video: 720p $0.094/s, 1080p $0.141/s, charged on output duration + max(total input video duration, output duration). Input duration includes video elements and explicit videos after the 30-second trim."
+      "note": "Standard self-serve rates in USD.\n\n720p and 1080p are charged per second of output video:\n- Without video input: 720p: $0.1257; 1080p: $0.1879.\n- With video input: 720p: $0.1544; 1080p: $0.2336.\nInput video duration is not added to the billed duration at these resolutions.\n\n4K:\n- Without video input: $0.549 × output duration in seconds.\n- With video input: $0.329 × (output duration + max(total input video duration, output duration)), in seconds.\nInput video duration includes reference videos and video-based elements after the 30-second trim.\n\nHDR adds $0.047 per second of output video at 1080p"
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:kling-4-0-flash",
+   "provider": "higgsfield",
+   "kind": "video",
+   "maker": "Kling",
+   "mark": "KL",
+   "name": "Kling 4.0 Flash",
+   "desc": {
+    "fr": "Kling 4.0 rapide et moins cher, en 720p : texte, image de départ, références ou montage d’une vidéo.",
+    "en": "Faster, cheaper Kling 4.0, in 720p: text, start image, references or editing a video."
+   },
+   "doc": "https://dash.higgsfield.ai/models/kling-video/v4.0-flash/image-to-video/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "start": {
+     "multi": false,
+     "max": 1
+    },
+    "refs": {
+     "multi": true,
+     "max": 10
+    },
+    "refVideos": {
+     "multi": true,
+     "max": 5
+    },
+    "video": {
+     "multi": false,
+     "max": 1
+    }
+   },
+   "workflows": [
+    {
+     "id": "kling-video/v4.0-flash/text-to-video",
+     "label": {
+      "fr": "Vidéo depuis un texte",
+      "en": "Video from text"
+     },
+     "name": "Text to Video",
+     "endpoints": {
+      "default": "kling-video/v4.0-flash/text-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 20,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "720p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.094,
+      "max": 0.094,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "kling-video/v4.0-flash/image-to-video",
+     "label": {
+      "fr": "Animer une image",
+      "en": "Animate an image"
+     },
+     "name": "Image to Video",
+     "endpoints": {
+      "default": "kling-video/v4.0-flash/image-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [
+      "start"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 20,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "720p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": false,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.094,
+      "max": 0.094,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "kling-video/v4.0-flash/reference-to-video",
+     "label": {
+      "fr": "Vidéo à partir de références",
+      "en": "Video from references"
+     },
+     "name": "Reference to Video",
+     "endpoints": {
+      "default": "kling-video/v4.0-flash/reference-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 10,
+       "min": 0
+      },
+      "refVideos": {
+       "field": "video_urls",
+       "multi": true,
+       "max": 5,
+       "min": 0
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 20,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "720p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.094,
+      "max": 0.094,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "720p: without input video, $0.094 per output second. With input video, $0.063 per billable second. Billable duration = output duration + max(total input video duration, output duration). Explicit clips longer than 20 seconds are trimmed before measurement."
+     }
+    },
+    {
+     "id": "kling-video/v4.0-flash/video-edit",
+     "label": {
+      "fr": "Modifier une vidéo",
+      "en": "Edit a video"
+     },
+     "name": "Video Edit",
+     "endpoints": {
+      "default": "kling-video/v4.0-flash/video-edit"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "video": {
+       "field": "video_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 10,
+       "min": 0
+      },
+      "refVideos": {
+       "field": "video_urls",
+       "multi": true,
+       "max": 5,
+       "min": 0
+      }
+     },
+     "required": [
+      "video"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 10,
+       "advanced": false,
+       "kind": "slider",
+       "min": 3,
+       "max": 20,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "720p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "720p",
+         "label": {
+          "fr": "720p",
+          "en": "720p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.063,
+      "max": 0.063,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "720p: $0.063 per billable second. Billable duration = output duration + max(total input video duration, output duration). Total input duration includes the base video and video references; explicit clips longer than 20 seconds are trimmed before measurement."
      }
     }
    ]
@@ -4976,8 +5666,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.07,
-      "max": 0.14,
+      "min": 0.14,
+      "max": 0.28,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -5071,8 +5761,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.07,
-      "max": 0.14,
+      "min": 0.14,
+      "max": 0.28,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -5166,8 +5856,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.07,
-      "max": 0.14,
+      "min": 0.14,
+      "max": 0.28,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -5330,8 +6020,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.07,
-      "max": 0.09,
+      "min": 0.14,
+      "max": 0.18,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -5425,8 +6115,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.07,
-      "max": 0.09,
+      "min": 0.14,
+      "max": 0.18,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -5520,8 +6210,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.07,
-      "max": 0.09,
+      "min": 0.14,
+      "max": 0.18,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -5732,12 +6422,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.02,
-      "max": 0.08,
+      "min": 0.0375,
+      "max": 0.15,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Priced per generated second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.0375; 720p: $0.0750; 1080p: $0.1500. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -5918,12 +6608,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.02,
-      "max": 0.08,
+      "min": 0.0375,
+      "max": 0.15,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Priced per generated second by resolution: 480p $0.05, 720p $0.10, or 1080p $0.20. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.0375; 720p: $0.0750; 1080p: $0.1500. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -6149,12 +6839,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.02,
-      "max": 0.08,
+      "min": 0.0375,
+      "max": 0.15,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Priced per total video second: 480p $0.05/s, 720p $0.10/s, 1080p $0.20/s. Total billable duration = output video duration + the sum of all input reference video durations. Without input videos, only output duration is billed. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per second of generated video.\n\n- Without video input: 480p: $0.0375; 720p: $0.0750; 1080p: $0.1500.\n- With video input: 480p: $0.0747; 720p: $0.1493; 1080p: $0.3011.\n\nTotal price = selected rate × output duration in seconds. Input video duration is not added to the billed duration."
      }
     }
    ]
@@ -6362,11 +7052,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0272,
-      "max": 0.112,
+      "min": 0.051,
+      "max": 0.21,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.0510; 720p: $0.1050; 1080p: $0.2100. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -6547,11 +7238,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0272,
-      "max": 0.112,
+      "min": 0.051,
+      "max": 0.21,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.0510; 720p: $0.1050; 1080p: $0.2100. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -6777,12 +7469,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0272,
-      "max": 0.112,
+      "min": 0.051,
+      "max": 0.21,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "Priced per total video second: 480p $0.068/s, 720p $0.14/s, 1080p $0.28/s. Total billable duration = output video duration + the sum of all input reference video durations. Without input videos, only output duration is billed. Rates shown are before any applicable customer discount."
+      "note": "Standard self-serve rates in USD per second of generated video.\n\n- Without video input: 480p: $0.0510; 720p: $0.1050; 1080p: $0.2100.\n- With video input: 480p: $0.1013; 720p: $0.2084; 1080p: $0.4341.\n\nTotal price = selected rate × output duration in seconds. Input video duration is not added to the billed duration."
      }
     }
    ]
@@ -7898,8 +8590,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.2057,
-      "max": 0.4623,
+      "min": 0.1234,
+      "max": 0.2774,
       "unit": "second",
       "currency": "USD",
       "source": "public",
@@ -8608,7 +9300,7 @@
       "fr": "Vidéo depuis un texte",
       "en": "Video from text"
      },
-     "name": "Text to Video",
+     "name": "Text to video",
      "endpoints": {
       "default": "minimax/h3/text-to-video"
      },
@@ -8740,14 +9432,10 @@
      ],
      "promptRequired": true,
      "unsupported": [],
-     "notes": [],
-     "price": {
-      "min": 0.065,
-      "max": 0.065,
-      "unit": "second",
-      "currency": "USD",
-      "source": "public"
-     }
+     "notes": [
+      "Resolution is fixed to the case-sensitive schema value \"2K\". The prompt must contain non-whitespace text; the current provider serializer uses only its first 7,000 characters.",
+      "For text-only requests, aspect\\_ratio=\"auto\" or \"adaptive\" resolves to 16:9."
+     ]
     },
     {
      "id": "minimax/h3/image-to-video",
@@ -8755,7 +9443,7 @@
       "fr": "Animer une image",
       "en": "Animate an image"
      },
-     "name": "Image to Video",
+     "name": "Image to video",
      "endpoints": {
       "default": "minimax/h3/image-to-video"
      },
@@ -8901,14 +9589,10 @@
      ],
      "promptRequired": true,
      "unsupported": [],
-     "notes": [],
-     "price": {
-      "min": 0.065,
-      "max": 0.065,
-      "unit": "second",
-      "currency": "USD",
-      "source": "public"
-     }
+     "notes": [
+      "Resolution is fixed to the case-sensitive schema value \"2K\". The prompt must contain non-whitespace text; the current provider serializer uses only its first 7,000 characters.",
+      "The output aspect ratio follows the input keyframe even when aspect\\_ratio is supplied. end\\_image\\_url is an optional last frame."
+     ]
     },
     {
      "id": "minimax/h3/reference-to-video",
@@ -8916,7 +9600,7 @@
       "fr": "Vidéo à partir de références",
       "en": "Video from references"
      },
-     "name": "Reference to Video",
+     "name": "Reference to video",
      "endpoints": {
       "default": "minimax/h3/reference-to-video"
      },
@@ -9071,14 +9755,1114 @@
      ],
      "promptRequired": true,
      "unsupported": [],
-     "notes": [],
+     "notes": [
+      "Resolution is fixed to the case-sensitive schema value \"2K\". The prompt must contain non-whitespace text; the current provider serializer uses only its first 7,000 characters.",
+      "Provide at least one image or video reference. Audio references require an image or video reference and cannot be used alone.",
+      "Reference media may be cropped, resized, transcoded and trimmed. Video duration and audio duration are each normalized to fit within the provider's 15-second total budget."
+     ]
+    }
+   ]
+  },
+  {
+   "key": "hf:minimax-h3-highspeed",
+   "provider": "higgsfield",
+   "kind": "video",
+   "maker": "MiniMax",
+   "mark": "MM",
+   "name": "MiniMax H3 Highspeed",
+   "desc": {
+    "fr": "MiniMax H3 rapide, en 480p ou 768p : texte, images de début et de fin, ou références.",
+    "en": "Fast MiniMax H3, in 480p or 768p: text, start and end images, or references."
+   },
+   "doc": "https://dash.higgsfield.ai/models/minimax/h3-highspeed/image-to-video/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "start": {
+     "multi": false,
+     "max": 1
+    },
+    "end": {
+     "multi": false,
+     "max": 1
+    },
+    "refAudios": {
+     "multi": true,
+     "max": 3
+    },
+    "refs": {
+     "multi": true,
+     "max": 9
+    },
+    "refVideos": {
+     "multi": true,
+     "max": 3
+    }
+   },
+   "workflows": [
+    {
+     "id": "minimax/h3-highspeed/text-to-video",
+     "label": {
+      "fr": "Vidéo depuis un texte",
+      "en": "Video from text"
+     },
+     "name": "Text to Video",
+     "endpoints": {
+      "default": "minimax/h3-highspeed/text-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 15,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "768P",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480P",
+         "label": {
+          "fr": "480P",
+          "en": "480P"
+         }
+        },
+        {
+         "value": "768P",
+         "label": {
+          "fr": "768P",
+          "en": "768P"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "auto",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aigc_watermark",
+       "field": "aigc_watermark",
+       "label": {
+        "fr": "Filigrane « IA »",
+        "en": "“AI” watermark"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt` of at most 7,000 characters. `duration` is an integer from 4 to 15 seconds, including every whole-second value in that range; it defaults to 5. `resolution` accepts `480P` or `768P` and defaults to `768P`.",
+      "Use the `aspect_ratio` values listed in the parameter table. Where offered, `auto` and `adaptive` derive framing from the input; text-only requests fall back to `16:9`. `aigc_watermark` is fixed to `false`."
+     ],
      "price": {
-      "min": 0.065,
-      "max": 0.065,
+      "min": 0.04,
+      "max": 0.06,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "minimax/h3-highspeed/image-to-video",
+     "label": {
+      "fr": "Animer une image",
+      "en": "Animate an image"
+     },
+     "name": "Image to Video",
+     "endpoints": {
+      "default": "minimax/h3-highspeed/image-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "end": {
+       "field": "end_image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [],
+     "oneOf": [
+      [
+       "start",
+       "end"
+      ]
+     ],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 15,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "768P",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480P",
+         "label": {
+          "fr": "480P",
+          "en": "480P"
+         }
+        },
+        {
+         "value": "768P",
+         "label": {
+          "fr": "768P",
+          "en": "768P"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "auto",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aigc_watermark",
+       "field": "aigc_watermark",
+       "label": {
+        "fr": "Filigrane « IA »",
+        "en": "“AI” watermark"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt` of at most 7,000 characters. `duration` is an integer from 4 to 15 seconds, including every whole-second value in that range; it defaults to 5. `resolution` accepts `480P` or `768P` and defaults to `768P`.",
+      "Provide `image_url` for the first frame, `end_image_url` for the last frame, or both. At least one frame is required. Output framing adapts to the supplied keyframe.",
+      "Use the `aspect_ratio` values listed in the parameter table. Where offered, `auto` and `adaptive` derive framing from the input; text-only requests fall back to `16:9`. `aigc_watermark` is fixed to `false`.",
+      "Use URLs accessible to the service. The documentation examples use placeholder media URLs; replace them with your own image or media URL before sending a request."
+     ],
+     "price": {
+      "min": 0.04,
+      "max": 0.06,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "minimax/h3-highspeed/reference-to-video",
+     "label": {
+      "fr": "Vidéo à partir de références",
+      "en": "Video from references"
+     },
+     "name": "Reference to Video",
+     "endpoints": {
+      "default": "minimax/h3-highspeed/reference-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "refAudios": {
+       "field": "audio_urls",
+       "multi": true,
+       "max": 3,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 9,
+       "min": 0
+      },
+      "refVideos": {
+       "field": "video_urls",
+       "multi": true,
+       "max": 3,
+       "min": 0
+      }
+     },
+     "required": [],
+     "oneOf": [
+      [
+       "refs",
+       "refVideos",
+       "refAudios"
+      ]
+     ],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 15,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "768P",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480P",
+         "label": {
+          "fr": "480P",
+          "en": "480P"
+         }
+        },
+        {
+         "value": "768P",
+         "label": {
+          "fr": "768P",
+          "en": "768P"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "auto",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aigc_watermark",
+       "field": "aigc_watermark",
+       "label": {
+        "fr": "Filigrane « IA »",
+        "en": "“AI” watermark"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt` of at most 7,000 characters. `duration` is an integer from 4 to 15 seconds, including every whole-second value in that range; it defaults to 5. `resolution` accepts `480P` or `768P` and defaults to `768P`.",
+      "Provide at least one non-empty reference list: `image_urls` (up to 9), `video_urls` (up to 3), or `audio_urls` (up to 3). These references guide the generation; they are not first or last keyframes. Use the Image to Video variant for keyframe control.",
+      "Reference media is prepared before generation. Video clips may be resized, transcoded, trimmed or extended; the prepared video references have a combined duration of at most 14.8 seconds. Input-video charges use that prepared duration, which can differ from the original files.",
+      "Use the `aspect_ratio` values listed in the parameter table. Where offered, `auto` and `adaptive` derive framing from the input; text-only requests fall back to `16:9`. `aigc_watermark` is fixed to `false`.",
+      "Use URLs accessible to the service. The documentation examples use placeholder media URLs; replace them with your own image or media URL before sending a request."
+     ],
+     "price": {
+      "min": 0.04,
+      "max": 0.06,
       "unit": "second",
       "currency": "USD",
       "source": "public",
-      "note": "2K output costs $0.13 per generated second. The first five reference images are included; each additional reference image costs $0.08. Rates shown are before any applicable customer discount."
+      "note": "480P: $0.04 per second of output video and prepared input video. 768P: $0.06 per second of output video and prepared input video. The first 5 reference images are included; each additional image costs $0.03. Audio references have no separate charge. Total = (output seconds + prepared input-video seconds) × the selected per-second rate + additional-image charges. Input-video duration is measured after preprocessing, which may trim or extend the clips."
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:minimax-h3-lite",
+   "provider": "higgsfield",
+   "kind": "video",
+   "maker": "MiniMax",
+   "mark": "MM",
+   "name": "MiniMax H3 Lite",
+   "desc": {
+    "fr": "Le MiniMax H3 le moins cher, en 480p ou 768p : texte, images de début et de fin, ou références.",
+    "en": "The cheapest MiniMax H3, in 480p or 768p: text, start and end images, or references."
+   },
+   "doc": "https://dash.higgsfield.ai/models/minimax/h3-lite/image-to-video/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "start": {
+     "multi": false,
+     "max": 1
+    },
+    "end": {
+     "multi": false,
+     "max": 1
+    },
+    "refAudios": {
+     "multi": true,
+     "max": 3
+    },
+    "refs": {
+     "multi": true,
+     "max": 9
+    },
+    "refVideos": {
+     "multi": true,
+     "max": 3
+    }
+   },
+   "workflows": [
+    {
+     "id": "minimax/h3-lite/text-to-video",
+     "label": {
+      "fr": "Vidéo depuis un texte",
+      "en": "Video from text"
+     },
+     "name": "Text to Video",
+     "endpoints": {
+      "default": "minimax/h3-lite/text-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 15,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "768P",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480P",
+         "label": {
+          "fr": "480P",
+          "en": "480P"
+         }
+        },
+        {
+         "value": "768P",
+         "label": {
+          "fr": "768P",
+          "en": "768P"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aigc_watermark",
+       "field": "aigc_watermark",
+       "label": {
+        "fr": "Filigrane « IA »",
+        "en": "“AI” watermark"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt` of at most 7,000 characters. `duration` is an integer from 4 to 15 seconds, including every whole-second value in that range; it defaults to 5. `resolution` accepts `480P` or `768P` and defaults to `768P`.",
+      "Use the `aspect_ratio` values listed in the parameter table. Where offered, `auto` and `adaptive` derive framing from the input; text-only requests fall back to `16:9`. `aigc_watermark` is fixed to `false`."
+     ],
+     "price": {
+      "min": 0.025,
+      "max": 0.04,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "minimax/h3-lite/image-to-video",
+     "label": {
+      "fr": "Animer une image",
+      "en": "Animate an image"
+     },
+     "name": "Image to Video",
+     "endpoints": {
+      "default": "minimax/h3-lite/image-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "end": {
+       "field": "end_image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [],
+     "oneOf": [
+      [
+       "start",
+       "end"
+      ]
+     ],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 15,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "768P",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480P",
+         "label": {
+          "fr": "480P",
+          "en": "480P"
+         }
+        },
+        {
+         "value": "768P",
+         "label": {
+          "fr": "768P",
+          "en": "768P"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        },
+        {
+         "value": "adaptive",
+         "label": {
+          "fr": "Adapté",
+          "en": "Adaptive"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aigc_watermark",
+       "field": "aigc_watermark",
+       "label": {
+        "fr": "Filigrane « IA »",
+        "en": "“AI” watermark"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt` of at most 7,000 characters. `duration` is an integer from 4 to 15 seconds, including every whole-second value in that range; it defaults to 5. `resolution` accepts `480P` or `768P` and defaults to `768P`.",
+      "Provide `image_url` for the first frame, `end_image_url` for the last frame, or both. At least one frame is required. Output framing adapts to the supplied keyframe.",
+      "Use the `aspect_ratio` values listed in the parameter table. Where offered, `auto` and `adaptive` derive framing from the input; text-only requests fall back to `16:9`. `aigc_watermark` is fixed to `false`.",
+      "Use URLs accessible to the service. The documentation examples use placeholder media URLs; replace them with your own image or media URL before sending a request."
+     ],
+     "price": {
+      "min": 0.025,
+      "max": 0.04,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "minimax/h3-lite/reference-to-video",
+     "label": {
+      "fr": "Vidéo à partir de références",
+      "en": "Video from references"
+     },
+     "name": "Reference to Video",
+     "endpoints": {
+      "default": "minimax/h3-lite/reference-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "refAudios": {
+       "field": "audio_urls",
+       "multi": true,
+       "max": 3,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 9,
+       "min": 0
+      },
+      "refVideos": {
+       "field": "video_urls",
+       "multi": true,
+       "max": 3,
+       "min": 0
+      }
+     },
+     "required": [],
+     "oneOf": [
+      [
+       "refs",
+       "refVideos",
+       "refAudios"
+      ]
+     ],
+     "params": [
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 15,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "768P",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "480P",
+         "label": {
+          "fr": "480P",
+          "en": "480P"
+         }
+        },
+        {
+         "value": "768P",
+         "label": {
+          "fr": "768P",
+          "en": "768P"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aigc_watermark",
+       "field": "aigc_watermark",
+       "label": {
+        "fr": "Filigrane « IA »",
+        "en": "“AI” watermark"
+       },
+       "default": false,
+       "advanced": true,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt` of at most 7,000 characters. `duration` is an integer from 4 to 15 seconds, including every whole-second value in that range; it defaults to 5. `resolution` accepts `480P` or `768P` and defaults to `768P`.",
+      "Provide at least one non-empty reference list: `image_urls` (up to 9), `video_urls` (up to 3), or `audio_urls` (up to 3). These references guide the generation; they are not first or last keyframes. Use the Image to Video variant for keyframe control.",
+      "Reference media is prepared before generation. Video clips may be resized, transcoded, trimmed or extended; the prepared video references have a combined duration of at most 14.8 seconds. Input-video charges use that prepared duration, which can differ from the original files.",
+      "Use the `aspect_ratio` values listed in the parameter table. Where offered, `auto` and `adaptive` derive framing from the input; text-only requests fall back to `16:9`. `aigc_watermark` is fixed to `false`.",
+      "Use URLs accessible to the service. The documentation examples use placeholder media URLs; replace them with your own image or media URL before sending a request."
+     ],
+     "price": {
+      "min": 0.025,
+      "max": 0.04,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "480P: $0.025 per second of output video and prepared input video. 768P: $0.04 per second of output video and prepared input video. The first 5 reference images are included; each additional image costs $0.02. Audio references have no separate charge. Total = (output seconds + prepared input-video seconds) × the selected per-second rate + additional-image charges. Input-video duration is measured after preprocessing, which may trim or extend the clips."
      }
     }
    ]
@@ -9169,8 +10953,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0117,
-      "max": 0.014,
+      "min": 0.0467,
+      "max": 0.056,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -9247,8 +11031,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0117,
-      "max": 0.014,
+      "min": 0.0467,
+      "max": 0.056,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -9447,8 +11231,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0298,
-      "max": 0.0978,
+      "min": 0.035,
+      "max": 0.115,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -9584,8 +11368,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0298,
-      "max": 0.0978,
+      "min": 0.035,
+      "max": 0.115,
       "unit": "second",
       "currency": "USD",
       "source": "public"
@@ -9751,11 +11535,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.05,
-      "max": 0.075,
+      "min": 0.0752,
+      "max": 0.1129,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0752; 1080p: $0.1129. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -9911,11 +11696,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.05,
-      "max": 0.075,
+      "min": 0.0752,
+      "max": 0.1129,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 480p: $0.1000; 720p: $0.0752; 1080p: $0.1129. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -10053,11 +11839,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.05,
-      "max": 0.075,
+      "min": 0.0752,
+      "max": 0.1129,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0752; 1080p: $0.1129. Total price = selected rate × output duration in seconds."
      }
     }
    ]
@@ -10257,11 +12044,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.05,
-      "max": 0.075,
+      "min": 0.075,
+      "max": 0.1125,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0750; 1080p: $0.1125. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -10386,11 +12174,12 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.05,
-      "max": 0.075,
+      "min": 0.075,
+      "max": 0.1125,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0750; 1080p: $0.1125. Total price = selected rate × output duration in seconds."
      }
     },
     {
@@ -10539,11 +12328,526 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.05,
-      "max": 0.075,
+      "min": 0.075,
+      "max": 0.1125,
       "unit": "second",
       "currency": "USD",
-      "source": "public"
+      "source": "public",
+      "note": "Standard self-serve rates in USD per video second: 720p: $0.0750; 1080p: $0.1125. Total price = selected rate × output duration in seconds."
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:magi-2",
+   "provider": "higgsfield",
+   "kind": "video",
+   "maker": "Sand AI",
+   "mark": "SA",
+   "name": "MAGI-2",
+   "desc": {
+    "fr": "Vidéo 1080p jusqu’à 30 s, avec le son si tu veux : texte, images de début et de fin, ou références.",
+    "en": "1080p video up to 30 s, with sound if you want: text, start and end images, or references."
+   },
+   "doc": "https://dash.higgsfield.ai/models/sand/magi-2/image-to-video/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "start": {
+     "multi": false,
+     "max": 1
+    },
+    "end": {
+     "multi": false,
+     "max": 1
+    },
+    "refAudios": {
+     "multi": true,
+     "max": 5
+    },
+    "refs": {
+     "multi": true,
+     "max": 10
+    },
+    "refVideos": {
+     "multi": true,
+     "max": 5
+    }
+   },
+   "workflows": [
+    {
+     "id": "sand/magi-2/text-to-video",
+     "label": {
+      "fr": "Vidéo depuis un texte",
+      "en": "Video from text"
+     },
+     "name": "Text to Video",
+     "endpoints": {
+      "default": "sand/magi-2/text-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.seed",
+       "field": "seed",
+       "label": {
+        "fr": "Graine",
+        "en": "Seed"
+       },
+       "default": null,
+       "advanced": true,
+       "kind": "seed",
+       "min": 0,
+       "max": 4294967295
+      },
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 30,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "1080p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.generate_audio",
+       "field": "generate_audio",
+       "label": {
+        "fr": "Son",
+        "en": "Sound"
+       },
+       "default": true,
+       "advanced": false,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.08,
+      "max": 0.08,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "USD 0.08/sec. 1 concurrent generation per account across all MAGI-2 modes. Contact sales to increase the limit."
+     }
+    },
+    {
+     "id": "sand/magi-2/image-to-video",
+     "label": {
+      "fr": "Animer une image",
+      "en": "Animate an image"
+     },
+     "name": "Image to Video",
+     "endpoints": {
+      "default": "sand/magi-2/image-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "start": {
+       "field": "image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      },
+      "end": {
+       "field": "end_image_url",
+       "multi": false,
+       "max": 1,
+       "min": 0
+      }
+     },
+     "required": [
+      "start"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.seed",
+       "field": "seed",
+       "label": {
+        "fr": "Graine",
+        "en": "Seed"
+       },
+       "default": null,
+       "advanced": true,
+       "kind": "seed",
+       "min": 0,
+       "max": 4294967295
+      },
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 30,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "1080p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.generate_audio",
+       "field": "generate_audio",
+       "label": {
+        "fr": "Son",
+        "en": "Sound"
+       },
+       "default": true,
+       "advanced": false,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": false,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.08,
+      "max": 0.08,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "USD 0.08/sec. 1 concurrent generation per account across all MAGI-2 modes. Contact sales to increase the limit."
+     }
+    },
+    {
+     "id": "sand/magi-2/reference-to-video",
+     "label": {
+      "fr": "Vidéo à partir de références",
+      "en": "Video from references"
+     },
+     "name": "Reference to Video",
+     "endpoints": {
+      "default": "sand/magi-2/reference-to-video"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "refAudios": {
+       "field": "audio_urls",
+       "multi": true,
+       "max": 5,
+       "min": 0
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 10,
+       "min": 0
+      },
+      "refVideos": {
+       "field": "video_urls",
+       "multi": true,
+       "max": 5,
+       "min": 0
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.seed",
+       "field": "seed",
+       "label": {
+        "fr": "Graine",
+        "en": "Seed"
+       },
+       "default": null,
+       "advanced": true,
+       "kind": "seed",
+       "min": 0,
+       "max": 4294967295
+      },
+      {
+       "id": "hf.duration",
+       "field": "duration",
+       "label": {
+        "fr": "Durée",
+        "en": "Duration"
+       },
+       "default": 5,
+       "advanced": false,
+       "kind": "slider",
+       "min": 4,
+       "max": 30,
+       "step": 1,
+       "unit": "s"
+      },
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "1080p",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "1080p",
+         "label": {
+          "fr": "1080p",
+          "en": "1080p"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "16:9",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.generate_audio",
+       "field": "generate_audio",
+       "label": {
+        "fr": "Son",
+        "en": "Sound"
+       },
+       "default": true,
+       "advanced": false,
+       "kind": "toggle"
+      }
+     ],
+     "promptRequired": false,
+     "unsupported": [],
+     "notes": [],
+     "price": {
+      "min": 0.08,
+      "max": 0.08,
+      "unit": "second",
+      "currency": "USD",
+      "source": "public",
+      "note": "USD 0.08/sec. 1 concurrent generation per account across all MAGI-2 modes. Contact sales to increase the limit."
      }
     }
    ]
@@ -11828,8 +14132,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0138,
-      "max": 0.6136,
+      "min": 0.0162,
+      "max": 0.7219,
       "unit": "image",
       "currency": "USD",
       "source": "public"
@@ -12077,8 +14381,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0107,
-      "max": 0.6136,
+      "min": 0.0126,
+      "max": 0.7219,
       "unit": "image",
       "currency": "USD",
       "source": "public",
@@ -12327,8 +14631,8 @@
      "unsupported": [],
      "notes": [],
      "price": {
-      "min": 0.0107,
-      "max": 0.6136,
+      "min": 0.0126,
+      "max": 0.7219,
       "unit": "image",
       "currency": "USD",
       "source": "public",
@@ -12535,6 +14839,654 @@
       "currency": "USD",
       "source": "public",
       "note": "Per 1M tokens: text input $5, cached text input $1.25, text output $10; image input $8, cached image input $2, image output $30. Quality defaults to high. Final cost uses actual token usage and standard credit rounding. The initial charge is an estimate reconciled on completion."
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:seedream-5-0-pro",
+   "provider": "higgsfield",
+   "kind": "image",
+   "maker": "ByteDance",
+   "mark": "BD",
+   "name": "Seedream 5.0 Pro",
+   "desc": {
+    "fr": "Images jusqu’en 2K depuis un texte, ou retouche en mêlant jusqu’à 10 images.",
+    "en": "Images up to 2K from text, or edits blending up to 10 images."
+   },
+   "doc": "https://dash.higgsfield.ai/models/bytedance/seedream/v5.0/pro/edit/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "refs": {
+     "multi": true,
+     "max": 10
+    }
+   },
+   "workflows": [
+    {
+     "id": "bytedance/seedream/v5.0/text-to-image",
+     "label": {
+      "fr": "Image depuis un texte",
+      "en": "Image from text"
+     },
+     "name": "Text to Image",
+     "endpoints": {
+      "pro": "bytedance/seedream/v5.0/pro/text-to-image"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "2k",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "1k",
+         "label": {
+          "fr": "1K",
+          "en": "1K"
+         }
+        },
+        {
+         "value": "1.5k",
+         "label": {
+          "fr": "1.5k",
+          "en": "1.5k"
+         }
+        },
+        {
+         "value": "2k",
+         "label": {
+          "fr": "2K",
+          "en": "2K"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "1:1",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "3:2",
+         "label": {
+          "fr": "3:2",
+          "en": "3:2"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "2:3",
+         "label": {
+          "fr": "2:3",
+          "en": "2:3"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt`. Choose `resolution` from `1k`, `1.5k` or `2k` (default `2k`) and an `aspect_ratio` (default `1:1`). This endpoint returns one image; use the Image Edit variant to supply reference images."
+     ],
+     "price": {
+      "min": 0.054,
+      "max": 0.108,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "bytedance/seedream/v5.0/edit",
+     "label": {
+      "fr": "Retoucher une image",
+      "en": "Edit an image"
+     },
+     "name": "Image Edit",
+     "endpoints": {
+      "pro": "bytedance/seedream/v5.0/pro/edit"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 10,
+       "min": 1
+      }
+     },
+     "required": [
+      "refs"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "2k",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "1k",
+         "label": {
+          "fr": "1K",
+          "en": "1K"
+         }
+        },
+        {
+         "value": "1.5k",
+         "label": {
+          "fr": "1.5k",
+          "en": "1.5k"
+         }
+        },
+        {
+         "value": "2k",
+         "label": {
+          "fr": "2K",
+          "en": "2K"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "1:1",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "3:2",
+         "label": {
+          "fr": "3:2",
+          "en": "3:2"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "2:3",
+         "label": {
+          "fr": "2:3",
+          "en": "2:3"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Provide a non-empty `prompt` and 1–10 URLs in `image_urls`. Describe the intended edits and how each reference should be used. Choose `resolution` from `1k`, `1.5k` or `2k` (default `2k`); `aspect_ratio` defaults to `1:1`. This endpoint produces one image and does not expose layer separation."
+     ],
+     "price": {
+      "min": 0.054,
+      "max": 0.108,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
+    }
+   ]
+  },
+  {
+   "key": "hf:kling-image-4-0",
+   "provider": "higgsfield",
+   "kind": "image",
+   "maker": "Kling",
+   "mark": "KL",
+   "name": "Kling Image 4.0",
+   "desc": {
+    "fr": "Images très détaillées jusqu’en 8K depuis un texte, ou retouche avec jusqu’à 10 images.",
+    "en": "Highly detailed images up to 8K from text, or edits with up to 10 images."
+   },
+   "doc": "https://dash.higgsfield.ai/models/kling-image/v4.0/edit/llms.txt",
+   "ports": {
+    "prompt": {
+     "multi": false,
+     "max": 1
+    },
+    "refs": {
+     "multi": true,
+     "max": 10
+    }
+   },
+   "workflows": [
+    {
+     "id": "kling-image/v4.0/text-to-image",
+     "label": {
+      "fr": "Image depuis un texte",
+      "en": "Image from text"
+     },
+     "name": "Text to Image",
+     "endpoints": {
+      "default": "kling-image/v4.0/text-to-image"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      }
+     },
+     "required": [],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "2k",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "2k",
+         "label": {
+          "fr": "2K",
+          "en": "2K"
+         }
+        },
+        {
+         "value": "4k",
+         "label": {
+          "fr": "4K",
+          "en": "4K"
+         }
+        },
+        {
+         "value": "8k",
+         "label": {
+          "fr": "8K",
+          "en": "8K"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "auto",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "3:2",
+         "label": {
+          "fr": "3:2",
+          "en": "3:2"
+         }
+        },
+        {
+         "value": "2:3",
+         "label": {
+          "fr": "2:3",
+          "en": "2:3"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "notes": [
+      "Use a non-empty `prompt` of at most 50,000 characters. `resolution` accepts `2k`, `4k` or `8k` and defaults to `2k`. `aspect_ratio` defaults to `auto`; supported values are listed above.",
+      "This endpoint generates one image. Use the separate Series variant for 2–10 related images; this endpoint has no series-count parameter."
+     ],
+     "price": {
+      "min": 0.063,
+      "max": 0.157,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
+     }
+    },
+    {
+     "id": "kling-image/v4.0/edit",
+     "label": {
+      "fr": "Retoucher une image",
+      "en": "Edit an image"
+     },
+     "name": "Image Edit",
+     "endpoints": {
+      "default": "kling-image/v4.0/edit"
+     },
+     "ports": {
+      "prompt": {
+       "field": "prompt",
+       "multi": false,
+       "max": 1
+      },
+      "refs": {
+       "field": "image_urls",
+       "multi": true,
+       "max": 10,
+       "min": 1
+      }
+     },
+     "required": [
+      "refs"
+     ],
+     "oneOf": [],
+     "params": [
+      {
+       "id": "hf.resolution",
+       "field": "resolution",
+       "label": {
+        "fr": "Résolution",
+        "en": "Resolution"
+       },
+       "default": "2k",
+       "advanced": false,
+       "kind": "seg",
+       "options": [
+        {
+         "value": "2k",
+         "label": {
+          "fr": "2K",
+          "en": "2K"
+         }
+        },
+        {
+         "value": "4k",
+         "label": {
+          "fr": "4K",
+          "en": "4K"
+         }
+        },
+        {
+         "value": "8k",
+         "label": {
+          "fr": "8K",
+          "en": "8K"
+         }
+        }
+       ]
+      },
+      {
+       "id": "hf.aspect_ratio",
+       "field": "aspect_ratio",
+       "label": {
+        "fr": "Format",
+        "en": "Aspect ratio"
+       },
+       "default": "auto",
+       "advanced": false,
+       "kind": "select",
+       "options": [
+        {
+         "value": "16:9",
+         "label": {
+          "fr": "16:9",
+          "en": "16:9"
+         }
+        },
+        {
+         "value": "9:16",
+         "label": {
+          "fr": "9:16",
+          "en": "9:16"
+         }
+        },
+        {
+         "value": "1:1",
+         "label": {
+          "fr": "1:1",
+          "en": "1:1"
+         }
+        },
+        {
+         "value": "4:3",
+         "label": {
+          "fr": "4:3",
+          "en": "4:3"
+         }
+        },
+        {
+         "value": "3:4",
+         "label": {
+          "fr": "3:4",
+          "en": "3:4"
+         }
+        },
+        {
+         "value": "3:2",
+         "label": {
+          "fr": "3:2",
+          "en": "3:2"
+         }
+        },
+        {
+         "value": "2:3",
+         "label": {
+          "fr": "2:3",
+          "en": "2:3"
+         }
+        },
+        {
+         "value": "21:9",
+         "label": {
+          "fr": "21:9",
+          "en": "21:9"
+         }
+        },
+        {
+         "value": "auto",
+         "label": {
+          "fr": "Auto",
+          "en": "Auto"
+         }
+        }
+       ]
+      }
+     ],
+     "promptRequired": true,
+     "unsupported": [],
+     "cite": {
+      "image": "@image_{n}"
+     },
+     "notes": [
+      "Use a non-empty `prompt` of at most 50,000 characters. `resolution` accepts `2k`, `4k` or `8k` and defaults to `2k`. `aspect_ratio` defaults to `auto`; supported values are listed above.",
+      "Supply 1–10 JPG or PNG URLs in `image_urls`. Each image must be at most 30 MB, at least 300 pixels on each side, with an aspect ratio between 2:5 and 5:2. Refer to images in the prompt as `@image_1`, `@image_2`, and so on.",
+      "This endpoint generates one image. Use the separate Series variant for 2–10 related images; this endpoint has no series-count parameter."
+     ],
+     "price": {
+      "min": 0.063,
+      "max": 0.157,
+      "unit": "image",
+      "currency": "USD",
+      "source": "public"
      }
     }
    ]
@@ -14610,6 +17562,20 @@
    }
   },
   {
+   "id": "kling-image/v4.0/edit/series",
+   "reason": {
+    "fr": "série de 2 à 10 images payées chacune : Mia n’en garde qu’une par calcul",
+    "en": "a series of 2 to 10 images, each one paid: Mia keeps only one per run"
+   }
+  },
+  {
+   "id": "kling-image/v4.0/text-to-image/series",
+   "reason": {
+    "fr": "série de 2 à 10 images payées chacune : Mia n’en garde qu’une par calcul",
+    "en": "a series of 2 to 10 images, each one paid: Mia keeps only one per run"
+   }
+  },
+  {
    "id": "soul-id",
    "reason": {
     "fr": "entraînement d’un visage, pas une génération",
@@ -14678,6 +17644,14 @@
    "reason": {
     "fr": "demande un préréglage Higgsfield (identifiant) que Mia ne sait pas lister",
     "en": "needs a Higgsfield preset id that Mia cannot list"
+   }
+  },
+  {
+   "id": "bytedance/seedance-2.5/finalize-draft",
+   "field": "draft_id",
+   "reason": {
+    "fr": "finalise un brouillon Seedance par son numéro de calcul, que Mia ne garde pas encore",
+    "en": "finalises a Seedance draft from its request id, which Mia does not keep yet"
    }
   }
  ]
