@@ -10,7 +10,7 @@ Chaque version commence par **En bref** (en français) et **In short** (en angla
 celles que Mia affiche dans « Nouveautés ». Suivent le détail (Ajouté, Changé, Corrigé) et, à la fin, ce qui ne
 concerne que les développeurs.
 
-## À venir
+## 0.12.0 — 26/11/2026
 
 ### En bref
 - **MiniMax jusqu’à 3 fois plus rapide** : un nouveau réglage **Rendu** sur MiniMax (animer une image, partir d’un
